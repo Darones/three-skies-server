@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3 uid="uid://arena_scene"]
+
+[ext_resource type="Material" path="res://assets/materials/arena_gray.material" id="1_mat"]
+
+[node name="Arena" type="Node3D"]
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = PlaneMesh {
+  "size": Vector2(40, 40)
+}
+material/0 = ExtResource("1_mat")

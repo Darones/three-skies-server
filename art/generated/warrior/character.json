@@ -1,0 +1,160 @@
+{
+  "id": "character-7debea64-e629-4668-8c2a-5477a780b0bc",
+  "rig": {
+    "path": "res://art/generated/warrior/rig.glb",
+    "assetId": "7debea64-e629-4668-8c2a-5477a780b0bc",
+    "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744646/summer_3d/character_7debea64-e629-4668-8c2a-5477a780b0bc_runtime_1793744645413_xtay9wjx.glb",
+    "sourceFileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744630/summer_3d/rig_image-to-3d-zc7eqo-animation-batch_1793744629830_l9nq2cxq.glb",
+    "artifactFingerprint": "publicId:summer_3d/character_7debea64-e629-4668-8c2a-5477a780b0bc_runtime_1793744645413_xtay9wjx.glb"
+  },
+  "status": "ready",
+  "version": 2,
+  "provider": {
+    "mode": "managed",
+    "name": "fal",
+    "rigTaskId": "01a1a381-a56c-70aa-9cdd-67177d84ec0e"
+  },
+  "animations": [
+    {
+      "id": "animation-7debea64-e629-4668-8c2a-5477a780b0bc-11",
+      "loop": true,
+      "name": "Idle",
+      "path": "res://art/generated/warrior/rig.glb",
+      "assetId": "4fbd8b8d-fe98-4a9d-bc11-438ae1ac8eee",
+      "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744635/summer_animations/animation_image-to-3d-zc7eqo-11_1793744634454_jn2te78z.glb",
+      "actionId": 11,
+      "description": "Idle animation for Warrior of Light.",
+      "semanticRole": "idle",
+      "artifactFingerprint": "assetId:4fbd8b8d-fe98-4a9d-bc11-438ae1ac8eee"
+    },
+    {
+      "id": "animation-7debea64-e629-4668-8c2a-5477a780b0bc-1",
+      "loop": true,
+      "name": "Walk",
+      "path": "res://art/generated/warrior/rig.glb",
+      "assetId": "2bc84c8c-6396-4431-ad0a-65eed13aaad5",
+      "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744638/summer_animations/animation_image-to-3d-zc7eqo-1_1793744637708_rc6s7vgy.glb",
+      "actionId": 1,
+      "description": "Walk animation for Warrior of Light.",
+      "semanticRole": "walk",
+      "artifactFingerprint": "assetId:2bc84c8c-6396-4431-ad0a-65eed13aaad5"
+    },
+    {
+      "id": "animation-7debea64-e629-4668-8c2a-5477a780b0bc-15",
+      "loop": true,
+      "name": "Run",
+      "path": "res://art/generated/warrior/rig.glb",
+      "assetId": "798e5a5f-e854-4c65-8625-461e0672ef12",
+      "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744635/summer_animations/animation_image-to-3d-zc7eqo-15_1793744634536_1xy9dfw3.glb",
+      "actionId": 15,
+      "description": "Run animation for Warrior of Light.",
+      "semanticRole": "run",
+      "artifactFingerprint": "assetId:798e5a5f-e854-4c65-8625-461e0672ef12"
+    },
+    {
+      "id": "animation-7debea64-e629-4668-8c2a-5477a780b0bc-4",
+      "loop": false,
+      "name": "Attack",
+      "path": "res://art/generated/warrior/rig.glb",
+      "assetId": "a48ff329-b01a-4776-af42-6d4c56de3f45",
+      "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744635/summer_animations/animation_image-to-3d-zc7eqo-4_1793744634285_kujaqulp.glb",
+      "actionId": 4,
+      "description": "Attack animation for Warrior of Light.",
+      "semanticRole": "attack",
+      "artifactFingerprint": "assetId:a48ff329-b01a-4776-af42-6d4c56de3f45"
+    },
+    {
+      "id": "animation-7debea64-e629-4668-8c2a-5477a780b0bc-125",
+      "loop": false,
+      "name": "Charged Spell Cast",
+      "path": "res://art/generated/warrior/rig.glb",
+      "assetId": "8349ffc7-7cf1-4e9a-ab96-36d5579e0f7a",
+      "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744635/summer_animations/animation_image-to-3d-zc7eqo-125_1793744634491_3sy3xgx3.glb",
+      "actionId": 125,
+      "description": "Charged Spell Cast animation for Warrior of Light.",
+      "semanticRole": "custom",
+      "artifactFingerprint": "assetId:8349ffc7-7cf1-4e9a-ab96-36d5579e0f7a"
+    },
+    {
+      "id": "animation-7debea64-e629-4668-8c2a-5477a780b0bc-8",
+      "loop": false,
+      "name": "Dead",
+      "path": "res://art/generated/warrior/rig.glb",
+      "assetId": "f332c9da-d587-4feb-a42e-079c76508b40",
+      "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744635/summer_animations/animation_image-to-3d-zc7eqo-8_1793744634385_6n2vjk84.glb",
+      "actionId": 8,
+      "description": "Dead animation for Warrior of Light.",
+      "semanticRole": "custom",
+      "artifactFingerprint": "assetId:f332c9da-d587-4feb-a42e-079c76508b40"
+    }
+  ],
+  "characterId": "7debea64-e629-4668-8c2a-5477a780b0bc",
+  "displayName": "Warrior of Light",
+  "forwardAxis": "-Z",
+  "directoryName": "warrior_of_light_7debea64",
+  "runtimeBundle": {
+    "clips": [
+      "Idle",
+      "Walk",
+      "Run",
+      "Attack",
+      "Charged Spell Cast",
+      "Dead"
+    ],
+    "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744646/summer_3d/character_7debea64-e629-4668-8c2a-5477a780b0bc_runtime_1793744645413_xtay9wjx.glb",
+    "publicId": "summer_3d/character_7debea64-e629-4668-8c2a-5477a780b0bc_runtime_1793744645413_xtay9wjx.glb",
+    "validation": {
+      "ok": true,
+      "clips": [
+        {
+          "name": "Idle",
+          "channels": 66,
+          "duration": 1.9
+        },
+        {
+          "name": "Walk",
+          "channels": 66,
+          "duration": 1
+        },
+        {
+          "name": "Run",
+          "channels": 66,
+          "duration": 0.833
+        },
+        {
+          "name": "Attack",
+          "channels": 66,
+          "duration": 2.833
+        },
+        {
+          "name": "Charged Spell Cast",
+          "channels": 66,
+          "duration": 2.7
+        },
+        {
+          "name": "Dead",
+          "channels": 66,
+          "duration": 3
+        }
+      ],
+      "errors": [],
+      "sizeBytes": 16555032
+    },
+    "skeletonFingerprint": "sstc6i"
+  },
+  "rootYawRadians": 3.141592653589793,
+  "unriggedSource": {
+    "assetId": "7debea64-e629-4668-8c2a-5477a780b0bc",
+    "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744377/summer_3d/3d_7debea64e62946688c2a5477_1793744375857.glb"
+  },
+  "scaleMultiplier": 1,
+  "sourceForwardAxis": "+Z",
+  "groundOffsetMeters": 0,
+  "targetHeightMeters": 1.9,
+  "skeletonFingerprint": "sstc6i",
+  "packageRevision": "sha256:1392805694948f9b28987fa4da02ac3cf7fd606521dd18279c1aba330d46aa23",
+  "normalization": {
+    "targetHeightMeters": 1.9,
+    "forwardAxis": "-Z"
+  }
+}

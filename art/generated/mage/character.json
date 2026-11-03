@@ -1,0 +1,160 @@
+{
+  "id": "character-1ee56c3a-4a1d-41a8-ae37-b26c04a66eec",
+  "rig": {
+    "path": "res://art/generated/mage/rig.glb",
+    "assetId": "1ee56c3a-4a1d-41a8-ae37-b26c04a66eec",
+    "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744563/summer_3d/character_1ee56c3a-4a1d-41a8-ae37-b26c04a66eec_runtime_1793744561999_lx10b2kf.glb",
+    "sourceFileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744547/summer_3d/rig_image-to-3d-tnskmc-animation-batch_1793744546005_b2rn8r19.glb",
+    "artifactFingerprint": "publicId:summer_3d/character_1ee56c3a-4a1d-41a8-ae37-b26c04a66eec_runtime_1793744561999_lx10b2kf.glb"
+  },
+  "status": "ready",
+  "version": 2,
+  "provider": {
+    "mode": "managed",
+    "name": "fal",
+    "rigTaskId": "01a1a37f-a1bf-76dc-9510-9efa60d6e29d"
+  },
+  "animations": [
+    {
+      "id": "animation-1ee56c3a-4a1d-41a8-ae37-b26c04a66eec-11",
+      "loop": true,
+      "name": "Idle",
+      "path": "res://art/generated/mage/rig.glb",
+      "assetId": "1e8bd59b-4553-428f-8179-5392bee4d31a",
+      "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744551/summer_animations/animation_image-to-3d-tnskmc-11_1793744550393_kvsqt2ku.glb",
+      "actionId": 11,
+      "description": "Idle animation for Mage Healer.",
+      "semanticRole": "idle",
+      "artifactFingerprint": "assetId:1e8bd59b-4553-428f-8179-5392bee4d31a"
+    },
+    {
+      "id": "animation-1ee56c3a-4a1d-41a8-ae37-b26c04a66eec-1",
+      "loop": true,
+      "name": "Walk",
+      "path": "res://art/generated/mage/rig.glb",
+      "assetId": "ba67172b-6c50-44d4-8223-f83203377c96",
+      "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744551/summer_animations/animation_image-to-3d-tnskmc-1_1793744550447_qbai5eb7.glb",
+      "actionId": 1,
+      "description": "Walk animation for Mage Healer.",
+      "semanticRole": "walk",
+      "artifactFingerprint": "assetId:ba67172b-6c50-44d4-8223-f83203377c96"
+    },
+    {
+      "id": "animation-1ee56c3a-4a1d-41a8-ae37-b26c04a66eec-15",
+      "loop": true,
+      "name": "Run",
+      "path": "res://art/generated/mage/rig.glb",
+      "assetId": "d2f00957-3f08-4e75-a834-c3f35b559783",
+      "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744551/summer_animations/animation_image-to-3d-tnskmc-15_1793744550258_h9tzbum9.glb",
+      "actionId": 15,
+      "description": "Run animation for Mage Healer.",
+      "semanticRole": "run",
+      "artifactFingerprint": "assetId:d2f00957-3f08-4e75-a834-c3f35b559783"
+    },
+    {
+      "id": "animation-1ee56c3a-4a1d-41a8-ae37-b26c04a66eec-4",
+      "loop": false,
+      "name": "Attack",
+      "path": "res://art/generated/mage/rig.glb",
+      "assetId": "ddaad01d-07aa-4ede-8ade-35a77e1b8d83",
+      "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744551/summer_animations/animation_image-to-3d-tnskmc-4_1793744550209_j02suigo.glb",
+      "actionId": 4,
+      "description": "Attack animation for Mage Healer.",
+      "semanticRole": "attack",
+      "artifactFingerprint": "assetId:ddaad01d-07aa-4ede-8ade-35a77e1b8d83"
+    },
+    {
+      "id": "animation-1ee56c3a-4a1d-41a8-ae37-b26c04a66eec-125",
+      "loop": false,
+      "name": "Charged Spell Cast",
+      "path": "res://art/generated/mage/rig.glb",
+      "assetId": "6495c037-5708-4c68-bde0-603bc4ce42c2",
+      "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744552/summer_animations/animation_image-to-3d-tnskmc-125_1793744550604_smeu26v2.glb",
+      "actionId": 125,
+      "description": "Charged Spell Cast animation for Mage Healer.",
+      "semanticRole": "custom",
+      "artifactFingerprint": "assetId:6495c037-5708-4c68-bde0-603bc4ce42c2"
+    },
+    {
+      "id": "animation-1ee56c3a-4a1d-41a8-ae37-b26c04a66eec-8",
+      "loop": false,
+      "name": "Dead",
+      "path": "res://art/generated/mage/rig.glb",
+      "assetId": "d1a228c7-a8d8-464b-bec2-283122920da2",
+      "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744551/summer_animations/animation_image-to-3d-tnskmc-8_1793744550503_2x1klala.glb",
+      "actionId": 8,
+      "description": "Dead animation for Mage Healer.",
+      "semanticRole": "custom",
+      "artifactFingerprint": "assetId:d1a228c7-a8d8-464b-bec2-283122920da2"
+    }
+  ],
+  "characterId": "1ee56c3a-4a1d-41a8-ae37-b26c04a66eec",
+  "displayName": "Mage Healer",
+  "forwardAxis": "-Z",
+  "directoryName": "mage_healer_1ee56c3a",
+  "runtimeBundle": {
+    "clips": [
+      "Idle",
+      "Walk",
+      "Run",
+      "Attack",
+      "Charged Spell Cast",
+      "Dead"
+    ],
+    "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744563/summer_3d/character_1ee56c3a-4a1d-41a8-ae37-b26c04a66eec_runtime_1793744561999_lx10b2kf.glb",
+    "publicId": "summer_3d/character_1ee56c3a-4a1d-41a8-ae37-b26c04a66eec_runtime_1793744561999_lx10b2kf.glb",
+    "validation": {
+      "ok": true,
+      "clips": [
+        {
+          "name": "Idle",
+          "channels": 66,
+          "duration": 1.9
+        },
+        {
+          "name": "Walk",
+          "channels": 66,
+          "duration": 1
+        },
+        {
+          "name": "Run",
+          "channels": 66,
+          "duration": 0.833
+        },
+        {
+          "name": "Attack",
+          "channels": 66,
+          "duration": 2.833
+        },
+        {
+          "name": "Charged Spell Cast",
+          "channels": 66,
+          "duration": 2.7
+        },
+        {
+          "name": "Dead",
+          "channels": 66,
+          "duration": 3
+        }
+      ],
+      "errors": [],
+      "sizeBytes": 14566996
+    },
+    "skeletonFingerprint": "150ckw6"
+  },
+  "rootYawRadians": 3.141592653589793,
+  "unriggedSource": {
+    "assetId": "1ee56c3a-4a1d-41a8-ae37-b26c04a66eec",
+    "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744355/summer_3d/3d_1ee56c3a4a1d41a8ae37b26c_1793744353583.glb"
+  },
+  "scaleMultiplier": 1,
+  "sourceForwardAxis": "+Z",
+  "groundOffsetMeters": 0,
+  "targetHeightMeters": 1.85,
+  "skeletonFingerprint": "150ckw6",
+  "packageRevision": "sha256:4ebbf8d6c4bbba4cc18b852cf237b461d87ef94ef927f29b5d80d82401d70a4c",
+  "normalization": {
+    "targetHeightMeters": 1.85,
+    "forwardAxis": "-Z"
+  }
+}

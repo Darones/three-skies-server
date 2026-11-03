@@ -1,0 +1,7 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://hero_mat"]
+
+[resource]
+diffuse_texture = null
+albedo_color = Color( 0.3, 0.5, 0.8, 1 )
+metallic = 0.0
+roughness = 1.0

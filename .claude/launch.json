@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "autoVerify": true,
+  "configurations": [
+    {
+      "name": "summer-preview",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "-y",
+        "summer-engine@latest",
+        "preview",
+        "--port",
+        "5199"
+      ],
+      "port": 5199
+    }
+  ]
+}

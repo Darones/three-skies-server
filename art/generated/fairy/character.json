@@ -1,0 +1,160 @@
+{
+  "id": "character-a864d08b-65be-43f3-a09f-c5357c6ac17e",
+  "rig": {
+    "path": "res://art/generated/fairy/rig.glb",
+    "assetId": "a864d08b-65be-43f3-a09f-c5357c6ac17e",
+    "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744579/summer_3d/character_a864d08b-65be-43f3-a09f-c5357c6ac17e_runtime_1793744577835_70nu1440.glb",
+    "sourceFileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744563/summer_3d/rig_image-to-3d-1qtyags-animation-batch_1793744562465_uqlv1s5e.glb",
+    "artifactFingerprint": "publicId:summer_3d/character_a864d08b-65be-43f3-a09f-c5357c6ac17e_runtime_1793744577835_70nu1440.glb"
+  },
+  "status": "ready",
+  "version": 2,
+  "provider": {
+    "mode": "managed",
+    "name": "fal",
+    "rigTaskId": "01a1a37f-fe3e-7640-9662-3336e8d7f202"
+  },
+  "animations": [
+    {
+      "id": "animation-a864d08b-65be-43f3-a09f-c5357c6ac17e-11",
+      "loop": true,
+      "name": "Idle",
+      "path": "res://art/generated/fairy/rig.glb",
+      "assetId": "ff0447c0-08b5-44eb-82c5-407eca916af8",
+      "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744567/summer_animations/animation_image-to-3d-1qtyags-11_1793744566396_o6zkhlvu.glb",
+      "actionId": 11,
+      "description": "Idle animation for Fairy Archer.",
+      "semanticRole": "idle",
+      "artifactFingerprint": "assetId:ff0447c0-08b5-44eb-82c5-407eca916af8"
+    },
+    {
+      "id": "animation-a864d08b-65be-43f3-a09f-c5357c6ac17e-1",
+      "loop": true,
+      "name": "Walk",
+      "path": "res://art/generated/fairy/rig.glb",
+      "assetId": "d6f02f79-0d14-4155-bc1a-d3875dc2731a",
+      "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744568/summer_animations/animation_image-to-3d-1qtyags-1_1793744567331_jxwt77bw.glb",
+      "actionId": 1,
+      "description": "Walk animation for Fairy Archer.",
+      "semanticRole": "walk",
+      "artifactFingerprint": "assetId:d6f02f79-0d14-4155-bc1a-d3875dc2731a"
+    },
+    {
+      "id": "animation-a864d08b-65be-43f3-a09f-c5357c6ac17e-15",
+      "loop": true,
+      "name": "Run",
+      "path": "res://art/generated/fairy/rig.glb",
+      "assetId": "81936e34-981d-4236-8403-2f7476b74b60",
+      "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744568/summer_animations/animation_image-to-3d-1qtyags-15_1793744567352_0x1okmwg.glb",
+      "actionId": 15,
+      "description": "Run animation for Fairy Archer.",
+      "semanticRole": "run",
+      "artifactFingerprint": "assetId:81936e34-981d-4236-8403-2f7476b74b60"
+    },
+    {
+      "id": "animation-a864d08b-65be-43f3-a09f-c5357c6ac17e-4",
+      "loop": false,
+      "name": "Attack",
+      "path": "res://art/generated/fairy/rig.glb",
+      "assetId": "9e5477fa-efdb-4cad-99e9-7898be166a5f",
+      "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744568/summer_animations/animation_image-to-3d-1qtyags-4_1793744567313_v5t7tngk.glb",
+      "actionId": 4,
+      "description": "Attack animation for Fairy Archer.",
+      "semanticRole": "attack",
+      "artifactFingerprint": "assetId:9e5477fa-efdb-4cad-99e9-7898be166a5f"
+    },
+    {
+      "id": "animation-a864d08b-65be-43f3-a09f-c5357c6ac17e-125",
+      "loop": false,
+      "name": "Charged Spell Cast",
+      "path": "res://art/generated/fairy/rig.glb",
+      "assetId": "372a903e-1aab-489f-a514-df6fbd6d69cf",
+      "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744568/summer_animations/animation_image-to-3d-1qtyags-125_1793744567160_cqxor46y.glb",
+      "actionId": 125,
+      "description": "Charged Spell Cast animation for Fairy Archer.",
+      "semanticRole": "custom",
+      "artifactFingerprint": "assetId:372a903e-1aab-489f-a514-df6fbd6d69cf"
+    },
+    {
+      "id": "animation-a864d08b-65be-43f3-a09f-c5357c6ac17e-8",
+      "loop": false,
+      "name": "Dead",
+      "path": "res://art/generated/fairy/rig.glb",
+      "assetId": "9a2305db-8249-44f7-9cd8-659c462e2b00",
+      "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744568/summer_animations/animation_image-to-3d-1qtyags-8_1793744567068_pk596lmx.glb",
+      "actionId": 8,
+      "description": "Dead animation for Fairy Archer.",
+      "semanticRole": "custom",
+      "artifactFingerprint": "assetId:9a2305db-8249-44f7-9cd8-659c462e2b00"
+    }
+  ],
+  "characterId": "a864d08b-65be-43f3-a09f-c5357c6ac17e",
+  "displayName": "Fairy Archer",
+  "forwardAxis": "-Z",
+  "directoryName": "fairy_archer_a864d08b",
+  "runtimeBundle": {
+    "clips": [
+      "Idle",
+      "Walk",
+      "Run",
+      "Attack",
+      "Charged Spell Cast",
+      "Dead"
+    ],
+    "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744579/summer_3d/character_a864d08b-65be-43f3-a09f-c5357c6ac17e_runtime_1793744577835_70nu1440.glb",
+    "publicId": "summer_3d/character_a864d08b-65be-43f3-a09f-c5357c6ac17e_runtime_1793744577835_70nu1440.glb",
+    "validation": {
+      "ok": true,
+      "clips": [
+        {
+          "name": "Idle",
+          "channels": 66,
+          "duration": 1.9
+        },
+        {
+          "name": "Walk",
+          "channels": 66,
+          "duration": 1
+        },
+        {
+          "name": "Run",
+          "channels": 66,
+          "duration": 0.833
+        },
+        {
+          "name": "Attack",
+          "channels": 66,
+          "duration": 2.833
+        },
+        {
+          "name": "Charged Spell Cast",
+          "channels": 66,
+          "duration": 2.7
+        },
+        {
+          "name": "Dead",
+          "channels": 66,
+          "duration": 3
+        }
+      ],
+      "errors": [],
+      "sizeBytes": 15131372
+    },
+    "skeletonFingerprint": "u0oajz"
+  },
+  "rootYawRadians": 3.141592653589793,
+  "unriggedSource": {
+    "assetId": "a864d08b-65be-43f3-a09f-c5357c6ac17e",
+    "fileUrl": "https://res.cloudinary.com/dol86wsz1/raw/upload/v1793744368/summer_3d/3d_a864d08b65be43f3a09fc535_1793744367047.glb"
+  },
+  "scaleMultiplier": 1,
+  "sourceForwardAxis": "+Z",
+  "groundOffsetMeters": 0,
+  "targetHeightMeters": 1.65,
+  "skeletonFingerprint": "u0oajz",
+  "packageRevision": "sha256:f9dd5a432c8814ad378182381f45c931d4393b69dd54a2f9073d718b12548b3d",
+  "normalization": {
+    "targetHeightMeters": 1.65,
+    "forwardAxis": "-Z"
+  }
+}

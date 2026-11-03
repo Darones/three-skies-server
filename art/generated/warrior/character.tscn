@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://art/generated/warrior/rig.glb" id="1_rig"]
+
+[node name="Character" type="Node3D"]
+
+[node name="Visual" parent="." instance=ExtResource("1_rig")]
+position = Vector3(0.0, 0.0, 0.0)
+rotation = Vector3(0.0, 3.141592653589793, 0.0)
+scale = Vector3(1.0, 1.0, 1.0)
