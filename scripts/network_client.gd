@@ -33,3 +33,9 @@ func _on_server_disconnected() -> void:
 func start_match() -> void:
 	print("=== МАТЧ НАЙДЕН! СЕРВЕР ДАЛ КОМАНДУ НА СТАРТ ===")
 	match_started.emit()
+
+@rpc("any_peer")
+func join_queue(hero_class: int) -> void:
+	# Эта функция нужна только для того, чтобы Godot разрешил клиенту отправить RPC на сервер.
+	# Клиент сам её не вызывает.
+	pass
