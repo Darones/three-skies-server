@@ -160,7 +160,7 @@ func _strike() -> void:
 	game.shell_bolt(pos, 2.7, 22.0)
 
 
-func take_damage(amount: float, source: Node = null) -> void:
+func take_damage(amount: float, _source: Node = null) -> void:
 	if not alive:
 		return
 	health -= amount

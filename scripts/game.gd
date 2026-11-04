@@ -51,7 +51,7 @@ func _ready() -> void:
 		camera = Camera3D.new()
 		camera.name = "Camera3D"
 		add_child(camera)
-	camera.fov = 42.0
+	camera.fov = 46.0
 	camera_pos = camera.global_position
 	if get_node_or_null("Arena") == null:
 		var arena := Node3D.new()
@@ -67,7 +67,8 @@ func _ready() -> void:
 	if get_tree().has_meta("selected_class"):
 		var selected_class := int(get_tree().get_meta("selected_class"))
 		if selected_class >= 0 and selected_class <= 2:
-			call_deferred("start_match", selected_class)
+			var selected_team := clampi(int(get_tree().get_meta("selected_team", get_meta("selected_team", 0))), 0, 1)
+			call_deferred("start_match", selected_class, selected_team)
 
 
 func _setup_audio() -> void:
@@ -99,23 +100,30 @@ func play_sfx(key: String, volume_db := -4.0) -> void:
 	p.play()
 
 
-func start_match(player_class: int) -> void:
+func start_match(player_class: int, requested_team: int = -1) -> void:
 	if state != "select":
 		return
+	var player_team := requested_team
+	if player_team < 0:
+		player_team = int(get_tree().get_meta("selected_team", get_meta("selected_team", 0)))
+	player_team = clampi(player_team, 0, 1)
 	var classes: Array[int] = [HeroUnit.Cls.WARRIOR, HeroUnit.Cls.MAGE, HeroUnit.Cls.FAIRY]
 	var ally_classes: Array[int] = []
 	for c in classes:
 		if c != player_class:
 			ally_classes.append(c)
-	var light_spots := [Vector3(-4.2, 0.4, -11.6), Vector3(0.0, 0.4, -12.8), Vector3(4.2, 0.4, -11.6)]
-	var dark_spots := [Vector3(4.2, 0.4, 11.6), Vector3(0.0, 0.4, 12.8), Vector3(-4.2, 0.4, 11.6)]
-	player = _spawn_hero(player_class, 0, true, light_spots[0])
+	var light_spots: Array[Vector3] = [Vector3(-3.0, 0.4, 32.5), Vector3(0.0, 0.4, 32.0), Vector3(3.0, 0.4, 32.5)]
+	var dark_spots: Array[Vector3] = [Vector3(3.0, 0.4, -32.5), Vector3(0.0, 0.4, -32.0), Vector3(-3.0, 0.4, -32.5)]
+	var own_spots: Array[Vector3] = light_spots if player_team == 0 else dark_spots
+	var enemy_spots: Array[Vector3] = dark_spots if player_team == 0 else light_spots
+	var enemy_team := 1 - player_team
+	player = _spawn_hero(player_class, player_team, true, own_spots[0])
 	var ai_index := 1
 	for c in ally_classes:
-		_spawn_hero(c, 0, false, light_spots[mini(ai_index, 2)])
+		_spawn_hero(c, player_team, false, own_spots[mini(ai_index, 2)])
 		ai_index += 1
 	for i in classes.size():
-		_spawn_hero(classes[i], 1, false, dark_spots[mini(i, 2)])
+		_spawn_hero(classes[i], enemy_team, false, enemy_spots[mini(i, 2)])
 	state = "live"
 	match_time = MATCH_LENGTH
 	shell_phase = "idle"
@@ -161,7 +169,8 @@ func _update_camera(delta: float) -> void:
 	var focus := player.global_position
 	if player.dead:
 		focus = Vector3(0.0, 0.0, 0.0)
-	var target_pos := focus + Vector3(-12.5, 16.0, -12.5)
+	var camera_side := 1.0 if player.team == 0 else -1.0
+	var target_pos := focus + Vector3(0.0, 23.0, 16.0 * camera_side)
 	camera_pos = camera_pos.lerp(target_pos, 1.0 - exp(-5.0 * delta))
 	camera.global_position = camera_pos
 	camera.look_at(focus + Vector3(0.0, 1.0, 0.0), Vector3.UP)
@@ -312,7 +321,7 @@ func _update_crystal(delta: float) -> void:
 	elif crystal_state == "carried" and carrier != null and is_instance_valid(carrier):
 		crystal_node.global_position = carrier.global_position + Vector3(0.0, 2.9, 0.0)
 		crystal_node.rotation.y += delta * 2.4
-		var base_z := -12.5 if carrier.team == 0 else 12.5
+		var base_z := 35.0 if carrier.team == 0 else -35.0
 		if Vector2(carrier.global_position.x, carrier.global_position.z - base_z).length() < 4.8:
 			_deliver(carrier)
 
@@ -540,7 +549,7 @@ func _update_projectiles(delta: float) -> void:
 	projectiles = keep
 
 
-func melee_fx(from: Vector3, to: Vector3) -> void:
+func melee_fx(_from: Vector3, to: Vector3) -> void:
 	play_sfx("hit", -10.0)
 	burst(to + Vector3(0.0, 1.0, 0.0), Color(1.0, 0.85, 0.5), 10)
 
@@ -654,7 +663,7 @@ func ring_fx(pos: Vector3, color: Color, radius: float) -> void:
 	tween.tween_callback(ring.queue_free)
 
 
-func damage_number(pos: Vector3, amount: float, team: int, is_shell := false) -> void:
+func damage_number(pos: Vector3, amount: float, _team: int, is_shell := false) -> void:
 	var label := Label3D.new()
 	label.text = str(int(round(amount)))
 	label.font_size = 64

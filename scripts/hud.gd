@@ -312,7 +312,7 @@ func _process(_delta: float) -> void:
 	if game == null:
 		return
 	var t: float = maxf(0.0, game.match_time)
-	var minutes := int(t) / 60
+	var minutes := floori(t / 60.0)
 	var seconds := int(t) % 60
 	timer_label.text = "%02d:%02d" % [minutes, seconds]
 	if game.sudden_death:

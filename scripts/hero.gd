@@ -194,6 +194,7 @@ func _build_visual() -> void:
 		var holder := Node3D.new()
 		holder.name = "Model"
 		holder.add_child(model)
+		holder.rotation.y = PI
 		visual.add_child(holder)
 		_fit_model(holder)
 		anim_player = _find_animation_player(holder)
@@ -276,10 +277,10 @@ func _play_anim(key: String) -> void:
 	if anim_player == null or current_anim == key:
 		return
 	var target := ""
-	for name in anim_player.get_animation_list():
-		var low := String(name).to_lower()
+	for animation_name in anim_player.get_animation_list():
+		var low := String(animation_name).to_lower()
 		if low.contains(key):
-			target = String(name)
+			target = String(animation_name)
 			break
 	if target == "":
 		return
@@ -344,13 +345,13 @@ func _physics_process(delta: float) -> void:
 func _player_dir() -> Vector3:
 	var x := 0.0
 	var y := 0.0
-	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
+	if Input.is_physical_key_pressed(KEY_A) or Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
 		x -= 1.0
-	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
+	if Input.is_physical_key_pressed(KEY_D) or Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
 		x += 1.0
-	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
+	if Input.is_physical_key_pressed(KEY_W) or Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
 		y += 1.0
-	if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
+	if Input.is_physical_key_pressed(KEY_S) or Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
 		y -= 1.0
 	var input := Vector2(x, y)
 	if input.length() < 0.1:
@@ -451,7 +452,7 @@ func _ai_pick_goal() -> void:
 		ai_goal = shell.global_position
 		return
 	if enemy != null:
-		var enemy_base := Vector3(0.0, 0.0, 12.0 if team == 0 else -12.0)
+		var enemy_base := Vector3(0.0, 0.0, -35.0 if team == 0 else 35.0)
 		var goal := enemy.global_position
 		var from_base := goal - enemy_base
 		from_base.y = 0.0
@@ -463,11 +464,11 @@ func _ai_pick_goal() -> void:
 
 
 func _base_position() -> Vector3:
-	var z := -12.0 if team == 0 else 12.0
+	var z := 35.0 if team == 0 else -35.0
 	return Vector3(ai_offset.x, 0.0, z)
 
 
-func _try_auto_attack(delta: float) -> void:
+func _try_auto_attack(_delta: float) -> void:
 	if attack_cd > 0.0:
 		return
 	var target := _attack_target()
@@ -515,7 +516,7 @@ func _face(dir: Vector3, delta: float) -> void:
 	visual.rotation.y = lerp_angle(visual.rotation.y, target_y, minf(1.0, 12.0 * delta))
 
 
-func _update_look(delta: float) -> void:
+func _update_look(_delta: float) -> void:
 	if health_fill == null:
 		return
 	var frac := clampf(health / max_health, 0.0, 1.0)
@@ -530,7 +531,7 @@ func _update_look(delta: float) -> void:
 			_play_anim("run" if horizontal > move_speed * 0.55 else "walk" if horizontal > 0.4 else "idle")
 
 
-func take_damage(amount: float, source: Node = null) -> void:
+func take_damage(amount: float, _source: Node = null) -> void:
 	if dead:
 		return
 	health -= amount

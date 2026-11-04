@@ -81,7 +81,7 @@ anchor_right = 1.0
 anchor_bottom = 0.14
 theme_override_colors/font_color = Color(0.97, 0.97, 1, 1)
 theme_override_font_sizes/font_size = 42
-text = "За кого вы играете?"
+text = "ЗА КОГО ВЫ ИГРАЕТЕ?"
 horizontal_alignment = 1
 vertical_alignment = 1
 

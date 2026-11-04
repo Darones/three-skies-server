@@ -133,8 +133,8 @@ static func build(root: Node3D) -> void:
 	var bases := Node3D.new()
 	bases.name = "Bases"
 	root.add_child(bases)
-	_add_base(bases, -12.5, Color(0.55, 0.85, 1.0), mat_gold, mat_rock, "LightBase")
-	_add_base(bases, 12.5, Color(0.68, 0.32, 1.0), mat_gold, mat_rock, "DarkBase")
+	_add_base(bases, -12.5, Color(0.55, 0.85, 1.0), mat_rock, "LightBase")
+	_add_base(bases, 12.5, Color(0.68, 0.32, 1.0), mat_rock, "DarkBase")
 
 	var decor := Node3D.new()
 	decor.name = "Decor"
@@ -529,7 +529,7 @@ static func _add_ruins(ruins: Node3D, mat_marble: StandardMaterial3D, mat_gold: 
 		ruins.add_child(block)
 
 
-static func _add_base(bases: Node3D, z: float, color: Color, mat_gold: StandardMaterial3D, mat_rock: StandardMaterial3D, node_name: String) -> void:
+static func _add_base(bases: Node3D, z: float, color: Color, mat_rock: StandardMaterial3D, node_name: String) -> void:
 	var base := Node3D.new()
 	base.name = node_name
 	base.position = Vector3(0.0, 0.0, z)

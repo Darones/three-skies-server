@@ -1709,6 +1709,7 @@ light_energy = 1.7
 omni_range = 22.0
 
 [node name="Island" type="Node3D" parent="Arena" unique_id=630324059]
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0)
 
 [node name="Floor" type="MeshInstance3D" parent="Arena/Island" unique_id=1216511885]
 mesh = SubResource("ArrayMesh_jlsqs")
@@ -2121,7 +2122,7 @@ mesh = SubResource("BoxMesh_x1gp3")
 [node name="Bases" type="Node3D" parent="Arena" unique_id=816486613]
 
 [node name="LightBase" type="Node3D" parent="Arena/Bases" unique_id=2013851626]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -12.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 35)
 
 [node name="@MeshInstance3D@25538" type="MeshInstance3D" parent="Arena/Bases/LightBase" unique_id=1452918752]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.09, 0)
@@ -2165,7 +2166,7 @@ light_energy = 2.2
 omni_range = 12.0
 
 [node name="DarkBase" type="Node3D" parent="Arena/Bases" unique_id=159051038]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 12.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -35)
 
 [node name="@MeshInstance3D@25546" type="MeshInstance3D" parent="Arena/Bases/DarkBase" unique_id=1341215958]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.09, 0)

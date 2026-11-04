@@ -16,9 +16,9 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 config/name="Осколки неба"
 config/description="3D-игра на Godot 4 — Три Неба"
+run/main_scene="res://scenes/CharacterSelect.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 config/icon="res://icon.svg"
-run/main_scene="res://scenes/CharacterSelect.tscn"
 
 [display]
 
