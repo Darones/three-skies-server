@@ -5,11 +5,9 @@ var font: SystemFont
 
 var score_label: Label
 var timer_label: Label
-var objective_label: Label
+var shell_timer_label: Label
+var respawn_label: Label
 var announce_label: Label
-var class_label: Label
-var carry_label: Label
-var health_bar: ProgressBar
 var ability_buttons: Array[Button] = []
 var ability_cd_labels: Array[Label] = []
 var ability_name_labels: Array[Label] = []
@@ -17,7 +15,6 @@ var select_panel: Control
 var end_panel: Control
 var end_title: Label
 var end_score: Label
-var player_panel: PanelContainer
 var ability_row: HBoxContainer
 var announce_tween: Tween
 
@@ -36,7 +33,6 @@ func _ready() -> void:
 	add_child(root)
 
 	_build_top(root)
-	_build_player_panel(root)
 	_build_abilities(root)
 	_build_announcement(root)
 	_build_select(root)
@@ -71,94 +67,37 @@ func _make_label(text: String, size: int, color: Color) -> Label:
 
 
 func _build_top(root: Control) -> void:
-	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", _panel_style(Color(0.96, 0.82, 0.52, 0.55)))
-	panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	panel.anchor_left = 0.5
-	panel.anchor_right = 0.5
-	panel.offset_left = -300.0
-	panel.offset_right = 300.0
-	panel.offset_top = 14.0
-	panel.offset_bottom = 70.0
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(panel)
-
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 0)
-	panel.add_child(box)
+	box.name = "MatchInfo"
+	box.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	box.offset_left = -360.0
+	box.offset_top = 20.0
+	box.offset_right = -20.0
+	box.offset_bottom = 112.0
+	box.add_theme_constant_override("separation", 2)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(box)
 
-	objective_label = _make_label("", 13, Color(0.82, 0.88, 1.0))
-	box.add_child(objective_label)
-
-	var timer_panel := PanelContainer.new()
-	timer_panel.name = "TimerPanel"
-	timer_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	timer_panel.offset_left = -140.0
-	timer_panel.offset_top = 14.0
-	timer_panel.offset_right = -20.0
-	timer_panel.offset_bottom = 62.0
-	timer_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.96, 0.82, 0.52, 0.55)))
-	timer_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(timer_panel)
-	timer_label = _make_label("05:00", 24, PALE)
-	timer_label.custom_minimum_size = Vector2(88.0, 28.0)
-	timer_panel.add_child(timer_label)
-
-	var score_panel := PanelContainer.new()
-	score_panel.name = "ScorePanel"
-	score_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	score_panel.offset_left = -340.0
-	score_panel.offset_top = 68.0
-	score_panel.offset_right = -20.0
-	score_panel.offset_bottom = 100.0
-	score_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.96, 0.82, 0.52, 0.55)))
-	score_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(score_panel)
-	var score_box := VBoxContainer.new()
-	score_box.add_theme_constant_override("separation", 0)
-	score_panel.add_child(score_box)
-	score_label = _make_label("СВЕТ  0 : 0  ТЬМА", 20, GOLD)
+	score_label = _make_label("Свет 0 : 0 Тьма", 24, Color.WHITE)
+	var semibold_font := SystemFont.new()
+	semibold_font.font_names = font.font_names
+	semibold_font.font_weight = 600
+	score_label.add_theme_font_override("font", semibold_font)
 	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	score_box.add_child(score_label)
+	box.add_child(score_label)
 
+	timer_label = _make_label("05:00", 20, Color.WHITE)
+	timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	box.add_child(timer_label)
 
-func _build_player_panel(root: Control) -> void:
-	var panel := PanelContainer.new()
-	player_panel = panel
-	panel.add_theme_stylebox_override("panel", _panel_style(Color(0.6, 0.85, 1.0, 0.5)))
-	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	panel.offset_left = 20.0
-	panel.offset_top = 14.0
-	panel.offset_right = 320.0
-	panel.offset_bottom = 116.0
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(panel)
+	shell_timer_label = _make_label("Оболочка: 00:08", 16, Color(0.66, 0.68, 0.72))
+	shell_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	box.add_child(shell_timer_label)
 
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
-	panel.add_child(box)
-	class_label = _make_label("", 19, GOLD)
-	class_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	box.add_child(class_label)
-
-	health_bar = ProgressBar.new()
-	health_bar.custom_minimum_size = Vector2(270, 14)
-	health_bar.show_percentage = false
-	health_bar.max_value = 100.0
-	health_bar.value = 100.0
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.08, 0.06, 0.1, 0.9)
-	bg.set_corner_radius_all(4)
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = Color(0.4, 0.92, 0.6)
-	fill.set_corner_radius_all(4)
-	health_bar.add_theme_stylebox_override("background", bg)
-	health_bar.add_theme_stylebox_override("fill", fill)
-	box.add_child(health_bar)
-
-	carry_label = _make_label("", 14, Color(0.72, 0.95, 1.0))
-	carry_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	box.add_child(carry_label)
+	respawn_label = _make_label("", 16, Color(1.0, 0.38, 0.28))
+	respawn_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	respawn_label.visible = false
+	box.add_child(respawn_label)
 
 
 func _build_abilities(root: Control) -> void:
@@ -221,14 +160,15 @@ func _ability_style(index: int, hovered: bool) -> StyleBoxFlat:
 	return style
 
 func _build_announcement(root: Control) -> void:
-	announce_label = _make_label("", 40, GOLD)
-	announce_label.set_anchors_preset(Control.PRESET_CENTER)
+	announce_label = _make_label("", 18, GOLD)
 	announce_label.anchor_left = 0.0
 	announce_label.anchor_right = 1.0
-	announce_label.anchor_top = 0.18
-	announce_label.anchor_bottom = 0.18
-	announce_label.offset_top = 90.0
-	announce_label.offset_bottom = 150.0
+	announce_label.anchor_top = 0.0
+	announce_label.anchor_bottom = 0.0
+	announce_label.offset_left = 80.0
+	announce_label.offset_right = -80.0
+	announce_label.offset_top = 100.0
+	announce_label.offset_bottom = 140.0
 	announce_label.modulate.a = 0.0
 	announce_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(announce_label)
@@ -352,39 +292,36 @@ func show_announcement(text: String, color: Color, duration: float) -> void:
 func _process(_delta: float) -> void:
 	if game == null:
 		return
-	var t: float = maxf(0.0, game.match_time)
-	var minutes := floori(t / 60.0)
-	var seconds := int(t) % 60
-	timer_label.text = "%02d:%02d" % [minutes, seconds]
+	var match_time_left: float = maxf(0.0, game.match_time)
+	var match_minutes := floori(match_time_left / 60.0)
+	var match_seconds := int(match_time_left) % 60
+	timer_label.text = "%02d:%02d" % [match_minutes, match_seconds]
 	if game.sudden_death:
 		timer_label.text = "РЕШАЮЩИЙ"
-	score_label.text = "СВЕТ  %d : %d  ТЬМА" % [game.score[0], game.score[1]]
-	objective_label.text = game.objective_text()
-	var playing: bool = game.state != "select"
-	if player_panel != null:
-		player_panel.visible = playing
+	score_label.text = "Свет %d : %d Тьма" % [game.score[0], game.score[1]]
+	var shell_time_left: float = game.shell_window if game.shell_phase == "active" else game.shell_timer
+	shell_time_left = maxf(0.0, shell_time_left)
+	var shell_minutes := floori(shell_time_left / 60.0)
+	var shell_seconds := int(shell_time_left) % 60
+	shell_timer_label.text = "Оболочка: %02d:%02d" % [shell_minutes, shell_seconds]
 	if ability_row != null:
-		ability_row.visible = playing
+		ability_row.visible = game.state != "select"
 
 	if game.player != null:
 		var p = game.player
-		class_label.text = "Ты: " + str(HeroUnit.CLASS_DATA[p.hero_class]["title"])
-		health_bar.max_value = p.max_health
-		health_bar.value = p.health
+		respawn_label.visible = p.dead
 		if p.dead:
-			carry_label.text = "Возрождение через %.0f с" % maxf(0.0, p.respawn_timer)
-		elif p.carrying:
-			carry_label.text = "Осколок у тебя — скорость вдвое ниже"
-		elif p.stun_timer > 0.0:
-			carry_label.text = "Оглушён"
+			respawn_label.text = "Возрождение: %dс" % int(ceil(maxf(0.0, p.respawn_timer)))
 		else:
-			carry_label.text = ""
+			respawn_label.text = ""
 		for i in 3:
 			var data: Dictionary = HeroUnit.CLASS_DATA[p.hero_class]["abilities"][i]
 			ability_name_labels[i].text = str(data["name"])
 			var cd: float = p.ability_cds[i]
 			ability_cd_labels[i].text = "готово" if cd <= 0.01 else "%.1f с" % cd
 			ability_buttons[i].modulate = Color(1, 1, 1, 1) if cd <= 0.01 else Color(0.6, 0.62, 0.7, 1)
+	else:
+		respawn_label.visible = false
 
 	if game.state == "over":
 		end_panel.visible = true

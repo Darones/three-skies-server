@@ -92,6 +92,7 @@ var anim_player: AnimationPlayer = null
 var current_anim := ""
 var health_back: MeshInstance3D
 var health_fill: MeshInstance3D
+var health_label: Label3D
 var carry_light: OmniLight3D
 var bush_zones: Array[Area3D] = []
 var in_bush := false
@@ -114,6 +115,7 @@ func setup(p_game: Node, p_class: int, p_team: int, p_player: bool) -> void:
 	ai_offset = Vector3(randf_range(-3.0, 3.0), 0.0, randf_range(-3.0, 3.0))
 	_build_body()
 	_build_visual()
+	_update_health_label()
 
 
 func _build_body() -> void:
@@ -152,6 +154,7 @@ func _build_body() -> void:
 	add_child(ring)
 
 	_build_health_bar()
+	_build_health_label()
 
 	carry_light = OmniLight3D.new()
 	carry_light.light_color = Color(0.7, 0.9, 1.0)
@@ -164,32 +167,48 @@ func _build_body() -> void:
 func _build_health_bar() -> void:
 	health_back = MeshInstance3D.new()
 	var quad := QuadMesh.new()
-	quad.size = Vector2(1.25, 0.15)
+	quad.size = Vector2(1.25, 0.065)
 	health_back.mesh = quad
 	var back_mat := StandardMaterial3D.new()
-	back_mat.albedo_color = Color(0.05, 0.05, 0.08, 0.85)
+	back_mat.albedo_color = Color(0.08, 0.06, 0.1, 0.58)
 	back_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	back_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	back_mat.no_depth_test = false
 	back_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	health_back.material_override = back_mat
-	health_back.position = Vector3(0.0, 2.35, 0.0)
+	health_back.position = Vector3(0.0, 2.3, 0.0)
 	add_child(health_back)
 
 	health_fill = MeshInstance3D.new()
 	var fill_quad := QuadMesh.new()
-	fill_quad.size = Vector2(1.18, 0.09)
+	fill_quad.size = Vector2(1.18, 0.04)
 	health_fill.mesh = fill_quad
 	var fill_mat := StandardMaterial3D.new()
-	fill_mat.albedo_color = Color(0.9, 0.25, 0.3) if team == 1 else Color(0.35, 0.95, 0.55)
+	fill_mat.albedo_color = Color(0.4, 0.92, 0.6, 0.84)
 	fill_mat.emission_enabled = true
-	fill_mat.emission = fill_mat.albedo_color
-	fill_mat.emission_energy_multiplier = 0.6
+	fill_mat.emission = Color(0.4, 0.92, 0.6)
+	fill_mat.emission_energy_multiplier = 0.35
 	fill_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	fill_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	fill_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	health_fill.material_override = fill_mat
-	health_fill.position = Vector3(0.0, 2.35, 0.01)
+	health_fill.position = Vector3(0.0, 2.3, 0.01)
 	add_child(health_fill)
+
+
+func _build_health_label() -> void:
+	health_label = get_node_or_null("HealthLabel") as Label3D
+	if health_label == null:
+		health_label = Label3D.new()
+		health_label.name = "HealthLabel"
+		add_child(health_label)
+	health_label.position = Vector3(0.0, 2.65, 0.0)
+	health_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	health_label.font_size = 42
+	health_label.pixel_size = 0.005
+	health_label.outline_size = 5
+	health_label.outline_modulate = Color(0.02, 0.03, 0.05, 0.92)
+	health_label.modulate = Color(0.93, 1.0, 0.95, 0.96)
 
 
 func _build_visual() -> void:
@@ -198,7 +217,7 @@ func _build_visual() -> void:
 		var holder := Node3D.new()
 		holder.name = "Model"
 		holder.add_child(model)
-		holder.rotation.y = PI
+		holder.rotation.y = 0.0
 		visual.add_child(holder)
 		_fit_model(holder)
 		anim_player = _find_animation_player(holder)
@@ -525,6 +544,7 @@ func _face(dir: Vector3, delta: float) -> void:
 
 
 func _update_look(_delta: float) -> void:
+	_update_health_label()
 	if health_fill == null:
 		return
 	var frac := clampf(health / max_health, 0.0, 1.0)
@@ -537,6 +557,8 @@ func _update_look(_delta: float) -> void:
 		health_back.visible = _health_bar_visible()
 	if health_fill != null:
 		health_fill.visible = _health_bar_visible()
+	if health_label != null:
+		health_label.visible = _health_bar_visible()
 	if visual != null and visual.visible:
 		var horizontal := Vector2(velocity.x, velocity.z).length()
 		if not dead and attack_anim_time <= 0.0:
@@ -574,6 +596,13 @@ func _health_bar_visible() -> bool:
 	return observer != null and (self == observer or not is_hidden_from(observer))
 
 
+func _update_health_label() -> void:
+	if health_label == null:
+		return
+	health_label.text = "%d/%d" % [roundi(maxf(0.0, health)), roundi(max_health)]
+	health_label.visible = _health_bar_visible()
+
+
 func is_hidden_from(observer: HeroUnit) -> bool:
 	if not in_bush or observer == null or observer.team == team:
 		return false
@@ -590,6 +619,7 @@ func take_damage(amount: float, source: Node = null) -> void:
 		seconds_since_damage = 0.0
 	var applied_damage := minf(amount, health)
 	health -= amount
+	_update_health_label()
 	if game != null and game.has_method("record_hero_damage"):
 		game.record_hero_damage(self, source, applied_damage, health <= 0.0)
 	game.damage_number(global_position + Vector3(0.0, 2.0, 0.0), amount, team)
@@ -602,6 +632,7 @@ func heal(amount: float) -> void:
 	if dead:
 		return
 	health = minf(max_health, health + amount)
+	_update_health_label()
 	game.heal_number(global_position + Vector3(0.0, 2.2, 0.0), amount)
 
 
@@ -620,6 +651,8 @@ func _die() -> void:
 	set_collision_layer_value(1, false)
 	set_collision_mask_value(1, false)
 	visual.visible = false
+	if health_label != null:
+		health_label.visible = false
 	bush_zones.clear()
 	in_bush = false
 	if health_back != null:
@@ -634,6 +667,7 @@ func _respawn() -> void:
 	dead = false
 	health = max_health
 	seconds_since_damage = 0.0
+	_update_health_label()
 	global_position = _base_position() + Vector3(0.0, 0.4, 0.0)
 	velocity = Vector3.ZERO
 	set_collision_layer_value(1, true)
@@ -644,6 +678,8 @@ func _respawn() -> void:
 		health_back.visible = _health_bar_visible()
 	if health_fill != null:
 		health_fill.visible = _health_bar_visible()
+	if health_label != null:
+		health_label.visible = _health_bar_visible()
 	game.on_hero_respawned(self)
 
 
@@ -662,7 +698,7 @@ func use_ability(index: int) -> bool:
 	var origin := global_position
 	match String(data["type"]):
 		"dash":
-			var dir := Vector3(sin(visual.rotation.y), 0.0, cos(visual.rotation.y))
+			var dir := Vector3(-sin(visual.rotation.y), 0.0, -cos(visual.rotation.y))
 			var start := global_position
 			for step in 6:
 				var moved := move_and_collide(dir * 0.9)

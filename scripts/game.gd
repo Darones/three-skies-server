@@ -41,6 +41,10 @@ var projectiles: Array = []
 var shake_amount := 0.0
 var select_angle := 0.6
 var camera_pos := Vector3.ZERO
+var camera_distance := 27.2
+var zoom_speed := 1.0
+var min_zoom_distance := 18.0
+var max_zoom_distance := 42.0
 
 var music: AudioStreamPlayer
 var sfx_streams := {}
@@ -181,14 +185,15 @@ func _process(delta: float) -> void:
 func _update_camera(delta: float) -> void:
 	if player == null or not is_instance_valid(player):
 		return
-	var focus := player.global_position
+	var focus := player.global_position + Vector3(0.0, 1.0, 0.0)
 	if player.dead:
-		focus = Vector3(0.0, 0.0, 0.0)
+		focus = Vector3(0.0, 1.0, 0.0)
 	var camera_side := 1.0 if player.team == 0 else -1.0
-	var target_pos := focus + Vector3(0.0, 23.0, 16.0 * camera_side)
+	var camera_axis := Vector3(0.0, 22.0, 16.0 * camera_side).normalized()
+	var target_pos := focus + camera_axis * camera_distance
 	camera_pos = camera_pos.lerp(target_pos, 1.0 - exp(-5.0 * delta))
 	camera.global_position = camera_pos
-	camera.look_at(focus + Vector3(0.0, 1.0, 0.0), Vector3.UP)
+	camera.look_at(focus, Vector3.UP)
 
 
 func _update_shake(delta: float) -> void:
@@ -767,6 +772,14 @@ func shake(amount: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and state == "live":
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			camera_distance = clampf(camera_distance - zoom_speed * 2.0, min_zoom_distance, max_zoom_distance)
+			get_viewport().set_input_as_handled()
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			camera_distance = clampf(camera_distance + zoom_speed * 2.0, min_zoom_distance, max_zoom_distance)
+			get_viewport().set_input_as_handled()
+
 	if event is InputEventKey and event.pressed and not event.echo:
 		if state == "select":
 			if event.keycode == KEY_1:
