@@ -43,6 +43,10 @@ WORKDIR /app
 # Копируем весь проект
 COPY . /app/
 
+# Отладка: показываем файлы при сборке
+RUN echo "--- ФАЙЛЫ В /app ---" && ls -la /app
+RUN echo "--- ФАЙЛЫ В /app/server ---" && ls -la /app/server
+
 # Запускаем сервер в headless режиме
 # --headless — без рендеринга, только логика
 # --display-driver headless — явный headless-драйвер (без X11/Wayland)
