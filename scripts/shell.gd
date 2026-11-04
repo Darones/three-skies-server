@@ -64,12 +64,12 @@ func _build_visual() -> void:
 	var packed := load("res://art/generated/shell/3d_1793744338028.glb") as PackedScene
 	if packed != null:
 		var model := packed.instantiate() as Node3D
+		visual.add_child(model)
 		var aabb := _node_aabb(model)
 		if aabb.size.y > 0.01:
 			var factor := 3.9 / aabb.size.y
 			model.scale = Vector3.ONE * factor
 			model.position.y = -aabb.position.y * factor
-		visual.add_child(model)
 		return
 	var placeholder := MeshInstance3D.new()
 	var mesh := SphereMesh.new()

@@ -64,6 +64,10 @@ func _ready() -> void:
 	hud.game = self
 	hud.name = "HUD"
 	state = "select"
+	if get_tree().has_meta("selected_class"):
+		var selected_class := int(get_tree().get_meta("selected_class"))
+		if selected_class >= 0 and selected_class <= 2:
+			call_deferred("start_match", selected_class)
 
 
 func _setup_audio() -> void:
