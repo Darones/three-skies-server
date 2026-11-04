@@ -52,4 +52,4 @@ RUN echo "--- ФАЙЛЫ В /app/server ---" && ls -la /app/server
 # --display-driver headless — явный headless-драйвер (без X11/Wayland)
 # --audio-driver Dummy — без аудио-зависимостей
 # --path — корень проекта
-CMD ["/opt/godot/Godot_v4.7.2-stable_linux.x86_64", "--headless", "--display-driver", "headless", "--audio-driver", "Dummy", "--path", "/app", "--import", "res://server/server_main.tscn"]
+CMD ["/opt/godot/Godot_v4.7.2-stable_linux.x86_64", "--headless", "--display-driver", "headless", "--audio-driver", "Dummy", "--path", "/app", "res://server/server_main.tscn"]
