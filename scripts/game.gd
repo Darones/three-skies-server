@@ -23,6 +23,10 @@ var carrier: HeroUnit = null
 var state := "select"
 var match_time := MATCH_LENGTH
 var score: Array[int] = [0, 0]
+var p_kills := 0
+var p_deaths := 0
+var p_damage := 0.0
+var p_crystals := 0
 var shell_phase := "idle"
 var shell_timer := 8.0
 var shell_window := SHELL_WINDOW
@@ -110,6 +114,10 @@ func play_sfx(key: String, volume_db := -4.0) -> void:
 func start_match(player_class: int, requested_team: int = -1) -> void:
 	if state != "select":
 		return
+	p_kills = 0
+	p_deaths = 0
+	p_damage = 0.0
+	p_crystals = 0
 	var player_team := requested_team
 	if player_team < 0:
 		player_team = int(get_tree().get_meta("selected_team", get_meta("selected_team", 0)))
@@ -357,6 +365,8 @@ func _try_pickup() -> void:
 func _deliver(h: HeroUnit) -> void:
 	h.carrying = false
 	score[h.team] += 1
+	if h == player:
+		p_crystals += 1
 	carrier = null
 	crystal_state = "none"
 	if crystal_node != null and is_instance_valid(crystal_node):
@@ -385,11 +395,21 @@ func drop_crystal(pos: Vector3) -> void:
 func on_hero_died(h: HeroUnit) -> void:
 	burst(h.global_position + Vector3(0.0, 1.0, 0.0), Color(1.0, 0.45, 0.4), 22)
 	play_sfx("hit", -6.0)
+	if h == player:
+		p_deaths += 1
 	if h.carrying:
 		drop_crystal(h.global_position)
 		announce("Осколок выбит!", Color(1.0, 0.7, 0.4), 1.8)
 	if h == player:
 		announce("Ты пал. Возрождение через 8 с", Color(1.0, 0.5, 0.45), 2.2)
+
+
+func record_hero_damage(target: HeroUnit, source: Node, damage: float, killed: bool) -> void:
+	if player == null or source != player or target == player or target.team == player.team or damage <= 0.0:
+		return
+	p_damage += damage
+	if killed:
+		p_kills += 1
 
 
 func on_hero_respawned(h: HeroUnit) -> void:
@@ -403,6 +423,12 @@ func end_match(team_zero_won: bool) -> void:
 	result_text = "ПОБЕДА" if player_won else "ПОРАЖЕНИЕ"
 	get_tree().set_meta("last_match_won", player_won)
 	get_tree().set_meta("last_match_score", score.duplicate())
+	get_tree().set_meta("last_match_stats", {
+		"p_kills": p_kills,
+		"p_deaths": p_deaths,
+		"p_damage": p_damage,
+		"p_crystals": p_crystals,
+	})
 	if player != null:
 		get_tree().set_meta("selected_class", player.hero_class)
 	if player != null:
@@ -497,10 +523,10 @@ func pick_shell_target() -> HeroUnit:
 	return options[randi() % options.size()]
 
 
-func aoe(center: Vector3, radius: float, amount: float, source_team: int, stun_time: float, hurt_shell: bool) -> void:
+func aoe(center: Vector3, radius: float, amount: float, source_team: int, stun_time: float, hurt_shell: bool, source: HeroUnit = null) -> void:
 	for h in enemies_of(source_team):
 		if h.global_position.distance_to(center) <= radius:
-			h.take_damage(amount, null)
+			h.take_damage(amount, source)
 			if stun_time > 0.0:
 				h.stun(stun_time)
 	if hurt_shell and shell != null and is_instance_valid(shell) and shell.alive:

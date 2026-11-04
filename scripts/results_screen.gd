@@ -15,6 +15,7 @@ var font: SystemFont
 var selected_class := 0
 var player_won := true
 var score: Array = [0, 0]
+var match_stats: Dictionary = {}
 
 
 func _ready() -> void:
@@ -23,6 +24,7 @@ func _ready() -> void:
 	selected_class = clampi(int(get_tree().get_meta("selected_class", 0)), 0, 2)
 	player_won = bool(get_tree().get_meta("last_match_won", true))
 	score = get_tree().get_meta("last_match_score", [0, 0])
+	match_stats = get_tree().get_meta("last_match_stats", {})
 	_build_screen()
 
 
@@ -142,11 +144,13 @@ func _build_content() -> void:
 	divider.color = Color(GOLD.r, GOLD.g, GOLD.b, 0.35)
 	stats_content.add_child(divider)
 
-	for statistic_name in ["Убийства", "Смерти", "Урон", "Собрано кристаллов"]:
-		stats_content.add_child(_make_stat_row(statistic_name))
+	stats_content.add_child(_make_stat_row("Убийства", str(int(match_stats.get("p_kills", 0)))))
+	stats_content.add_child(_make_stat_row("Смерти", str(int(match_stats.get("p_deaths", 0)))))
+	stats_content.add_child(_make_stat_row("Урон", str(int(round(float(match_stats.get("p_damage", 0.0)))))))
+	stats_content.add_child(_make_stat_row("Собрано кристаллов", str(int(match_stats.get("p_crystals", 0)))))
 
 
-func _make_stat_row(label_text: String) -> Control:
+func _make_stat_row(label_text: String, value_text: String) -> Control:
 	var row := HBoxContainer.new()
 	row.custom_minimum_size = Vector2(0.0, 57.0)
 	row.add_theme_constant_override("separation", 12)
@@ -154,7 +158,7 @@ func _make_stat_row(label_text: String) -> Control:
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(name_label)
-	var value_label := _make_label("0", 25, GOLD)
+	var value_label := _make_label(value_text, 25, GOLD)
 	value_label.custom_minimum_size = Vector2(64.0, 0.0)
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	row.add_child(value_label)

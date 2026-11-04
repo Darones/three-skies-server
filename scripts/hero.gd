@@ -583,12 +583,15 @@ func is_hidden_from(observer: HeroUnit) -> bool:
 	return true
 
 
-func take_damage(amount: float, _source: Node = null) -> void:
+func take_damage(amount: float, source: Node = null) -> void:
 	if dead:
 		return
 	if amount > 0.0:
 		seconds_since_damage = 0.0
+	var applied_damage := minf(amount, health)
 	health -= amount
+	if game != null and game.has_method("record_hero_damage"):
+		game.record_hero_damage(self, source, applied_damage, health <= 0.0)
 	game.damage_number(global_position + Vector3(0.0, 2.0, 0.0), amount, team)
 	if health <= 0.0:
 		health = 0.0
@@ -665,15 +668,15 @@ func use_ability(index: int) -> bool:
 				var moved := move_and_collide(dir * 0.9)
 				if moved != null:
 					break
-			game.aoe(global_position, 2.4, 26.0, team, 0.0, true)
+			game.aoe(global_position, 2.4, 26.0, team, 0.0, true, self)
 			game.burst(global_position, color, 20)
 			game.ring_fx(start, color, 3.0)
 		"stun_aoe":
-			game.aoe(origin, 4.0, 18.0, team, 1.6, true)
+			game.aoe(origin, 4.0, 18.0, team, 1.6, true, self)
 			game.burst(origin, color, 26)
 			game.ring_fx(origin, color, 4.2)
 		"ult_aoe":
-			game.aoe(origin, 6.5, 60.0, team, 0.6, true)
+			game.aoe(origin, 6.5, 60.0, team, 0.6, true, self)
 			game.burst(origin, color, 46)
 			game.ring_fx(origin, color, 6.6)
 			game.shake(0.4)
@@ -681,12 +684,12 @@ func use_ability(index: int) -> bool:
 			game.heal_area(origin, 12.0, 55.0, team, 1)
 			game.burst(origin, Color(0.65, 1.0, 0.75), 18)
 		"root_aoe":
-			game.aoe(origin, 6.0, 16.0, team, 2.0, true)
+			game.aoe(origin, 6.0, 16.0, team, 2.0, true, self)
 			game.burst(origin, color, 24)
 			game.ring_fx(origin, color, 6.0)
 		"ult_support":
 			game.heal_area(origin, 14.0, 55.0, team, 99)
-			game.aoe(origin, 14.0, 34.0, team, 0.0, true)
+			game.aoe(origin, 14.0, 34.0, team, 0.0, true, self)
 			game.burst(origin, color, 40)
 			game.ring_fx(origin, color, 14.0)
 		"volley":
@@ -702,7 +705,7 @@ func use_ability(index: int) -> bool:
 		"ult_rain":
 			var target3: HeroUnit = game.nearest_enemy(origin, team, 18.0, self)
 			var center: Vector3 = target3.global_position if target3 != null else origin + Vector3(0.0, 0.0, 4.0)
-			game.aoe(center, 5.0, 62.0, team, 0.0, true)
+			game.aoe(center, 5.0, 62.0, team, 0.0, true, self)
 			game.burst(center, color, 50)
 			game.ring_fx(center, color, 5.0)
 			game.shake(0.25)
