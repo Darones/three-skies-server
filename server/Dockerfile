@@ -28,7 +28,7 @@ ARG GODOT_VERSION=4.3
 ARG GODOT_ARCH=x86_64
 
 # Скачиваем Godot Headless (консольная версия без рендеринга)
-RUN wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_stable_linux.${GODOT_ARCH}.zip" \
+RUN wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.${GODOT_ARCH}.zip" \
     -O /tmp/godot.zip \
     && mkdir -p /opt/godot \
     && unzip -q /tmp/godot.zip -d /opt/godot \
