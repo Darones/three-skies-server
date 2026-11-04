@@ -21,7 +21,5 @@ func _on_card_selected(index: int) -> void:
 		return
 	selection_locked = true
 	get_tree().set_meta("selected_class", index)
-	var error := get_tree().change_scene_to_file("res://scenes/LoadingScreen.tscn")
-	if error != OK:
-		selection_locked = false
-		push_error("Failed to change scene to LoadingScreen: %d" % error)
+	NetworkClient.connect_and_join(index + 1) # +1, если индексы идут с 0, а классы с 1
+	get_tree().change_scene_to_file("res://scenes/LoadingScreen.tscn")

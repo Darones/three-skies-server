@@ -111,3 +111,7 @@ light_2d_texture_filter=1
 [summer]
 
 version="0.8.4"
+
+[autoload]
+
+NetworkClient="*res://scripts/network_client.gd"

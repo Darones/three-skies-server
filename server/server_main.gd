@@ -40,6 +40,9 @@ func _process(delta: float) -> void:
 
 func _start_match():
 	print("Starting match with players: ", players_queue)
+	# Отправляем команду старта всем игрокам в очереди
+	for id in players_queue:
+		rpc_id(id, "start_match")
 	# Здесь будет логика заполнения ботами и отправки RPC
 	players_queue.clear()
 	timer_started = false
