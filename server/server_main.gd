@@ -34,6 +34,7 @@ var _next_id: int = 1
 
 
 func _ready() -> void:
+	print("=== СКРИПТ СЕРВЕРА НАЧАЛ РАБОТУ ===")
 	print("\n========================================")
 	print("   SKY SHARDS MATCHMAKING SERVER")
 	print("========================================")

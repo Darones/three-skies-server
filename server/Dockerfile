@@ -45,5 +45,7 @@ COPY . /app/
 
 # Запускаем сервер в headless режиме
 # --headless — без рендеринга, только логика
+# --display-driver headless — явный headless-драйвер (без X11/Wayland)
+# --audio-driver Dummy — без аудио-зависимостей
 # --path — корень проекта
-CMD /opt/godot/Godot_v4.3-stable_linux.x86_64 --headless --path /app -- res://server/server_main.tscn
+CMD ["/opt/godot/Godot_v4.3-stable_linux.x86_64", "--headless", "--display-driver", "headless", "--audio-driver", "Dummy", "--path", "/app", "res://server/server_main.tscn"]
