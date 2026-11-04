@@ -66,6 +66,7 @@ var display_name := ""
 
 var max_health := 200.0
 var health := 200.0
+var seconds_since_damage := 0.0
 var move_speed := 6.0
 var attack_range := 2.5
 var attack_damage := 20.0
@@ -89,8 +90,11 @@ var ai_offset := Vector3.ZERO
 var visual: Node3D
 var anim_player: AnimationPlayer = null
 var current_anim := ""
+var health_back: MeshInstance3D
 var health_fill: MeshInstance3D
 var carry_light: OmniLight3D
+var bush_zones: Array[Area3D] = []
+var in_bush := false
 
 
 func setup(p_game: Node, p_class: int, p_team: int, p_player: bool) -> void:
@@ -158,19 +162,19 @@ func _build_body() -> void:
 
 
 func _build_health_bar() -> void:
-	var back := MeshInstance3D.new()
+	health_back = MeshInstance3D.new()
 	var quad := QuadMesh.new()
 	quad.size = Vector2(1.25, 0.15)
-	back.mesh = quad
+	health_back.mesh = quad
 	var back_mat := StandardMaterial3D.new()
 	back_mat.albedo_color = Color(0.05, 0.05, 0.08, 0.85)
 	back_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	back_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	back_mat.no_depth_test = false
 	back_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	back.material_override = back_mat
-	back.position = Vector3(0.0, 2.35, 0.0)
-	add_child(back)
+	health_back.material_override = back_mat
+	health_back.position = Vector3(0.0, 2.35, 0.0)
+	add_child(health_back)
 
 	health_fill = MeshInstance3D.new()
 	var fill_quad := QuadMesh.new()
@@ -308,6 +312,10 @@ func _physics_process(delta: float) -> void:
 			_respawn()
 		return
 
+	seconds_since_damage = minf(5.0, seconds_since_damage + delta)
+	if seconds_since_damage >= 5.0 and health < max_health:
+		health = minf(max_health, health + 5.0 * delta)
+
 	stun_timer = maxf(0.0, stun_timer - delta)
 	attack_cd = maxf(0.0, attack_cd - delta)
 	cast_flash = maxf(0.0, cast_flash - delta)
@@ -405,7 +413,7 @@ func _ai_dir(delta: float) -> Vector3:
 func _ai_abilities() -> void:
 	if dead or stun_timer > 0.0:
 		return
-	var enemy: HeroUnit = game.nearest_enemy(global_position, team, 13.0)
+	var enemy: HeroUnit = game.nearest_enemy(global_position, team, 13.0, self)
 	var dist := global_position.distance_to(enemy.global_position) if enemy != null else 99.0
 	var shell_target: SkyShell = game.shell
 	var near_shell: bool = shell_target != null and is_instance_valid(shell_target) and shell_target.alive and global_position.distance_to(shell_target.global_position) < 8.0
@@ -435,7 +443,7 @@ func _ai_abilities() -> void:
 
 
 func _ai_pick_goal() -> void:
-	var enemy: HeroUnit = game.nearest_enemy(global_position, team, 30.0)
+	var enemy: HeroUnit = game.nearest_enemy(global_position, team, 30.0, self)
 	ai_attack_target = enemy
 	if carrying:
 		ai_goal = _base_position()
@@ -492,7 +500,7 @@ func _try_auto_attack(_delta: float) -> void:
 func _attack_target() -> Node3D:
 	var best: Node3D = null
 	var best_d := attack_range + 0.6
-	for h in game.enemies_of(team):
+	for h in game.enemies_of(team, self):
 		if h.dead:
 			continue
 		var d := global_position.distance_to(h.global_position)
@@ -525,15 +533,61 @@ func _update_look(_delta: float) -> void:
 	health_fill.visible = not dead
 	if carry_light != null:
 		carry_light.light_energy = 2.0 if carrying else 0.0
+	if health_back != null:
+		health_back.visible = _health_bar_visible()
+	if health_fill != null:
+		health_fill.visible = _health_bar_visible()
 	if visual != null and visual.visible:
 		var horizontal := Vector2(velocity.x, velocity.z).length()
 		if not dead and attack_anim_time <= 0.0:
 			_play_anim("run" if horizontal > move_speed * 0.55 else "walk" if horizontal > 0.4 else "idle")
 
 
+func set_bush_presence(zone: Area3D, inside: bool) -> void:
+	if inside:
+		if not bush_zones.has(zone):
+			bush_zones.append(zone)
+	else:
+		bush_zones.erase(zone)
+	in_bush = not bush_zones.is_empty()
+	var stack: Array[Node] = []
+	if visual != null:
+		stack.append(visual)
+	while not stack.is_empty():
+		var current: Node = stack.pop_back()
+		if current is GeometryInstance3D:
+			(current as GeometryInstance3D).transparency = 0.5 if in_bush else 0.0
+		for child in current.get_children():
+			stack.append(child)
+	if health_back != null:
+		health_back.visible = _health_bar_visible()
+	if health_fill != null:
+		health_fill.visible = _health_bar_visible()
+
+
+func _health_bar_visible() -> bool:
+	if dead:
+		return false
+	if not in_bush:
+		return true
+	var observer := game.get("player") as HeroUnit if game != null else null
+	return observer != null and (self == observer or not is_hidden_from(observer))
+
+
+func is_hidden_from(observer: HeroUnit) -> bool:
+	if not in_bush or observer == null or observer.team == team:
+		return false
+	for zone in bush_zones:
+		if observer.bush_zones.has(zone):
+			return false
+	return true
+
+
 func take_damage(amount: float, _source: Node = null) -> void:
 	if dead:
 		return
+	if amount > 0.0:
+		seconds_since_damage = 0.0
 	health -= amount
 	game.damage_number(global_position + Vector3(0.0, 2.0, 0.0), amount, team)
 	if health <= 0.0:
@@ -563,6 +617,10 @@ func _die() -> void:
 	set_collision_layer_value(1, false)
 	set_collision_mask_value(1, false)
 	visual.visible = false
+	bush_zones.clear()
+	in_bush = false
+	if health_back != null:
+		health_back.visible = false
 	if health_fill != null:
 		health_fill.visible = false
 	game.on_hero_died(self)
@@ -572,14 +630,17 @@ func _die() -> void:
 func _respawn() -> void:
 	dead = false
 	health = max_health
+	seconds_since_damage = 0.0
 	global_position = _base_position() + Vector3(0.0, 0.4, 0.0)
 	velocity = Vector3.ZERO
 	set_collision_layer_value(1, true)
 	set_collision_mask_value(1, true)
 	visual.visible = true
 	current_anim = ""
+	if health_back != null:
+		health_back.visible = _health_bar_visible()
 	if health_fill != null:
-		health_fill.visible = true
+		health_fill.visible = _health_bar_visible()
 	game.on_hero_respawned(self)
 
 
@@ -629,17 +690,17 @@ func use_ability(index: int) -> bool:
 			game.burst(origin, color, 40)
 			game.ring_fx(origin, color, 14.0)
 		"volley":
-			var target: HeroUnit = game.nearest_enemy(origin, team, 14.0)
+			var target: HeroUnit = game.nearest_enemy(origin, team, 14.0, self)
 			if target != null:
 				game.spawn_projectile(origin + Vector3(0.0, 1.2, 0.0), target, 15.0, color, self)
 				game.spawn_projectile(origin + Vector3(0.6, 1.2, 0.0), target, 15.0, color, self)
 				game.spawn_projectile(origin + Vector3(-0.6, 1.2, 0.0), target, 15.0, color, self)
 		"stun_shot":
-			var target2: HeroUnit = game.nearest_enemy(origin, team, 16.0)
+			var target2: HeroUnit = game.nearest_enemy(origin, team, 16.0, self)
 			if target2 != null:
 				game.spawn_projectile(origin + Vector3(0.0, 1.3, 0.0), target2, 24.0, color, self, 1.8)
 		"ult_rain":
-			var target3: HeroUnit = game.nearest_enemy(origin, team, 18.0)
+			var target3: HeroUnit = game.nearest_enemy(origin, team, 18.0, self)
 			var center: Vector3 = target3.global_position if target3 != null else origin + Vector3(0.0, 0.0, 4.0)
 			game.aoe(center, 5.0, 62.0, team, 0.0, true)
 			game.burst(center, color, 50)

@@ -1658,6 +1658,126 @@ height = 1.272115
 radial_segments = 5
 rings = 2
 
+[sub_resource type="SphereShape3D" id="SphereShape3D_0bbpv"]
+radius = 3.4
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rarhs"]
+albedo_color = Color(0.11, 0.31, 0.12, 1)
+roughness = 0.96
+
+[sub_resource type="SphereMesh" id="SphereMesh_vcsgt"]
+radius = 1.35
+height = 2.7
+radial_segments = 9
+rings = 5
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jlsqs"]
+albedo_color = Color(0.15, 0.38, 0.16, 1)
+roughness = 0.96
+
+[sub_resource type="SphereMesh" id="SphereMesh_q8u5g"]
+radius = 1.4
+height = 2.8
+radial_segments = 9
+rings = 5
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lhr70"]
+albedo_color = Color(0.08, 0.25, 0.1, 1)
+roughness = 0.96
+
+[sub_resource type="SphereMesh" id="SphereMesh_wp0k4"]
+radius = 1.25
+height = 2.5
+radial_segments = 9
+rings = 5
+
+[sub_resource type="SphereMesh" id="SphereMesh_bjd11"]
+radius = 1.2
+height = 2.4
+radial_segments = 9
+rings = 5
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_qmy6f"]
+radius = 3.4
+
+[sub_resource type="SphereMesh" id="SphereMesh_mwfav"]
+radius = 1.35
+height = 2.7
+radial_segments = 9
+rings = 5
+
+[sub_resource type="SphereMesh" id="SphereMesh_3p2gp"]
+radius = 1.4
+height = 2.8
+radial_segments = 9
+rings = 5
+
+[sub_resource type="SphereMesh" id="SphereMesh_cvmbd"]
+radius = 1.25
+height = 2.5
+radial_segments = 9
+rings = 5
+
+[sub_resource type="SphereMesh" id="SphereMesh_ft6cd"]
+radius = 1.2
+height = 2.4
+radial_segments = 9
+rings = 5
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_bb450"]
+radius = 3.4
+
+[sub_resource type="SphereMesh" id="SphereMesh_nfivy"]
+radius = 1.35
+height = 2.7
+radial_segments = 9
+rings = 5
+
+[sub_resource type="SphereMesh" id="SphereMesh_1nqs0"]
+radius = 1.4
+height = 2.8
+radial_segments = 9
+rings = 5
+
+[sub_resource type="SphereMesh" id="SphereMesh_1iba3"]
+radius = 1.25
+height = 2.5
+radial_segments = 9
+rings = 5
+
+[sub_resource type="SphereMesh" id="SphereMesh_yxlcp"]
+radius = 1.2
+height = 2.4
+radial_segments = 9
+rings = 5
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_ebg2g"]
+radius = 3.4
+
+[sub_resource type="SphereMesh" id="SphereMesh_2ofn6"]
+radius = 1.35
+height = 2.7
+radial_segments = 9
+rings = 5
+
+[sub_resource type="SphereMesh" id="SphereMesh_36rkl"]
+radius = 1.4
+height = 2.8
+radial_segments = 9
+rings = 5
+
+[sub_resource type="SphereMesh" id="SphereMesh_fs0b5"]
+radius = 1.25
+height = 2.5
+radial_segments = 9
+rings = 5
+
+[sub_resource type="SphereMesh" id="SphereMesh_ma7h6"]
+radius = 1.2
+height = 2.4
+radial_segments = 9
+rings = 5
+
 [node name="Main" type="Node3D" unique_id=1148344979]
 script = ExtResource("1_game")
 
@@ -3254,3 +3374,113 @@ mesh = SubResource("SphereMesh_3am16")
 transform = Transform3D(0.9762058, -0.093682244, -0.13419941, 0.14676306, 0.5360109, -0.16936044, 0.1596335, 0.08009932, 0.9763747, 27.645905, -0.11619825, -2.7443304)
 material_override = SubResource("StandardMaterial3D_q8u5g")
 mesh = SubResource("SphereMesh_q285r")
+
+[node name="Bushes" type="Node3D" parent="Arena" unique_id=1037635800]
+
+[node name="BushZone_1" type="Area3D" parent="Arena/Bushes" unique_id=247855988]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21, 0, -5)
+
+[node name="DetectionShape" type="CollisionShape3D" parent="Arena/Bushes/BushZone_1" unique_id=2091090923]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+shape = SubResource("SphereShape3D_0bbpv")
+
+[node name="Foliage_1" type="MeshInstance3D" parent="Arena/Bushes/BushZone_1" unique_id=2062164728]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9, 1.05, 0.1)
+material_override = SubResource("StandardMaterial3D_rarhs")
+mesh = SubResource("SphereMesh_vcsgt")
+
+[node name="Foliage_2" type="MeshInstance3D" parent="Arena/Bushes/BushZone_1" unique_id=331023580]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9, 1.15, 0.1)
+material_override = SubResource("StandardMaterial3D_jlsqs")
+mesh = SubResource("SphereMesh_q8u5g")
+
+[node name="Foliage_3" type="MeshInstance3D" parent="Arena/Bushes/BushZone_1" unique_id=837428435]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.55, -0.8)
+material_override = SubResource("StandardMaterial3D_lhr70")
+mesh = SubResource("SphereMesh_wp0k4")
+
+[node name="Foliage_4" type="MeshInstance3D" parent="Arena/Bushes/BushZone_1" unique_id=2064580259]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0.9)
+material_override = SubResource("StandardMaterial3D_rarhs")
+mesh = SubResource("SphereMesh_bjd11")
+
+[node name="BushZone_2" type="Area3D" parent="Arena/Bushes" unique_id=1669333817]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21, 0, -5)
+
+[node name="DetectionShape" type="CollisionShape3D" parent="Arena/Bushes/BushZone_2" unique_id=1055864422]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+shape = SubResource("SphereShape3D_qmy6f")
+
+[node name="Foliage_1" type="MeshInstance3D" parent="Arena/Bushes/BushZone_2" unique_id=1337100715]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9, 1.05, 0.1)
+material_override = SubResource("StandardMaterial3D_rarhs")
+mesh = SubResource("SphereMesh_mwfav")
+
+[node name="Foliage_2" type="MeshInstance3D" parent="Arena/Bushes/BushZone_2" unique_id=677864242]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9, 1.15, 0.1)
+material_override = SubResource("StandardMaterial3D_jlsqs")
+mesh = SubResource("SphereMesh_3p2gp")
+
+[node name="Foliage_3" type="MeshInstance3D" parent="Arena/Bushes/BushZone_2" unique_id=1581476657]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.55, -0.8)
+material_override = SubResource("StandardMaterial3D_lhr70")
+mesh = SubResource("SphereMesh_cvmbd")
+
+[node name="Foliage_4" type="MeshInstance3D" parent="Arena/Bushes/BushZone_2" unique_id=869146257]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0.9)
+material_override = SubResource("StandardMaterial3D_rarhs")
+mesh = SubResource("SphereMesh_ft6cd")
+
+[node name="BushZone_3" type="Area3D" parent="Arena/Bushes" unique_id=1334050074]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21, 0, 5)
+
+[node name="DetectionShape" type="CollisionShape3D" parent="Arena/Bushes/BushZone_3" unique_id=997055860]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+shape = SubResource("SphereShape3D_bb450")
+
+[node name="Foliage_1" type="MeshInstance3D" parent="Arena/Bushes/BushZone_3" unique_id=1021073684]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9, 1.05, 0.1)
+material_override = SubResource("StandardMaterial3D_rarhs")
+mesh = SubResource("SphereMesh_nfivy")
+
+[node name="Foliage_2" type="MeshInstance3D" parent="Arena/Bushes/BushZone_3" unique_id=1592835182]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9, 1.15, 0.1)
+material_override = SubResource("StandardMaterial3D_jlsqs")
+mesh = SubResource("SphereMesh_1nqs0")
+
+[node name="Foliage_3" type="MeshInstance3D" parent="Arena/Bushes/BushZone_3" unique_id=1960882802]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.55, -0.8)
+material_override = SubResource("StandardMaterial3D_lhr70")
+mesh = SubResource("SphereMesh_1iba3")
+
+[node name="Foliage_4" type="MeshInstance3D" parent="Arena/Bushes/BushZone_3" unique_id=1007404596]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0.9)
+material_override = SubResource("StandardMaterial3D_rarhs")
+mesh = SubResource("SphereMesh_yxlcp")
+
+[node name="BushZone_4" type="Area3D" parent="Arena/Bushes" unique_id=2051301421]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21, 0, 5)
+
+[node name="DetectionShape" type="CollisionShape3D" parent="Arena/Bushes/BushZone_4" unique_id=2010822213]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+shape = SubResource("SphereShape3D_ebg2g")
+
+[node name="Foliage_1" type="MeshInstance3D" parent="Arena/Bushes/BushZone_4" unique_id=1551400138]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9, 1.05, 0.1)
+material_override = SubResource("StandardMaterial3D_rarhs")
+mesh = SubResource("SphereMesh_2ofn6")
+
+[node name="Foliage_2" type="MeshInstance3D" parent="Arena/Bushes/BushZone_4" unique_id=1949154592]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9, 1.15, 0.1)
+material_override = SubResource("StandardMaterial3D_jlsqs")
+mesh = SubResource("SphereMesh_36rkl")
+
+[node name="Foliage_3" type="MeshInstance3D" parent="Arena/Bushes/BushZone_4" unique_id=1811943668]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.55, -0.8)
+material_override = SubResource("StandardMaterial3D_lhr70")
+mesh = SubResource("SphereMesh_fs0b5")
+
+[node name="Foliage_4" type="MeshInstance3D" parent="Arena/Bushes/BushZone_4" unique_id=1017970588]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0.9)
+material_override = SubResource("StandardMaterial3D_rarhs")
+mesh = SubResource("SphereMesh_ma7h6")

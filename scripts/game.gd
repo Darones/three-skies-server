@@ -63,6 +63,13 @@ func _ready() -> void:
 	add_child(hud)
 	hud.game = self
 	hud.name = "HUD"
+	var bushes_root := get_node_or_null("Arena/Bushes")
+	if bushes_root != null:
+		for bush_node in bushes_root.get_children():
+			if bush_node is Area3D:
+				var bush := bush_node as Area3D
+				bush.body_entered.connect(_on_bush_body_entered.bind(bush))
+				bush.body_exited.connect(_on_bush_body_exited.bind(bush))
 	state = "select"
 	if get_tree().has_meta("selected_class"):
 		var selected_class := int(get_tree().get_meta("selected_class"))
@@ -404,25 +411,40 @@ func announce(text: String, color: Color, duration := 2.0) -> void:
 		hud.show_announcement(text, color, duration)
 
 
-func enemies_of(team: int) -> Array[HeroUnit]:
+func enemies_of(team: int, observer: HeroUnit = null) -> Array[HeroUnit]:
 	var out: Array[HeroUnit] = []
 	for h in heroes:
-		if h.team != team and not h.dead:
-			out.append(h)
+		if h.team == team or h.dead:
+			continue
+		if observer != null and h.is_hidden_from(observer):
+			continue
+		out.append(h)
 	return out
 
 
-func nearest_enemy(from: Vector3, team: int, max_dist: float) -> HeroUnit:
+func nearest_enemy(from: Vector3, team: int, max_dist: float, observer: HeroUnit = null) -> HeroUnit:
 	var best: HeroUnit = null
 	var best_d := max_dist
 	for h in heroes:
 		if h.team == team or h.dead:
+			continue
+		if observer != null and h.is_hidden_from(observer):
 			continue
 		var d := from.distance_to(h.global_position)
 		if d < best_d:
 			best_d = d
 			best = h
 	return best
+
+
+func _on_bush_body_entered(body: Node3D, bush: Area3D) -> void:
+	if body is HeroUnit:
+		(body as HeroUnit).set_bush_presence(bush, true)
+
+
+func _on_bush_body_exited(body: Node3D, bush: Area3D) -> void:
+	if body is HeroUnit:
+		(body as HeroUnit).set_bush_presence(bush, false)
 
 
 func lowest_ally(from: Vector3, team: int, max_dist: float) -> HeroUnit:
