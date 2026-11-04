@@ -12,6 +12,7 @@ const TIPS := [
 var progress_bar: ProgressBar
 var tip_label: Label
 var loading_started := false
+var match_transition_started := false
 
 func _ready() -> void:
 	_build_screen()
@@ -23,14 +24,20 @@ func _ready() -> void:
 	loading_tween.tween_property(progress_bar, "value", 100.0, LOAD_DURATION)
 	loading_started = true
 	await loading_tween.finished
-	if is_inside_tree() and not NetworkClient.match_started.is_connected(_on_match_started):
-		# Таймер закончился, сервер ещё не ответил — всё равно переходим
-		var result := get_tree().change_scene_to_file("res://scenes/Main.tscn")
-		if result != OK:
-			push_error("Could not open the match scene: %s" % error_string(result))
+	if is_inside_tree():
+		_open_match_scene()
 
 func _on_match_started() -> void:
-	get_tree().change_scene_to_file("res://scenes/Main.tscn")
+	_open_match_scene()
+
+func _open_match_scene() -> void:
+	if match_transition_started:
+		return
+	match_transition_started = true
+	var result := get_tree().change_scene_to_file("res://scenes/Main.tscn")
+	if result != OK:
+		match_transition_started = false
+		push_error("Could not open the match scene: %s" % error_string(result))
 
 func _build_screen() -> void:
 	var artwork := TextureRect.new()
