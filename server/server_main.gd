@@ -1,7 +1,7 @@
 extends Node
 
 # ============================================================
-# Sky Shards — WebSocket Matchmaking Server
+# Sky Shards - WebSocket Matchmaking Server
 # Port: 9080 | Max players: 6 | Teams: Light vs Dark
 # ============================================================
 
@@ -11,15 +11,15 @@ const MAX_PLAYERS := 6
 const QUEUE_TIMEOUT := 2.0  # seconds
 
 enum PlayerClass {
-	WARRIOR = 1
-	MAGE = 2
-	FAIRY = 3
+	WARRIOR = 1,
+	MAGE = 2,
+	FAIRY = 3,
 }
 
 enum Team {
-	NONE = 0
-	LIGHT = 1
-	DARK = 2
+	NONE = 0,
+	LIGHT = 1,
+	DARK = 2,
 }
 
 # ---------- internal state ----------
@@ -34,7 +34,7 @@ var _next_id: int = 1
 
 
 func _ready() -> void:
-	print("=== СКРИПТ СЕРВЕРА НАЧАЛ РАБОТУ ===")
+	print("=== SERVER SCRIPT STARTED ===")
 	print("\n========================================")
 	print("   SKY SHARDS MATCHMAKING SERVER")
 	print("========================================")
@@ -50,7 +50,7 @@ func _ready() -> void:
 		return
 
 	print("Server is listening on port ", PORT, "\n")
-	print("=== СЕРВЕР УСПЕШНО ЗАПУЩЕН НА ПОРТУ: ", PORT, " ===")
+	print("=== SERVER SUCCESSFULLY STARTED ON PORT: ", PORT, " ===")
 
 	# Timer for matchmaking queue
 	_queue_timer = Timer.new()
@@ -123,7 +123,7 @@ func _join_queue(client_id: int, pkt: Dictionary) -> void:
 
 	# First player in queue -> start countdown
 	if _queue.size() == 1:
-		print("[TIMER] First player — starting ", QUEUE_TIMEOUT, "s countdown...")
+		print("[TIMER] First player - starting ", QUEUE_TIMEOUT, "s countdown...")
 		_queue_timer.start()
 
 
@@ -208,7 +208,7 @@ func _assign_team(player_id: int, light_team: Array, dark_team: Array) -> void:
 			_commit_team(player_id, Team.DARK, dark_team)
 			return
 		else:
-			# Both classes taken — go to smaller team anyway
+			# Both classes taken - go to smaller team anyway
 			_commit_team(player_id, Team.LIGHT, light_team)
 			return
 	else:
