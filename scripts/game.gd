@@ -396,13 +396,28 @@ func on_hero_respawned(h: HeroUnit) -> void:
 	burst(h.global_position + Vector3(0.0, 0.6, 0.0), Color(0.6, 0.9, 1.0), 18)
 
 
-func end_match(player_team_won: bool) -> void:
+func end_match(team_zero_won: bool) -> void:
 	state = "over"
-	player_won = player_team_won
-	result_text = "ПОБЕДА" if player_team_won else "ПОРАЖЕНИЕ"
+	var player_team := player.team if player != null else 0
+	player_won = team_zero_won if player_team == 0 else not team_zero_won
+	result_text = "ПОБЕДА" if player_won else "ПОРАЖЕНИЕ"
+	get_tree().set_meta("last_match_won", player_won)
+	get_tree().set_meta("last_match_score", score.duplicate())
+	if player != null:
+		get_tree().set_meta("selected_class", player.hero_class)
 	if player != null:
 		player.is_player = false
-	announce(result_text, Color(0.85, 1.0, 0.7) if player_team_won else Color(1.0, 0.5, 0.45), 6.0)
+	announce(result_text, Color(0.85, 1.0, 0.7) if player_won else Color(1.0, 0.5, 0.45), 6.0)
+	var transition_timer := get_tree().create_timer(2.8)
+	transition_timer.timeout.connect(_open_results_screen)
+
+
+func _open_results_screen() -> void:
+	if state != "over":
+		return
+	var error := get_tree().change_scene_to_file("res://scenes/ResultsScreen.tscn")
+	if error != OK:
+		push_error("Failed to open ResultsScreen: %s" % error_string(error))
 
 
 func announce(text: String, color: Color, duration := 2.0) -> void:
