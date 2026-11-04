@@ -44,4 +44,4 @@ COPY . /app/
 # Запускаем сервер в headless режиме
 # --headless — без рендеринга, только логика
 # --path — корень проекта
-CMD /opt/godot/Godot_v${GODOT_VERSION}-stable_linux.${GODOT_ARCH} --headless --path /app -- res://server/server_main.tscn
+CMD /opt/godot/Godot_v4.3-stable_linux.x86_64 --headless --path /app -- res://server/server_main.tscn
