@@ -87,10 +87,6 @@ func _build_top(root: Control) -> void:
 	box.add_theme_constant_override("separation", 0)
 	panel.add_child(box)
 
-	score_label = _make_label("СВЕТ  0 : 0  ТЬМА", 26, GOLD)
-	box.add_child(score_label)
-	
-
 	objective_label = _make_label("", 13, Color(0.82, 0.88, 1.0))
 	box.add_child(objective_label)
 
@@ -107,6 +103,23 @@ func _build_top(root: Control) -> void:
 	timer_label = _make_label("05:00", 24, PALE)
 	timer_label.custom_minimum_size = Vector2(88.0, 28.0)
 	timer_panel.add_child(timer_label)
+
+	var score_panel := PanelContainer.new()
+	score_panel.name = "ScorePanel"
+	score_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	score_panel.offset_left = -340.0
+	score_panel.offset_top = 68.0
+	score_panel.offset_right = -20.0
+	score_panel.offset_bottom = 100.0
+	score_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.96, 0.82, 0.52, 0.55)))
+	score_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(score_panel)
+	var score_box := VBoxContainer.new()
+	score_box.add_theme_constant_override("separation", 0)
+	score_panel.add_child(score_box)
+	score_label = _make_label("СВЕТ  0 : 0  ТЬМА", 20, GOLD)
+	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	score_box.add_child(score_label)
 
 
 func _build_player_panel(root: Control) -> void:
