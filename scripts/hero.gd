@@ -6,6 +6,7 @@ signal hero_died(hero: HeroUnit)
 enum Cls { WARRIOR, MAGE, FAIRY }
 
 const GRAVITY := 26.0
+const STUN_DURATION := 1.0
 
 const CLASS_DATA := {
 	Cls.WARRIOR: {
@@ -636,10 +637,10 @@ func heal(amount: float) -> void:
 	game.heal_number(global_position + Vector3(0.0, 2.2, 0.0), amount)
 
 
-func stun(duration: float) -> void:
+func stun(_duration: float) -> void:
 	if dead:
 		return
-	stun_timer = maxf(stun_timer, duration)
+	stun_timer = maxf(stun_timer, STUN_DURATION)
 
 
 func _die() -> void:
@@ -708,11 +709,11 @@ func use_ability(index: int) -> bool:
 			game.burst(global_position, color, 20)
 			game.ring_fx(start, color, 3.0)
 		"stun_aoe":
-			game.aoe(origin, 4.0, 18.0, team, 1.6, true, self)
+			game.aoe(origin, 4.0, 18.0, team, 1.0, true, self)
 			game.burst(origin, color, 26)
 			game.ring_fx(origin, color, 4.2)
 		"ult_aoe":
-			game.aoe(origin, 6.5, 60.0, team, 0.6, true, self)
+			game.aoe(origin, 6.5, 60.0, team, 1.0, true, self)
 			game.burst(origin, color, 46)
 			game.ring_fx(origin, color, 6.6)
 			game.shake(0.4)
@@ -720,7 +721,7 @@ func use_ability(index: int) -> bool:
 			game.heal_area(origin, 12.0, 55.0, team, 1)
 			game.burst(origin, Color(0.65, 1.0, 0.75), 18)
 		"root_aoe":
-			game.aoe(origin, 6.0, 16.0, team, 2.0, true, self)
+			game.aoe(origin, 6.0, 16.0, team, 1.0, true, self)
 			game.burst(origin, color, 24)
 			game.ring_fx(origin, color, 6.0)
 		"ult_support":
@@ -737,7 +738,7 @@ func use_ability(index: int) -> bool:
 		"stun_shot":
 			var target2: HeroUnit = game.nearest_enemy(origin, team, 16.0, self)
 			if target2 != null:
-				game.spawn_projectile(origin + Vector3(0.0, 1.3, 0.0), target2, 24.0, color, self, 1.8)
+				game.spawn_projectile(origin + Vector3(0.0, 1.3, 0.0), target2, 24.0, color, self, 1.0)
 		"ult_rain":
 			var target3: HeroUnit = game.nearest_enemy(origin, team, 18.0, self)
 			var center: Vector3 = target3.global_position if target3 != null else origin + Vector3(0.0, 0.0, 4.0)

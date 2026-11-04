@@ -650,7 +650,7 @@ func shell_bolt(pos: Vector3, radius: float, damage: float) -> void:
 	for h in heroes:
 		if not h.dead and h.global_position.distance_to(pos) <= radius:
 			h.take_damage(damage, null)
-			h.stun(0.4)
+			h.stun(1.0)
 
 
 func telegraph(pos: Vector3, radius: float, duration: float) -> void:
