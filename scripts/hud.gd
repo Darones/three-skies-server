@@ -76,45 +76,60 @@ func _build_top(root: Control) -> void:
 	panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	panel.anchor_left = 0.5
 	panel.anchor_right = 0.5
-	panel.offset_left = -190.0
-	panel.offset_right = 190.0
+	panel.offset_left = -300.0
+	panel.offset_right = 300.0
 	panel.offset_top = 14.0
+	panel.offset_bottom = 70.0
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(panel)
 
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 2)
+	box.add_theme_constant_override("separation", 0)
 	panel.add_child(box)
 
 	score_label = _make_label("СВЕТ  0 : 0  ТЬМА", 26, GOLD)
 	box.add_child(score_label)
-	timer_label = _make_label("05:00", 40, PALE)
-	box.add_child(timer_label)
-	objective_label = _make_label("", 19, Color(0.82, 0.88, 1.0))
+	
+
+	objective_label = _make_label("", 13, Color(0.82, 0.88, 1.0))
 	box.add_child(objective_label)
+
+	var timer_panel := PanelContainer.new()
+	timer_panel.name = "TimerPanel"
+	timer_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	timer_panel.offset_left = -140.0
+	timer_panel.offset_top = 14.0
+	timer_panel.offset_right = -20.0
+	timer_panel.offset_bottom = 62.0
+	timer_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.96, 0.82, 0.52, 0.55)))
+	timer_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(timer_panel)
+	timer_label = _make_label("05:00", 24, PALE)
+	timer_label.custom_minimum_size = Vector2(88.0, 28.0)
+	timer_panel.add_child(timer_label)
 
 
 func _build_player_panel(root: Control) -> void:
 	var panel := PanelContainer.new()
 	player_panel = panel
 	panel.add_theme_stylebox_override("panel", _panel_style(Color(0.6, 0.85, 1.0, 0.5)))
-	panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	panel.offset_left = 20.0
-	panel.offset_top = -130.0
-	panel.offset_right = 330.0
-	panel.offset_bottom = -20.0
+	panel.offset_top = 14.0
+	panel.offset_right = 320.0
+	panel.offset_bottom = 116.0
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(panel)
 
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)
 	panel.add_child(box)
-	class_label = _make_label("", 24, GOLD)
+	class_label = _make_label("", 19, GOLD)
 	class_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	box.add_child(class_label)
 
 	health_bar = ProgressBar.new()
-	health_bar.custom_minimum_size = Vector2(280, 18)
+	health_bar.custom_minimum_size = Vector2(270, 14)
 	health_bar.show_percentage = false
 	health_bar.max_value = 100.0
 	health_bar.value = 100.0
@@ -128,7 +143,7 @@ func _build_player_panel(root: Control) -> void:
 	health_bar.add_theme_stylebox_override("fill", fill)
 	box.add_child(health_bar)
 
-	carry_label = _make_label("", 18, Color(0.72, 0.95, 1.0))
+	carry_label = _make_label("", 14, Color(0.72, 0.95, 1.0))
 	carry_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	box.add_child(carry_label)
 
@@ -141,43 +156,56 @@ func _build_abilities(root: Control) -> void:
 	row.anchor_top = 1.0
 	row.anchor_right = 1.0
 	row.anchor_bottom = 1.0
-	row.offset_left = -466.0
-	row.offset_top = -128.0
+	row.offset_left = -296.0
+	row.offset_top = -104.0
 	row.offset_right = -20.0
 	row.offset_bottom = -20.0
-	row.add_theme_constant_override("separation", 10)
+	row.add_theme_constant_override("separation", 8)
 	row.alignment = BoxContainer.ALIGNMENT_END
 	root.add_child(row)
 
 	for i in 3:
 		var button := Button.new()
-		button.custom_minimum_size = Vector2(142, 96)
+		button.custom_minimum_size = Vector2(84, 84)
 		button.clip_contents = true
 		button.focus_mode = Control.FOCUS_NONE
-		button.add_theme_stylebox_override("normal", _panel_style(Color(0.65, 0.8, 1.0, 0.45)))
-		button.add_theme_stylebox_override("hover", _panel_style(Color(0.9, 0.85, 0.6, 0.8)))
-		button.add_theme_stylebox_override("pressed", _panel_style(Color(1.0, 0.9, 0.6, 0.95)))
+		button.add_theme_stylebox_override("normal", _ability_style(i, false))
+		button.add_theme_stylebox_override("hover", _ability_style(i, true))
+		button.add_theme_stylebox_override("pressed", _ability_style(i, true))
 		button.pressed.connect(_on_ability_pressed.bind(i))
 		var box := VBoxContainer.new()
 		box.set_anchors_preset(Control.PRESET_FULL_RECT)
 		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		box.add_theme_constant_override("separation", 2)
+		box.add_theme_constant_override("separation", 0)
 		button.add_child(box)
-		var key := _make_label(str(i + 1), 20, GOLD)
+		var key := _make_label(str(i + 1) + " / " + ["A", "B", "X"][i], 14, Color.WHITE)
 		box.add_child(key)
-		var name_label := _make_label("", 15, PALE)
+		var name_label := _make_label("", 10, PALE)
 		name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		name_label.add_theme_font_size_override("font_size", 14)
-		name_label.custom_minimum_size = Vector2(118, 34)
+		
+		name_label.custom_minimum_size = Vector2(70, 28)
 		name_label.clip_text = true
 		box.add_child(name_label)
-		var cd := _make_label("", 16, Color(0.7, 0.9, 1.0))
+		var cd := _make_label("", 11, Color(0.7, 0.9, 1.0))
 		box.add_child(cd)
 		row.add_child(button)
 		ability_buttons.append(button)
 		ability_cd_labels.append(cd)
 		ability_name_labels.append(name_label)
 
+func _ability_style(index: int, hovered: bool) -> StyleBoxFlat:
+	var accents := [Color(0.22, 0.82, 0.42), Color(0.91, 0.28, 0.31), Color(0.2, 0.55, 0.96)]
+	var accent: Color = accents[index]
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(accent.r, accent.g, accent.b, 0.38 if not hovered else 0.62)
+	style.border_color = Color(accent.r, accent.g, accent.b, 0.82 if not hovered else 1.0)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(42)
+	style.content_margin_left = 2.0
+	style.content_margin_right = 2.0
+	style.content_margin_top = 2.0
+	style.content_margin_bottom = 2.0
+	return style
 
 func _build_announcement(root: Control) -> void:
 	announce_label = _make_label("", 40, GOLD)

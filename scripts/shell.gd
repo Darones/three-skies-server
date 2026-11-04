@@ -110,6 +110,7 @@ func _build_health_bar() -> void:
 	back_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	back_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	back_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	back_mat.no_depth_test = true
 	back.material_override = back_mat
 	back.position = Vector3(0.0, 3.9, 0.0)
 	add_child(back)
@@ -125,6 +126,7 @@ func _build_health_bar() -> void:
 	fill_mat.emission_energy_multiplier = 1.2
 	fill_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	fill_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	fill_mat.no_depth_test = true
 	health_fill.material_override = fill_mat
 	health_fill.position = Vector3(0.0, 3.9, 0.02)
 	add_child(health_fill)
