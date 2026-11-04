@@ -26,7 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Переменные — поменяй VERSION если нужна другая версия Godot
-ARG GODOT_VERSION=4.3
+ARG GODOT_VERSION=4.7.2
 ARG GODOT_ARCH=x86_64
 
 # Скачиваем Godot Headless (консольная версия без рендеринга)
@@ -48,4 +48,4 @@ COPY . /app/
 # --display-driver headless — явный headless-драйвер (без X11/Wayland)
 # --audio-driver Dummy — без аудио-зависимостей
 # --path — корень проекта
-CMD ["/opt/godot/Godot_v4.3-stable_linux.x86_64", "--headless", "--display-driver", "headless", "--audio-driver", "Dummy", "--path", "/app", "res://server/server_main.tscn"]
+CMD ["/opt/godot/Godot_v4.7.2-stable_linux.x86_64", "--headless", "--display-driver", "headless", "--audio-driver", "Dummy", "--path", "/app", "--import", "res://server/server_main.tscn"]
