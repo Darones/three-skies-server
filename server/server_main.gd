@@ -49,6 +49,7 @@ func _ready() -> void:
 		return
 
 	print("Server is listening on port ", PORT, "\n")
+	print("=== СЕРВЕР УСПЕШНО ЗАПУЩЕН НА ПОРТУ: ", PORT, " ===")
 
 	# Timer for matchmaking queue
 	_queue_timer = Timer.new()

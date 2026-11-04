@@ -21,6 +21,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libogg0 \
     libvorbis0a \
     libpulse0 \
+    libfontconfig1 \
+    fontconfig \
     && rm -rf /var/lib/apt/lists/*
 
 # Переменные — поменяй VERSION если нужна другая версия Godot
