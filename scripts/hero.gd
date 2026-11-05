@@ -372,6 +372,13 @@ func _play_anim(key: String) -> void:
 		if low.contains(key):
 			target = String(animation_name)
 			break
+	# Маппинг: "run" также ищет "sprint"
+	if target == "" and key == "run":
+		for animation_name in anim_player.get_animation_list():
+			var low := String(animation_name).to_lower()
+			if low.contains("sprint"):
+				target = String(animation_name)
+				break
 	if target == "":
 		return
 	current_anim = key
