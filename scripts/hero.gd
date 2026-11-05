@@ -224,36 +224,20 @@ func _build_visual() -> void:
 		visual.add_child(holder)
 		_fit_model(holder)
 		anim_player = _find_animation_player(holder)
-		if anim_player == null:
-			anim_player = _build_animation_player_from_library(holder)
-		if anim_player != null:
-			_play_anim("idle")
+		_play_anim("idle")
 		return
 	_build_placeholder()
 
 
 func _load_model() -> Node3D:
 	var folder := ""
-	var animated_name := ""
 	match hero_class:
 		Cls.WARRIOR:
 			folder = "res://art/generated/warrior"
-			animated_name = "warrior_animated"
 		Cls.MAGE:
 			folder = "res://art/generated/mage"
-			animated_name = "mage_animated"
 		Cls.FAIRY:
 			folder = "res://art/generated/fairy"
-			animated_name = "fairy_animated"
-	# 1. Сначала проверяем новую анимированную модель .glb
-	var animated_path := folder + "/" + animated_name + ".glb"
-	if ResourceLoader.exists(animated_path):
-		var packed := load(animated_path) as PackedScene
-		if packed != null:
-			var node := packed.instantiate() as Node3D
-			if node != null:
-				return node
-	# 2. Запасной вариант: старый поиск .tscn
 	var dir := DirAccess.open(folder)
 	if dir == null:
 		return null
@@ -264,7 +248,7 @@ func _load_model() -> Node3D:
 				chosen = file
 	if chosen == "":
 		for file in dir.get_files():
-			if file.ends_with(".glb"):
+			if file.ends_with(".glb") and (file.to_lower().contains("idle") or chosen == ""):
 				chosen = file
 	if chosen == "":
 		return null
@@ -315,54 +299,6 @@ func _find_animation_player(node: Node) -> AnimationPlayer:
 	return null
 
 
-func _build_animation_player_from_library(node: Node) -> AnimationPlayer:
-	var lib: AnimationLibrary = null
-	for c in node.get_children():
-		if c is MeshInstance3D and c.mesh != null:
-			lib = c.mesh.get("library") as AnimationLibrary
-			if lib != null:
-				break
-		if c is Node3D:
-			lib = _get_library_from_children(c)
-			if lib != null:
-				break
-	if lib == null:
-		return null
-	var player := AnimationPlayer.new()
-	player.name = "AnimationPlayer"
-	node.add_child(player)
-	node.owner = node.get_scene_root()
-	for anim_name in lib.get_animation_list():
-		var anim := lib.get_animation(anim_name)
-		var clean_name := _clean_anim_name(anim_name)
-		player.add_animation(clean_name, anim)
-	return player
-
-
-func _get_library_from_children(node: Node) -> AnimationLibrary:
-	for c in node.get_children():
-		if c is MeshInstance3D and c.mesh != null:
-			var lib := c.mesh.get("library") as AnimationLibrary
-			if lib != null:
-				return lib
-		if c is Node3D:
-			var lib := _get_library_from_children(c)
-			if lib != null:
-				return lib
-	return null
-
-
-func _clean_anim_name(name: String) -> String:
-	var s := name.strip_edges().to_lower()
-	if s.contains("idle"):
-		return "Idle"
-	elif s.contains("sprint") or s.contains("run"):
-		return "Run"
-	elif s.contains("attack") or s.contains("sword"):
-		return "Attack"
-	return name.strip_edges()
-
-
 func _play_anim(key: String) -> void:
 	if anim_player == null or current_anim == key:
 		return
@@ -372,13 +308,6 @@ func _play_anim(key: String) -> void:
 		if low.contains(key):
 			target = String(animation_name)
 			break
-	# Маппинг: "run" также ищет "sprint"
-	if target == "" and key == "run":
-		for animation_name in anim_player.get_animation_list():
-			var low := String(animation_name).to_lower()
-			if low.contains("sprint"):
-				target = String(animation_name)
-				break
 	if target == "":
 		return
 	current_anim = key
