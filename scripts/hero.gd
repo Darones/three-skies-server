@@ -234,13 +234,26 @@ func _build_visual() -> void:
 
 func _load_model() -> Node3D:
 	var folder := ""
+	var animated_name := ""
 	match hero_class:
 		Cls.WARRIOR:
 			folder = "res://art/generated/warrior"
+			animated_name = "warrior_animated"
 		Cls.MAGE:
 			folder = "res://art/generated/mage"
+			animated_name = "mage_animated"
 		Cls.FAIRY:
 			folder = "res://art/generated/fairy"
+			animated_name = "fairy_animated"
+	# 1. Сначала проверяем новую анимированную модель .glb
+	var animated_path := folder + "/" + animated_name + ".glb"
+	if ResourceLoader.exists(animated_path):
+		var packed := load(animated_path) as PackedScene
+		if packed != null:
+			var node := packed.instantiate() as Node3D
+			if node != null:
+				return node
+	# 2. Запасной вариант: старый поиск .tscn
 	var dir := DirAccess.open(folder)
 	if dir == null:
 		return null
@@ -251,7 +264,7 @@ func _load_model() -> Node3D:
 				chosen = file
 	if chosen == "":
 		for file in dir.get_files():
-			if file.ends_with(".glb") and (file.to_lower().contains("idle") or chosen == ""):
+			if file.ends_with(".glb"):
 				chosen = file
 	if chosen == "":
 		return null
