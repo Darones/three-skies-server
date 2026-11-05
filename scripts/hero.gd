@@ -41,11 +41,11 @@ const CLASS_DATA := {
 			{"name": "Ульта: Черная дыра", "cd": 28.0, "type": "ult_black_hole"},
 		],
 	},
-	Cls.FAIRY: {
+		Cls.FAIRY: {
 		"name": "Фея",
 		"title": "Фея-лучница",
 		"hp": 160.0,
-		"speed": 7.0,
+		"speed": 4.5,
 		"range": 11.0,
 		"damage": 15.0,
 		"interval": 0.75,

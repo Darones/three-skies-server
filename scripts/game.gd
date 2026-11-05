@@ -42,9 +42,9 @@ var projectiles: Array = []
 var shake_amount := 0.0
 var select_angle := 0.6
 var camera_pos := Vector3.ZERO
-var camera_distance := 27.2
+var camera_distance := 16.0
 var zoom_speed := 1.0
-var min_zoom_distance := 18.0
+var min_zoom_distance := 12.0
 var max_zoom_distance := 42.0
 
 var music: AudioStreamPlayer
