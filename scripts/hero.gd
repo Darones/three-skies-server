@@ -224,7 +224,10 @@ func _build_visual() -> void:
 		visual.add_child(holder)
 		_fit_model(holder)
 		anim_player = _find_animation_player(holder)
-		_play_anim("idle")
+		if anim_player == null:
+			anim_player = _build_animation_player_from_library(holder)
+		if anim_player != null:
+			_play_anim("idle")
 		return
 	_build_placeholder()
 
@@ -297,6 +300,54 @@ func _find_animation_player(node: Node) -> AnimationPlayer:
 		if found != null:
 			return found
 	return null
+
+
+func _build_animation_player_from_library(node: Node) -> AnimationPlayer:
+	var lib: AnimationLibrary = null
+	for c in node.get_children():
+		if c is MeshInstance3D and c.mesh != null:
+			lib = c.mesh.get("library") as AnimationLibrary
+			if lib != null:
+				break
+		if c is Node3D:
+			lib = _get_library_from_children(c)
+			if lib != null:
+				break
+	if lib == null:
+		return null
+	var player := AnimationPlayer.new()
+	player.name = "AnimationPlayer"
+	node.add_child(player)
+	node.owner = node.get_scene_root()
+	for anim_name in lib.get_animation_list():
+		var anim := lib.get_animation(anim_name)
+		var clean_name := _clean_anim_name(anim_name)
+		player.add_animation(clean_name, anim)
+	return player
+
+
+func _get_library_from_children(node: Node) -> AnimationLibrary:
+	for c in node.get_children():
+		if c is MeshInstance3D and c.mesh != null:
+			var lib := c.mesh.get("library") as AnimationLibrary
+			if lib != null:
+				return lib
+		if c is Node3D:
+			var lib := _get_library_from_children(c)
+			if lib != null:
+				return lib
+	return null
+
+
+func _clean_anim_name(name: String) -> String:
+	var s := name.strip_edges().to_lower()
+	if s.contains("idle"):
+		return "Idle"
+	elif s.contains("sprint") or s.contains("run"):
+		return "Run"
+	elif s.contains("attack") or s.contains("sword"):
+		return "Attack"
+	return name.strip_edges()
 
 
 func _play_anim(key: String) -> void:
