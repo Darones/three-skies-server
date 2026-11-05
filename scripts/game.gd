@@ -32,6 +32,7 @@ var shell_timer := 8.0
 var shell_window := SHELL_WINDOW
 var crystal_state := "none"
 var crystal_timer := 0.0
+var pickup_delay := 0.0
 var sudden_death := false
 var player_won := false
 var result_text := ""
@@ -147,9 +148,9 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	match_time = MATCH_LENGTH
 	shell_phase = "idle"
 	shell_timer = 8.0
-	announce("Бой за осколки!", Color(1.0, 0.86, 0.55), 2.6)
 	if hud != null:
 		hud.hide_class_select()
+		announce("Бой за осколки!", Color(1.0, 0.86, 0.55), 2.6)
 
 
 func _spawn_hero(cls: int, team: int, is_player: bool, pos: Vector3) -> HeroUnit:
@@ -330,16 +331,21 @@ func _update_crystal(delta: float) -> void:
 		return
 	if crystal_state == "ground":
 		crystal_timer += delta
+		pickup_delay = maxf(0.0, pickup_delay - delta)
 		crystal_node.rotation.y += delta * 1.8
 		crystal_node.position.y = 1.1 + sin(crystal_timer * 2.4) * 0.12
 		if crystal_timer > 35.0:
 			crystal_node.global_position = Vector3(0.0, 1.1, 0.0)
 			crystal_timer = 0.0
 			announce("Осколок вернулся к алтарю", Color(0.75, 0.9, 1.0), 1.8)
-		if state == "live":
+		if state == "live" and pickup_delay <= 0.0:
 			_try_pickup()
 	elif crystal_state == "carried" and carrier != null and is_instance_valid(carrier):
 		crystal_node.global_position = carrier.global_position + Vector3(0.0, 2.9, 0.0)
+		if not is_instance_valid(crystal_node):
+			crystal_state = "none"
+			carrier.carrying = false
+			carrier = null
 		crystal_node.rotation.y += delta * 2.4
 		var base_z := 35.0 if carrier.team == 0 else -35.0
 		if Vector2(carrier.global_position.x, carrier.global_position.z - base_z).length() < 4.8:
@@ -393,8 +399,9 @@ func drop_crystal(pos: Vector3) -> void:
 		return
 	crystal_state = "ground"
 	crystal_timer = 0.0
+	pickup_delay = 0.5
 	carrier = null
-	crystal_node.global_position = Vector3(pos.x, 1.1, pos.z)
+	crystal_node.global_position = Vector3(pos.x, 0.5, pos.z)
 
 
 func on_hero_died(h: HeroUnit) -> void:
@@ -422,8 +429,12 @@ func on_hero_respawned(h: HeroUnit) -> void:
 
 
 func end_match(team_zero_won: bool) -> void:
+	if state != "live":
+		return
 	state = "over"
-	var player_team := player.team if player != null else 0
+	var player_team := 0
+	if player != null and is_instance_valid(player):
+		player_team = player.team
 	player_won = team_zero_won if player_team == 0 else not team_zero_won
 	result_text = "ПОБЕДА" if player_won else "ПОРАЖЕНИЕ"
 	get_tree().set_meta("last_match_won", player_won)
@@ -434,9 +445,8 @@ func end_match(team_zero_won: bool) -> void:
 		"p_damage": p_damage,
 		"p_crystals": p_crystals,
 	})
-	if player != null:
+	if player != null and is_instance_valid(player):
 		get_tree().set_meta("selected_class", player.hero_class)
-	if player != null:
 		player.is_player = false
 	announce(result_text, Color(0.85, 1.0, 0.7) if player_won else Color(1.0, 0.5, 0.45), 6.0)
 	var transition_timer := get_tree().create_timer(2.8)
@@ -596,6 +606,16 @@ func _update_projectiles(delta: float) -> void:
 		p["life"] = float(p["life"]) - delta
 		if p["life"] <= 0.0:
 			node.queue_free()
+			continue
+		if p.get("black_hole", false):
+			var bh_dir: Vector3 = p.get("bh_dir", Vector3.FORWARD)
+			node.global_position += bh_dir * 5.0 * delta
+			for h in enemies_of(p["source"].team if p.has("source") else 0):
+				if not h.dead and h.global_position.distance_to(node.global_position) <= float(p.get("radius", 3.5)):
+					h.take_damage(float(p["damage"]) * delta * 0.5, p["source"])
+			if randf() < 0.3:
+				burst(node.global_position, p["color"], 3)
+			keep.append(p)
 			continue
 		if not is_instance_valid(target) or (target is HeroUnit and (target as HeroUnit).dead):
 			node.queue_free()
@@ -807,7 +827,7 @@ func objective_text() -> String:
 		return "Выбери класс — 1 Воин · 2 Маг · 3 Фея"
 	if state == "over":
 		return "Нажми R, чтобы сыграть ещё раз"
-	if crystal_state == "carried" and carrier != null:
+	if crystal_state == "carried" and carrier != null and is_instance_valid(carrier):
 		var who := "Ты несёшь осколок — на базу!" if carrier == player else "%s несёт осколок" % carrier.display_name
 		return who
 	if crystal_state == "ground":

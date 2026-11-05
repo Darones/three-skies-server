@@ -14,15 +14,15 @@ const CLASS_DATA := {
 		"title": "Воин света",
 		"hp": 240.0,
 		"speed": 6.4,
-		"range": 2.7,
+		"range": 3.2,
 		"damage": 22.0,
 		"interval": 0.8,
 		"ranged": false,
 		"color": Color(1.0, 0.78, 0.4),
 		"abilities": [
-			{"name": "Рывок", "cd": 7.0, "type": "dash"},
-			{"name": "Оглушение", "cd": 11.0, "type": "stun_aoe"},
-			{"name": "Небесный клинок", "cd": 24.0, "type": "ult_aoe"},
+			{"name": "Прыжок", "cd": 8.0, "type": "dash_stun"},
+			{"name": "Яростный удар", "cd": 10.0, "type": "cleave_bleed"},
+			{"name": "Ульта: Замедление", "cd": 25.0, "type": "ult_aoe_slow"},
 		],
 	},
 	Cls.MAGE: {
@@ -36,9 +36,9 @@ const CLASS_DATA := {
 		"ranged": true,
 		"color": Color(0.6, 0.95, 1.0),
 		"abilities": [
+			{"name": "Лозы", "cd": 10.0, "type": "root"},
 			{"name": "Исцеление", "cd": 8.0, "type": "heal"},
-			{"name": "Лозы", "cd": 12.0, "type": "root_aoe"},
-			{"name": "Свет небес", "cd": 26.0, "type": "ult_support"},
+			{"name": "Ульта: Черная дыра", "cd": 28.0, "type": "ult_black_hole"},
 		],
 	},
 	Cls.FAIRY: {
@@ -52,9 +52,9 @@ const CLASS_DATA := {
 		"ranged": true,
 		"color": Color(0.72, 0.95, 0.55),
 		"abilities": [
-			{"name": "Залп", "cd": 6.0, "type": "volley"},
-			{"name": "Оглушающая стрела", "cd": 12.0, "type": "stun_shot"},
-			{"name": "Дождь стрел", "cd": 24.0, "type": "ult_rain"},
+			{"name": "Оглушающий выстрел", "cd": 12.0, "type": "stun_shot"},
+			{"name": "Сильное натяжение", "cd": 15.0, "type": "heavy_shot"},
+			{"name": "Ульта: Град стрел", "cd": 24.0, "type": "ult_rain"},
 		],
 	},
 }
@@ -82,6 +82,8 @@ var attack_anim_time := 0.0
 var respawn_timer := 0.0
 var ability_cds: Array[float] = [0.0, 0.0, 0.0]
 var cast_flash := 0.0
+var bleed_timer := 0.0
+var bleed_damage := 0.0
 
 var ai_goal := Vector3.ZERO
 var ai_think := 0.0
@@ -340,6 +342,11 @@ func _physics_process(delta: float) -> void:
 	attack_cd = maxf(0.0, attack_cd - delta)
 	cast_flash = maxf(0.0, cast_flash - delta)
 	attack_anim_time = maxf(0.0, attack_anim_time - delta)
+	bleed_timer = maxf(0.0, bleed_timer - delta)
+	if bleed_timer > 0.0:
+		bleed_timer -= 1.0
+		if bleed_timer > 0.0:
+			take_damage(bleed_damage, null)
 	for i in ability_cds.size():
 		ability_cds[i] = maxf(0.0, ability_cds[i] - delta)
 
@@ -385,7 +392,9 @@ func _player_dir() -> Vector3:
 	if input.length() < 0.1:
 		return Vector3.ZERO
 	input = input.normalized()
-	var cam: Camera3D = game.camera
+	var cam: Camera3D = game.camera if game != null else null
+	if cam == null:
+		return Vector3.ZERO
 	var fwd := -cam.global_transform.basis.z
 	fwd.y = 0.0
 	fwd = fwd.normalized()
@@ -416,14 +425,15 @@ func _ai_dir(delta: float) -> Vector3:
 		if d < attack_range * 0.65 and d > 0.1:
 			dir = away.normalized()
 	var sep := Vector3.ZERO
-	for other in game.heroes:
-		if other == self or other.dead:
-			continue
-		var delta_pos: Vector3 = global_position - other.global_position
-		delta_pos.y = 0.0
-		var dd := delta_pos.length()
-		if dd > 0.01 and dd < 1.7:
-			sep += delta_pos.normalized() * (1.7 - dd)
+	if game != null and game.has_method("heroes"):
+		for other in game.heroes:
+			if other == self or other.dead:
+				continue
+			var delta_pos: Vector3 = global_position - other.global_position
+			delta_pos.y = 0.0
+			var dd := delta_pos.length()
+			if dd > 0.01 and dd < 1.7:
+				sep += delta_pos.normalized() * (1.7 - dd)
 	dir += sep * 0.8
 	if stun_timer > 0.0:
 		return Vector3.ZERO
@@ -433,36 +443,41 @@ func _ai_dir(delta: float) -> Vector3:
 func _ai_abilities() -> void:
 	if dead or stun_timer > 0.0:
 		return
+	if game == null:
+		return
 	var enemy: HeroUnit = game.nearest_enemy(global_position, team, 13.0, self)
 	var dist := global_position.distance_to(enemy.global_position) if enemy != null else 99.0
 	var shell_target: SkyShell = game.shell
 	var near_shell: bool = shell_target != null and is_instance_valid(shell_target) and shell_target.alive and global_position.distance_to(shell_target.global_position) < 8.0
 	match hero_class:
 		Cls.WARRIOR:
-			if enemy != null and dist < 3.8 and ability_ready(1):
+			if enemy != null and dist < 3.2 and ability_ready(1):
 				use_ability(1)
-			elif enemy != null and dist < 8.0 and dist > 3.0 and ability_ready(0):
+			elif enemy != null and dist > 2.5 and ability_ready(0):
 				use_ability(0)
 			elif near_shell and ability_ready(2) and game.shell != null and game.shell.health < game.shell.max_health * 0.5:
 				use_ability(2)
 		Cls.MAGE:
 			var ally: HeroUnit = game.lowest_ally(global_position, team, 12.0)
-			if ally != null and ally.health < ally.max_health * 0.62 and ability_ready(0):
-				use_ability(0)
-			elif enemy != null and dist < 6.0 and ability_ready(1):
+			if ally != null and ally.health < ally.max_health * 0.62 and ability_ready(1):
 				use_ability(1)
+			elif enemy != null and dist < 7.0 and ability_ready(0):
+				use_ability(0)
 			elif near_shell and ability_ready(2) and game.shell != null and game.shell.health < game.shell.max_health * 0.4:
 				use_ability(2)
 		Cls.FAIRY:
-			if enemy != null and dist < 12.0 and dist > 5.5 and ability_ready(1):
-				use_ability(1)
-			elif enemy != null and dist < 9.0 and ability_ready(0):
+			if enemy != null and dist < 14.0 and ability_ready(0):
 				use_ability(0)
+			elif enemy != null and dist < 10.0 and ability_ready(1):
+				use_ability(1)
 			elif near_shell and ability_ready(2) and game.shell != null and game.shell.health < game.shell.max_health * 0.45:
 				use_ability(2)
 
 
 func _ai_pick_goal() -> void:
+	if game == null:
+		ai_goal = Vector3.ZERO
+		return
 	var enemy: HeroUnit = game.nearest_enemy(global_position, team, 30.0, self)
 	ai_attack_target = enemy
 	if carrying:
@@ -498,6 +513,8 @@ func _base_position() -> Vector3:
 
 func _try_auto_attack(_delta: float) -> void:
 	if attack_cd > 0.0:
+		return
+	if game == null:
 		return
 	var target := _attack_target()
 	if target == null:
@@ -593,7 +610,9 @@ func _health_bar_visible() -> bool:
 		return false
 	if not in_bush:
 		return true
-	var observer := game.get("player") as HeroUnit if game != null else null
+	var observer: HeroUnit = null
+	if game != null and game.has_method("get"):
+		observer = game.get("player") as HeroUnit
 	return observer != null and (self == observer or not is_hidden_from(observer))
 
 
@@ -623,7 +642,8 @@ func take_damage(amount: float, source: Node = null) -> void:
 	_update_health_label()
 	if game != null and game.has_method("record_hero_damage"):
 		game.record_hero_damage(self, source, applied_damage, health <= 0.0)
-	game.damage_number(global_position + Vector3(0.0, 2.0, 0.0), amount, team)
+	if game != null and game.has_method("damage_number"):
+		game.damage_number(global_position + Vector3(0.0, 2.0, 0.0), amount, team)
 	if health <= 0.0:
 		health = 0.0
 		_die()
@@ -634,7 +654,8 @@ func heal(amount: float) -> void:
 		return
 	health = minf(max_health, health + amount)
 	_update_health_label()
-	game.heal_number(global_position + Vector3(0.0, 2.2, 0.0), amount)
+	if game != null and game.has_method("heal_number"):
+		game.heal_number(global_position + Vector3(0.0, 2.2, 0.0), amount)
 
 
 func stun(_duration: float) -> void:
@@ -660,7 +681,8 @@ func _die() -> void:
 		health_back.visible = false
 	if health_fill != null:
 		health_fill.visible = false
-	game.on_hero_died(self)
+	if game != null:
+		game.on_hero_died(self)
 	hero_died.emit(self)
 
 
@@ -681,7 +703,8 @@ func _respawn() -> void:
 		health_fill.visible = _health_bar_visible()
 	if health_label != null:
 		health_label.visible = _health_bar_visible()
-	game.on_hero_respawned(self)
+	if game != null:
+		game.on_hero_respawned(self)
 
 
 func use_ability(index: int) -> bool:
@@ -691,6 +714,8 @@ func use_ability(index: int) -> bool:
 		return false
 	if ability_cds[index] > 0.0:
 		return false
+	if game == null:
+		return false
 	var data: Dictionary = CLASS_DATA[hero_class]["abilities"][index]
 	ability_cds[index] = data["cd"]
 	cast_flash = 0.35
@@ -698,53 +723,93 @@ func use_ability(index: int) -> bool:
 	var color: Color = CLASS_DATA[hero_class]["color"]
 	var origin := global_position
 	match String(data["type"]):
-		"dash":
+		"dash_stun":
 			var dir := Vector3(-sin(visual.rotation.y), 0.0, -cos(visual.rotation.y))
 			var start := global_position
-			for step in 6:
-				var moved := move_and_collide(dir * 0.9)
+			for step in 8:
+				var moved := move_and_collide(dir * 1.1)
 				if moved != null:
 					break
-			game.aoe(global_position, 2.4, 26.0, team, 0.0, true, self)
-			game.burst(global_position, color, 20)
-			game.ring_fx(start, color, 3.0)
-		"stun_aoe":
-			game.aoe(origin, 4.0, 18.0, team, 1.0, true, self)
-			game.burst(origin, color, 26)
-			game.ring_fx(origin, color, 4.2)
-		"ult_aoe":
-			game.aoe(origin, 6.5, 60.0, team, 1.0, true, self)
-			game.burst(origin, color, 46)
-			game.ring_fx(origin, color, 6.6)
-			game.shake(0.4)
-		"heal":
-			game.heal_area(origin, 12.0, 55.0, team, 1)
-			game.burst(origin, Color(0.65, 1.0, 0.75), 18)
-		"root_aoe":
-			game.aoe(origin, 6.0, 16.0, team, 1.0, true, self)
-			game.burst(origin, color, 24)
-			game.ring_fx(origin, color, 6.0)
-		"ult_support":
-			game.heal_area(origin, 14.0, 55.0, team, 99)
-			game.aoe(origin, 14.0, 34.0, team, 0.0, true, self)
+			game.aoe(global_position, 2.0, 22.0, team, 1.5, true, self)
+			game.burst(global_position, color, 18)
+			game.ring_fx(start, color, 2.8)
+		"cleave_bleed":
+			game.aoe(origin, 3.0, 18.0, team, 0.0, true, self)
+			for h in game.enemies_of(team, self):
+				if not h.dead and h.global_position.distance_to(origin) <= 3.0:
+					h.take_damage(12.0, self)
+					h.bleed_timer = 4.0
+					h.bleed_damage = 6.0
+			game.burst(origin, color, 22)
+			game.ring_fx(origin, color, 3.5)
+		"ult_aoe_slow":
+			game.aoe(origin, 5.0, 30.0, team, 0.0, true, self)
+			for h in game.enemies_of(team, self):
+				if not h.dead and h.global_position.distance_to(origin) <= 5.0:
+					h.stun(3.0)
 			game.burst(origin, color, 40)
-			game.ring_fx(origin, color, 14.0)
-		"volley":
-			var target: HeroUnit = game.nearest_enemy(origin, team, 14.0, self)
-			if target != null:
-				game.spawn_projectile(origin + Vector3(0.0, 1.2, 0.0), target, 15.0, color, self)
-				game.spawn_projectile(origin + Vector3(0.6, 1.2, 0.0), target, 15.0, color, self)
-				game.spawn_projectile(origin + Vector3(-0.6, 1.2, 0.0), target, 15.0, color, self)
+			game.ring_fx(origin, color, 6.0)
+			game.shake(0.35)
+		"root":
+			var fwd := Vector3(-sin(visual.rotation.y), 0.0, -cos(visual.rotation.y))
+			var proj_pos := origin + Vector3(0.0, 1.2, 0.0)
+			var root_target: HeroUnit = game.nearest_enemy(proj_pos, team, 10.0, self)
+			if root_target != null:
+				game.spawn_projectile(proj_pos, root_target, 10.0, color, self, 2.0)
+			game.burst(proj_pos, color, 14)
+		"heal":
+			var ally: HeroUnit = game.lowest_ally(origin, team, 8.0)
+			if ally != null:
+				ally.heal(50.0)
+				game.burst(ally.global_position, Color(0.65, 1.0, 0.75), 16)
+			else:
+				game.heal_area(origin, 6.0, 40.0, team, 1)
+				game.burst(origin, Color(0.65, 1.0, 0.75), 14)
+		"ult_black_hole":
+			var fwd := Vector3(-sin(visual.rotation.y), 0.0, -cos(visual.rotation.y))
+			var bh := MeshInstance3D.new()
+			var sphere := SphereMesh.new()
+			sphere.radius = 0.5
+			sphere.height = 0.5
+			bh.mesh = sphere
+			var bh_mat := StandardMaterial3D.new()
+			bh_mat.albedo_color = Color(0.15, 0.05, 0.3)
+			bh_mat.emission_enabled = true
+			bh_mat.emission = Color(0.3, 0.1, 0.5)
+			bh_mat.emission_energy_multiplier = 4.0
+			bh_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			bh.material_override = bh_mat
+			add_child(bh)
+			bh.global_position = origin + Vector3(0.0, 1.5, 0.0)
+			game.projectiles.append({
+				"node": bh,
+				"target": null,
+				"damage": 35.0,
+				"color": Color(0.3, 0.1, 0.5),
+				"source": self,
+				"stun": 0.0,
+				"life": 3.0,
+				"black_hole": true,
+				"bh_dir": fwd,
+				"radius": 3.5,
+			})
+			game.burst(origin, Color(0.3, 0.1, 0.5), 20)
 		"stun_shot":
-			var target2: HeroUnit = game.nearest_enemy(origin, team, 16.0, self)
+			var target2: HeroUnit = game.nearest_enemy(origin, team, 14.0, self)
 			if target2 != null:
-				game.spawn_projectile(origin + Vector3(0.0, 1.3, 0.0), target2, 24.0, color, self, 1.0)
+				game.spawn_projectile(origin + Vector3(0.0, 1.3, 0.0), target2, 20.0, color, self, 1.0)
+			game.burst(origin, color, 10)
+		"heavy_shot":
+			var target3: HeroUnit = game.nearest_enemy(origin, team, 16.0, self)
+			if target3 != null:
+				game.spawn_projectile(origin + Vector3(0.0, 1.3, 0.0), target3, 40.0, color, self, 0.0)
+			game.burst(origin, color, 14)
 		"ult_rain":
-			var target3: HeroUnit = game.nearest_enemy(origin, team, 18.0, self)
-			var center: Vector3 = target3.global_position if target3 != null else origin + Vector3(0.0, 0.0, 4.0)
-			game.aoe(center, 5.0, 62.0, team, 0.0, true, self)
-			game.burst(center, color, 50)
-			game.ring_fx(center, color, 5.0)
+			var fwd2 := Vector3(-sin(visual.rotation.y), 0.0, -cos(visual.rotation.y))
+			var rain_center := origin + fwd2 * 6.0
+			game.aoe(rain_center, 4.5, 50.0, team, 0.0, true, self)
+			game.burst(rain_center, color, 44)
+			game.ring_fx(rain_center, color, 5.0)
 			game.shake(0.25)
 	return true
 
