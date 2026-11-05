@@ -1,6 +1,8 @@
 class_name SkyShell
 extends CharacterBody3D
 
+const SHELL_MODEL: PackedScene = preload("res://art/generated/shell/3d_1793744338028.glb")
+
 var game: Node
 var alive := true
 var max_health := 1080.0
@@ -22,10 +24,10 @@ func _ready() -> void:
 	collision_mask = 1
 	var col := CollisionShape3D.new()
 	var shape := CylinderShape3D.new()
-	shape.radius = 1.6
-	shape.height = 3.0
+	shape.radius = 0.9
+	shape.height = 2.2
 	col.shape = shape
-	col.position = Vector3(0.0, 1.5, 0.0)
+	col.position = Vector3(0.0, 1.1, 0.0)
 	add_child(col)
 
 	visual = Node3D.new()
@@ -37,14 +39,14 @@ func _ready() -> void:
 	core_light = OmniLight3D.new()
 	core_light.light_color = Color(0.68, 0.35, 1.0)
 	core_light.light_energy = 3.5
-	core_light.omni_range = 12.0
-	core_light.position = Vector3(0.0, 1.6, 0.0)
+	core_light.omni_range = 5.0
+	core_light.position = Vector3(0.0, 1.1, 0.0)
 	add_child(core_light)
 
 	var pulse := MeshInstance3D.new()
 	var torus := TorusMesh.new()
-	torus.inner_radius = 1.9
-	torus.outer_radius = 2.05
+	torus.inner_radius = 1.05
+	torus.outer_radius = 1.13
 	torus.rings = 40
 	torus.ring_segments = 8
 	pulse.mesh = torus
@@ -56,27 +58,26 @@ func _ready() -> void:
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	pulse.material_override = mat
 	pulse.name = "AuraRing"
-	pulse.position = Vector3(0.0, 0.15, 0.0)
+	pulse.position = Vector3(0.0, 0.06, 0.0)
 	add_child(pulse)
 
 
 func _build_visual() -> void:
-	var packed := load("res://art/generated/shell/3d_1793744338028.glb") as PackedScene
-	if packed != null:
-		var model := packed.instantiate() as Node3D
+	if SHELL_MODEL != null:
+		var model := SHELL_MODEL.instantiate() as Node3D
 		visual.add_child(model)
 		var aabb := _node_aabb(model)
 		if aabb.size.y > 0.01:
-			var factor := 3.9 / aabb.size.y
+			var factor := 2.4 / aabb.size.y
 			model.scale = Vector3.ONE * factor
 			model.position.y = -aabb.position.y * factor
 		return
 	var placeholder := MeshInstance3D.new()
 	var mesh := SphereMesh.new()
-	mesh.radius = 1.4
-	mesh.height = 2.8
+	mesh.radius = 0.9
+	mesh.height = 2.4
 	placeholder.mesh = mesh
-	placeholder.position.y = 1.5
+	placeholder.position.y = 1.2
 	visual.add_child(placeholder)
 
 
@@ -103,7 +104,7 @@ func _node_aabb(node: Node) -> AABB:
 func _build_health_bar() -> void:
 	var back := MeshInstance3D.new()
 	var quad := QuadMesh.new()
-	quad.size = Vector2(3.4, 0.26)
+	quad.size = Vector2(1.15, 0.09)
 	back.mesh = quad
 	var back_mat := StandardMaterial3D.new()
 	back_mat.albedo_color = Color(0.05, 0.04, 0.09, 0.9)
@@ -112,12 +113,12 @@ func _build_health_bar() -> void:
 	back_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	back_mat.no_depth_test = true
 	back.material_override = back_mat
-	back.position = Vector3(0.0, 3.9, 0.0)
+	back.position = Vector3(0.0, 2.55, 0.0)
 	add_child(back)
 
 	health_fill = MeshInstance3D.new()
 	var fill_quad := QuadMesh.new()
-	fill_quad.size = Vector2(3.3, 0.18)
+	fill_quad.size = Vector2(1.1, 0.06)
 	health_fill.mesh = fill_quad
 	var fill_mat := StandardMaterial3D.new()
 	fill_mat.albedo_color = Color(0.85, 0.4, 1.0)
@@ -128,7 +129,7 @@ func _build_health_bar() -> void:
 	fill_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	fill_mat.no_depth_test = true
 	health_fill.material_override = fill_mat
-	health_fill.position = Vector3(0.0, 3.9, 0.02)
+	health_fill.position = Vector3(0.0, 2.55, 0.02)
 	add_child(health_fill)
 
 
@@ -138,14 +139,14 @@ func _physics_process(delta: float) -> void:
 	bob_time += delta
 	if visual != null:
 		visual.rotation.y += delta * 0.35
-		visual.position.y = sin(bob_time * 1.6) * 0.14
+		visual.position.y = sin(bob_time * 1.6) * 0.08
 	attack_timer -= delta
 	if attack_timer <= 0.0:
 		attack_timer = 3.4
 		_strike()
 	var frac := clampf(health / max_health, 0.0, 1.0)
 	health_fill.scale.x = maxf(0.001, frac)
-	health_fill.position.x = (frac - 1.0) * 1.65
+	health_fill.position.x = (frac - 1.0) * 0.55
 	if core_light != null:
 		core_light.light_energy = 3.0 + sin(bob_time * 3.0) * 0.8
 

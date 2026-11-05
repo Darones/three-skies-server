@@ -4,6 +4,7 @@ const MATCH_LENGTH := 300.0
 const RESPAWN_TIME := 8.0
 const SHELL_WINDOW := 45.0
 const CRYSTALS_TO_WIN := 3
+const GROUND_CRYSTAL_LIFETIME := 30.0
 
 const MUSIC_PATH := "res://audio/music/dread/6adcd384-a1c6-4d03-ab8f-2885c6220fd5_music_dark_fantasy_arena_battle_them__1793744175999.mp3"
 const SFX_PATHS := {
@@ -190,7 +191,7 @@ func _update_camera(delta: float) -> void:
 	if player.dead:
 		focus = Vector3(0.0, 1.0, 0.0)
 	var camera_side := 1.0 if player.team == 0 else -1.0
-	var camera_axis := Vector3(0.0, 22.0, 16.0 * camera_side).normalized()
+	var camera_axis := Vector3(0.0, 13.0, 20.0 * camera_side).normalized()
 	var target_pos := focus + camera_axis * camera_distance
 	camera_pos = camera_pos.lerp(target_pos, 1.0 - exp(-5.0 * delta))
 	camera.global_position = camera_pos
@@ -323,6 +324,7 @@ func spawn_crystal(pos: Vector3) -> void:
 	crystal_node = c
 	crystal_state = "ground"
 	crystal_timer = 0.0
+	pickup_delay = 0.0
 	carrier = null
 
 
@@ -334,6 +336,15 @@ func _update_crystal(delta: float) -> void:
 		pickup_delay = maxf(0.0, pickup_delay - delta)
 		crystal_node.rotation.y += delta * 1.8
 		crystal_node.position.y = 1.1 + sin(crystal_timer * 2.4) * 0.12
+		if crystal_timer >= GROUND_CRYSTAL_LIFETIME:
+			var expired_position := crystal_node.global_position
+			crystal_node.queue_free()
+			crystal_node = null
+			crystal_state = "none"
+			carrier = null
+			pickup_delay = 0.0
+			burst(expired_position, Color(0.7, 0.9, 1.0), 18)
+			return
 		if crystal_timer > 35.0:
 			crystal_node.global_position = Vector3(0.0, 1.1, 0.0)
 			crystal_timer = 0.0
@@ -409,7 +420,7 @@ func on_hero_died(h: HeroUnit) -> void:
 	play_sfx("hit", -6.0)
 	if h == player:
 		p_deaths += 1
-	if h.carrying:
+	if h == carrier or h.carrying:
 		drop_crystal(h.global_position)
 		announce("Осколок выбит!", Color(1.0, 0.7, 0.4), 1.8)
 	if h == player:

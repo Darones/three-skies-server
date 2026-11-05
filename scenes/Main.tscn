@@ -148,20 +148,6 @@ outer_radius = 1.15
 rings = 32
 ring_segments = 8
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2ofn6"]
-transparency = 1
-albedo_color = Color(0.72, 0.88, 1, 0.85)
-metallic = 0.3
-roughness = 0.15
-emission_enabled = true
-emission = Color(0.72, 0.88, 1, 1)
-emission_energy_multiplier = 1.6
-
-[sub_resource type="SphereMesh" id="SphereMesh_xa025"]
-height = 1.5
-radial_segments = 4
-rings = 2
-
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_36rkl"]
 albedo_color = Color(0.5, 0.53, 0.6, 1)
 roughness = 0.72
@@ -1887,17 +1873,6 @@ mesh = SubResource("CylinderMesh_1iba3")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
 material_override = SubResource("StandardMaterial3D_yxlcp")
 mesh = SubResource("TorusMesh_ebg2g")
-
-[node name="ShrineCrystal" type="MeshInstance3D" parent="Arena/Altar" unique_id=483828291]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, 0)
-material_override = SubResource("StandardMaterial3D_2ofn6")
-mesh = SubResource("SphereMesh_xa025")
-
-[node name="@OmniLight3D@25467" type="OmniLight3D" parent="Arena/Altar" unique_id=451303888]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
-light_color = Color(0.6, 0.85, 1, 1)
-light_energy = 1.6
-omni_range = 7.0
 
 [node name="@Node3D@25468" type="Node3D" parent="Arena/Altar" unique_id=421483717]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.666905, 0, 4.666905)

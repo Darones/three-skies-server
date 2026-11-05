@@ -7,6 +7,7 @@ enum Cls { WARRIOR, MAGE, FAIRY }
 
 const GRAVITY := 26.0
 const STUN_DURATION := 1.0
+const HEALTH_BAR_FILL_WIDTH := 1.18
 
 const CLASS_DATA := {
 	Cls.WARRIOR: {
@@ -14,10 +15,10 @@ const CLASS_DATA := {
 		"title": "Воин света",
 		"hp": 240.0,
 		"speed": 6.4,
-		"range": 3.2,
+		"range": 9.0,
 		"damage": 22.0,
 		"interval": 0.8,
-		"ranged": false,
+		"ranged": true,
 		"color": Color(1.0, 0.78, 0.4),
 		"abilities": [
 			{"name": "Прыжок", "cd": 8.0, "type": "dash_stun"},
@@ -118,7 +119,7 @@ func setup(p_game: Node, p_class: int, p_team: int, p_player: bool) -> void:
 	ai_offset = Vector3(randf_range(-3.0, 3.0), 0.0, randf_range(-3.0, 3.0))
 	_build_body()
 	_build_visual()
-	_update_health_label()
+	_update_health_display()
 
 
 func _build_body() -> void:
@@ -184,7 +185,7 @@ func _build_health_bar() -> void:
 
 	health_fill = MeshInstance3D.new()
 	var fill_quad := QuadMesh.new()
-	fill_quad.size = Vector2(1.18, 0.04)
+	fill_quad.size = Vector2(HEALTH_BAR_FILL_WIDTH, 0.04)
 	health_fill.mesh = fill_quad
 	var fill_mat := StandardMaterial3D.new()
 	fill_mat.albedo_color = Color(0.4, 0.92, 0.6, 0.84)
@@ -299,8 +300,8 @@ func _find_animation_player(node: Node) -> AnimationPlayer:
 	return null
 
 
-func _play_anim(key: String) -> void:
-	if anim_player == null or current_anim == key:
+func _play_anim(key: String, restart: bool = false) -> void:
+	if anim_player == null or (current_anim == key and not restart):
 		return
 	var target := ""
 	for animation_name in anim_player.get_animation_list():
@@ -310,6 +311,12 @@ func _play_anim(key: String) -> void:
 			break
 	if target == "":
 		return
+	var anim := anim_player.get_animation(target)
+	if anim:
+		if key in ["idle", "run", "walk"]:
+			anim.loop_mode = Animation.LOOP_LINEAR
+		else:
+			anim.loop_mode = Animation.LOOP_NONE
 	current_anim = key
 	anim_player.play(target)
 
@@ -523,9 +530,9 @@ func _try_auto_attack(_delta: float) -> void:
 	if d > attack_range + 0.5:
 		return
 	attack_cd = attack_interval
-	attack_anim_time = 0.35
+	attack_anim_time = 0.45
 	_face((target.global_position - global_position), 1.0)
-	_play_anim("attack")
+	_play_anim("attack", true)
 	if ranged:
 		var color: Color = CLASS_DATA[hero_class]["color"]
 		game.spawn_projectile(global_position + Vector3(0.0, 1.2, 0.0), target, attack_damage, color, self)
@@ -535,52 +542,50 @@ func _try_auto_attack(_delta: float) -> void:
 
 
 func _attack_target() -> Node3D:
-	var best: Node3D = null
-	var best_d := attack_range + 0.6
-	for h in game.enemies_of(team, self):
-		if h.dead:
-			continue
-		var d := global_position.distance_to(h.global_position)
-		if d < best_d:
-			best_d = d
-			best = h
-	if best != null:
-		return best
-	var shell = game.shell
-	if shell != null and is_instance_valid(shell) and shell.alive:
-		var ds := global_position.distance_to(shell.global_position)
-		if ds < best_d + 0.8:
-			return shell
+	if game == null:
+		return null
+	var enemy: HeroUnit = game.nearest_enemy(global_position, team, attack_range + 0.5, self)
+	if enemy != null:
+		return enemy
+	var shell_target: SkyShell = game.shell
+	if shell_target != null and is_instance_valid(shell_target) and shell_target.alive:
+		if global_position.distance_to(shell_target.global_position) <= attack_range + 0.5:
+			return shell_target
 	return null
 
 
-func _face(dir: Vector3, delta: float) -> void:
+func _face(dir: Vector3, _delta: float) -> void:
 	if dir.length_squared() < 0.001:
 		return
-	var target_y := atan2(dir.x, dir.z)
-	visual.rotation.y = lerp_angle(visual.rotation.y, target_y, minf(1.0, 12.0 * delta))
+	var local_dir := global_transform.basis.inverse() * dir
+	local_dir.y = 0.0
+	if local_dir.length_squared() < 0.001:
+		return
+	var target_y := atan2(local_dir.x, local_dir.z) + PI
+	visual.rotation.y = target_y
+
+
+func _facing_direction() -> Vector3:
+	var direction := -visual.global_transform.basis.z
+	direction.y = 0.0
+	return direction.normalized()
 
 
 func _update_look(_delta: float) -> void:
-	_update_health_label()
+	_update_health_display()
 	if health_fill == null:
 		return
-	var frac := clampf(health / max_health, 0.0, 1.0)
-	health_fill.scale.x = maxf(0.001, frac)
-	health_fill.position.x = (frac - 1.0) * 0.59
-	health_fill.visible = not dead
 	if carry_light != null:
 		carry_light.light_energy = 2.0 if carrying else 0.0
-	if health_back != null:
-		health_back.visible = _health_bar_visible()
-	if health_fill != null:
-		health_fill.visible = _health_bar_visible()
-	if health_label != null:
-		health_label.visible = _health_bar_visible()
 	if visual != null and visual.visible:
 		var horizontal := Vector2(velocity.x, velocity.z).length()
-		if not dead and attack_anim_time <= 0.0:
-			_play_anim("run" if horizontal > move_speed * 0.55 else "walk" if horizontal > 0.4 else "idle")
+		if not dead:
+			if horizontal > move_speed * 0.55:
+				_play_anim("run")
+			elif horizontal > 0.4:
+				_play_anim("walk")
+			elif attack_anim_time <= 0.0:
+				_play_anim("idle")
 
 
 func set_bush_presence(zone: Area3D, inside: bool) -> void:
@@ -616,11 +621,22 @@ func _health_bar_visible() -> bool:
 	return observer != null and (self == observer or not is_hidden_from(observer))
 
 
-func _update_health_label() -> void:
-	if health_label == null:
-		return
-	health_label.text = "%d/%d" % [roundi(maxf(0.0, health)), roundi(max_health)]
-	health_label.visible = _health_bar_visible()
+func _update_health_display() -> void:
+	var displayed_max := maxi(1, roundi(max_health))
+	var displayed_health := clampi(roundi(health), 0, displayed_max)
+	var hp_ratio := float(displayed_health) / float(displayed_max)
+	if health_label != null:
+		health_label.text = "%d/%d" % [displayed_health, displayed_max]
+		health_label.visible = _health_bar_visible()
+	if health_fill != null:
+		var fill_quad := health_fill.mesh as QuadMesh
+		if fill_quad != null:
+			fill_quad.size.x = HEALTH_BAR_FILL_WIDTH * hp_ratio
+			health_fill.scale = Vector3.ONE
+			health_fill.position.x = -(HEALTH_BAR_FILL_WIDTH - HEALTH_BAR_FILL_WIDTH * hp_ratio) * 0.5
+			health_fill.visible = _health_bar_visible()
+	if health_back != null:
+		health_back.visible = _health_bar_visible()
 
 
 func is_hidden_from(observer: HeroUnit) -> bool:
@@ -637,23 +653,22 @@ func take_damage(amount: float, source: Node = null) -> void:
 		return
 	if amount > 0.0:
 		seconds_since_damage = 0.0
-	var applied_damage := minf(amount, health)
-	health -= amount
-	_update_health_label()
+	var applied_damage := minf(maxf(amount, 0.0), health)
+	health = clampf(health - maxf(amount, 0.0), 0.0, max_health)
+	_update_health_display()
 	if game != null and game.has_method("record_hero_damage"):
 		game.record_hero_damage(self, source, applied_damage, health <= 0.0)
 	if game != null and game.has_method("damage_number"):
 		game.damage_number(global_position + Vector3(0.0, 2.0, 0.0), amount, team)
 	if health <= 0.0:
-		health = 0.0
 		_die()
 
 
 func heal(amount: float) -> void:
 	if dead:
 		return
-	health = minf(max_health, health + amount)
-	_update_health_label()
+	health = clampf(health + maxf(amount, 0.0), 0.0, max_health)
+	_update_health_display()
 	if game != null and game.has_method("heal_number"):
 		game.heal_number(global_position + Vector3(0.0, 2.2, 0.0), amount)
 
@@ -690,7 +705,7 @@ func _respawn() -> void:
 	dead = false
 	health = max_health
 	seconds_since_damage = 0.0
-	_update_health_label()
+	_update_health_display()
 	global_position = _base_position() + Vector3(0.0, 0.4, 0.0)
 	velocity = Vector3.ZERO
 	set_collision_layer_value(1, true)
@@ -724,7 +739,7 @@ func use_ability(index: int) -> bool:
 	var origin := global_position
 	match String(data["type"]):
 		"dash_stun":
-			var dir := Vector3(-sin(visual.rotation.y), 0.0, -cos(visual.rotation.y))
+			var dir := _facing_direction()
 			var start := global_position
 			for step in 8:
 				var moved := move_and_collide(dir * 1.1)
@@ -751,7 +766,7 @@ func use_ability(index: int) -> bool:
 			game.ring_fx(origin, color, 6.0)
 			game.shake(0.35)
 		"root":
-			var fwd := Vector3(-sin(visual.rotation.y), 0.0, -cos(visual.rotation.y))
+			var fwd: Vector3 = _facing_direction()
 			var proj_pos := origin + Vector3(0.0, 1.2, 0.0)
 			var root_target: HeroUnit = game.nearest_enemy(proj_pos, team, 10.0, self)
 			if root_target != null:
@@ -766,7 +781,7 @@ func use_ability(index: int) -> bool:
 				game.heal_area(origin, 6.0, 40.0, team, 1)
 				game.burst(origin, Color(0.65, 1.0, 0.75), 14)
 		"ult_black_hole":
-			var fwd := Vector3(-sin(visual.rotation.y), 0.0, -cos(visual.rotation.y))
+			var fwd: Vector3 = _facing_direction()
 			var bh := MeshInstance3D.new()
 			var sphere := SphereMesh.new()
 			sphere.radius = 0.5
@@ -780,7 +795,7 @@ func use_ability(index: int) -> bool:
 			bh_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			bh.material_override = bh_mat
 			add_child(bh)
-			bh.global_position = origin + Vector3(0.0, 1.5, 0.0)
+			bh.global_position = origin + Vector3(0.0, 1.5, 0.0) + fwd * 0.6
 			game.projectiles.append({
 				"node": bh,
 				"target": null,

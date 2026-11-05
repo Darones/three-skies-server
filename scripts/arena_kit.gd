@@ -409,25 +409,6 @@ static func _add_altar(altar: Node3D, mat_marble: StandardMaterial3D, mat_gold: 
 	crown.position = Vector3(0.0, 0.5, 0.0)
 	altar.add_child(crown)
 
-	var shrine := MeshInstance3D.new()
-	shrine.name = "ShrineCrystal"
-	var shrine_mesh := SphereMesh.new()
-	shrine_mesh.radius = 0.5
-	shrine_mesh.height = 1.5
-	shrine_mesh.radial_segments = 4
-	shrine_mesh.rings = 2
-	shrine.mesh = shrine_mesh
-	shrine.material_override = crystal_material(Color(0.72, 0.88, 1.0))
-	shrine.position = Vector3(0.0, 1.35, 0.0)
-	altar.add_child(shrine)
-
-	var shrine_light := OmniLight3D.new()
-	shrine_light.light_color = Color(0.6, 0.85, 1.0)
-	shrine_light.light_energy = 1.6
-	shrine_light.omni_range = 7.0
-	shrine_light.position = Vector3(0.0, 1.6, 0.0)
-	altar.add_child(shrine_light)
-
 	for i in 4:
 		var ang := TAU * float(i) / 4.0 + PI * 0.25
 		var pos := Vector3(cos(ang) * 6.6, 0.0, sin(ang) * 6.6)
