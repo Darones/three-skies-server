@@ -8,6 +8,9 @@ enum Cls { WARRIOR, MAGE, FAIRY }
 const GRAVITY := 26.0
 const STUN_DURATION := 1.0
 const HEALTH_BAR_FILL_WIDTH := 1.18
+const CARRIER_COLUMN_HALF_LENGTH := 5.8
+const CARRIER_COLUMN_ROUTE_MARGIN := 1.7
+const CARRIER_COLUMN_ROUTE_GAP := 3.0
 
 const CLASS_DATA := {
 	Cls.WARRIOR: {
@@ -90,6 +93,7 @@ var ai_goal := Vector3.ZERO
 var ai_think := 0.0
 var ai_attack_target: Node3D = null
 var ai_offset := Vector3.ZERO
+var ai_carrier_route_side := 0.0
 
 var visual: Node3D
 var anim_player: AnimationPlayer = null
@@ -488,7 +492,7 @@ func _ai_pick_goal() -> void:
 	var enemy: HeroUnit = game.nearest_enemy(global_position, team, 30.0, self)
 	ai_attack_target = enemy
 	if carrying:
-		ai_goal = _base_position()
+		ai_goal = _carrier_route_goal(_base_position())
 		return
 	if health < max_health * 0.28:
 		ai_goal = _base_position()
@@ -512,6 +516,29 @@ func _ai_pick_goal() -> void:
 	else:
 		ai_goal = Vector3(0.0, 0.0, 0.0)
 
+
+func _carrier_route_goal(base_goal: Vector3) -> Vector3:
+	var toward_base := 1.0 if team == 0 else -1.0
+	var column_z := toward_base * 16.0
+	var progress_past_column := toward_base * (global_position.z - column_z)
+	if progress_past_column >= CARRIER_COLUMN_ROUTE_GAP:
+		ai_carrier_route_side = 0.0
+		return base_goal
+
+	if is_zero_approx(ai_carrier_route_side):
+		var side_sign := signf(global_position.x)
+		if is_zero_approx(side_sign):
+			side_sign = 1.0
+		ai_carrier_route_side = side_sign
+
+	var lane_x := ai_carrier_route_side * (CARRIER_COLUMN_HALF_LENGTH + CARRIER_COLUMN_ROUTE_MARGIN)
+	var approach_z := column_z - toward_base * CARRIER_COLUMN_ROUTE_GAP
+	var crossing_z := column_z + toward_base * CARRIER_COLUMN_ROUTE_GAP
+	if absf(global_position.x - lane_x) > 1.0:
+		return Vector3(lane_x, 0.0, approach_z)
+	if progress_past_column < CARRIER_COLUMN_ROUTE_GAP:
+		return Vector3(lane_x, 0.0, crossing_z)
+	return base_goal
 
 func _base_position() -> Vector3:
 	var z := 35.0 if team == 0 else -35.0
