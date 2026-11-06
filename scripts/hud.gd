@@ -35,6 +35,10 @@ func _ready() -> void:
 	_build_top(root)
 	_build_abilities(root)
 	_build_announcement(root)
+	var mini_map := preload("res://scripts/minimap.gd").new() as Control
+	mini_map.name = "MiniMap"
+	mini_map.call("configure", game)
+	root.add_child(mini_map)
 	_build_select(root)
 	_build_end(root)
 
