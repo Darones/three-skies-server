@@ -491,10 +491,6 @@ static func _add_ruins(ruins: Node3D, mat_marble: StandardMaterial3D, mat_gold: 
 		[Vector3(10.0, 0.0, -6.5), 5.0, false],
 		[Vector3(-10.0, 0.0, 6.5), 3.2, true],
 		[Vector3(10.0, 0.0, 6.5), 4.4, false],
-		[Vector3(-19.0, 0.0, -11.0), 2.6, true],
-		[Vector3(19.0, 0.0, -11.0), 4.8, false],
-		[Vector3(-19.0, 0.0, 11.0), 3.8, true],
-		[Vector3(19.0, 0.0, 11.0), 2.2, true],
 	]
 	for spec in specs:
 		_add_pillar(ruins, spec[0], spec[1], spec[2], mat_marble, mat_gold, mat_rock)
