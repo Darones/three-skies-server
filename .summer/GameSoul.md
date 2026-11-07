@@ -4,6 +4,8 @@
 
 - The light-side arena trees use `Glowing Fantasy Tree.glb` through `scenes/GlowingFantasyTree.tscn`; their visibility occluders remain in place.
 - Godot's built-in import LODs were measured at 249,998, 124,996, 62,498, and 36,728 triangles from a 500,000-triangle base mesh. The base mesh was not reduced to 5–10k.
+- Floor tiles now share continuous vertex heights and normals, removing the visible mesh grid seams; slate vein contrast is reduced.
+- A narrow, translucent blue-gray edge-mist gradient softens the outer floor rim without obscuring the arena.
 
 ## Vision
 Три игрока против трёх на обломках небесного храма, висящего над пропастью. Каждый матч длится пять минут, цель одна: разбить охранника-Оболочку, подобрать кристалл и дотащить его на базу раньше, чем это сделает враг. Простая задача, но носитель кристалла замедлен, Оболочка бьёт молниями, а противник уже бежит с другого фланга.

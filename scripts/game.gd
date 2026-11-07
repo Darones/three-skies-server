@@ -32,6 +32,7 @@ const SHOP_INTERACTION_RADIUS := 4.0
 const BOT_CALLSIGNS := ["ЛунныйЛис", "СеверныйВетер", "ТихийШторм", "Искра", "КаменныйПуть", "ЗвёздныйСлед", "СумрачныйКлинок", "БелыйВорон"]
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const CLOUD_WALL_SHADER: Shader = preload("res://shaders/cloud_wall.gdshader")
+const EDGE_MIST_SHADER: Shader = preload("res://shaders/edge_mist.gdshader")
 const FOG_OF_WAR_SHADER_PATH := "res://shaders/fog_of_war.gdshader"
 const FOG_VIEW_RADIUS := 10.0
 const SHOP_STALL_SCENE: PackedScene = preload("res://assets/shop_stall/3d_4f92fe433b084100af7a1d7f_1790958942025.glb")
@@ -136,6 +137,7 @@ func _ready() -> void:
 		ArenaKit.build(arena)
 	_create_fog_of_war()
 	_create_floating_clouds()
+	_create_edge_mist()
 	_create_shop_stall()
 	_create_gold_fountain()
 	_setup_audio()
@@ -203,6 +205,29 @@ func _create_floating_clouds() -> void:
 	cloud_wall.material_override = cloud_material
 	cloud_wall.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	clouds.add_child(cloud_wall)
+
+
+func _create_edge_mist() -> void:
+	var arena := get_node_or_null("Arena") as Node3D
+	if arena == null or arena.get_node_or_null("EdgeMist") != null:
+		return
+
+	var mist := MeshInstance3D.new()
+	mist.name = "EdgeMist"
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(54.0, 39.0)
+	mist.mesh = plane
+	mist.position = Vector3(0.0, 0.14, 0.0)
+	mist.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var material := ShaderMaterial.new()
+	material.shader = EDGE_MIST_SHADER
+	material.set_shader_parameter("arena_half_extents", Vector2(27.0, 19.5))
+	material.set_shader_parameter("mist_color", Color(0.55, 0.72, 0.82, 1.0))
+	material.set_shader_parameter("fade_start", 0.88)
+	material.set_shader_parameter("fade_end", 1.1)
+	material.set_shader_parameter("mist_opacity", 0.18)
+	mist.material_override = material
+	arena.add_child(mist)
 
 
 func _create_shop_stall() -> void:

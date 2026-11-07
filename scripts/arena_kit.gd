@@ -25,7 +25,7 @@ static func floor_light_material() -> StandardMaterial3D:
 	var tex := _first_texture(SLATE_DIR, FLOOR_LIGHT_TEX)
 	if tex != null:
 		mat.albedo_texture = tex
-	mat.albedo_color = Color(0.76, 0.73, 0.68)
+	mat.albedo_color = Color(0.58, 0.6, 0.66)
 	mat.roughness = 0.9
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
@@ -36,7 +36,7 @@ static func floor_dark_material() -> StandardMaterial3D:
 	var tex := _first_texture(SLATE_DIR, FLOOR_DARK_TEX)
 	if tex != null:
 		mat.albedo_texture = tex
-	mat.albedo_color = Color(0.62, 0.5, 0.88)
+	mat.albedo_color = Color(0.48, 0.43, 0.68)
 	mat.roughness = 0.7
 	mat.metallic = 0.15
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -103,6 +103,44 @@ static func _is_inside(x: float, z: float) -> bool:
 static func _shape_point(ang: float, scale: float) -> Vector2:
 	var wobble := 1.0 + 0.06 * sin(ang * 3.0 + 0.4) + 0.045 * sin(ang * 5.0 + 1.2) + 0.03 * sin(ang * 9.0 + 2.4)
 	return Vector2(cos(ang) * HALF_X * scale * wobble, sin(ang) * HALF_Z * scale * wobble)
+
+
+static func _floor_height(x: float, z: float) -> float:
+	return -0.02 * sin(x * 0.7) - 0.02 * cos(z * 0.6)
+
+
+static func build_floor_mesh(mat_light: StandardMaterial3D, mat_dark: StandardMaterial3D) -> ArrayMesh:
+	var st_light := SurfaceTool.new()
+	var st_dark := SurfaceTool.new()
+	st_light.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st_light.set_material(mat_light)
+	st_dark.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st_dark.set_material(mat_dark)
+	var step := 1.5
+	var x := -HALF_X
+	while x < HALF_X - 0.01:
+		var z := -HALF_Z
+		while z < HALF_Z - 0.01:
+			var x1 := x + step
+			var z1 := z + step
+			if _is_inside((x + x1) * 0.5, (z + z1) * 0.5):
+				var surface := st_light if (z + z1) * 0.5 < 0.0 else st_dark
+				var a := Vector3(x, _floor_height(x, z), z)
+				var b := Vector3(x1, _floor_height(x1, z), z)
+				var c := Vector3(x1, _floor_height(x1, z1), z1)
+				var d := Vector3(x, _floor_height(x, z1), z1)
+				_add_quad(surface, a, b, c, d)
+			z += step
+		x += step
+	st_light.index()
+	st_light.generate_normals()
+	var mesh := ArrayMesh.new()
+	st_light.commit(mesh)
+	st_dark.index()
+	st_dark.generate_normals()
+	st_dark.commit(mesh)
+	return mesh
+
 
 static func build(root: Node3D) -> void:
 	var mat_light := floor_light_material()
@@ -247,34 +285,9 @@ static func _add_environment(stage: Node3D) -> void:
 
 
 static func _add_island(island: Node3D, mat_light: StandardMaterial3D, mat_dark: StandardMaterial3D, mat_rock: StandardMaterial3D) -> void:
-	var st_light := SurfaceTool.new()
-	var st_dark := SurfaceTool.new()
-	st_light.begin(Mesh.PRIMITIVE_TRIANGLES)
-	st_light.set_material(mat_light)
-	st_dark.begin(Mesh.PRIMITIVE_TRIANGLES)
-	st_dark.set_material(mat_dark)
-	var mesh := ArrayMesh.new()
-	var step := 1.5
-	var x := -HALF_X
-	while x < HALF_X - 0.01:
-		var z := -HALF_Z
-		while z < HALF_Z - 0.01:
-			var x1 := x + step
-			var z1 := z + step
-			if _is_inside((x + x1) * 0.5, (z + z1) * 0.5):
-				var st := st_light if (z + z1) * 0.5 < 0.0 else st_dark
-				var y0 := -0.02 * sin(x * 0.7) - 0.02 * cos(z * 0.6)
-				_add_quad(st, Vector3(x, y0, z), Vector3(x1, y0, z), Vector3(x1, y0, z1), Vector3(x, y0, z1))
-			z += step
-		x += step
-	st_light.generate_normals()
-	st_light.commit(mesh)
-	st_dark.generate_normals()
-	st_dark.commit(mesh)
-
 	var floor_node := MeshInstance3D.new()
 	floor_node.name = "Floor"
-	floor_node.mesh = mesh
+	floor_node.mesh = build_floor_mesh(mat_light, mat_dark)
 	island.add_child(floor_node)
 
 	var skirt := SurfaceTool.new()
