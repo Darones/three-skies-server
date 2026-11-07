@@ -2313,7 +2313,7 @@ transform = Transform3D(0.9762058, -0.093682244, -0.13419941, 0.14676306, 0.5360
 material_override = SubResource("StandardMaterial3D_q8u5g")
 mesh = SubResource("SphereMesh_q285r")
 
-[node name="StylizedLightTree01" type="Node3D" parent="Arena/Decor" unique_id=453722608 instance=ExtResource("4_bjd11")]
+[node name="StylizedLightTree01" parent="Arena/Decor" unique_id=453722608 instance=ExtResource("4_bjd11")]
 transform = Transform3D(4.8484554, 0, 0, 0, 4.8484554, 0, 0, 0, 4.8484554, 29.119, 0, 4.703)
 
 [node name="TreeVisibilityOccluder1" type="StaticBody3D" parent="Arena/Decor" unique_id=241086278]
@@ -2324,7 +2324,7 @@ collision_mask = 0
 [node name="@CollisionShape3D@25152" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder1" unique_id=1471428808]
 shape = SubResource("CapsuleShape3D_c01mt")
 
-[node name="StylizedLightTree02" type="Node3D" parent="Arena/Decor" unique_id=284610903 instance=ExtResource("4_bjd11")]
+[node name="StylizedLightTree02" parent="Arena/Decor" unique_id=284610903 instance=ExtResource("4_bjd11")]
 transform = Transform3D(4.646436, 0, 0, 0, 4.646436, 0, 0, 0, 4.646436, 23.926, 0, 12.147)
 
 [node name="TreeVisibilityOccluder2" type="StaticBody3D" parent="Arena/Decor" unique_id=831462032]
@@ -2335,7 +2335,7 @@ collision_mask = 0
 [node name="@CollisionShape3D@25153" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder2" unique_id=1533307935]
 shape = SubResource("CapsuleShape3D_nxtc6")
 
-[node name="StylizedLightTree03" type="Node3D" parent="Arena/Decor" unique_id=1026252896 instance=ExtResource("4_bjd11")]
+[node name="StylizedLightTree03" parent="Arena/Decor" unique_id=1026252896 instance=ExtResource("4_bjd11")]
 transform = Transform3D(4.8484554, 0, 0, 0, 4.8484554, 0, 0, 0, 4.8484554, 14.424, 0, 16.419)
 
 [node name="TreeVisibilityOccluder3" type="StaticBody3D" parent="Arena/Decor" unique_id=1082340514]
@@ -2346,7 +2346,7 @@ collision_mask = 0
 [node name="@CollisionShape3D@25154" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder3" unique_id=425168903]
 shape = SubResource("CapsuleShape3D_jlsqs")
 
-[node name="StylizedLightTree04" type="Node3D" parent="Arena/Decor" unique_id=1079071663 instance=ExtResource("4_bjd11")]
+[node name="StylizedLightTree04" parent="Arena/Decor" unique_id=1079071663 instance=ExtResource("4_bjd11")]
 transform = Transform3D(4.646436, 0, 0, 0, 4.646436, 0, 0, 0, 4.646436, -5.732, 0, 18.512)
 
 [node name="TreeVisibilityOccluder4" type="StaticBody3D" parent="Arena/Decor" unique_id=558818050]
@@ -2357,7 +2357,7 @@ collision_mask = 0
 [node name="@CollisionShape3D@25155" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder4" unique_id=1838878163]
 shape = SubResource("CapsuleShape3D_q8u5g")
 
-[node name="StylizedLightTree05" type="Node3D" parent="Arena/Decor" unique_id=1649555418 instance=ExtResource("4_bjd11")]
+[node name="StylizedLightTree05" parent="Arena/Decor" unique_id=1649555418 instance=ExtResource("4_bjd11")]
 transform = Transform3D(4.8484554, 0, 0, 0, 4.8484554, 0, 0, 0, 4.8484554, -16.482, 0, 16.934)
 
 [node name="TreeVisibilityOccluder5" type="StaticBody3D" parent="Arena/Decor" unique_id=1447271867]
@@ -2368,7 +2368,7 @@ collision_mask = 0
 [node name="@CollisionShape3D@25156" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder5" unique_id=1156360955]
 shape = SubResource("CapsuleShape3D_lhr70")
 
-[node name="AncientDarkTree01" type="Node3D" parent="Arena/Decor" unique_id=465028220 instance=ExtResource("6_mwfav")]
+[node name="AncientDarkTree01" parent="Arena/Decor" unique_id=465028220 instance=ExtResource("6_mwfav")]
 transform = Transform3D(5.6662874, 0, 0, 0, 5.6662874, 0, 0, 0, 5.6662874, -25.951, 0, -4.191)
 
 [node name="TreeVisibilityOccluder6" type="StaticBody3D" parent="Arena/Decor" unique_id=859226939]
@@ -2379,7 +2379,7 @@ collision_mask = 0
 [node name="@CollisionShape3D@25157" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder6" unique_id=1046713912]
 shape = SubResource("CapsuleShape3D_wp0k4")
 
-[node name="AncientDarkTree02" type="Node3D" parent="Arena/Decor" unique_id=1055929089 instance=ExtResource("6_mwfav")]
+[node name="AncientDarkTree02" parent="Arena/Decor" unique_id=1055929089 instance=ExtResource("6_mwfav")]
 transform = Transform3D(5.8929386, 0, 0, 0, 5.8929386, 0, 0, 0, 5.8929386, -22.239, 0, -11.291)
 
 [node name="TreeVisibilityOccluder7" type="StaticBody3D" parent="Arena/Decor" unique_id=521461213]
@@ -2390,7 +2390,7 @@ collision_mask = 0
 [node name="@CollisionShape3D@25158" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder7" unique_id=683583956]
 shape = SubResource("CapsuleShape3D_bjd11")
 
-[node name="AncientDarkTree03" type="Node3D" parent="Arena/Decor" unique_id=445483267 instance=ExtResource("6_mwfav")]
+[node name="AncientDarkTree03" parent="Arena/Decor" unique_id=445483267 instance=ExtResource("6_mwfav")]
 transform = Transform3D(5.4396358, 0, 0, 0, 5.4396358, 0, 0, 0, 5.4396358, -15.808, 0, -17.994)
 
 [node name="TreeVisibilityOccluder8" type="StaticBody3D" parent="Arena/Decor" unique_id=1312232343]
@@ -2401,7 +2401,7 @@ collision_mask = 0
 [node name="@CollisionShape3D@25159" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder8" unique_id=263905452]
 shape = SubResource("CapsuleShape3D_qmy6f")
 
-[node name="AncientDarkTree04" type="Node3D" parent="Arena/Decor" unique_id=356354438 instance=ExtResource("6_mwfav")]
+[node name="AncientDarkTree04" parent="Arena/Decor" unique_id=356354438 instance=ExtResource("6_mwfav")]
 transform = Transform3D(5.6662874, 0, 0, 0, 5.6662874, 0, 0, 0, 5.6662874, -3, 0, -17)
 
 [node name="TreeVisibilityOccluder9" type="StaticBody3D" parent="Arena/Decor" unique_id=1641121141]
@@ -2412,7 +2412,7 @@ collision_mask = 0
 [node name="@CollisionShape3D@25160" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder9" unique_id=470541820]
 shape = SubResource("CapsuleShape3D_mwfav")
 
-[node name="AncientDarkTree05" type="Node3D" parent="Arena/Decor" unique_id=956305925 instance=ExtResource("6_mwfav")]
+[node name="AncientDarkTree05" parent="Arena/Decor" unique_id=956305925 instance=ExtResource("6_mwfav")]
 transform = Transform3D(5.4396358, 0, 0, 0, 5.4396358, 0, 0, 0, 5.4396358, 15.969, 0, -16.407)
 
 [node name="TreeVisibilityOccluder10" type="StaticBody3D" parent="Arena/Decor" unique_id=1963020644]
@@ -2423,7 +2423,7 @@ collision_mask = 0
 [node name="@CollisionShape3D@25161" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder10" unique_id=1323520587]
 shape = SubResource("CapsuleShape3D_3p2gp")
 
-[node name="BlueleafTree01" type="Node3D" parent="Arena/Decor" unique_id=1285206770 instance=ExtResource("8_cvmbd")]
+[node name="BlueleafTree01" parent="Arena/Decor" unique_id=1285206770 instance=ExtResource("8_cvmbd")]
 transform = Transform3D(2.5304978, 0, 0, 0, 2.5304978, 0, 0, 0, 2.5304978, -26.583, 2.4059618, 12.182)
 
 [node name="TreeVisibilityOccluder11" type="StaticBody3D" parent="Arena/Decor" unique_id=1209520553]
@@ -2434,7 +2434,7 @@ collision_mask = 0
 [node name="@CollisionShape3D@25162" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder11" unique_id=2021762360]
 shape = SubResource("CapsuleShape3D_cvmbd")
 
-[node name="BlueleafTree02" type="Node3D" parent="Arena/Decor" unique_id=933188388 instance=ExtResource("8_cvmbd")]
+[node name="BlueleafTree02" parent="Arena/Decor" unique_id=933188388 instance=ExtResource("8_cvmbd")]
 transform = Transform3D(2.4250603, 0, 0, 0, 2.4250603, 0, 0, 0, 2.4250603, -26.955, 2.3057134, 3.396)
 
 [node name="TreeVisibilityOccluder12" type="StaticBody3D" parent="Arena/Decor" unique_id=991778951]
@@ -2445,7 +2445,7 @@ collision_mask = 0
 [node name="@CollisionShape3D@25163" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder12" unique_id=1004965439]
 shape = SubResource("CapsuleShape3D_ft6cd")
 
-[node name="BlueleafTree03" type="Node3D" parent="Arena/Decor" unique_id=1645626539 instance=ExtResource("8_cvmbd")]
+[node name="BlueleafTree03" parent="Arena/Decor" unique_id=1645626539 instance=ExtResource("8_cvmbd")]
 transform = Transform3D(2.5304978, 0, 0, 0, 2.5304978, 0, 0, 0, 2.5304978, 28.636, 2.4059618, -3.608)
 
 [node name="TreeVisibilityOccluder13" type="StaticBody3D" parent="Arena/Decor" unique_id=98639807]
@@ -2456,7 +2456,7 @@ collision_mask = 0
 [node name="@CollisionShape3D@25164" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder13" unique_id=1209753697]
 shape = SubResource("CapsuleShape3D_bb450")
 
-[node name="BlueleafTree04" type="Node3D" parent="Arena/Decor" unique_id=279754676 instance=ExtResource("8_cvmbd")]
+[node name="BlueleafTree04" parent="Arena/Decor" unique_id=279754676 instance=ExtResource("8_cvmbd")]
 transform = Transform3D(2.4250603, 0, 0, 0, 2.4250603, 0, 0, 0, 2.4250603, 21.065, 2.3057134, -9.653)
 
 [node name="TreeVisibilityOccluder14" type="StaticBody3D" parent="Arena/Decor" unique_id=2080296761]
@@ -2467,7 +2467,7 @@ collision_mask = 0
 [node name="@CollisionShape3D@25165" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder14" unique_id=173419758]
 shape = SubResource("CapsuleShape3D_nfivy")
 
-[node name="BlueleafTree05" type="Node3D" parent="Arena/Decor" unique_id=718170930 instance=ExtResource("8_cvmbd")]
+[node name="BlueleafTree05" parent="Arena/Decor" unique_id=718170930 instance=ExtResource("8_cvmbd")]
 transform = Transform3D(2.5304978, 0, 0, 0, 2.5304978, 0, 0, 0, 2.5304978, -19, 2.4059618, 0)
 
 [node name="TreeVisibilityOccluder15" type="StaticBody3D" parent="Arena/Decor" unique_id=792639754]
