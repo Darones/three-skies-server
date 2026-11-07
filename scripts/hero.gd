@@ -142,7 +142,6 @@ var current_anim := ""
 var health_back: MeshInstance3D
 var health_fill: MeshInstance3D
 var health_label: Label3D
-var player_nameplate: Label3D
 var occluded_from_player := false
 var carry_light: OmniLight3D
 var bush_zones: Array[Area3D] = []
@@ -287,7 +286,6 @@ func _build_body() -> void:
 
 	_build_health_bar()
 	_build_health_label()
-	_build_player_nameplate()
 
 	carry_light = OmniLight3D.new()
 	carry_light.light_color = Color(0.7, 0.9, 1.0)
@@ -343,29 +341,6 @@ func _build_health_label() -> void:
 	health_label.outline_size = 5
 	health_label.outline_modulate = Color(0.02, 0.03, 0.05, 0.92)
 	health_label.modulate = Color(0.93, 1.0, 0.95, 0.96)
-
-
-func _build_player_nameplate() -> void:
-	if not is_player:
-		return
-	player_nameplate = Label3D.new()
-	player_nameplate.name = "PlayerNameplate"
-	player_nameplate.font = UI_FONT
-	var nickname := String(MetaProgression.player_nickname).strip_edges()
-	if nickname.is_empty():
-		nickname = "Игрок"
-	var class_title := String(CLASS_DATA[hero_class]["name"])
-	var faction := "Света" if team == 0 else "Тьмы"
-	player_nameplate.text = "%s · %s %s" % [nickname, class_title, faction]
-	player_nameplate.position = Vector3(0.0, 3.02, 0.0)
-	player_nameplate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	player_nameplate.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	player_nameplate.font_size = 26
-	player_nameplate.pixel_size = 0.004
-	player_nameplate.outline_size = 5
-	player_nameplate.outline_modulate = Color(0.015, 0.02, 0.035, 0.96)
-	player_nameplate.modulate = Color(1.0, 0.9, 0.66) if team == 0 else Color(0.84, 0.79, 1.0)
-	add_child(player_nameplate)
 
 
 func _build_visual() -> void:
@@ -941,8 +916,6 @@ func _refresh_bush_visibility() -> void:
 			stack.append(child)
 	if health_label != null:
 		health_label.visible = _health_bar_visible()
-	if player_nameplate != null:
-		player_nameplate.visible = _health_bar_visible()
 	if health_back != null:
 		health_back.visible = _health_bar_visible()
 	if health_fill != null:
@@ -969,8 +942,6 @@ func set_occluded_from_player(occluded: bool) -> void:
 	if visual != null:
 		visual.visible = not dead and not occluded_from_player
 	_update_health_display()
-	if player_nameplate != null:
-		player_nameplate.visible = _health_bar_visible()
 
 
 func is_within_view_distance(observer: HeroUnit, view_radius: float) -> bool:
@@ -1089,8 +1060,6 @@ func _die() -> void:
 	visual.visible = false
 	if health_label != null:
 		health_label.visible = false
-	if player_nameplate != null:
-		player_nameplate.visible = false
 	bush_zones.clear()
 	in_bush = false
 	set_shop_zone_presence(false)
@@ -1121,8 +1090,6 @@ func _respawn() -> void:
 		health_fill.visible = _health_bar_visible()
 	if health_label != null:
 		health_label.visible = _health_bar_visible()
-	if player_nameplate != null:
-		player_nameplate.visible = _health_bar_visible()
 	if game != null:
 		game.on_hero_respawned(self)
 

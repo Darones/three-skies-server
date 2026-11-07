@@ -151,7 +151,7 @@ func _build_player_panel(root: Control) -> void:
 	player_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	player_panel.offset_left = 20.0
 	player_panel.offset_top = 20.0
-	player_panel.offset_right = 265.0
+	player_panel.offset_right = 350.0
 	player_panel.offset_bottom = 94.0
 	player_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	player_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.76, 0.63, 0.36, 0.62), Color(0.035, 0.035, 0.05, 0.3)))
@@ -183,7 +183,7 @@ func _build_player_panel(root: Control) -> void:
 	details.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content.add_child(details)
 
-	player_name_label = _make_label("Воин Света", 16, Color(0.97, 0.91, 0.79))
+	player_name_label = _make_label("Игрок · Воин Света", 15, Color(0.97, 0.91, 0.79))
 	player_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	details.add_child(player_name_label)
 
@@ -500,8 +500,11 @@ func _update_player_panel() -> void:
 		player_panel.visible = false
 		return
 	player_panel.visible = true
+	var nickname := String(MetaProgression.player_nickname).strip_edges()
+	if nickname.is_empty():
+		nickname = "Игрок"
 	var faction := "Света" if player.team == 0 else "Тьмы"
-	player_name_label.text = "%s %s" % [HeroUnit.CLASS_DATA[player.hero_class]["name"], faction]
+	player_name_label.text = "%s · %s %s" % [nickname, HeroUnit.CLASS_DATA[player.hero_class]["name"], faction]
 	if player_panel_class != player.hero_class:
 		player_panel_class = player.hero_class
 		player_portrait.texture = HERO_PORTRAITS[player.hero_class]
@@ -585,8 +588,6 @@ func _build_end(root: Control) -> void:
 	box.add_child(end_title)
 	end_score = _make_label("", 30, PALE)
 	box.add_child(end_score)
-	var hint := _make_label("R или клик — новый бой", 20, Color(0.8, 0.85, 0.95))
-	box.add_child(hint)
 
 
 func _on_ability_pressed(index: int) -> void:

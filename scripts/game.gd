@@ -1917,11 +1917,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif state == "live" and player != null:
 			if digit_index >= 0:
 				player.use_ability(digit_index)
-		elif state == "over":
-			if event.keycode == KEY_R:
-				get_tree().reload_current_scene()
-	if event is InputEventMouseButton and event.pressed and state == "over":
-		get_tree().reload_current_scene()
 
 
 func _digit_index_from_event(event: InputEventKey) -> int:
@@ -1939,7 +1934,7 @@ func objective_text() -> String:
 	if state == "select":
 		return "Выбери класс — 1 Воин · 2 Маг · 3 Фея"
 	if state == "over":
-		return "Нажми R, чтобы сыграть ещё раз"
+		return ""
 	if crystal_state == "carried" and carrier != null and is_instance_valid(carrier):
 		var who := "Ты несёшь осколок — на базу!" if carrier == player else "%s несёт осколок" % carrier.display_name
 		return who
