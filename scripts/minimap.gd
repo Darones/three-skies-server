@@ -1,11 +1,11 @@
 extends Control
 
-const MINIMAP_SIZE := Vector2(160.0, 110.0)
+const MINIMAP_SIZE := Vector2(132.0, 132.0)
 const ARENA_HALF_X := 52.0
 const ARENA_HALF_Z := 37.0
-const MAP_FONT: Font = preload("res://assets/fonts/Alegreya-Variable.ttf")
+const MAP_FONT: Font = preload("res://assets/fonts/Philosopher-Regular.ttf")
 
-const PANEL_COLOR := Color(0.018, 0.025, 0.045, 0.88)
+const PANEL_COLOR := Color(0.018, 0.025, 0.045, 0.4)
 const ARENA_COLOR := Color(0.09, 0.13, 0.19, 0.96)
 const ARENA_LINE := Color(0.58, 0.66, 0.78, 0.8)
 const ALLY_COLOR := Color(0.2, 0.92, 0.46, 1.0)
@@ -16,12 +16,24 @@ const CRYSTAL_COLOR := Color(0.44, 0.92, 1.0, 1.0)
 var game: Node
 var refresh_elapsed := 0.0
 var pulse_time := 0.0
+var panel_style: StyleBoxFlat
+var arena_style: StyleBoxFlat
 
 
 func _ready() -> void:
 	custom_minimum_size = MINIMAP_SIZE
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	focus_mode = Control.FOCUS_NONE
+	panel_style = StyleBoxFlat.new()
+	panel_style.bg_color = PANEL_COLOR
+	panel_style.border_color = Color(0.68, 0.72, 0.82, 0.6)
+	panel_style.set_border_width_all(1)
+	panel_style.set_corner_radius_all(8)
+	arena_style = StyleBoxFlat.new()
+	arena_style.bg_color = ARENA_COLOR
+	arena_style.border_color = ARENA_LINE
+	arena_style.set_border_width_all(1)
+	arena_style.set_corner_radius_all(5)
 
 
 func configure(game_instance: Node) -> void:
@@ -31,9 +43,9 @@ func configure(game_instance: Node) -> void:
 	anchor_top = 1.0
 	anchor_right = 0.5
 	anchor_bottom = 1.0
-	offset_left = -80.0
-	offset_top = -122.0
-	offset_right = 80.0
+	offset_left = -66.0
+	offset_top = -144.0
+	offset_right = 66.0
 	offset_bottom = -12.0
 
 
@@ -58,19 +70,11 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	if game == null or game.player == null:
 		return
-	draw_rect(Rect2(Vector2.ZERO, size), PANEL_COLOR, true)
-	draw_rect(Rect2(Vector2(0.5, 0.5), size - Vector2.ONE), Color(0.68, 0.72, 0.82, 0.88), false, 1.0)
-	draw_string(MAP_FONT, Vector2(8.0, 13.0), "АРЕНА", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, Color(0.9, 0.86, 0.73, 0.95))
+	draw_style_box(panel_style, Rect2(Vector2.ZERO, size))
 
-	var map_rect := Rect2(Vector2(18.0, 17.0), Vector2(124.0, 88.0))
+	var map_rect := Rect2(Vector2(6.0, 6.0), Vector2(120.0, 120.0))
 	var map_center := map_rect.get_center()
-	var outline := PackedVector2Array()
-	for index in 40:
-		var angle := TAU * float(index) / 40.0
-		outline.append(map_center + Vector2(cos(angle) * map_rect.size.x * 0.5, sin(angle) * map_rect.size.y * 0.5))
-	draw_colored_polygon(outline, ARENA_COLOR)
-	outline.append(outline[0])
-	draw_polyline(outline, ARENA_LINE, 1.2, true)
+	draw_style_box(arena_style, map_rect)
 	draw_line(Vector2(map_rect.position.x + 3.0, map_center.y), Vector2(map_rect.end.x - 3.0, map_center.y), Color(0.52, 0.6, 0.73, 0.24), 1.0, true)
 
 	var player_team := int(game.player.team)

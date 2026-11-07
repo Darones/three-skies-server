@@ -1,32 +1,70 @@
 extends CanvasLayer
 
+class AbilityCooldownWipe extends Control:
+	var progress := 0.0
+
+	func set_progress(value: float) -> void:
+		progress = clampf(value, 0.0, 1.0)
+		queue_redraw()
+
+	func _draw() -> void:
+		if progress <= 0.0:
+			return
+		var center := size * 0.5
+		var radius := minf(size.x, size.y) * 0.46
+		var segments := maxi(3, ceili(48.0 * progress))
+		var points := PackedVector2Array([center])
+		for segment in range(segments + 1):
+			var angle := -PI * 0.5 + TAU * progress * float(segment) / float(segments)
+			points.append(center + Vector2(cos(angle), sin(angle)) * radius)
+		draw_colored_polygon(points, Color(0.04, 0.72, 0.22, 0.94))
+
 var game: Node
-var font: SystemFont
+const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
+const HERO_PORTRAITS := {
+	HeroUnit.Cls.WARRIOR: preload("res://assets/characters/warrior_light.png"),
+	HeroUnit.Cls.MAGE: preload("res://assets/characters/mage_dark.png"),
+	HeroUnit.Cls.FAIRY: preload("res://assets/characters/fairy.png"),
+}
+
+var font: FontFile
 
 var score_label: Label
 var timer_label: Label
 var shell_timer_label: Label
 var respawn_label: Label
+var gold_label: Label
+var player_panel: PanelContainer
+var player_portrait: TextureRect
+var player_name_label: Label
+var player_hp_bar: ProgressBar
+var player_hp_label: Label
+var player_panel_class := -1
+var player_panel_team := -1
 var announce_label: Label
 var ability_buttons: Array[Button] = []
-var ability_cd_labels: Array[Label] = []
+var ability_wipes: Array[AbilityCooldownWipe] = []
+var ability_ready: Array[bool] = []
 var ability_name_labels: Array[Label] = []
 var select_panel: Control
 var end_panel: Control
 var end_title: Label
 var end_score: Label
+var shop_panel: PanelContainer
+var shop_dim: ColorRect
+var shop_buttons: Dictionary = {}
 var ability_row: HBoxContainer
 var announce_tween: Tween
 
 const GOLD := Color(0.96, 0.82, 0.52)
 const PALE := Color(0.86, 0.9, 1.0)
 const DARK_BG := Color(0.05, 0.05, 0.09, 0.78)
+const SHOP_ICON_SHEET: Texture2D = preload("res://assets/shop_icons/e1689879_126a_4ed4_bbba_c3530a6fb655_asset-e1689879-1790940004841-0_1790940004843_4y4cl4qj.png")
 
 
 func _ready() -> void:
 	layer = 10
-	font = SystemFont.new()
-	font.font_names = PackedStringArray(["Cinzel", "Trajan Pro", "Georgia", "Palatino Linotype", "Times New Roman"])
+	font = UI_FONT
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -41,6 +79,7 @@ func _ready() -> void:
 	root.add_child(mini_map)
 	_build_select(root)
 	_build_end(root)
+	_build_shop(root)
 
 
 func _panel_style(border: Color, fill := DARK_BG) -> StyleBoxFlat:
@@ -77,31 +116,107 @@ func _build_top(root: Control) -> void:
 	box.offset_left = -360.0
 	box.offset_top = 20.0
 	box.offset_right = -20.0
-	box.offset_bottom = 112.0
+	box.offset_bottom = 142.0
 	box.add_theme_constant_override("separation", 2)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(box)
 
-	score_label = _make_label("Свет 0 : 0 Тьма", 24, Color.WHITE)
-	var semibold_font := SystemFont.new()
-	semibold_font.font_names = font.font_names
-	semibold_font.font_weight = 600
-	score_label.add_theme_font_override("font", semibold_font)
+	score_label = _make_label("Свет — 0:0 — Тьма", 24, Color.WHITE)
 	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	box.add_child(score_label)
 
-	timer_label = _make_label("05:00", 20, Color.WHITE)
+	gold_label = _make_label("Золото: 0", 18, GOLD)
+	gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	box.add_child(gold_label)
+
+	timer_label = _make_label("10:00", 20, Color.WHITE)
 	timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	box.add_child(timer_label)
 
-	shell_timer_label = _make_label("Оболочка: 00:08", 16, Color(0.66, 0.68, 0.72))
+	shell_timer_label = _make_label("Оболочка: 02:00", 16, Color(0.66, 0.68, 0.72))
 	shell_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	box.add_child(shell_timer_label)
+	shell_timer_label.visible = false
 
-	respawn_label = _make_label("", 16, Color(1.0, 0.38, 0.28))
+	respawn_label = _make_label("", 32, Color(1.0, 0.38, 0.28))
 	respawn_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	respawn_label.visible = false
 	box.add_child(respawn_label)
+	_build_player_panel(root)
+
+
+func _build_player_panel(root: Control) -> void:
+	player_panel = PanelContainer.new()
+	player_panel.name = "PlayerStatus"
+	player_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	player_panel.offset_left = 20.0
+	player_panel.offset_top = 20.0
+	player_panel.offset_right = 265.0
+	player_panel.offset_bottom = 94.0
+	player_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	player_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.76, 0.63, 0.36, 0.62), Color(0.035, 0.035, 0.05, 0.3)))
+	root.add_child(player_panel)
+
+	var content := HBoxContainer.new()
+	content.add_theme_constant_override("separation", 7)
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	player_panel.add_child(content)
+
+	var portrait_frame := PanelContainer.new()
+	portrait_frame.custom_minimum_size = Vector2(60.0, 60.0)
+	portrait_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait_frame.add_theme_stylebox_override("panel", _panel_style(Color(0.92, 0.76, 0.42, 0.75), Color(0.06, 0.05, 0.05, 0.55)))
+	content.add_child(portrait_frame)
+
+	player_portrait = TextureRect.new()
+	player_portrait.custom_minimum_size = Vector2(52.0, 52.0)
+	player_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	player_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	player_portrait.clip_contents = true
+	player_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait_frame.add_child(player_portrait)
+
+	var details := VBoxContainer.new()
+	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	details.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	details.add_theme_constant_override("separation", 2)
+	details.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(details)
+
+	player_name_label = _make_label("Воин Света", 16, Color(0.97, 0.91, 0.79))
+	player_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	details.add_child(player_name_label)
+
+	var hp_container := Control.new()
+	hp_container.custom_minimum_size = Vector2(0.0, 20.0)
+	hp_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hp_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	details.add_child(hp_container)
+
+	player_hp_bar = ProgressBar.new()
+	player_hp_bar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	player_hp_bar.min_value = 0.0
+	player_hp_bar.max_value = 1.0
+	player_hp_bar.value = 1.0
+	player_hp_bar.show_percentage = false
+	player_hp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var hp_background := StyleBoxFlat.new()
+	hp_background.bg_color = Color(0.025, 0.04, 0.035, 0.98)
+	hp_background.border_color = Color(0.2, 0.25, 0.19, 0.95)
+	hp_background.set_border_width_all(1)
+	hp_background.set_corner_radius_all(7)
+	var hp_fill := StyleBoxFlat.new()
+	hp_fill.bg_color = Color(0.16, 0.79, 0.27, 1.0)
+	hp_fill.set_corner_radius_all(6)
+	player_hp_bar.add_theme_stylebox_override("background", hp_background)
+	player_hp_bar.add_theme_stylebox_override("fill", hp_fill)
+	hp_container.add_child(player_hp_bar)
+
+	player_hp_label = _make_label("550 / 550", 12, Color.WHITE)
+	player_hp_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	player_hp_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	hp_container.add_child(player_hp_label)
+	player_panel.visible = false
 
 
 func _build_abilities(root: Control) -> void:
@@ -125,36 +240,37 @@ func _build_abilities(root: Control) -> void:
 		button.custom_minimum_size = Vector2(84, 84)
 		button.clip_contents = true
 		button.focus_mode = Control.FOCUS_NONE
-		button.add_theme_stylebox_override("normal", _ability_style(i, false))
-		button.add_theme_stylebox_override("hover", _ability_style(i, true))
-		button.add_theme_stylebox_override("pressed", _ability_style(i, true))
+		button.add_theme_stylebox_override("normal", _ability_style(true, false))
+		button.add_theme_stylebox_override("hover", _ability_style(true, true))
+		button.add_theme_stylebox_override("pressed", _ability_style(true, true))
 		button.pressed.connect(_on_ability_pressed.bind(i))
+		var wipe := AbilityCooldownWipe.new()
+		wipe.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		wipe.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		button.add_child(wipe)
 		var box := VBoxContainer.new()
 		box.set_anchors_preset(Control.PRESET_FULL_RECT)
 		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		box.add_theme_constant_override("separation", 0)
 		button.add_child(box)
-		var key := _make_label(str(i + 1) + " / " + ["A", "B", "X"][i], 14, Color.WHITE)
+		var key := _make_label(str(i + 1), 24, Color.WHITE)
 		box.add_child(key)
 		var name_label := _make_label("", 10, PALE)
 		name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		
 		name_label.custom_minimum_size = Vector2(70, 28)
 		name_label.clip_text = true
 		box.add_child(name_label)
-		var cd := _make_label("", 11, Color(0.7, 0.9, 1.0))
-		box.add_child(cd)
 		row.add_child(button)
 		ability_buttons.append(button)
-		ability_cd_labels.append(cd)
+		ability_wipes.append(wipe)
+		ability_ready.append(true)
 		ability_name_labels.append(name_label)
 
-func _ability_style(index: int, hovered: bool) -> StyleBoxFlat:
-	var accents := [Color(0.22, 0.82, 0.42), Color(0.91, 0.28, 0.31), Color(0.2, 0.55, 0.96)]
-	var accent: Color = accents[index]
+func _ability_style(is_ready: bool, hovered: bool) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(accent.r, accent.g, accent.b, 0.38 if not hovered else 0.62)
-	style.border_color = Color(accent.r, accent.g, accent.b, 0.82 if not hovered else 1.0)
+	var base_color := Color(0.04, 0.68, 0.2) if is_ready else Color(0.88, 0.035, 0.045)
+	style.bg_color = base_color.lightened(0.08) if hovered else base_color
+	style.border_color = Color(0.72, 1.0, 0.76) if is_ready else Color(1.0, 0.65, 0.62)
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(42)
 	style.content_margin_left = 2.0
@@ -162,6 +278,16 @@ func _ability_style(index: int, hovered: bool) -> StyleBoxFlat:
 	style.content_margin_top = 2.0
 	style.content_margin_bottom = 2.0
 	return style
+
+
+func _set_ability_ready(index: int, is_ready: bool) -> void:
+	if ability_ready[index] == is_ready:
+		return
+	ability_ready[index] = is_ready
+	var button := ability_buttons[index]
+	button.add_theme_stylebox_override("normal", _ability_style(is_ready, false))
+	button.add_theme_stylebox_override("hover", _ability_style(is_ready, true))
+	button.add_theme_stylebox_override("pressed", _ability_style(is_ready, true))
 
 func _build_announcement(root: Control) -> void:
 	announce_label = _make_label("", 18, GOLD)
@@ -226,6 +352,207 @@ func _build_select(root: Control) -> void:
 
 	var hint := _make_label("WASD — движение · 1 2 3 — способности · цель: 3 осколка", 17, Color(0.75, 0.8, 0.9))
 	box.add_child(hint)
+
+
+func _build_shop(root: Control) -> void:
+	shop_dim = ColorRect.new()
+	shop_dim.name = "ShopDim"
+	shop_dim.color = Color(0.02, 0.02, 0.05, 0.68)
+	shop_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shop_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shop_dim.visible = false
+	root.add_child(shop_dim)
+
+	shop_panel = PanelContainer.new()
+	shop_panel.name = "ShopPanel"
+	shop_panel.anchor_left = 0.5
+	shop_panel.anchor_top = 0.5
+	shop_panel.anchor_right = 0.5
+	shop_panel.anchor_bottom = 0.5
+	shop_panel.offset_left = -360.0
+	shop_panel.offset_top = -245.0
+	shop_panel.offset_right = 360.0
+	shop_panel.offset_bottom = 245.0
+	shop_panel.custom_minimum_size = Vector2.ZERO
+	shop_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.68, 0.53, 0.29, 0.95), Color(0.035, 0.04, 0.065, 0.94)))
+	shop_panel.visible = false
+	root.add_child(shop_panel)
+
+	var layout := VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 4)
+	shop_panel.add_child(layout)
+
+	var header := Control.new()
+	header.custom_minimum_size = Vector2(0.0, 30.0)
+	layout.add_child(header)
+	var title := _make_label("МАГАЗИН", 21, GOLD)
+	title.set_anchors_preset(Control.PRESET_FULL_RECT)
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	header.add_child(title)
+	var close_button := Button.new()
+	close_button.text = "×"
+	close_button.tooltip_text = "Закрыть магазин"
+	close_button.focus_mode = Control.FOCUS_NONE
+	close_button.anchor_left = 1.0
+	close_button.anchor_right = 1.0
+	close_button.offset_left = -32.0
+	close_button.offset_top = 0.0
+	close_button.offset_right = 0.0
+	close_button.offset_bottom = 30.0
+	close_button.add_theme_font_size_override("font_size", 22)
+	close_button.add_theme_color_override("font_color", PALE)
+	close_button.add_theme_color_override("font_hover_color", Color.WHITE)
+	close_button.add_theme_stylebox_override("normal", _panel_style(Color(0.62, 0.49, 0.29, 0.75), Color(0.07, 0.075, 0.11, 0.9)))
+	close_button.add_theme_stylebox_override("hover", _panel_style(Color(0.95, 0.36, 0.3, 1.0), Color(0.2, 0.07, 0.07, 0.98)))
+	close_button.add_theme_stylebox_override("pressed", _panel_style(Color(1.0, 0.55, 0.42, 1.0), Color(0.25, 0.09, 0.08, 1.0)))
+	close_button.pressed.connect(_on_shop_close_pressed)
+	header.add_child(close_button)
+
+	var subtitle := _make_label("Улучшения до конца боя · по одной покупке каждого предмета", 11, PALE)
+	layout.add_child(subtitle)
+
+	var grid_center := CenterContainer.new()
+	grid_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid_center.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	layout.add_child(grid_center)
+
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.custom_minimum_size = Vector2(640.0, 0.0)
+	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 6)
+	grid.add_theme_constant_override("v_separation", 4)
+	grid_center.add_child(grid)
+
+	for item in game.get_shop_items():
+		var item_id := String(item["id"])
+		var button := Button.new()
+		button.custom_minimum_size = Vector2(0.0, 102.0)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		button.focus_mode = Control.FOCUS_NONE
+		button.add_theme_stylebox_override("normal", _panel_style(Color(0.47, 0.55, 0.72, 0.8), Color(0.09, 0.105, 0.15, 0.96)))
+		button.add_theme_stylebox_override("hover", _panel_style(Color(0.95, 0.77, 0.35, 1.0), Color(0.14, 0.13, 0.16, 0.98)))
+		button.add_theme_stylebox_override("pressed", _panel_style(Color(1.0, 0.86, 0.48, 1.0), Color(0.2, 0.17, 0.12, 0.98)))
+		button.add_theme_stylebox_override("disabled", _panel_style(Color(0.28, 0.3, 0.35, 0.6), Color(0.055, 0.06, 0.075, 0.8)))
+		button.pressed.connect(_on_shop_item_pressed.bind(item_id))
+
+		var content := HBoxContainer.new()
+		content.set_anchors_preset(Control.PRESET_FULL_RECT)
+		content.offset_left = 5.0
+		content.offset_top = 3.0
+		content.offset_right = -5.0
+		content.offset_bottom = -3.0
+		content.add_theme_constant_override("separation", 5)
+		content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		button.add_child(content)
+
+		var icon := TextureRect.new()
+		icon.texture = _shop_icon(int(item["icon"]))
+		icon.custom_minimum_size = Vector2(42.0, 42.0)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		content.add_child(icon)
+
+		var details := VBoxContainer.new()
+		details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		details.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		details.add_theme_constant_override("separation", 0)
+		details.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		content.add_child(details)
+		var name_label := _make_label(String(item["name"]), 12, PALE)
+		name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		name_label.custom_minimum_size = Vector2(0.0, 16.0)
+		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		details.add_child(name_label)
+		var effect_label := _make_label(String(item["effect"]), 11, Color(0.72, 0.88, 0.75))
+		effect_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		effect_label.custom_minimum_size = Vector2(0.0, 15.0)
+		effect_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		details.add_child(effect_label)
+		var price_label := _make_label("%d Золота" % int(item["price"]), 11, GOLD)
+		price_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		details.add_child(price_label)
+
+		grid.add_child(button)
+		shop_buttons[item_id] = button
+	update_shop()
+
+
+func _shop_icon(index: int) -> Texture2D:
+	var atlas := AtlasTexture.new()
+	atlas.atlas = SHOP_ICON_SHEET
+	var cell_size := 256.0
+	var column := index % 4
+	var row := floori(float(index) / 4.0)
+	atlas.region = Rect2(float(column) * cell_size, float(row) * cell_size, cell_size, cell_size)
+	return atlas
+
+
+func _update_player_panel() -> void:
+	if player_panel == null or game == null:
+		return
+	var player := game.player as HeroUnit
+	if player == null or game.state == "select":
+		player_panel.visible = false
+		return
+	player_panel.visible = true
+	var faction := "Света" if player.team == 0 else "Тьмы"
+	player_name_label.text = "%s %s" % [HeroUnit.CLASS_DATA[player.hero_class]["name"], faction]
+	if player_panel_class != player.hero_class:
+		player_panel_class = player.hero_class
+		player_portrait.texture = HERO_PORTRAITS[player.hero_class]
+	if player_panel_team != player.team:
+		player_panel_team = player.team
+		var border_color := Color(0.84, 0.68, 0.39, 0.95) if player.team == 0 else Color(0.58, 0.46, 0.78, 0.95)
+		player_panel.add_theme_stylebox_override("panel", _panel_style(border_color, Color(0.035, 0.035, 0.05, 0.3)))
+	player_hp_bar.max_value = maxf(1.0, player.max_health)
+	player_hp_bar.value = clampf(player.health, 0.0, player_hp_bar.max_value)
+	player_hp_label.text = "%d / %d" % [roundi(player.health), roundi(player.max_health)]
+
+
+func set_shop_open(open: bool) -> void:
+	if shop_panel == null:
+		return
+	shop_panel.visible = open
+	if shop_dim != null:
+		shop_dim.visible = open
+	if open:
+		update_shop()
+
+
+func update_gold() -> void:
+	if gold_label != null and game != null:
+		gold_label.text = "Золото: %d" % game.gold
+
+
+func update_shop() -> void:
+	if game == null:
+		return
+	for item in game.get_shop_items():
+		var item_id := String(item["id"])
+		var button := shop_buttons.get(item_id) as Button
+		if button == null:
+			continue
+		var purchased: bool = item_id in game.purchased_shop_items
+		var affordable: bool = game.gold >= int(item["price"])
+		button.disabled = purchased or not affordable
+		button.modulate = Color(0.5, 0.5, 0.55, 0.58) if purchased else (Color(0.65, 0.67, 0.72, 0.7) if not affordable else Color.WHITE)
+
+
+func _on_shop_item_pressed(item_id: String) -> void:
+	if game != null:
+		game.buy_item(item_id)
+
+
+func _on_shop_close_pressed() -> void:
+	if game != null and game.player != null:
+		game.player.dismiss_shop()
+	else:
+		set_shop_open(false)
 
 
 func _build_end(root: Control) -> void:
@@ -296,13 +623,15 @@ func show_announcement(text: String, color: Color, duration: float) -> void:
 func _process(_delta: float) -> void:
 	if game == null:
 		return
+	update_gold()
+	_update_player_panel()
 	var match_time_left: float = maxf(0.0, game.match_time)
 	var match_minutes := floori(match_time_left / 60.0)
 	var match_seconds := int(match_time_left) % 60
 	timer_label.text = "%02d:%02d" % [match_minutes, match_seconds]
 	if game.sudden_death:
 		timer_label.text = "РЕШАЮЩИЙ"
-	score_label.text = "Свет %d : %d Тьма" % [game.score[0], game.score[1]]
+	score_label.text = "Свет — %d:%d — Тьма" % [game.score[0], game.score[1]]
 	var shell_time_left: float = game.shell_window if game.shell_phase == "active" else game.shell_timer
 	shell_time_left = maxf(0.0, shell_time_left)
 	var shell_minutes := floori(shell_time_left / 60.0)
@@ -315,15 +644,17 @@ func _process(_delta: float) -> void:
 		var p = game.player
 		respawn_label.visible = p.dead
 		if p.dead:
-			respawn_label.text = "Возрождение: %dс" % int(ceil(maxf(0.0, p.respawn_timer)))
+			respawn_label.text = "Возрождение: %d" % int(ceil(maxf(0.0, p.respawn_timer)))
 		else:
 			respawn_label.text = ""
 		for i in 3:
 			var data: Dictionary = HeroUnit.CLASS_DATA[p.hero_class]["abilities"][i]
 			ability_name_labels[i].text = str(data["name"])
 			var cd: float = p.ability_cds[i]
-			ability_cd_labels[i].text = "готово" if cd <= 0.01 else "%.1f с" % cd
-			ability_buttons[i].modulate = Color(1, 1, 1, 1) if cd <= 0.01 else Color(0.6, 0.62, 0.7, 1)
+			var cooldown_length := maxf(0.001, float(data["cd"]) * (1.0 - p.cooldown_reduction))
+			var progress := 1.0 if cd <= 0.01 else clampf(1.0 - cd / cooldown_length, 0.0, 1.0)
+			ability_wipes[i].set_progress(progress)
+			_set_ability_ready(i, cd <= 0.01)
 	else:
 		respawn_label.visible = false
 
@@ -331,4 +662,4 @@ func _process(_delta: float) -> void:
 		end_panel.visible = true
 		end_title.text = game.result_text
 		end_title.add_theme_color_override("font_color", Color(0.85, 1.0, 0.7) if game.player_won else Color(1.0, 0.55, 0.5))
-		end_score.text = "Свет %d : %d Тьма" % [game.score[0], game.score[1]]
+		end_score.text = "Свет — %d:%d — Тьма" % [game.score[0], game.score[1]]

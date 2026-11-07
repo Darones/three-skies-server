@@ -1,13 +1,51 @@
 extends Node3D
 
-const MATCH_LENGTH := 300.0
+const MATCH_LENGTH := 600.0
 const RESPAWN_TIME := 8.0
+const RESPAWN_GOLD_STEP := 200
+const RESPAWN_MAX_SECONDS := 16.0
 const SHELL_WINDOW := 45.0
+const SHELL_SPAWN_INTERVAL := 120.0
+const SHELL_WARNING_TIME := 10.0
 const CRYSTALS_TO_WIN := 3
 const GROUND_CRYSTAL_LIFETIME := 30.0
+const CRYSTAL_PICKUP_DELAY := 1.25
+const CRYSTAL_DROP_SEARCH_RADII := [7.8, 9.0, 10.2, 11.4, 12.6]
+const TEST_STARTING_GOLD := 500
+const ARENA_SAFE_HALF_X := 52.0
+const ARENA_SAFE_HALF_Z := 37.0
+const VFX_POOL_SIZE := 10
+const SHELL_BEAM_POOL_SIZE := 5
+const PROJECTILE_POOL_SIZE := 16
+const ROOT_SPIKE_POOL_SIZE := 24
+const GOLD_COIN_INTERVAL := 1.0
+const GOLD_COIN_MAX_COUNT := 30
+const GOLD_COIN_PULL_RADIUS := 4.0
+const GOLD_COIN_PULL_SPEED := 7.5
+const GOLD_COIN_SPAWN_BASE_RADIUS := 5.0
+const GOLD_COIN_SPAWN_EXTRA_RADIUS := 1.2
+const SHOP_INTERACTION_POINT := Vector3(-40.0, 0.0, 0.0)
+const BASE_POSITION_Z := 28.0
+const SHOP_INTERACTION_RADIUS := 4.0
+const BOT_CALLSIGNS := ["ЛунныйЛис", "СеверныйВетер", "ТихийШторм", "Искра", "КаменныйПуть", "ЗвёздныйСлед", "СумрачныйКлинок", "БелыйВорон"]
+const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
+const SHOP_STALL_SCENE: PackedScene = preload("res://assets/shop_stall/3d_4f92fe433b084100af7a1d7f_1790958942025.glb")
+const GOLD_FOUNTAIN_SCENE: PackedScene = preload("res://assets/gold_fountain/3d_aeb9c9ced6384164aff32ae5_1790300466128.glb")
+const SHOP_ITEMS := [
+	{"id": "life_amulet", "name": "Амулет Жизни", "effect": "+150 Max HP", "price": 300, "icon": 0},
+	{"id": "revival_talisman", "name": "Талисман Возрождения", "effect": "+10 HP/сек реген", "price": 350, "icon": 1},
+	{"id": "titan_shell", "name": "Панцирь Титана", "effect": "−15% входящего урона", "price": 350, "icon": 2},
+	{"id": "power_glove", "name": "Перчатка Силы", "effect": "+25 к урону атаки", "price": 300, "icon": 3},
+	{"id": "vampire_fang", "name": "Клык Вампира", "effect": "15% вампиризма", "price": 350, "icon": 4},
+	{"id": "agility_mark", "name": "Знак Ловкости", "effect": "+20% скорости атаки", "price": 300, "icon": 5},
+	{"id": "wind_boots", "name": "Сапоги Ветра", "effect": "+15% скорости бега", "price": 250, "icon": 6},
+	{"id": "hourglass", "name": "Песочные Часы", "effect": "−15% КД скиллов", "price": 350, "icon": 7},
+	{"id": "cleansing_charm", "name": "Оберег Очищения", "effect": "−20% времени станов", "price": 300, "icon": 8},
+]
 
 const MUSIC_PATH := "res://audio/music/dread/6adcd384-a1c6-4d03-ab8f-2885c6220fd5_music_dark_fantasy_arena_battle_them__1793744175999.mp3"
 const SFX_PATHS := {
+	"fairy_ult": "res://audio/sfx/fairy_blessing_free/sfx_magical_fairy_chime_bell_brig_.wav",
 	"hit": "res://audio/sfx/sword_hit.wav",
 	"magic": "res://audio/sfx/magic_burst.wav",
 	"thunder": "res://audio/sfx/shell_thunder.wav",
@@ -18,6 +56,7 @@ var hud: Node
 var heroes: Array[HeroUnit] = []
 var player: HeroUnit = null
 var shell: SkyShell = null
+var shell_pool: SkyShell = null
 var crystal_node: Node3D = null
 var carrier: HeroUnit = null
 
@@ -28,8 +67,18 @@ var p_kills := 0
 var p_deaths := 0
 var p_damage := 0.0
 var p_crystals := 0
+var p_shells_destroyed := 0
+var gold := 0
+var gold_earned_this_match := 0
+var shop_open := false
+var purchased_shop_items: Array[String] = []
+var used_bot_callsigns: Array[String] = []
+var gold_fountain: Node3D = null
+var gold_coin_timer := GOLD_COIN_INTERVAL
+var gold_coins: Array[Node3D] = []
 var shell_phase := "idle"
-var shell_timer := 8.0
+var shell_cycle_timer := SHELL_SPAWN_INTERVAL
+var shell_timer := SHELL_SPAWN_INTERVAL
 var shell_window := SHELL_WINDOW
 var crystal_state := "none"
 var crystal_timer := 0.0
@@ -40,10 +89,19 @@ var result_text := ""
 var last_announce := ""
 
 var projectiles: Array = []
+var burst_pool: Array[Dictionary] = []
+var ring_pool: Array[Dictionary] = []
+var root_spike_pool: Array[Dictionary] = []
+var shell_beam_pool: Array[Dictionary] = []
+var projectile_pool: Array[Dictionary] = []
 var shake_amount := 0.0
+var earthquake_timer := 0.0
+var earthquake_intensity := 0.0
 var select_angle := 0.6
 var camera_pos := Vector3.ZERO
 var camera_distance := 16.0
+var death_camera_active := false
+var death_camera_last_distance := 16.0
 var zoom_speed := 1.0
 var min_zoom_distance := 12.0
 var max_zoom_distance := 42.0
@@ -68,11 +126,14 @@ func _ready() -> void:
 		arena.name = "Arena"
 		add_child(arena)
 		ArenaKit.build(arena)
+	_create_shop_stall()
+	_create_gold_fountain()
 	_setup_audio()
+	_prepare_effect_pools()
 	hud = preload("res://scripts/hud.gd").new()
-	add_child(hud)
-	hud.game = self
 	hud.name = "HUD"
+	hud.game = self
+	add_child(hud)
 	var bushes_root := get_node_or_null("Arena/Bushes")
 	if bushes_root != null:
 		for bush_node in bushes_root.get_children():
@@ -86,6 +147,288 @@ func _ready() -> void:
 		if selected_class >= 0 and selected_class <= 2:
 			var selected_team := clampi(int(get_tree().get_meta("selected_team", get_meta("selected_team", 0))), 0, 1)
 			call_deferred("start_match", selected_class, selected_team)
+
+
+func _create_shop_stall() -> void:
+	var parent := get_node_or_null("Arena/Decor") as Node3D
+	if parent == null:
+		parent = get_node_or_null("Arena") as Node3D
+	if parent == null or parent.get_node_or_null("ShopStall") != null:
+		return
+
+	var shop := Node3D.new()
+	shop.name = "ShopStall"
+	shop.position = Vector3(-40.0, 0.0, 0.0)
+	shop.scale = Vector3.ONE * 5.0
+	parent.add_child(shop)
+
+	var stall_model := SHOP_STALL_SCENE.instantiate() as Node3D
+	stall_model.name = "MarketStallModel"
+	shop.add_child(stall_model)
+	_add_shop_collision(shop)
+
+	var sign := MeshInstance3D.new()
+	sign.name = "ShopSign"
+	var sign_mesh := BoxMesh.new()
+	sign_mesh.size = Vector3(2.7, 0.65, 0.14)
+	sign.mesh = sign_mesh
+	var sign_material := StandardMaterial3D.new()
+	sign_material.albedo_color = Color(0.18, 0.085, 0.045)
+	sign_material.roughness = 0.9
+	sign.material_override = sign_material
+	sign.position = Vector3(0.0, 3.65, 1.82)
+	shop.add_child(sign)
+	var title := Label3D.new()
+	title.name = "ShopTitle"
+	title.font = UI_FONT
+	title.text = "МАГАЗИН"
+	title.position = Vector3(0.0, 4.15, 1.9)
+	title.font_size = 88
+	title.pixel_size = 0.006
+	title.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	title.modulate = Color(1.0, 0.82, 0.48)
+	title.outline_size = 9
+	title.outline_modulate = Color(0.045, 0.03, 0.02, 0.95)
+	shop.add_child(title)
+
+func _add_shop_collision(parent: Node3D) -> void:
+	var body := StaticBody3D.new()
+	body.name = "ShopCollision"
+	body.collision_layer = 1
+	body.collision_mask = 1
+	var collision_shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(1.0, 0.9, 0.8)
+	collision_shape.shape = box
+	collision_shape.position = Vector3(0.0, 0.45, 0.0)
+	body.add_child(collision_shape)
+	parent.add_child(body)
+
+
+func _create_gold_fountain() -> void:
+	var parent := get_node_or_null("Arena/Decor") as Node3D
+	if parent == null:
+		parent = get_node_or_null("Arena") as Node3D
+	if parent == null or parent.get_node_or_null("GoldFountain") != null:
+		return
+
+	gold_fountain = Node3D.new()
+	gold_fountain.name = "GoldFountain"
+	gold_fountain.position = Vector3(37.0, 0.0, 0.0)
+	gold_fountain.scale = Vector3.ONE * 5.0
+	parent.add_child(gold_fountain)
+
+	var imported_model := GOLD_FOUNTAIN_SCENE.instantiate() as Node3D
+	if imported_model != null:
+		imported_model.name = "StoneFountainModel"
+		gold_fountain.add_child(imported_model)
+		_add_model_collision(gold_fountain, imported_model, "FountainCollision")
+	else:
+		_build_primitive_fountain(gold_fountain)
+		_add_model_collision(gold_fountain, gold_fountain, "FountainCollision")
+
+	var title := Label3D.new()
+	title.name = "FountainTitle"
+	title.font = UI_FONT
+	title.text = "ФОНТАН"
+	title.position = Vector3(0.0, 3.7, 0.0)
+	title.font_size = 88
+	title.pixel_size = 0.006
+	title.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	title.modulate = Color(1.0, 0.84, 0.38)
+	title.outline_size = 9
+	title.outline_modulate = Color(0.045, 0.03, 0.02, 0.95)
+	gold_fountain.add_child(title)
+
+
+func _build_primitive_fountain(parent: Node3D) -> void:
+	var gold_material := StandardMaterial3D.new()
+	gold_material.albedo_color = Color(0.72, 0.47, 0.12)
+	gold_material.metallic = 0.72
+	gold_material.roughness = 0.28
+	gold_material.emission_enabled = true
+	gold_material.emission = Color(0.7, 0.38, 0.06)
+	gold_material.emission_energy_multiplier = 0.35
+
+	var stone_material := StandardMaterial3D.new()
+	stone_material.albedo_color = Color(0.36, 0.35, 0.39)
+	stone_material.roughness = 0.9
+
+	var water_material := StandardMaterial3D.new()
+	water_material.albedo_color = Color(0.08, 0.38, 0.48, 0.82)
+	water_material.metallic = 0.28
+	water_material.roughness = 0.18
+	water_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	water_material.emission_enabled = true
+	water_material.emission = Color(0.04, 0.26, 0.38)
+	water_material.emission_energy_multiplier = 0.8
+
+	var base := MeshInstance3D.new()
+	base.name = "StoneBase"
+	var base_mesh := CylinderMesh.new()
+	base_mesh.top_radius = 1.35
+	base_mesh.bottom_radius = 1.5
+	base_mesh.height = 0.55
+	base_mesh.radial_segments = 12
+	base.mesh = base_mesh
+	base.material_override = stone_material
+	base.position.y = 0.28
+	parent.add_child(base)
+
+	var column := MeshInstance3D.new()
+	column.name = "GoldColumn"
+	var column_mesh := CylinderMesh.new()
+	column_mesh.top_radius = 0.36
+	column_mesh.bottom_radius = 0.58
+	column_mesh.height = 1.45
+	column_mesh.radial_segments = 10
+	column.mesh = column_mesh
+	column.material_override = gold_material
+	column.position.y = 1.25
+	parent.add_child(column)
+
+	var basin := MeshInstance3D.new()
+	basin.name = "StoneBasin"
+	var basin_mesh := CylinderMesh.new()
+	basin_mesh.top_radius = 1.45
+	basin_mesh.bottom_radius = 0.75
+	basin_mesh.height = 0.55
+	basin_mesh.radial_segments = 12
+	basin.mesh = basin_mesh
+	basin.material_override = stone_material
+	basin.position.y = 2.12
+	parent.add_child(basin)
+
+	var rim := MeshInstance3D.new()
+	rim.name = "GoldBasinRim"
+	var rim_mesh := TorusMesh.new()
+	rim_mesh.inner_radius = 1.23
+	rim_mesh.outer_radius = 1.5
+	rim_mesh.rings = 24
+	rim_mesh.ring_segments = 8
+	rim.mesh = rim_mesh
+	rim.material_override = gold_material
+	rim.position.y = 2.42
+	parent.add_child(rim)
+
+	var water := MeshInstance3D.new()
+	water.name = "BasinWater"
+	var water_mesh := CylinderMesh.new()
+	water_mesh.top_radius = 1.22
+	water_mesh.bottom_radius = 1.22
+	water_mesh.height = 0.04
+	water_mesh.radial_segments = 16
+	water.mesh = water_mesh
+	water.material_override = water_material
+	water.position.y = 2.34
+	parent.add_child(water)
+
+
+
+func _add_model_collision(parent: Node3D, model_root: Node3D, collision_name: String) -> void:
+	var meshes: Array[MeshInstance3D] = []
+	var stack: Array[Node] = [model_root]
+	while not stack.is_empty():
+		var current: Node = stack.pop_back()
+		if current is MeshInstance3D and (current as MeshInstance3D).mesh != null:
+			meshes.append(current as MeshInstance3D)
+		for child in current.get_children():
+			stack.append(child)
+
+	for index in meshes.size():
+		var mesh_instance := meshes[index]
+		var mesh_parent := mesh_instance.get_parent() as Node3D
+		if mesh_parent == null:
+			mesh_parent = parent
+		var body := StaticBody3D.new()
+		body.name = "%s_%d" % [collision_name, index]
+		body.collision_layer = 1
+		body.collision_mask = 1
+		var collision_shape := CollisionShape3D.new()
+		collision_shape.shape = mesh_instance.mesh.create_trimesh_shape()
+		body.add_child(collision_shape)
+		mesh_parent.add_child(body)
+		body.transform = mesh_instance.transform
+
+
+
+func _spawn_gold_coin() -> void:
+	if gold_fountain == null or not is_instance_valid(gold_fountain):
+		return
+	if gold_coins.size() >= GOLD_COIN_MAX_COUNT:
+		var oldest: Node3D = gold_coins.pop_front()
+		if is_instance_valid(oldest):
+			oldest.queue_free()
+
+	var coin := MeshInstance3D.new()
+	coin.name = "GoldCoin"
+	var coin_mesh := CylinderMesh.new()
+	coin_mesh.top_radius = 0.22
+	coin_mesh.bottom_radius = 0.22
+	coin_mesh.height = 0.075
+	coin_mesh.radial_segments = 12
+	coin.mesh = coin_mesh
+	var coin_material := StandardMaterial3D.new()
+	coin_material.albedo_color = Color(1.0, 0.68, 0.12)
+	coin_material.metallic = 0.78
+	coin_material.roughness = 0.22
+	coin_material.emission_enabled = true
+	coin_material.emission = Color(1.0, 0.48, 0.04)
+	coin_material.emission_energy_multiplier = 0.8
+	coin.material_override = coin_material
+	add_child(coin)
+	var coin_angle := randf_range(0.0, TAU)
+	var coin_radius := GOLD_COIN_SPAWN_BASE_RADIUS + randf_range(0.0, GOLD_COIN_SPAWN_EXTRA_RADIUS)
+	var spawn_position := gold_fountain.global_position + Vector3(
+		cos(coin_angle) * coin_radius,
+		0.09,
+		sin(coin_angle) * coin_radius
+	)
+	coin.global_position = clamp_to_arena(spawn_position)
+	gold_coins.append(coin)
+
+
+func _update_gold_fountain(delta: float) -> void:
+	gold_coin_timer -= delta
+	if gold_coin_timer <= 0.0:
+		_spawn_gold_coin()
+		gold_coin_timer = GOLD_COIN_INTERVAL
+
+	for index in range(gold_coins.size() - 1, -1, -1):
+		var coin := gold_coins[index]
+		if not is_instance_valid(coin):
+			gold_coins.remove_at(index)
+			continue
+		coin.rotation.y += delta * 2.0
+		var collector: HeroUnit = null
+		var closest_distance := GOLD_COIN_PULL_RADIUS
+		for hero in heroes:
+			if hero == null or not is_instance_valid(hero) or hero.dead:
+				continue
+			var distance := Vector2(hero.global_position.x - coin.global_position.x, hero.global_position.z - coin.global_position.z).length()
+			if distance < closest_distance:
+				closest_distance = distance
+				collector = hero
+		if collector == null:
+			continue
+		var collector_target := collector.global_position + Vector3(0.0, 0.8, 0.0)
+		coin.global_position = coin.global_position.move_toward(collector_target, GOLD_COIN_PULL_SPEED * delta)
+		if coin.global_position.distance_to(collector_target) <= 0.75:
+			coin.queue_free()
+			gold_coins.remove_at(index)
+			collector.match_coins_collected += 1
+			if collector.is_player:
+				award_gold(1)
+			else:
+				collector.bot_gold += 1
+
+
+func is_hero_near_shop(hero: HeroUnit) -> bool:
+	if hero == null or not is_instance_valid(hero):
+		return false
+	var hero_position := Vector2(hero.global_position.x, hero.global_position.z)
+	var shop_point := Vector2(SHOP_INTERACTION_POINT.x, SHOP_INTERACTION_POINT.z)
+	return hero_position.distance_to(shop_point) <= SHOP_INTERACTION_RADIUS
 
 
 func _setup_audio() -> void:
@@ -107,6 +450,287 @@ func _setup_audio() -> void:
 		sfx_players.append(p)
 
 
+func _prepare_effect_pools() -> void:
+	shell_pool = SkyShell.new()
+	shell_pool.name = "Shell"
+	add_child(shell_pool)
+	shell_pool.setup(self)
+	shell_pool.deactivate()
+
+	var burst_amounts := [3, 10, 14, 16, 18, 20, 28, 34, 44, 60]
+	for amount in burst_amounts:
+		var particles := CPUParticles3D.new()
+		particles.name = "PooledBurst%d" % int(amount)
+		particles.amount = int(amount)
+		particles.lifetime = 0.6
+		particles.one_shot = true
+		particles.explosiveness = 0.95
+		particles.direction = Vector3(0.0, 1.0, 0.0)
+		particles.spread = 180.0
+		particles.initial_velocity_min = 3.0
+		particles.initial_velocity_max = 8.0
+		particles.gravity = Vector3(0.0, -14.0, 0.0)
+		particles.scale_amount_min = 0.4
+		particles.scale_amount_max = 1.0
+		var quad := QuadMesh.new()
+		quad.size = Vector2(0.28, 0.28)
+		particles.mesh = quad
+		var material := StandardMaterial3D.new()
+		material.emission_enabled = true
+		material.emission_energy_multiplier = 3.0
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		material.vertex_color_use_as_albedo = true
+		particles.material_override = material
+		particles.emitting = false
+		particles.visible = false
+		add_child(particles)
+		burst_pool.append({"node": particles, "material": material, "count": int(amount), "busy": false, "remaining": 0.0})
+
+	for index in VFX_POOL_SIZE:
+		var ring := MeshInstance3D.new()
+		ring.name = "PooledRing%d" % index
+		var torus := TorusMesh.new()
+		torus.inner_radius = 0.8
+		torus.outer_radius = 1.0
+		torus.rings = 40
+		torus.ring_segments = 8
+		ring.mesh = torus
+		var material := StandardMaterial3D.new()
+		material.emission_enabled = true
+		material.emission_energy_multiplier = 3.0
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		ring.material_override = material
+		ring.visible = false
+		add_child(ring)
+		ring_pool.append({"node": ring, "material": material, "busy": false, "elapsed": 0.0, "duration": 0.0, "start_scale": Vector3.ONE, "target_scale": Vector3.ONE, "fade": false, "alpha": 0.8})
+
+	var root_mesh := CylinderMesh.new()
+	root_mesh.top_radius = 0.0
+	root_mesh.bottom_radius = 0.22
+	root_mesh.height = 1.0
+	root_mesh.radial_segments = 6
+	for index in ROOT_SPIKE_POOL_SIZE:
+		var spike := MeshInstance3D.new()
+		spike.name = "PooledRootSpike%d" % index
+		spike.mesh = root_mesh
+		var material := StandardMaterial3D.new()
+		material.albedo_color = Color(0.25, 0.85, 0.46, 1.0)
+		material.emission_enabled = true
+		material.emission = Color(0.12, 0.62, 0.3)
+		material.emission_energy_multiplier = 1.4
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		spike.material_override = material
+		spike.visible = false
+		add_child(spike)
+		root_spike_pool.append({"node": spike, "material": material, "busy": false, "elapsed": 0.0, "duration": 0.0, "position": Vector3.ZERO, "height": 0.0, "color": Color.WHITE})
+
+	var beam_mesh := CylinderMesh.new()
+	beam_mesh.top_radius = 0.22
+	beam_mesh.bottom_radius = 0.5
+	beam_mesh.height = 16.0
+	beam_mesh.radial_segments = 8
+	for index in SHELL_BEAM_POOL_SIZE:
+		var beam := MeshInstance3D.new()
+		beam.name = "PooledShellBeam%d" % index
+		beam.mesh = beam_mesh
+		var material := StandardMaterial3D.new()
+		material.albedo_color = Color(0.85, 0.7, 1.0, 0.95)
+		material.emission_enabled = true
+		material.emission = Color(0.8, 0.6, 1.0)
+		material.emission_energy_multiplier = 4.0
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		beam.material_override = material
+		beam.visible = false
+		add_child(beam)
+		shell_beam_pool.append({"node": beam, "material": material, "busy": false, "remaining": 0.0})
+
+	var projectile_mesh := SphereMesh.new()
+	projectile_mesh.radius = 0.18
+	projectile_mesh.height = 0.36
+	projectile_mesh.radial_segments = 6
+	projectile_mesh.rings = 3
+	for index in PROJECTILE_POOL_SIZE:
+		var projectile := MeshInstance3D.new()
+		projectile.name = "PooledProjectile%d" % index
+		projectile.mesh = projectile_mesh
+		var material := StandardMaterial3D.new()
+		material.emission_enabled = true
+		material.emission_energy_multiplier = 3.0
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		projectile.material_override = material
+		projectile.visible = false
+		add_child(projectile)
+		projectile_pool.append({"node": projectile, "material": material, "busy": false})
+
+
+func _update_effect_pools(delta: float) -> void:
+	for index in burst_pool.size():
+		var entry: Dictionary = burst_pool[index]
+		if not bool(entry["busy"]):
+			continue
+		entry["remaining"] = float(entry["remaining"]) - delta
+		if float(entry["remaining"]) <= 0.0:
+			var particles := entry["node"] as CPUParticles3D
+			particles.emitting = false
+			particles.visible = false
+			entry["busy"] = false
+		burst_pool[index] = entry
+
+	for index in ring_pool.size():
+		var entry: Dictionary = ring_pool[index]
+		if not bool(entry["busy"]):
+			continue
+		entry["elapsed"] = float(entry["elapsed"]) + delta
+		var duration := maxf(float(entry["duration"]), 0.001)
+		var progress := clampf(float(entry["elapsed"]) / duration, 0.0, 1.0)
+		var ring := entry["node"] as MeshInstance3D
+		var material := entry["material"] as StandardMaterial3D
+		var start_scale: Vector3 = entry["start_scale"]
+		var target_scale: Vector3 = entry["target_scale"]
+		ring.scale = start_scale.lerp(target_scale, progress)
+		if bool(entry["fade"]):
+			var tint := material.albedo_color
+			tint.a = float(entry["alpha"]) * (1.0 - progress)
+			material.albedo_color = tint
+			material.emission_energy_multiplier = 3.0 * (1.0 - progress)
+		if progress >= 1.0:
+			ring.visible = false
+			entry["busy"] = false
+		ring_pool[index] = entry
+
+	for index in root_spike_pool.size():
+		var entry: Dictionary = root_spike_pool[index]
+		if not bool(entry["busy"]):
+			continue
+		entry["elapsed"] = float(entry["elapsed"]) + delta
+		var duration := maxf(float(entry["duration"]), 0.001)
+		var progress := clampf(float(entry["elapsed"]) / duration, 0.0, 1.0)
+		var rise := clampf(progress / 0.22, 0.0, 1.0)
+		var height := float(entry["height"])
+		var spike := entry["node"] as MeshInstance3D
+		var material := entry["material"] as StandardMaterial3D
+		var spike_position: Vector3 = entry["position"]
+		spike.global_position = spike_position + Vector3.UP * height * rise * 0.5
+		spike.scale = Vector3(1.0, height * rise, 1.0)
+		var tint: Color = entry["color"]
+		if progress > 0.58:
+			tint.a = 1.0 - clampf((progress - 0.58) / 0.42, 0.0, 1.0)
+		material.albedo_color = tint
+		material.emission_energy_multiplier = 1.4 * tint.a
+		if progress >= 1.0:
+			spike.visible = false
+			spike.scale = Vector3.ONE
+			entry["busy"] = false
+		root_spike_pool[index] = entry
+
+	for index in shell_beam_pool.size():
+		var entry: Dictionary = shell_beam_pool[index]
+		if not bool(entry["busy"]):
+			continue
+		entry["remaining"] = float(entry["remaining"]) - delta
+		var beam := entry["node"] as MeshInstance3D
+		var material := entry["material"] as StandardMaterial3D
+		var tint := material.albedo_color
+		tint.a = 0.95 * clampf(float(entry["remaining"]) / 0.35, 0.0, 1.0)
+		material.albedo_color = tint
+		if float(entry["remaining"]) <= 0.0:
+			beam.visible = false
+			entry["busy"] = false
+		shell_beam_pool[index] = entry
+
+
+func _acquire_burst(requested_count: int) -> Dictionary:
+	var selected_index := -1
+	var best_difference := INF
+	for index in burst_pool.size():
+		var entry: Dictionary = burst_pool[index]
+		if bool(entry["busy"]):
+			continue
+		var difference := absf(float(entry["count"]) - float(requested_count))
+		if difference < best_difference:
+			best_difference = difference
+			selected_index = index
+	if selected_index < 0:
+		return {}
+	var selected: Dictionary = burst_pool[selected_index]
+	selected["busy"] = true
+	selected["remaining"] = 1.2
+	burst_pool[selected_index] = selected
+	return selected
+
+
+func _activate_ring(pos: Vector3, color: Color, duration: float, start_scale: Vector3, target_scale: Vector3, fade: bool, alpha: float) -> void:
+	for index in ring_pool.size():
+		var entry: Dictionary = ring_pool[index]
+		if bool(entry["busy"]):
+			continue
+		var ring := entry["node"] as MeshInstance3D
+		var material := entry["material"] as StandardMaterial3D
+		var tint := color
+		tint.a = alpha
+		material.albedo_color = tint
+		material.emission = color
+		material.emission_energy_multiplier = 3.0
+		ring.global_position = pos
+		ring.scale = start_scale
+		ring.visible = true
+		entry["busy"] = true
+		entry["elapsed"] = 0.0
+		entry["duration"] = duration
+		entry["start_scale"] = start_scale
+		entry["target_scale"] = target_scale
+		entry["fade"] = fade
+		entry["alpha"] = alpha
+		ring_pool[index] = entry
+		return
+
+
+func _activate_shell_beam(pos: Vector3, beam_color := Color(0.85, 0.7, 1.0, 0.95)) -> void:
+	for index in shell_beam_pool.size():
+		var entry: Dictionary = shell_beam_pool[index]
+		if bool(entry["busy"]):
+			continue
+		var beam := entry["node"] as MeshInstance3D
+		var material := entry["material"] as StandardMaterial3D
+		material.albedo_color = beam_color
+		material.emission = Color(beam_color.r, beam_color.g, beam_color.b)
+		beam.global_position = pos + Vector3(0.0, 8.0, 0.0)
+		beam.scale = Vector3.ONE
+		beam.visible = true
+		entry["busy"] = true
+		entry["remaining"] = 0.35
+		shell_beam_pool[index] = entry
+		return
+
+
+func _acquire_projectile() -> MeshInstance3D:
+	for index in projectile_pool.size():
+		var entry: Dictionary = projectile_pool[index]
+		if bool(entry["busy"]):
+			continue
+		entry["busy"] = true
+		projectile_pool[index] = entry
+		return entry["node"] as MeshInstance3D
+	return null
+
+
+func _release_projectile(node: Node3D, pooled: bool) -> void:
+	if not pooled:
+		node.queue_free()
+		return
+	node.visible = false
+	for index in projectile_pool.size():
+		var entry: Dictionary = projectile_pool[index]
+		if entry["node"] == node:
+			entry["busy"] = false
+			projectile_pool[index] = entry
+			return
+
+
 func play_sfx(key: String, volume_db := -4.0) -> void:
 	if not sfx_streams.has(key) or sfx_players.is_empty():
 		return
@@ -124,6 +748,13 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	p_deaths = 0
 	p_damage = 0.0
 	p_crystals = 0
+	p_shells_destroyed = 0
+	gold_earned_this_match = 0
+	gold = TEST_STARTING_GOLD
+	death_camera_active = false
+	shop_open = false
+	purchased_shop_items.clear()
+	used_bot_callsigns.clear()
 	var player_team := requested_team
 	if player_team < 0:
 		player_team = int(get_tree().get_meta("selected_team", get_meta("selected_team", 0)))
@@ -133,8 +764,8 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	for c in classes:
 		if c != player_class:
 			ally_classes.append(c)
-	var light_spots: Array[Vector3] = [Vector3(-3.0, 0.4, 32.5), Vector3(0.0, 0.4, 32.0), Vector3(3.0, 0.4, 32.5)]
-	var dark_spots: Array[Vector3] = [Vector3(3.0, 0.4, -32.5), Vector3(0.0, 0.4, -32.0), Vector3(-3.0, 0.4, -32.5)]
+	var light_spots: Array[Vector3] = [Vector3(-2.0, 0.76, BASE_POSITION_Z - 1.5), Vector3(0.0, 0.76, BASE_POSITION_Z - 1.0), Vector3(2.0, 0.76, BASE_POSITION_Z - 1.5)]
+	var dark_spots: Array[Vector3] = [Vector3(2.0, 0.76, -BASE_POSITION_Z + 1.5), Vector3(0.0, 0.76, -BASE_POSITION_Z + 1.0), Vector3(-2.0, 0.76, -BASE_POSITION_Z + 1.5)]
 	var own_spots: Array[Vector3] = light_spots if player_team == 0 else dark_spots
 	var enemy_spots: Array[Vector3] = dark_spots if player_team == 0 else light_spots
 	var enemy_team := 1 - player_team
@@ -148,7 +779,8 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	state = "live"
 	match_time = MATCH_LENGTH
 	shell_phase = "idle"
-	shell_timer = 8.0
+	shell_cycle_timer = SHELL_SPAWN_INTERVAL
+	shell_timer = SHELL_SPAWN_INTERVAL
 	if hud != null:
 		hud.hide_class_select()
 		announce("Бой за осколки!", Color(1.0, 0.86, 0.55), 2.6)
@@ -159,13 +791,130 @@ func _spawn_hero(cls: int, team: int, is_player: bool, pos: Vector3) -> HeroUnit
 	h.name = ("Player" if is_player else "%s_%d_%d" % [HeroUnit.CLASS_DATA[cls]["name"], team, heroes.size()])
 	add_child(h)
 	h.setup(self, cls, team, is_player)
+	if not is_player:
+		h.display_name = _next_bot_callsign()
 	h.global_position = pos
 	h.rotation.y = 0.0 if team == 0 else PI
 	heroes.append(h)
 	return h
 
 
+func _next_bot_callsign() -> String:
+	var available: Array[String] = []
+	for callsign in BOT_CALLSIGNS:
+		if not used_bot_callsigns.has(String(callsign)):
+			available.append(String(callsign))
+	if available.is_empty():
+		return "Путник%d" % (used_bot_callsigns.size() + 1)
+	var callsign := available[randi_range(0, available.size() - 1)]
+	used_bot_callsigns.append(callsign)
+	return callsign
+
+
+func clamp_to_arena(position: Vector3) -> Vector3:
+	var normalized_position := Vector2(position.x / ARENA_SAFE_HALF_X, position.z / ARENA_SAFE_HALF_Z)
+	if normalized_position.length_squared() > 1.0:
+		normalized_position = normalized_position.normalized()
+	return Vector3(normalized_position.x * ARENA_SAFE_HALF_X, position.y, normalized_position.y * ARENA_SAFE_HALF_Z)
+
+
+func get_shop_items() -> Array:
+	return SHOP_ITEMS
+
+
+func nearest_gold_coin(from_position: Vector3) -> Node3D:
+	var closest_coin: Node3D = null
+	var closest_distance := INF
+	for coin in gold_coins:
+		if coin == null or not is_instance_valid(coin):
+			continue
+		var distance := from_position.distance_squared_to(coin.global_position)
+		if distance < closest_distance:
+			closest_distance = distance
+			closest_coin = coin
+	return closest_coin
+
+
+func bot_has_affordable_shop_item(bot: HeroUnit) -> bool:
+	if bot == null or not is_instance_valid(bot) or bot.is_player:
+		return false
+	for item in SHOP_ITEMS:
+		if String(item["id"]) not in bot.bot_purchased_shop_items and bot.bot_gold >= int(item["price"]):
+			return true
+	return false
+
+
+func bot_shop_goal() -> Vector3:
+	return clamp_to_arena(SHOP_INTERACTION_POINT + Vector3(3.0, 0.0, 0.0))
+
+
+func purchase_bot_shop_item(bot: HeroUnit) -> bool:
+	if state != "live" or bot == null or not is_instance_valid(bot) or bot.is_player or bot.dead:
+		return false
+	if not is_hero_near_shop(bot):
+		return false
+	for item in SHOP_ITEMS:
+		var item_id := String(item["id"])
+		var price := int(item["price"])
+		if item_id in bot.bot_purchased_shop_items or bot.bot_gold < price:
+			continue
+		if not bot.apply_shop_item(item_id):
+			return false
+		bot.bot_gold -= price
+		bot.match_gold_spent += price
+		bot.bot_purchased_shop_items.append(item_id)
+		return true
+	return false
+
+
+func award_gold(amount: int) -> void:
+	if amount <= 0:
+		return
+	gold += amount
+	gold_earned_this_match += amount
+	if hud != null:
+		hud.update_gold()
+		if shop_open:
+			hud.update_shop()
+
+
+func respawn_delay_for(hero: HeroUnit) -> float:
+	if hero != player:
+		return RESPAWN_TIME
+	var bonus_seconds := floori(float(gold_earned_this_match) / float(RESPAWN_GOLD_STEP))
+	return minf(RESPAWN_MAX_SECONDS, RESPAWN_TIME + float(bonus_seconds))
+
+
+func set_shop_open(open: bool) -> void:
+	var next_state := open and state == "live" and player != null and not player.dead
+	if shop_open == next_state:
+		return
+	shop_open = next_state
+	if hud != null:
+		hud.set_shop_open(shop_open)
+
+
+func buy_item(item_id: String) -> bool:
+	if not shop_open or player == null or item_id in purchased_shop_items:
+		return false
+	for item in SHOP_ITEMS:
+		if String(item["id"]) != item_id:
+			continue
+		var price := int(item["price"])
+		if gold < price or not player.apply_shop_item(item_id):
+			return false
+		gold -= price
+		player.match_gold_spent += price
+		purchased_shop_items.append(item_id)
+		if hud != null:
+			hud.update_gold()
+			hud.update_shop()
+		return true
+	return false
+
+
 func _process(delta: float) -> void:
+	_update_effect_pools(delta)
 	if state == "select":
 		select_angle += delta * 0.12
 		var focus := Vector3(0.0, 1.5, 0.0)
@@ -178,8 +927,13 @@ func _process(delta: float) -> void:
 
 	if state == "live":
 		_update_match(delta)
+		if state == "live":
+			_update_gold_fountain(delta)
 
 	_update_projectiles(delta)
+	if earthquake_timer > 0.0:
+		earthquake_timer = maxf(0.0, earthquake_timer - delta)
+		shake(earthquake_intensity)
 	_update_shake(delta)
 	_update_crystal(delta)
 
@@ -187,16 +941,46 @@ func _process(delta: float) -> void:
 func _update_camera(delta: float) -> void:
 	if player == null or not is_instance_valid(player):
 		return
-	var focus := player.global_position + Vector3(0.0, 1.0, 0.0)
+
 	if player.dead:
-		focus = Vector3(0.0, 1.0, 0.0)
+		if not death_camera_active:
+			death_camera_active = true
+			camera_pos = camera.global_position
+			death_camera_last_distance = camera_distance
+			announce("Наблюдение: WASD — камера, колесико — зум", Color(0.82, 0.9, 1.0), 4.0)
+
+		if not is_equal_approx(camera_distance, death_camera_last_distance):
+			var zoom_delta := camera_distance - death_camera_last_distance
+			camera.global_position -= -camera.global_transform.basis.z * zoom_delta
+			camera_pos = camera.global_position
+			death_camera_last_distance = camera_distance
+
+		var pan_input := Vector2.ZERO
+		if Input.is_physical_key_pressed(KEY_A):
+			pan_input.x -= 1.0
+		if Input.is_physical_key_pressed(KEY_D):
+			pan_input.x += 1.0
+		if Input.is_physical_key_pressed(KEY_W):
+			pan_input.y += 1.0
+		if Input.is_physical_key_pressed(KEY_S):
+			pan_input.y -= 1.0
+
+		if pan_input.length_squared() > 0.0:
+			pan_input = pan_input.normalized()
+			var team_orientation := 1.0 if player.team == 0 else -1.0
+			var pan_direction := Vector3(pan_input.x * team_orientation, 0.0, -pan_input.y * team_orientation)
+			camera_pos = clamp_to_arena(camera.global_position + pan_direction * 16.0 * delta)
+			camera.global_position = camera_pos
+		return
+
+	death_camera_active = false
+	var focus := player.global_position + Vector3(0.0, 1.0, 0.0)
 	var camera_side := 1.0 if player.team == 0 else -1.0
 	var camera_axis := Vector3(0.0, 13.0, 20.0 * camera_side).normalized()
 	var target_pos := focus + camera_axis * camera_distance
 	camera_pos = camera_pos.lerp(target_pos, 1.0 - exp(-5.0 * delta))
 	camera.global_position = camera_pos
 	camera.look_at(focus, Vector3.UP)
-
 
 func _update_shake(delta: float) -> void:
 	shake_amount = maxf(0.0, shake_amount - delta * 2.2)
@@ -221,46 +1005,53 @@ func _update_match(delta: float) -> void:
 				end_match(score[0] > score[1])
 				return
 
-	match shell_phase:
-		"idle":
-			shell_timer -= delta
-			if shell_timer <= 0.0:
-				shell_phase = "warning"
-				shell_timer = 10.0
-				announce("Оболочка пробуждается — 10 секунд!", Color(0.78, 0.6, 1.0), 2.4)
-		"warning":
-			shell_timer -= delta
-			if shell_timer <= 0.0:
-				_spawn_shell()
-		"active":
-			shell_window -= delta
-			if shell_window <= 0.0 and shell != null and is_instance_valid(shell) and shell.alive:
-				shell.despawn()
-				shell = null
-				shell_phase = "idle"
-				shell_timer = 18.0
-				announce("Оболочка ушла в тень", Color(0.7, 0.7, 0.8), 1.6)
+	shell_cycle_timer = maxf(0.0, shell_cycle_timer - delta)
+	shell_timer = shell_cycle_timer
+	if shell_phase == "idle" and shell_cycle_timer <= SHELL_WARNING_TIME:
+		shell_phase = "warning"
+		announce("Оболочка пробуждается — 10 секунд!", Color(0.78, 0.6, 1.0), 2.4)
+	if shell_phase == "warning":
+		if shell_cycle_timer <= 0.0:
+			_spawn_shell()
+	elif shell_phase == "active":
+		shell_window -= delta
+		if shell_window <= 0.0 and shell != null and is_instance_valid(shell) and shell.alive:
+			shell.despawn()
+			shell = null
+			shell_phase = "idle"
+			announce("Оболочка ушла в тень", Color(0.7, 0.7, 0.8), 1.6)
 
 
 func _spawn_shell() -> void:
-	var s := SkyShell.new()
-	s.name = "Shell"
-	add_child(s)
-	s.setup(self)
-	s.global_position = Vector3(0.0, 0.16, 0.0)
+	var s := shell_pool
+	if s == null or not is_instance_valid(s):
+		s = SkyShell.new()
+		s.name = "Shell"
+		add_child(s)
+		s.setup(self)
+		shell_pool = s
+	s.activate(self, Vector3(0.0, 0.16, 0.0))
 	shell = s
 	shell_phase = "active"
 	shell_window = SHELL_WINDOW
-	announce("Оболочка здесь! Разбейте её — 45 секунд", Color(0.85, 0.62, 1.0), 2.6)
+	shell_cycle_timer = SHELL_SPAWN_INTERVAL
+	shell_timer = shell_cycle_timer
+	announce("Оболочка здесь", Color(0.85, 0.62, 1.0), 2.6)
 	play_sfx("thunder", -3.0)
 	shake(0.6)
 	burst(Vector3(0.0, 1.2, 0.0), Color(0.8, 0.5, 1.0), 44)
 	ring_fx(Vector3(0.0, 0.2, 0.0), Color(0.8, 0.5, 1.0), 8.0)
 
 
-func on_shell_died(s: SkyShell) -> void:
+func on_shell_died(s: SkyShell, source: Node = null) -> void:
 	if s != shell:
 		return
+	if source == player:
+		p_shells_destroyed += 1
+	if player != null and source is HeroUnit and (source as HeroUnit).team == player.team:
+		award_gold(100)
+	if source is HeroUnit and not (source as HeroUnit).is_player:
+		(source as HeroUnit).bot_gold += 100
 	var pos := s.global_position
 	burst(pos, Color(0.75, 0.9, 1.0), 60)
 	ring_fx(Vector3(pos.x, 0.25, pos.z), Color(0.8, 0.95, 1.0), 9.0)
@@ -268,17 +1059,16 @@ func on_shell_died(s: SkyShell) -> void:
 	shake(0.8)
 	spawn_crystal(pos)
 	announce("Оболочка пала! Осколок свободен", Color(0.8, 0.95, 1.0), 2.4)
-	var tween := create_tween()
-	tween.tween_property(s, "scale", Vector3(0.02, 0.02, 0.02), 0.5)
-	tween.tween_callback(s.queue_free)
+	s.retire(0.5)
 	shell = null
 	shell_phase = "idle"
-	shell_timer = 25.0
 
 
 func spawn_crystal(pos: Vector3) -> void:
 	if crystal_node != null and is_instance_valid(crystal_node):
 		crystal_node.queue_free()
+	if carrier != null and is_instance_valid(carrier):
+		carrier.carrying = false
 	var c := Node3D.new()
 	c.name = "Crystal"
 	add_child(c)
@@ -319,13 +1109,88 @@ func spawn_crystal(pos: Vector3) -> void:
 	ring.material_override = ring_mat
 	ring.position.y = -0.6
 	c.add_child(ring)
-	c.global_position = Vector3(pos.x, 1.1, pos.z)
+	var drop_position := _find_crystal_drop_position(pos)
+	c.global_position = Vector3(drop_position.x, 1.3, drop_position.z)
 	c.set_meta("spin", 0.0)
 	crystal_node = c
 	crystal_state = "ground"
 	crystal_timer = 0.0
-	pickup_delay = 0.0
+	pickup_delay = CRYSTAL_PICKUP_DELAY
 	carrier = null
+
+
+func _find_crystal_drop_position(origin: Vector3) -> Vector3:
+	var best_position := Vector3(0.0, 0.0, 12.0)
+	var best_clearance := -1.0
+	var angle_offset := randf_range(0.0, TAU)
+	for radius in CRYSTAL_DROP_SEARCH_RADII:
+		for index in range(16):
+			var angle := angle_offset + TAU * float(index) / 16.0
+			var candidate := clamp_to_arena(Vector3(
+				origin.x + cos(angle) * radius,
+				0.0,
+				origin.z + sin(angle) * radius
+			))
+			if not _is_crystal_drop_position_clear(candidate):
+				continue
+			var nearest_hero_distance := INF
+			for hero in heroes:
+				if hero == null or not is_instance_valid(hero) or hero.dead:
+					continue
+				var hero_position := Vector2(hero.global_position.x, hero.global_position.z)
+				var candidate_position := Vector2(candidate.x, candidate.z)
+				nearest_hero_distance = minf(nearest_hero_distance, candidate_position.distance_to(hero_position))
+			if nearest_hero_distance > best_clearance:
+				best_clearance = nearest_hero_distance
+				best_position = candidate
+			if nearest_hero_distance >= 2.4:
+				return candidate
+	return best_position
+
+
+func _is_crystal_drop_position_clear(candidate: Vector3) -> bool:
+	var point := Vector2(candidate.x, candidate.z)
+	if point.length() < 7.6:
+		return false
+	var bushes := get_node_or_null("Arena/Bushes")
+	if bushes != null:
+		for bush in bushes.get_children():
+			if bush is Area3D:
+				var bush_position := Vector2(bush.global_position.x, bush.global_position.z)
+				if point.distance_to(bush_position) < 3.4:
+					return false
+	for root_path in ["Arena/Altar", "Arena/Ruins", "Arena/Bases", "Arena/Decor"]:
+		var obstacle_root := get_node_or_null(root_path) as Node3D
+		if obstacle_root == null:
+			continue
+		for obstacle in obstacle_root.get_children():
+			if not obstacle is Node3D:
+				continue
+			var obstacle_node := obstacle as Node3D
+			var clearance_radius := _decoration_footprint_radius(obstacle_node) + 1.2
+			if point.distance_to(Vector2(obstacle_node.global_position.x, obstacle_node.global_position.z)) < clearance_radius:
+				return false
+	return true
+
+
+func _decoration_footprint_radius(root: Node3D) -> float:
+	var radius := 0.0
+	var root_inverse := root.global_transform.affine_inverse()
+	var stack: Array[Node] = [root]
+	while not stack.is_empty():
+		var current: Node = stack.pop_back()
+		if current is MeshInstance3D:
+			var mesh_instance := current as MeshInstance3D
+			if mesh_instance.mesh != null:
+				var local_position: Vector3 = root_inverse * mesh_instance.global_position
+				var bounds := mesh_instance.mesh.get_aabb()
+				var horizontal_scale := maxf(absf(mesh_instance.scale.x), absf(mesh_instance.scale.z))
+				var extent := maxf(bounds.size.x, bounds.size.z) * horizontal_scale * 0.5
+				radius = maxf(radius, Vector2(local_position.x, local_position.z).length() + extent)
+		for child in current.get_children():
+			stack.append(child)
+	var root_scale := maxf(absf(root.scale.x), absf(root.scale.z))
+	return radius * root_scale
 
 
 func _update_crystal(delta: float) -> void:
@@ -358,7 +1223,7 @@ func _update_crystal(delta: float) -> void:
 			carrier.carrying = false
 			carrier = null
 		crystal_node.rotation.y += delta * 2.4
-		var base_z := 35.0 if carrier.team == 0 else -35.0
+		var base_z := BASE_POSITION_Z if carrier.team == 0 else -BASE_POSITION_Z
 		if Vector2(carrier.global_position.x, carrier.global_position.z - base_z).length() < 4.8:
 			_deliver(carrier)
 
@@ -387,6 +1252,10 @@ func _try_pickup() -> void:
 func _deliver(h: HeroUnit) -> void:
 	h.carrying = false
 	score[h.team] += 1
+	if player != null and h.team == player.team:
+		award_gold(100)
+	if not h.is_player:
+		h.bot_gold += 100
 	if h == player:
 		p_crystals += 1
 	carrier = null
@@ -402,7 +1271,6 @@ func _deliver(h: HeroUnit) -> void:
 		end_match(h.team == 0)
 	else:
 		shell_phase = "idle"
-		shell_timer = 30.0
 
 
 func drop_crystal(pos: Vector3) -> void:
@@ -424,18 +1292,23 @@ func on_hero_died(h: HeroUnit) -> void:
 		drop_crystal(h.global_position)
 		announce("Осколок выбит!", Color(1.0, 0.7, 0.4), 1.8)
 	if h == player:
-		announce("Ты пал. Возрождение через 8 с", Color(1.0, 0.5, 0.45), 2.2)
+		announce("Ты пал. Возрождение через %d" % int(ceil(h.respawn_timer)), Color(1.0, 0.5, 0.45), 2.2)
 
 
 func record_hero_damage(target: HeroUnit, source: Node, damage: float, killed: bool) -> void:
+	if source is HeroUnit and killed and target.team != (source as HeroUnit).team and not (source as HeroUnit).is_player:
+		(source as HeroUnit).bot_gold += 50
 	if player == null or source != player or target == player or target.team == player.team or damage <= 0.0:
 		return
 	p_damage += damage
 	if killed:
 		p_kills += 1
+		award_gold(50)
 
 
 func on_hero_respawned(h: HeroUnit) -> void:
+	if h == player:
+		death_camera_active = false
 	burst(h.global_position + Vector3(0.0, 0.6, 0.0), Color(0.6, 0.9, 1.0), 18)
 
 
@@ -443,18 +1316,28 @@ func end_match(team_zero_won: bool) -> void:
 	if state != "live":
 		return
 	state = "over"
+	set_shop_open(false)
 	var player_team := 0
 	if player != null and is_instance_valid(player):
 		player_team = player.team
 	player_won = team_zero_won if player_team == 0 else not team_zero_won
+	var player_place := _get_player_place()
+	var player_is_mvp := _is_player_mvp()
 	result_text = "ПОБЕДА" if player_won else "ПОРАЖЕНИЕ"
 	get_tree().set_meta("last_match_won", player_won)
 	get_tree().set_meta("last_match_score", score.duplicate())
+	get_tree().set_meta("last_match_team", player_team)
+	get_tree().set_meta("last_match_place", player_place)
+	get_tree().set_meta("last_match_is_mvp", player_is_mvp)
 	get_tree().set_meta("last_match_stats", {
 		"p_kills": p_kills,
 		"p_deaths": p_deaths,
 		"p_damage": p_damage,
 		"p_crystals": p_crystals,
+		"p_shells_destroyed": p_shells_destroyed,
+		"p_coins_collected": player.match_coins_collected if player != null else 0,
+		"p_gold_earned": gold_earned_this_match,
+		"p_gold_spent": player.match_gold_spent if player != null else 0,
 	})
 	if player != null and is_instance_valid(player):
 		get_tree().set_meta("selected_class", player.hero_class)
@@ -462,6 +1345,32 @@ func end_match(team_zero_won: bool) -> void:
 	announce(result_text, Color(0.85, 1.0, 0.7) if player_won else Color(1.0, 0.5, 0.45), 6.0)
 	var transition_timer := get_tree().create_timer(2.8)
 	transition_timer.timeout.connect(_open_results_screen)
+
+
+func _get_player_place() -> int:
+	if player == null or not is_instance_valid(player):
+		return 4
+	var place := 1
+	var player_coin_score := player.match_coins_collected + player.match_gold_spent
+	for hero in heroes:
+		if hero == null or not is_instance_valid(hero) or hero == player:
+			continue
+		var hero_coin_score := hero.match_coins_collected + hero.match_gold_spent
+		if hero_coin_score > player_coin_score:
+			place += 1
+	return place
+
+
+func _is_player_mvp() -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	var player_coin_score := player.match_coins_collected + player.match_gold_spent
+	for hero in heroes:
+		if hero == null or not is_instance_valid(hero) or hero == player:
+			continue
+		if hero.match_coins_collected + hero.match_gold_spent >= player_coin_score:
+			return false
+	return true
 
 
 func _open_results_screen() -> void:
@@ -502,6 +1411,14 @@ func nearest_enemy(from: Vector3, team: int, max_dist: float, observer: HeroUnit
 			best_d = d
 			best = h
 	return best
+
+
+func enemies_in_radius(center: Vector3, radius: float, team: int, observer: HeroUnit = null) -> Array[HeroUnit]:
+	var nearby: Array[HeroUnit] = []
+	for enemy in enemies_of(team, observer):
+		if enemy.global_position.distance_to(center) <= radius:
+			nearby.append(enemy)
+	return nearby
 
 
 func _on_bush_body_entered(body: Node3D, bush: Area3D) -> void:
@@ -549,15 +1466,18 @@ func pick_shell_target() -> HeroUnit:
 	return options[randi() % options.size()]
 
 
-func aoe(center: Vector3, radius: float, amount: float, source_team: int, stun_time: float, hurt_shell: bool, source: HeroUnit = null) -> void:
+func aoe(center: Vector3, radius: float, amount: float, source_team: int, stun_time: float, hurt_shell: bool, source: HeroUnit = null, damage_type: String = "physical") -> void:
+	var adjusted_amount := amount * (source.get_blessing_damage_multiplier() if source != null else 1.0)
 	for h in enemies_of(source_team):
 		if h.global_position.distance_to(center) <= radius:
-			h.take_damage(amount, source)
+			var hit_damage := source.roll_direct_damage(adjusted_amount) if source != null else adjusted_amount
+			h.take_damage(hit_damage, source, damage_type)
 			if stun_time > 0.0:
 				h.stun(stun_time)
 	if hurt_shell and shell != null and is_instance_valid(shell) and shell.alive:
 		if shell.global_position.distance_to(center) <= radius + 1.0:
-			shell.take_damage(amount * 0.8, null)
+			var shell_damage := source.roll_direct_damage(adjusted_amount * 0.8) if source != null else adjusted_amount * 0.8
+			shell.take_damage(shell_damage, source)
 
 
 func heal_area(center: Vector3, radius: float, amount: float, team: int, max_targets: int) -> void:
@@ -573,28 +1493,26 @@ func heal_area(center: Vector3, radius: float, amount: float, team: int, max_tar
 		if count >= max_targets:
 			break
 		h.heal(amount)
-		heal_number(h.global_position + Vector3(0.0, 2.2, 0.0), amount)
+		ring_fx(Vector3(h.global_position.x, 0.3, h.global_position.z), Color(0.58, 1.0, 0.7), 1.25)
 		count += 1
 
 
-func spawn_projectile(from: Vector3, target: Node3D, damage: float, color: Color, source: HeroUnit, stun_time := 0.0) -> void:
+func bless_team(team: int, duration: float) -> void:
+	for hero in heroes:
+		if hero.team == team and not hero.dead:
+			hero.apply_blessing(duration)
+
+
+func spawn_projectile(from: Vector3, target: Node3D, damage: float, color: Color, source: HeroUnit, stun_time := 0.0, damage_type: String = "physical", effect_type: String = "") -> void:
 	if target == null or not is_instance_valid(target):
 		return
-	var node := MeshInstance3D.new()
-	var mesh := SphereMesh.new()
-	mesh.radius = 0.18
-	mesh.height = 0.36
-	mesh.radial_segments = 6
-	mesh.rings = 3
-	node.mesh = mesh
-	var mat := StandardMaterial3D.new()
+	var node := _acquire_projectile()
+	if node == null:
+		return
+	var mat := node.material_override as StandardMaterial3D
 	mat.albedo_color = color
-	mat.emission_enabled = true
 	mat.emission = color
-	mat.emission_energy_multiplier = 3.0
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	node.material_override = mat
-	add_child(node)
+	node.visible = true
 	node.global_position = from
 	projectiles.append({
 		"node": node,
@@ -603,7 +1521,10 @@ func spawn_projectile(from: Vector3, target: Node3D, damage: float, color: Color
 		"color": color,
 		"source": source,
 		"stun": stun_time,
+		"damage_type": damage_type,
+		"effect_type": effect_type,
 		"life": 2.5,
+		"pooled": true,
 	})
 
 
@@ -616,32 +1537,41 @@ func _update_projectiles(delta: float) -> void:
 			continue
 		p["life"] = float(p["life"]) - delta
 		if p["life"] <= 0.0:
-			node.queue_free()
+			_release_projectile(node, bool(p.get("pooled", false)))
 			continue
 		if p.get("black_hole", false):
 			var bh_dir: Vector3 = p.get("bh_dir", Vector3.FORWARD)
 			node.global_position += bh_dir * 5.0 * delta
 			for h in enemies_of(p["source"].team if p.has("source") else 0):
 				if not h.dead and h.global_position.distance_to(node.global_position) <= float(p.get("radius", 3.5)):
-					h.take_damage(float(p["damage"]) * delta * 0.5, p["source"])
+					h.take_damage(float(p["damage"]) * delta * 0.5, p["source"], String(p.get("damage_type", "magic")))
 			if randf() < 0.3:
 				burst(node.global_position, p["color"], 3)
 			keep.append(p)
 			continue
 		if not is_instance_valid(target) or (target is HeroUnit and (target as HeroUnit).dead):
-			node.queue_free()
+			_release_projectile(node, bool(p.get("pooled", false)))
 			continue
 		var goal: Vector3 = target.global_position + Vector3(0.0, 1.1, 0.0)
 		var to_goal: Vector3 = goal - node.global_position
 		var dist := to_goal.length()
 		if dist < 0.6:
 			if target.has_method("take_damage"):
-				target.take_damage(p["damage"], p["source"])
+				target.take_damage(p["damage"], p["source"], String(p.get("damage_type", "physical")))
 				if float(p["stun"]) > 0.0 and target is HeroUnit:
 					(target as HeroUnit).stun(float(p["stun"]))
+			var effect_type := String(p.get("effect_type", ""))
+			if effect_type == "root":
+				root_snare_fx(target.global_position, Color(0.35, 0.92, 0.48))
+			elif effect_type == "stun":
+				stun_impact_fx(target.global_position, p["color"])
 			burst(node.global_position, p["color"], 10)
-			play_sfx("magic", -12.0)
-			node.queue_free()
+			var attack_source := p.get("source") as HeroUnit
+			if attack_source != null:
+				play_hero_attack_sfx(attack_source)
+			else:
+				play_sfx("magic", -12.0)
+			_release_projectile(node, bool(p.get("pooled", false)))
 			continue
 		node.global_position += to_goal.normalized() * minf(dist, 26.0 * delta)
 		keep.append(p)
@@ -653,117 +1583,180 @@ func melee_fx(_from: Vector3, to: Vector3) -> void:
 	burst(to + Vector3(0.0, 1.0, 0.0), Color(1.0, 0.85, 0.5), 10)
 
 
+func play_hero_attack_sfx(source: HeroUnit) -> void:
+	if source == null:
+		return
+	match source.hero_class:
+		HeroUnit.Cls.WARRIOR:
+			play_sfx("hit", -10.0)
+		HeroUnit.Cls.MAGE:
+			play_sfx("magic", -12.0)
+		HeroUnit.Cls.FAIRY:
+			play_sfx("thunder", -16.0)
+
+
+func mage_storm_tick(mage: HeroUnit, radius: float, damage: float) -> void:
+	if state != "live" or mage.dead:
+		return
+	play_sfx("thunder", -10.0)
+	for enemy in enemies_in_radius(mage.global_position, radius, mage.team):
+		_activate_shell_beam(enemy.global_position, Color(0.38, 0.82, 1.0, 0.95))
+		enemy.take_damage(mage._outgoing_damage(damage) * mage.get_blessing_damage_multiplier(), mage, "magic")
+
+
 func shell_bolt(pos: Vector3, radius: float, damage: float) -> void:
 	play_sfx("thunder", -2.0)
 	shake(0.7)
-	var beam := MeshInstance3D.new()
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = 0.22
-	mesh.bottom_radius = 0.5
-	mesh.height = 16.0
-	mesh.radial_segments = 8
-	beam.mesh = mesh
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.85, 0.7, 1.0)
-	mat.emission_enabled = true
-	mat.emission = Color(0.8, 0.6, 1.0)
-	mat.emission_energy_multiplier = 4.0
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	beam.material_override = mat
-	add_child(beam)
-	beam.global_position = pos + Vector3(0.0, 8.0, 0.0)
-	var tween := create_tween()
-	tween.tween_method(func(a: float): mat.albedo_color.a = a, 0.95, 0.0, 0.35)
-	tween.tween_callback(beam.queue_free)
+	_activate_shell_beam(pos)
 	burst(pos + Vector3(0.0, 0.6, 0.0), Color(0.85, 0.65, 1.0), 34)
 	ring_fx(Vector3(pos.x, 0.2, pos.z), Color(0.85, 0.65, 1.0), radius)
 	for h in heroes:
 		if not h.dead and h.global_position.distance_to(pos) <= radius:
-			h.take_damage(damage, null)
+			h.take_damage(damage, null, "magic")
 			h.stun(1.0)
 
 
 func telegraph(pos: Vector3, radius: float, duration: float) -> void:
-	var ring := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = radius - 0.25
-	torus.outer_radius = radius
-	torus.rings = 40
-	torus.ring_segments = 8
-	ring.mesh = torus
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(1.0, 0.35, 0.55, 0.9)
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.3, 0.5)
-	mat.emission_energy_multiplier = 2.5
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	ring.material_override = mat
-	add_child(ring)
-	ring.global_position = Vector3(pos.x, 0.25, pos.z)
-	var tween := create_tween()
-	tween.tween_property(ring, "scale", Vector3(1.15, 1.0, 1.15), duration)
-	tween.tween_callback(ring.queue_free)
+	var start_scale := Vector3(radius, 1.0, radius)
+	var target_scale := Vector3(radius * 1.15, 1.0, radius * 1.15)
+	_activate_ring(Vector3(pos.x, 0.25, pos.z), Color(1.0, 0.35, 0.55), duration, start_scale, target_scale, false, 0.9)
 
 
 func burst(pos: Vector3, color: Color, count := 16) -> void:
-	var particles := CPUParticles3D.new()
-	particles.amount = count
-	particles.lifetime = 0.6
-	particles.one_shot = true
-	particles.explosiveness = 0.95
-	particles.direction = Vector3(0.0, 1.0, 0.0)
-	particles.spread = 180.0
-	particles.initial_velocity_min = 3.0
-	particles.initial_velocity_max = 8.0
-	particles.gravity = Vector3(0.0, -14.0, 0.0)
-	particles.scale_amount_min = 0.4
-	particles.scale_amount_max = 1.0
-	var quad := QuadMesh.new()
-	quad.size = Vector2(0.28, 0.28)
-	particles.mesh = quad
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.emission_enabled = true
-	mat.emission = color
-	mat.emission_energy_multiplier = 3.0
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	mat.vertex_color_use_as_albedo = true
-	particles.material_override = mat
-	add_child(particles)
+	var entry := _acquire_burst(count)
+	if entry.is_empty():
+		return
+	var particles := entry["node"] as CPUParticles3D
+	var material := entry["material"] as StandardMaterial3D
+	material.albedo_color = color
+	material.emission = color
 	particles.global_position = pos
+	particles.visible = true
+	particles.emitting = false
+	particles.restart()
 	particles.emitting = true
-	get_tree().create_timer(1.2).timeout.connect(particles.queue_free)
 
 
 func ring_fx(pos: Vector3, color: Color, radius: float) -> void:
-	var ring := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = 0.8
-	torus.outer_radius = 1.0
-	torus.rings = 40
-	torus.ring_segments = 8
-	ring.mesh = torus
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.emission_enabled = true
-	mat.emission = color
-	mat.emission_energy_multiplier = 3.0
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	ring.material_override = mat
-	add_child(ring)
-	ring.global_position = Vector3(pos.x, 0.35, pos.z)
-	var tween := create_tween()
-	tween.tween_property(ring, "scale", Vector3(radius, 1.0, radius), 0.4)
-	tween.parallel().tween_method(func(a: float): mat.albedo_color.a = a, 0.8, 0.0, 0.4)
-	tween.tween_callback(ring.queue_free)
+	_activate_ring(Vector3(pos.x, 0.35, pos.z), color, 0.4, Vector3.ONE, Vector3(radius, 1.0, radius), true, 0.8)
+
+
+func dash_fx(start_pos: Vector3, end_pos: Vector3, color: Color) -> void:
+	burst(start_pos + Vector3(0.0, 0.9, 0.0), color, 20)
+	burst(start_pos.lerp(end_pos, 0.5) + Vector3(0.0, 0.8, 0.0), color, 14)
+	burst(end_pos + Vector3(0.0, 0.9, 0.0), color, 28)
+	_activate_ring(Vector3(end_pos.x, 0.3, end_pos.z), color, 0.42, Vector3(0.35, 1.0, 0.35), Vector3(2.6, 1.0, 2.6), true, 0.9)
+
+
+func earthquake_fx(center: Vector3, radius: float, duration: float) -> void:
+	earthquake_timer = maxf(earthquake_timer, duration)
+	earthquake_intensity = maxf(earthquake_intensity, 0.55)
+	if player != null and is_instance_valid(player) and player.global_position.distance_to(center) <= radius + 5.0:
+		shake(earthquake_intensity)
+	var crack_material := StandardMaterial3D.new()
+	crack_material.albedo_color = Color(0.12, 0.065, 0.025, 0.95)
+	crack_material.emission_enabled = true
+	crack_material.emission = Color(0.65, 0.24, 0.035)
+	crack_material.emission_energy_multiplier = 1.8
+	crack_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	crack_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	crack_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for crack_index in range(12):
+		var angle := TAU * float(crack_index) / 12.0 + randf_range(-0.12, 0.12)
+		var direction := Vector3(cos(angle), 0.0, sin(angle))
+		var perpendicular := Vector3(-direction.z, 0.0, direction.x)
+		for section in range(5):
+			var start_t := 0.08 + float(section) * 0.17
+			var end_t := minf(0.96, start_t + 0.15)
+			var start_point := direction * radius * start_t + perpendicular * randf_range(-0.16, 0.16)
+			var end_point := direction * radius * end_t + perpendicular * randf_range(-0.16, 0.16)
+			var start_width := lerpf(0.075, 0.025, start_t)
+			var end_width := lerpf(0.075, 0.025, end_t)
+			var start_left := start_point + perpendicular * start_width
+			var start_right := start_point - perpendicular * start_width
+			var end_left := end_point + perpendicular * end_width
+			var end_right := end_point - perpendicular * end_width
+			surface.add_vertex(start_left)
+			surface.add_vertex(start_right)
+			surface.add_vertex(end_left)
+			surface.add_vertex(end_left)
+			surface.add_vertex(start_right)
+			surface.add_vertex(end_right)
+	surface.set_material(crack_material)
+	var cracks := MeshInstance3D.new()
+	cracks.mesh = surface.commit()
+	cracks.material_override = crack_material
+	add_child(cracks)
+	cracks.global_position = Vector3(center.x, 0.055, center.z)
+	var fade_tween := create_tween()
+	fade_tween.tween_property(crack_material, 'albedo_color:a', 0.0, duration)
+	fade_tween.parallel().tween_property(crack_material, 'emission_energy_multiplier', 0.0, duration)
+	fade_tween.tween_callback(cracks.queue_free)
+
+
+func golden_blessing_fx(center: Vector3, team: int) -> void:
+	play_sfx('fairy_ult', -4.0)
+	var gold := Color(1.0, 0.78, 0.22)
+	burst(center + Vector3(0.0, 1.0, 0.0), gold, 28)
+	_activate_ring(Vector3(center.x, 0.22, center.z), gold, 0.85, Vector3.ONE * 0.35, Vector3(4.5, 1.0, 4.5), true, 0.9)
+	for hero in heroes:
+		if hero.dead or hero.team != team:
+			continue
+		var hero_position: Vector3 = hero.global_position
+		burst(hero_position + Vector3(0.0, 1.25, 0.0), gold, 18)
+		_activate_ring(Vector3(hero_position.x, 0.24, hero_position.z), gold, 0.8, Vector3.ONE * 0.35, Vector3(2.8, 1.0, 2.8), true, 0.85)
+
+
+func fear_pulse_fx(center: Vector3, radius: float, color: Color) -> void:
+	burst(center + Vector3(0.0, 0.7, 0.0), color, 40)
+	_activate_ring(Vector3(center.x, 0.28, center.z), color, 0.62, Vector3.ONE * 0.4, Vector3(radius, 1.0, radius), true, 0.9)
+	_activate_ring(Vector3(center.x, 0.32, center.z), Color(1.0, 0.82, 0.55), 0.48, Vector3.ONE * 0.3, Vector3(radius * 0.72, 1.0, radius * 0.72), true, 0.75)
+
+
+func stun_impact_fx(pos: Vector3, color: Color) -> void:
+	burst(pos + Vector3(0.0, 0.9, 0.0), color, 20)
+	_activate_ring(Vector3(pos.x, 0.3, pos.z), color, 0.36, Vector3.ONE * 0.45, Vector3.ONE * 2.0, true, 0.9)
+	_activate_ring(Vector3(pos.x, 0.34, pos.z), Color(0.85, 1.0, 0.72), 0.3, Vector3.ONE * 0.25, Vector3.ONE * 1.3, true, 0.9)
+
+
+func root_snare_fx(pos: Vector3, color: Color) -> void:
+	burst(pos + Vector3(0.0, 0.35, 0.0), color, 28)
+	_activate_ring(Vector3(pos.x, 0.28, pos.z), color, 0.65, Vector3.ONE * 0.35, Vector3(2.8, 1.0, 2.8), true, 0.85)
+	var activated := 0
+	for index in root_spike_pool.size():
+		var entry: Dictionary = root_spike_pool[index]
+		if bool(entry["busy"]):
+			continue
+		var angle := TAU * float(activated) / 6.0 + randf_range(-0.12, 0.12)
+		var spike_radius := randf_range(0.85, 1.45)
+		var spike_position := Vector3(pos.x + cos(angle) * spike_radius, 0.0, pos.z + sin(angle) * spike_radius)
+		var spike_height := randf_range(0.8, 1.45)
+		var spike := entry["node"] as MeshInstance3D
+		var material := entry["material"] as StandardMaterial3D
+		material.albedo_color = color
+		material.emission = color.darkened(0.2)
+		material.emission_energy_multiplier = 1.4
+		spike.visible = true
+		spike.scale = Vector3(1.0, 0.01, 1.0)
+		spike.rotation.y = angle
+		spike.global_position = spike_position
+		entry["busy"] = true
+		entry["elapsed"] = 0.0
+		entry["duration"] = 0.95
+		entry["position"] = spike_position
+		entry["height"] = spike_height
+		entry["color"] = color
+		root_spike_pool[index] = entry
+		activated += 1
+		if activated >= 6:
+			break
 
 
 func damage_number(pos: Vector3, amount: float, _team: int, is_shell := false) -> void:
 	var label := Label3D.new()
+	label.font = UI_FONT
 	label.text = str(int(round(amount)))
 	label.font_size = 64
 	label.pixel_size = 0.008
@@ -782,6 +1775,7 @@ func damage_number(pos: Vector3, amount: float, _team: int, is_shell := false) -
 
 func heal_number(pos: Vector3, amount: float) -> void:
 	var label := Label3D.new()
+	label.font = UI_FONT
 	label.text = "+" + str(int(round(amount)))
 	label.font_size = 56
 	label.pixel_size = 0.008
@@ -803,7 +1797,7 @@ func shake(amount: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and state == "live":
+	if event is InputEventMouseButton and event.pressed and (state == "live" or death_camera_active):
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			camera_distance = clampf(camera_distance - zoom_speed * 2.0, min_zoom_distance, max_zoom_distance)
 			get_viewport().set_input_as_handled()
@@ -812,25 +1806,29 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 	if event is InputEventKey and event.pressed and not event.echo:
+		var digit_index := _digit_index_from_event(event)
 		if state == "select":
-			if event.keycode == KEY_1:
-				start_match(HeroUnit.Cls.WARRIOR)
-			elif event.keycode == KEY_2:
-				start_match(HeroUnit.Cls.MAGE)
-			elif event.keycode == KEY_3:
-				start_match(HeroUnit.Cls.FAIRY)
+			if digit_index >= 0:
+				start_match(digit_index)
 		elif state == "live" and player != null:
-			if event.keycode == KEY_1:
-				player.use_ability(0)
-			elif event.keycode == KEY_2:
-				player.use_ability(1)
-			elif event.keycode == KEY_3:
-				player.use_ability(2)
+			if digit_index >= 0:
+				player.use_ability(digit_index)
 		elif state == "over":
 			if event.keycode == KEY_R:
 				get_tree().reload_current_scene()
 	if event is InputEventMouseButton and event.pressed and state == "over":
 		get_tree().reload_current_scene()
+
+
+func _digit_index_from_event(event: InputEventKey) -> int:
+	var key_codes := [KEY_1, KEY_2, KEY_3]
+	var numpad_codes := [KEY_KP_1, KEY_KP_2, KEY_KP_3]
+	for index in range(3):
+		if event.keycode == key_codes[index] or event.physical_keycode == key_codes[index]:
+			return index
+		if event.keycode == numpad_codes[index] or event.physical_keycode == numpad_codes[index]:
+			return index
+	return -1
 
 
 func objective_text() -> String:

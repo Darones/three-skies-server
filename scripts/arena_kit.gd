@@ -538,6 +538,27 @@ static func _add_base(bases: Node3D, z: float, color: Color, mat_rock: StandardM
 	ring.position = Vector3(0.0, 0.22, 0.0)
 	base.add_child(ring)
 
+	var shield_dome := MeshInstance3D.new()
+	shield_dome.name = "BaseShieldDome"
+	var dome_mesh := SphereMesh.new()
+	dome_mesh.radius = 5.25
+	dome_mesh.height = 5.25
+	dome_mesh.is_hemisphere = true
+	dome_mesh.radial_segments = 40
+	dome_mesh.rings = 20
+	shield_dome.mesh = dome_mesh
+	var dome_material := StandardMaterial3D.new()
+	dome_material.albedo_color = Color(color.r, color.g, color.b, 0.08)
+	dome_material.emission_enabled = true
+	dome_material.emission = color
+	dome_material.emission_energy_multiplier = 0.2
+	dome_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dome_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dome_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	shield_dome.material_override = dome_material
+	shield_dome.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	base.add_child(shield_dome)
+
 	for i in 5:
 		var ang := TAU * float(i) / 5.0
 		var pylon := MeshInstance3D.new()
@@ -601,8 +622,8 @@ static func _add_decor(decor: Node3D, mat_rock: StandardMaterial3D) -> void:
 	var crystal_spots := [
 		[Vector3(-18.0, 0.0, 13.0), Color(0.68, 0.34, 1.0), 2.2],
 		[Vector3(18.5, 0.0, 14.5), Color(0.68, 0.34, 1.0), 1.8],
-		[Vector3(-21.0, 0.0, 5.0), Color(0.5, 0.3, 1.0), 1.4],
-		[Vector3(21.5, 0.0, -5.5), Color(0.4, 0.75, 1.0), 1.2],
+		[Vector3(-12.0, 0.0, -13.0), Color(0.5, 0.3, 1.0), 1.4],
+		[Vector3(12.0, 0.0, -13.0), Color(0.4, 0.75, 1.0), 1.2],
 	]
 	for spot in crystal_spots:
 		_add_crystal_cluster(decor, _place_inside(spot[0]), spot[1], spot[2])

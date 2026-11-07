@@ -5,7 +5,7 @@ const CHARACTER_ART := [
 	"res://assets/characters/mage_dark.png",
 	"res://assets/characters/fairy.png",
 ]
-const CHARACTER_NAMES := ["Воин Света", "Маг Тьмы", "Фея поддержки"]
+const CHARACTER_CLASS_NAMES := ["Воин", "Маг", "Фея"]
 const CHARACTER_KEYS := ["warrior", "mage", "fairy"]
 const REPLAY_SCENE := "res://scenes/LoadingScreen.tscn"
 const MENU_SCENE := "res://scenes/Lobby.tscn"
@@ -13,9 +13,11 @@ const GOLD := Color(0.94, 0.78, 0.43)
 const PALE := Color(0.9, 0.91, 0.95)
 
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
+const VICTORY_SOUND: AudioStream = preload("res://audio/sfx/fairy_blessing_free/sfx_magical_fairy_chime_bell_brig_.wav")
 
 var font: FontFile
 var selected_class := 0
+var player_team := 0
 var player_won := true
 var score: Array = [0, 0]
 var match_stats: Dictionary = {}
@@ -29,6 +31,8 @@ var ad_in_progress := false
 var double_reward_button: Button
 var shards_reward_label: Label
 var xp_reward_label: Label
+var ad_button_pulse_tween: Tween
+var victory_player: AudioStreamPlayer
 
 
 func _ready() -> void:
@@ -36,6 +40,7 @@ func _ready() -> void:
 	if not AdManager.rewarded_ad_completed.is_connected(_on_rewarded_ad_completed):
 		AdManager.rewarded_ad_completed.connect(_on_rewarded_ad_completed)
 	selected_class = clampi(int(get_tree().get_meta("selected_class", 0)), 0, 2)
+	player_team = clampi(int(get_tree().get_meta("last_match_team", get_tree().get_meta("selected_team", 0))), 0, 1)
 	player_won = bool(get_tree().get_meta("last_match_won", true))
 	score = get_tree().get_meta("last_match_score", [0, 0])
 	match_stats = get_tree().get_meta("last_match_stats", {})
@@ -49,6 +54,8 @@ func _ready() -> void:
 	final_shards = 5 if player_won and player_is_mvp else 3 if player_won or player_is_mvp else 1
 	final_xp = kills * 10 + shells_destroyed * 25 + crystals_delivered * 25 + (50 if player_won else 20)
 	_build_screen()
+	if player_won or player_is_mvp or player_place == 1:
+		_play_victory_celebration()
 
 
 func _build_screen() -> void:
@@ -108,7 +115,7 @@ func _build_header() -> void:
 	subtitle.anchor_bottom = 0.18
 	add_child(subtitle)
 
-	var placement_text := "ВЫ MVP!" if player_is_mvp else "ВАШЕ МЕСТО: %d" % player_place
+	var placement_text := "ВЫ ЛУЧШИЙ ИГРОК МАТЧА!" if player_is_mvp else "ВАШЕ МЕСТО: %d" % player_place
 	var placement := _make_label(placement_text, 29, GOLD if player_is_mvp else PALE)
 	placement.name = "PlayerPlacement"
 	placement.anchor_left = 0.08
@@ -153,10 +160,11 @@ func _build_content() -> void:
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	portrait_frame.add_child(portrait)
 
-	var hero_name := _make_label(CHARACTER_NAMES[selected_class], 24, PALE)
+	var hero_name := _make_label(_get_player_character_name(), 24, PALE)
 	hero_name.name = "HeroName"
 	portrait_content.add_child(hero_name)
-	var skin_label := _make_label("УРОВЕНЬ: 1    ·    СТАНДАРТНЫЙ", 16, Color(0.72, 0.74, 0.8))
+	var hero_level := int(MetaProgression.char_levels.get(CHARACTER_KEYS[selected_class], 1))
+	var skin_label := _make_label("Уровень %d" % hero_level, 16, Color(0.72, 0.74, 0.8))
 	skin_label.name = "HeroSkin"
 	portrait_content.add_child(skin_label)
 
@@ -187,15 +195,28 @@ func _build_content() -> void:
 
 	stats_content.add_child(_make_stat_row("Убийства", str(int(match_stats.get("p_kills", 0)))))
 	stats_content.add_child(_make_stat_row("Смерти", str(int(match_stats.get("p_deaths", 0)))))
-	stats_content.add_child(_make_stat_row("Собранные монеты", str(int(match_stats.get("p_coins_collected", 0)))))
+	stats_content.add_child(_make_stat_row("Нанесенный урон", str(int(round(float(match_stats.get("p_damage", 0.0)))))))
+	stats_content.add_child(_make_stat_row("Всего золота", str(int(match_stats.get("p_gold_earned", 0)))))
 
-	double_reward_button = _make_button("", false)
+	double_reward_button = _make_button("", true)
 	double_reward_button.name = "DoubleRewardsButton"
 	double_reward_button.custom_minimum_size = Vector2(0.0, 46.0)
 	double_reward_button.add_theme_font_size_override("font_size", 13)
+	double_reward_button.add_theme_color_override("font_color", Color(0.18, 0.11, 0.02))
+	double_reward_button.add_theme_color_override("font_hover_color", Color(0.12, 0.075, 0.01))
+	double_reward_button.add_theme_color_override("font_pressed_color", Color(0.12, 0.075, 0.01))
+	double_reward_button.add_theme_stylebox_override("normal", _ad_reward_button_style(false))
+	double_reward_button.add_theme_stylebox_override("hover", _ad_reward_button_style(true))
+	double_reward_button.add_theme_stylebox_override("pressed", _ad_reward_button_style(true))
 	double_reward_button.pressed.connect(_double_rewards_for_ad)
 	stats_content.add_child(double_reward_button)
 	_refresh_reward_ui()
+	call_deferred("_start_ad_button_pulse")
+
+
+func _get_player_character_name() -> String:
+	var faction := "Света" if player_team == 0 else "Тьмы"
+	return "%s %s" % [CHARACTER_CLASS_NAMES[selected_class], faction]
 
 
 func _make_stat_row(label_text: String, value_text: String) -> Control:
@@ -337,6 +358,9 @@ func _on_rewarded_ad_completed() -> void:
 	final_xp *= 2
 	rewards_doubled = true
 	_refresh_reward_ui()
+	if ad_button_pulse_tween != null and ad_button_pulse_tween.is_running():
+		ad_button_pulse_tween.kill()
+		double_reward_button.scale = Vector2.ONE
 
 
 func _refresh_reward_ui() -> void:
@@ -350,9 +374,79 @@ func _refresh_reward_ui() -> void:
 		double_reward_button.text = "Награды удвоены"
 		double_reward_button.disabled = true
 	else:
-		double_reward_button.text = "Смотреть рекламу (x2: %d осколков, %d XP)" % [final_shards * 2, final_xp * 2]
+		double_reward_button.text = "▶ Смотреть рекламу (x2: %d осколков, %d XP)" % [final_shards * 2, final_xp * 2]
 		double_reward_button.disabled = false
 
+
+func _ad_reward_button_style(hovered: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(1.0, 0.72, 0.12) if not hovered else Color(1.0, 0.84, 0.32)
+	style.border_color = Color(1.0, 0.9, 0.48)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(8)
+	style.content_margin_left = 12.0
+	style.content_margin_right = 12.0
+	style.content_margin_top = 8.0
+	style.content_margin_bottom = 8.0
+	return style
+
+func _start_ad_button_pulse() -> void:
+	await get_tree().process_frame
+	if double_reward_button == null or rewards_doubled:
+		return
+	double_reward_button.pivot_offset = double_reward_button.size * 0.5
+	ad_button_pulse_tween = create_tween().set_loops()
+	ad_button_pulse_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	ad_button_pulse_tween.tween_property(double_reward_button, 'scale', Vector2(1.05, 1.05), 0.65)
+	ad_button_pulse_tween.tween_property(double_reward_button, 'scale', Vector2.ONE, 0.65)
+
+func _play_victory_celebration() -> void:
+	victory_player = AudioStreamPlayer.new()
+	victory_player.name = 'VictoryFanfare'
+	victory_player.stream = VICTORY_SOUND
+	victory_player.volume_db = -6.0
+	add_child(victory_player)
+	victory_player.play()
+	_spawn_victory_confetti()
+
+func _spawn_victory_confetti() -> void:
+	var particles := CPUParticles2D.new()
+	particles.name = 'VictoryConfetti'
+	particles.z_index = 5
+	particles.amount = 110
+	particles.lifetime = 4.0
+	particles.one_shot = true
+	particles.explosiveness = 0.35
+	particles.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	var viewport_size := get_viewport_rect().size
+	particles.emission_rect_extents = Vector2(viewport_size.x * 0.5 + 12.0, 10.0)
+	particles.position = Vector2(viewport_size.x * 0.5, -8.0)
+	particles.direction = Vector2(0.0, 1.0)
+	particles.spread = 18.0
+	particles.initial_velocity_min = 35.0
+	particles.initial_velocity_max = 105.0
+	particles.gravity = Vector2(0.0, 95.0)
+	particles.damping_min = 2.0
+	particles.damping_max = 7.0
+	particles.scale_amount_min = 0.4
+	particles.scale_amount_max = 1.0
+	particles.color = Color(1.0, 0.76, 0.22, 0.95)
+	particles.texture = _make_confetti_texture()
+	particles.emitting = true
+	add_child(particles)
+
+func _make_confetti_texture() -> Texture2D:
+	var gradient := Gradient.new()
+	gradient.colors = PackedColorArray([Color.WHITE, Color(1.0, 1.0, 1.0, 0.0)])
+	gradient.offsets = PackedFloat32Array([0.0, 1.0])
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.width = 16
+	texture.height = 16
+	texture.fill = GradientTexture2D.FILL_RADIAL
+	texture.fill_from = Vector2(0.5, 0.5)
+	texture.fill_to = Vector2(0.5, 0.0)
+	return texture
 
 func _change_scene(scene_path: String) -> void:
 	var error := get_tree().change_scene_to_file(scene_path)

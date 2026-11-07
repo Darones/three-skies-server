@@ -6,59 +6,77 @@ signal hero_died(hero: HeroUnit)
 enum Cls { WARRIOR, MAGE, FAIRY }
 
 const GRAVITY := 26.0
-const STUN_DURATION := 1.0
+const BASE_POSITION_Z := 28.0
+const HERO_OUTGOING_DAMAGE_MULTIPLIER := 2.0
+const DIRECT_DAMAGE_MIN_MULTIPLIER := 0.75
+const DIRECT_DAMAGE_MAX_MULTIPLIER := 1.25
+const CRITICAL_CHANCE := 0.05
+const CRITICAL_DAMAGE_MULTIPLIER := 2.0
 const HEALTH_BAR_FILL_WIDTH := 1.18
-const CARRIER_COLUMN_HALF_LENGTH := 5.8
-const CARRIER_COLUMN_ROUTE_MARGIN := 1.7
-const CARRIER_COLUMN_ROUTE_GAP := 3.0
+const HEALTH_REGEN_PER_SECOND := 10.0
+const BASE_REGEN_RADIUS := 6.5
+const BASE_SHIELD_RADIUS := 4.9
+const BUSH_REVEAL_DURATION := 3.0
+const BOT_DAMAGE_MULTIPLIER := 0.8
+const BOT_ATTACK_INTERVAL_MULTIPLIER := 1.15
+const BOT_ABILITY_COOLDOWN_MULTIPLIER := 1.2
+const BOT_MOVE_ACCELERATION := 14.0
+const BOT_RETREAT_START_RATIO := 0.22
+const BOT_RETREAT_END_RATIO := 0.4
+const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
+const MAGE_STORM_DURATION := 5.0
+const MAGE_STORM_RADIUS := 10.0
+const WARRIOR_ULT_RADIUS := 8.0
+const MAGE_STORM_DAMAGE := 100.0
 
 const CLASS_DATA := {
 	Cls.WARRIOR: {
 		"name": "Воин",
-		"title": "Воин света",
-		"hp": 240.0,
+		"title": "Воин Света",
+		"hp": 550.0,
 		"speed": 6.4,
-		"range": 9.0,
-		"damage": 22.0,
-		"interval": 0.8,
-		"ranged": true,
+		"range": 3.5,
+		"damage": 44.0,
+		"interval": 0.6,
+		"attack_anim_time": 0.25,
+		"ranged": false,
 		"color": Color(1.0, 0.78, 0.4),
 		"abilities": [
-			{"name": "Прыжок", "cd": 8.0, "type": "dash_stun"},
-			{"name": "Яростный удар", "cd": 10.0, "type": "cleave_bleed"},
-			{"name": "Ульта: Замедление", "cd": 25.0, "type": "ult_aoe_slow"},
+			{"name": "Теневой рывок", "cd": 8.0, "type": "shadow_assassin"},
+			{"name": "Жажда крови", "cd": 10.0, "type": "crit_buff"},
+			{"name": "Крик ужаса", "cd": 25.0, "type": "fear_ult"},
 		],
 	},
 	Cls.MAGE: {
 		"name": "Маг",
 		"title": "Маг-целитель",
-		"hp": 175.0,
+		"hp": 500.0,
 		"speed": 5.9,
 		"range": 9.0,
-		"damage": 13.0,
+		"damage": 26.0,
 		"interval": 1.0,
 		"ranged": true,
 		"color": Color(0.6, 0.95, 1.0),
 		"abilities": [
 			{"name": "Лозы", "cd": 10.0, "type": "root"},
 			{"name": "Исцеление", "cd": 8.0, "type": "heal"},
-			{"name": "Ульта: Черная дыра", "cd": 28.0, "type": "ult_black_hole"},
+			{"name": "Грозовой шквал", "cd": 28.0, "type": "ult_lightning_storm"},
 		],
 	},
-		Cls.FAIRY: {
+	Cls.FAIRY: {
 		"name": "Фея",
 		"title": "Фея-лучница",
-		"hp": 160.0,
+		"hp": 450.0,
 		"speed": 4.5,
 		"range": 11.0,
-		"damage": 15.0,
+		"damage": 30.0,
 		"interval": 0.75,
 		"ranged": true,
 		"color": Color(0.72, 0.95, 0.55),
 		"abilities": [
 			{"name": "Оглушающий выстрел", "cd": 12.0, "type": "stun_shot"},
-			{"name": "Сильное натяжение", "cd": 15.0, "type": "heavy_shot"},
-			{"name": "Ульта: Град стрел", "cd": 24.0, "type": "ult_rain"},
+			{"name": "100% Крит", "cd": 15.0, "type": "crit_buff"},
+			{"name": "Золотое благословение", "cd": 24.0, "type": "golden_blessing"},
 		],
 	},
 }
@@ -76,34 +94,66 @@ var move_speed := 6.0
 var attack_range := 2.5
 var attack_damage := 20.0
 var attack_interval := 0.8
+var attack_animation_duration := 0.45
+var attack_speed_multiplier := 1.0
+var bonus_regen_per_second := 0.0
+var damage_reduction := 0.0
+var lifesteal_fraction := 0.0
+var cooldown_reduction := 0.0
+var stun_duration_reduction := 0.0
 var ranged := false
 
 var carrying := false
 var dead := false
+var bot_gold := 0
+var match_coins_collected := 0
+var match_gold_spent := 0
+var bot_purchased_shop_items: Array[String] = []
 var stun_timer := 0.0
 var attack_cd := 0.0
 var attack_anim_time := 0.0
 var respawn_timer := 0.0
 var ability_cds: Array[float] = [0.0, 0.0, 0.0]
 var cast_flash := 0.0
-var bleed_timer := 0.0
-var bleed_damage := 0.0
+var lightning_storm_timer := 0.0
+var lightning_storm_tick_timer := 0.0
+var lightning_storm_ring: MeshInstance3D
+var crit_buff := false
+var crit_buff_timer := 0.0
+var crit_buff_multiplier := 2.0
+var crit_buff_ring: MeshInstance3D = null
+var blessing_timer := 0.0
+var blessing_ring: MeshInstance3D = null
 
 var ai_goal := Vector3.ZERO
 var ai_think := 0.0
 var ai_attack_target: Node3D = null
 var ai_offset := Vector3.ZERO
-var ai_carrier_route_side := 0.0
+var ai_retreating := false
+var ai_kiting := false
+var ai_strafe_sign := 1.0
+var ai_strafe_timer := 0.0
 
 var visual: Node3D
+var wing_attachment: Node3D
+var wing_sway_time := 0.0
 var anim_player: AnimationPlayer = null
 var current_anim := ""
 var health_back: MeshInstance3D
 var health_fill: MeshInstance3D
 var health_label: Label3D
+var player_nameplate: Label3D
 var carry_light: OmniLight3D
 var bush_zones: Array[Area3D] = []
 var in_bush := false
+var bush_reveal_timer := 0.0
+var bush_visual_hidden := false
+var in_shop_zone := false
+var shop_manual_dismissed := false
+
+
+func _ready() -> void:
+	update_wings()
 
 
 func setup(p_game: Node, p_class: int, p_team: int, p_player: bool) -> void:
@@ -118,12 +168,83 @@ func setup(p_game: Node, p_class: int, p_team: int, p_player: bool) -> void:
 	attack_range = data["range"]
 	attack_damage = data["damage"]
 	attack_interval = data["interval"]
+	if not is_player:
+		attack_damage *= BOT_DAMAGE_MULTIPLIER
+		attack_interval *= BOT_ATTACK_INTERVAL_MULTIPLIER
+	attack_animation_duration = float(data.get("attack_anim_time", 0.45))
 	ranged = data["ranged"]
 	display_name = data["name"]
 	ai_offset = Vector3(randf_range(-3.0, 3.0), 0.0, randf_range(-3.0, 3.0))
+	ai_think = randf_range(0.05, 0.35)
+	ai_strafe_sign = -1.0 if randf() < 0.5 else 1.0
+	ai_strafe_timer = randf_range(1.5, 3.0)
 	_build_body()
 	_build_visual()
+	update_wings()
 	_update_health_display()
+
+
+func update_wings() -> void:
+	if not is_player or visual == null:
+		return
+	var wing_id := clampi(int(MetaProgression.equipped_wing), 0, 4)
+	if wing_id == 0:
+		if wing_attachment != null and is_instance_valid(wing_attachment):
+			wing_attachment.queue_free()
+		wing_attachment = null
+		return
+	if wing_attachment == null or not is_instance_valid(wing_attachment):
+		wing_attachment = Node3D.new()
+		wing_attachment.name = "WingAttachment"
+		wing_attachment.position = Vector3(0.0, 1.43, 0.32)
+		visual.add_child(wing_attachment)
+	for old_wing in wing_attachment.get_children():
+		wing_attachment.remove_child(old_wing)
+		old_wing.queue_free()
+
+	var wing_color := Color(0.92, 0.95, 1.0, 0.78)
+	var emission_color := Color(0.82, 0.9, 1.0)
+	var emission_energy := 0.35
+	match wing_id:
+		2:
+			wing_color = Color(0.075, 0.065, 0.09, 0.92)
+			emission_energy = 0.0
+		3:
+			wing_color = Color(0.34, 0.025, 0.055, 0.84)
+			emission_color = Color(1.0, 0.025, 0.045)
+			emission_energy = 2.2
+		4:
+			wing_color = Color(0.95, 0.62, 0.08, 0.86)
+			emission_color = Color(1.0, 0.67, 0.12)
+			emission_energy = 2.5
+
+	var wing_material := StandardMaterial3D.new()
+	wing_material.albedo_color = wing_color
+	wing_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	wing_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	wing_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if emission_energy > 0.0:
+		wing_material.emission_enabled = true
+		wing_material.emission = emission_color
+		wing_material.emission_energy_multiplier = emission_energy
+	var wing_mesh := QuadMesh.new()
+	wing_mesh.size = Vector2(0.66, 0.98)
+	for side in [-1, 1]:
+		var wing := MeshInstance3D.new()
+		wing.name = "WingLeft" if side < 0 else "WingRight"
+		wing.mesh = wing_mesh
+		wing.material_override = wing_material
+		wing.position = Vector3(float(side) * 0.31, 0.04, 0.0)
+		wing.rotation_degrees = Vector3(0.0, float(side) * -12.0, float(side) * -24.0)
+		wing_attachment.add_child(wing)
+	wing_sway_time = 0.0
+
+
+func _process(delta: float) -> void:
+	if wing_attachment == null or not is_instance_valid(wing_attachment):
+		return
+	wing_sway_time += delta
+	wing_attachment.rotation.z = sin(wing_sway_time * 1.8) * 0.035
 
 
 func _build_body() -> void:
@@ -145,24 +266,27 @@ func _build_body() -> void:
 	var ring := MeshInstance3D.new()
 	ring.name = "TeamRing"
 	var torus := TorusMesh.new()
-	torus.inner_radius = 0.62
-	torus.outer_radius = 0.78
-	torus.rings = 24
-	torus.ring_segments = 8
+	torus.inner_radius = 0.76
+	torus.outer_radius = 0.92
+	torus.rings = 40
+	torus.ring_segments = 10
 	ring.mesh = torus
 	var ring_mat := StandardMaterial3D.new()
-	var ring_color := Color(0.45, 0.85, 1.0) if team == 0 else Color(0.8, 0.35, 1.0)
+	var local_player: HeroUnit = game.get("player") as HeroUnit if game != null else null
+	var is_ally := is_player or (local_player != null and local_player.team == team)
+	var ring_color := Color(0.18, 1.0, 0.52) if is_ally else Color(1.0, 0.2, 0.16)
 	ring_mat.albedo_color = ring_color
 	ring_mat.emission_enabled = true
 	ring_mat.emission = ring_color
-	ring_mat.emission_energy_multiplier = 1.4
+	ring_mat.emission_energy_multiplier = 2.8
 	ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	ring.material_override = ring_mat
-	ring.position = Vector3(0.0, 0.05, 0.0)
-	add_child(ring)
+	ring.position = Vector3(0.0, 0.12, 0.0)
+	visual.add_child(ring)
 
 	_build_health_bar()
 	_build_health_label()
+	_build_player_nameplate()
 
 	carry_light = OmniLight3D.new()
 	carry_light.light_color = Color(0.7, 0.9, 1.0)
@@ -210,6 +334,7 @@ func _build_health_label() -> void:
 		health_label = Label3D.new()
 		health_label.name = "HealthLabel"
 		add_child(health_label)
+	health_label.font = UI_FONT
 	health_label.position = Vector3(0.0, 2.65, 0.0)
 	health_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	health_label.font_size = 42
@@ -217,6 +342,29 @@ func _build_health_label() -> void:
 	health_label.outline_size = 5
 	health_label.outline_modulate = Color(0.02, 0.03, 0.05, 0.92)
 	health_label.modulate = Color(0.93, 1.0, 0.95, 0.96)
+
+
+func _build_player_nameplate() -> void:
+	if not is_player:
+		return
+	player_nameplate = Label3D.new()
+	player_nameplate.name = "PlayerNameplate"
+	player_nameplate.font = UI_FONT
+	var nickname := String(MetaProgression.player_nickname).strip_edges()
+	if nickname.is_empty():
+		nickname = "Игрок"
+	var class_title := String(CLASS_DATA[hero_class]["name"])
+	var faction := "Света" if team == 0 else "Тьмы"
+	player_nameplate.text = "%s · %s %s" % [nickname, class_title, faction]
+	player_nameplate.position = Vector3(0.0, 3.02, 0.0)
+	player_nameplate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	player_nameplate.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	player_nameplate.font_size = 26
+	player_nameplate.pixel_size = 0.004
+	player_nameplate.outline_size = 5
+	player_nameplate.outline_modulate = Color(0.015, 0.02, 0.035, 0.96)
+	player_nameplate.modulate = Color(1.0, 0.9, 0.66) if team == 0 else Color(0.84, 0.79, 1.0)
+	add_child(player_nameplate)
 
 
 func _build_visual() -> void:
@@ -307,6 +455,7 @@ func _find_animation_player(node: Node) -> AnimationPlayer:
 func _play_anim(key: String, restart: bool = false) -> void:
 	if anim_player == null or (current_anim == key and not restart):
 		return
+	anim_player.speed_scale = 2.5 if hero_class == Cls.WARRIOR and key == "attack" else 1.0
 	var target := ""
 	for animation_name in anim_player.get_animation_list():
 		var low := String(animation_name).to_lower()
@@ -339,50 +488,82 @@ func _build_placeholder() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_update_blessing(delta)
 	if dead:
+		_update_shop_proximity(delta)
 		respawn_timer -= delta
 		if respawn_timer <= 0.0:
 			_respawn()
 		return
 
 	seconds_since_damage = minf(5.0, seconds_since_damage + delta)
+	_update_shop_proximity(delta)
+	bush_reveal_timer = maxf(0.0, bush_reveal_timer - delta)
+	_refresh_bush_visibility()
 	if seconds_since_damage >= 5.0 and health < max_health:
-		health = minf(max_health, health + 5.0 * delta)
+		var regen_multiplier := 2.0 if (_is_bush_stealthed() or _is_at_own_base()) else 1.0
+		if blessing_timer > 0.0:
+			regen_multiplier *= 2.0
+		health = minf(max_health, health + (HEALTH_REGEN_PER_SECOND + bonus_regen_per_second) * regen_multiplier * delta)
 
 	stun_timer = maxf(0.0, stun_timer - delta)
 	attack_cd = maxf(0.0, attack_cd - delta)
 	cast_flash = maxf(0.0, cast_flash - delta)
 	attack_anim_time = maxf(0.0, attack_anim_time - delta)
-	bleed_timer = maxf(0.0, bleed_timer - delta)
-	if bleed_timer > 0.0:
-		bleed_timer -= 1.0
-		if bleed_timer > 0.0:
-			take_damage(bleed_damage, null)
+	crit_buff_timer = maxf(0.0, crit_buff_timer - delta)
+	if crit_buff_timer <= 0.0:
+		crit_buff = false
+		if crit_buff_ring != null:
+			crit_buff_ring.visible = false
 	for i in ability_cds.size():
 		ability_cds[i] = maxf(0.0, ability_cds[i] - delta)
 
+	var channeling_storm := lightning_storm_timer > 0.0
+	if channeling_storm:
+		lightning_storm_timer = maxf(0.0, lightning_storm_timer - delta)
+		lightning_storm_tick_timer -= delta
+		if lightning_storm_tick_timer <= 0.0 and game != null:
+			game.mage_storm_tick(self, MAGE_STORM_RADIUS, MAGE_STORM_DAMAGE)
+			lightning_storm_tick_timer += 1.0
+		if lightning_storm_timer <= 0.0 and lightning_storm_ring != null:
+			lightning_storm_ring.visible = false
+		if current_anim != "cast" or (anim_player != null and not anim_player.is_playing()):
+			_play_anim("cast", true)
+
 	var dir := Vector3.ZERO
-	if stun_timer <= 0.0:
+	if not channeling_storm and stun_timer <= 0.0:
 		if is_player:
 			dir = _player_dir()
 		else:
 			dir = _ai_dir(delta)
-		_try_auto_attack(delta)
+		_try_auto_attack(dir)
 
 	var speed := move_speed * (0.5 if carrying else 1.0)
 	var target_v := dir * speed
-	velocity.x = move_toward(velocity.x, target_v.x, 40.0 * delta)
-	velocity.z = move_toward(velocity.z, target_v.z, 40.0 * delta)
+	if channeling_storm:
+		velocity.x = 0.0
+		velocity.z = 0.0
+	else:
+		var movement_acceleration := BOT_MOVE_ACCELERATION if not is_player else 40.0
+		velocity.x = move_toward(velocity.x, target_v.x, movement_acceleration * delta)
+		velocity.z = move_toward(velocity.z, target_v.z, movement_acceleration * delta)
 	if not is_on_floor():
 		velocity.y -= GRAVITY * delta
 	else:
 		velocity.y = -0.2
 	move_and_slide()
+	if game != null and game.has_method("clamp_to_arena"):
+		var bounded_position: Vector3 = game.clamp_to_arena(global_position)
+		if absf(bounded_position.x - global_position.x) > 0.001:
+			velocity.x = 0.0
+		if absf(bounded_position.z - global_position.z) > 0.001:
+			velocity.z = 0.0
+		global_position = bounded_position
 
 	if dir.length_squared() > 0.01:
 		_face(dir, delta)
 	if global_position.y < -8.0:
-		global_position = _base_position()
+		global_position = _base_position() + Vector3(0.0, 0.76, 0.0)
 		velocity = Vector3.ZERO
 
 	_update_look(delta)
@@ -418,9 +599,14 @@ func _player_dir() -> Vector3:
 
 func _ai_dir(delta: float) -> Vector3:
 	ai_think -= delta
+	ai_strafe_timer -= delta
+	if ai_strafe_timer <= 0.0:
+		ai_strafe_timer = randf_range(1.5, 3.0)
+		ai_strafe_sign *= -1.0
 	if ai_think <= 0.0:
-		ai_think = 0.3
+		ai_think = randf_range(0.42, 0.62)
 		_ai_pick_goal()
+		ai_goal = game.clamp_to_arena(ai_goal)
 		_ai_abilities()
 	var to_goal := ai_goal - global_position
 	to_goal.y = 0.0
@@ -429,23 +615,31 @@ func _ai_dir(delta: float) -> Vector3:
 	if dist > 0.8:
 		dir = to_goal / dist
 	var enemy := ai_attack_target
-	if enemy != null and is_instance_valid(enemy) and ranged:
+	if not carrying and enemy != null and is_instance_valid(enemy):
 		var away := global_position - enemy.global_position
 		away.y = 0.0
 		var d := away.length()
-		if d < attack_range * 0.65 and d > 0.1:
-			dir = away.normalized()
+		if d > 0.1 and ranged:
+			if not ai_kiting and d < attack_range * 0.72:
+				ai_kiting = true
+			elif ai_kiting and d > attack_range * 0.9:
+				ai_kiting = false
+			if ai_kiting:
+				var strafe := Vector3(-away.z, 0.0, away.x).normalized() * ai_strafe_sign
+				dir = away.normalized() * 0.2 + strafe * 0.8
 	var sep := Vector3.ZERO
 	if game != null and game.has_method("heroes"):
 		for other in game.heroes:
-			if other == self or other.dead:
+			if other == self or other.dead or other.team != team:
 				continue
 			var delta_pos: Vector3 = global_position - other.global_position
 			delta_pos.y = 0.0
 			var dd := delta_pos.length()
-			if dd > 0.01 and dd < 1.7:
-				sep += delta_pos.normalized() * (1.7 - dd)
-	dir += sep * 0.8
+			if dd > 0.01 and dd < 1.35:
+				sep += delta_pos.normalized() * (1.35 - dd)
+	if carrying and dir.length_squared() > 0.01:
+		sep = sep.slide(dir.normalized())
+	dir += sep * 0.35
 	if stun_timer > 0.0:
 		return Vector3.ZERO
 	return dir.normalized() if dir.length() > 0.01 else Vector3.ZERO
@@ -489,12 +683,22 @@ func _ai_pick_goal() -> void:
 	if game == null:
 		ai_goal = Vector3.ZERO
 		return
+	if not ai_retreating and health <= max_health * BOT_RETREAT_START_RATIO:
+		ai_retreating = true
+	elif ai_retreating and health >= max_health * BOT_RETREAT_END_RATIO:
+		ai_retreating = false
 	var enemy: HeroUnit = game.nearest_enemy(global_position, team, 30.0, self)
+	var previous_target := ai_attack_target as HeroUnit
+	if previous_target != null and is_instance_valid(previous_target) and not previous_target.dead and previous_target.team != team:
+		var previous_distance := global_position.distance_to(previous_target.global_position)
+		var new_distance := global_position.distance_to(enemy.global_position) if enemy != null else INF
+		if previous_distance < 30.0 and previous_distance <= new_distance * 1.18:
+			enemy = previous_target
 	ai_attack_target = enemy
 	if carrying:
-		ai_goal = _carrier_route_goal(_base_position())
+		ai_goal = _base_position()
 		return
-	if health < max_health * 0.28:
+	if ai_retreating:
 		ai_goal = _base_position()
 		return
 	var crystal_node: Node3D = game.crystal_node
@@ -505,8 +709,20 @@ func _ai_pick_goal() -> void:
 	if shell != null and is_instance_valid(shell) and shell.alive:
 		ai_goal = shell.global_position
 		return
+	var enemy_distance := global_position.distance_to(enemy.global_position) if enemy != null else INF
+	if enemy_distance > 16.0:
+		if game.bot_has_affordable_shop_item(self):
+			if game.is_hero_near_shop(self):
+				game.purchase_bot_shop_item(self)
+			if game.bot_has_affordable_shop_item(self):
+				ai_goal = game.bot_shop_goal()
+				return
+		var coin: Node3D = game.nearest_gold_coin(global_position)
+		if coin != null:
+			ai_goal = coin.global_position
+			return
 	if enemy != null:
-		var enemy_base := Vector3(0.0, 0.0, -35.0 if team == 0 else 35.0)
+		var enemy_base := Vector3(0.0, 0.0, -BASE_POSITION_Z if team == 0 else BASE_POSITION_Z)
 		var goal := enemy.global_position
 		var from_base := goal - enemy_base
 		from_base.y = 0.0
@@ -517,35 +733,16 @@ func _ai_pick_goal() -> void:
 		ai_goal = Vector3(0.0, 0.0, 0.0)
 
 
-func _carrier_route_goal(base_goal: Vector3) -> Vector3:
-	var toward_base := 1.0 if team == 0 else -1.0
-	var column_z := toward_base * 16.0
-	var progress_past_column := toward_base * (global_position.z - column_z)
-	if progress_past_column >= CARRIER_COLUMN_ROUTE_GAP:
-		ai_carrier_route_side = 0.0
-		return base_goal
-
-	if is_zero_approx(ai_carrier_route_side):
-		var side_sign := signf(global_position.x)
-		if is_zero_approx(side_sign):
-			side_sign = 1.0
-		ai_carrier_route_side = side_sign
-
-	var lane_x := ai_carrier_route_side * (CARRIER_COLUMN_HALF_LENGTH + CARRIER_COLUMN_ROUTE_MARGIN)
-	var approach_z := column_z - toward_base * CARRIER_COLUMN_ROUTE_GAP
-	var crossing_z := column_z + toward_base * CARRIER_COLUMN_ROUTE_GAP
-	if absf(global_position.x - lane_x) > 1.0:
-		return Vector3(lane_x, 0.0, approach_z)
-	if progress_past_column < CARRIER_COLUMN_ROUTE_GAP:
-		return Vector3(lane_x, 0.0, crossing_z)
-	return base_goal
-
 func _base_position() -> Vector3:
-	var z := 35.0 if team == 0 else -35.0
-	return Vector3(ai_offset.x, 0.0, z)
+	var z := BASE_POSITION_Z - 1.5 if team == 0 else -BASE_POSITION_Z + 1.5
+	var safe_x := clampf(ai_offset.x, -2.5, 2.5)
+	var base_position := Vector3(safe_x, 0.0, z)
+	return game.clamp_to_arena(base_position) if game != null and game.has_method("clamp_to_arena") else base_position
 
 
-func _try_auto_attack(_delta: float) -> void:
+func _try_auto_attack(movement_direction: Vector3) -> void:
+	if _is_bush_stealthed():
+		return
 	if attack_cd > 0.0:
 		return
 	if game == null:
@@ -554,32 +751,70 @@ func _try_auto_attack(_delta: float) -> void:
 	if target == null:
 		return
 	var d := global_position.distance_to(target.global_position)
-	if d > attack_range + 0.5:
+	if d > attack_range:
 		return
-	attack_cd = attack_interval
-	attack_anim_time = 0.45
-	_face((target.global_position - global_position), 1.0)
+	var target_direction := target.global_position - global_position
+	target_direction.y = 0.0
+	if target_direction.length_squared() < 0.001:
+		return
+	target_direction = target_direction.normalized()
+	if _facing_direction().dot(target_direction) < 0.0:
+		return
+	var planar_velocity := Vector3(velocity.x, 0.0, velocity.z)
+	var moving := movement_direction.length_squared() > 0.01 or planar_velocity.length() > 0.65
+	if not moving:
+		_face(target_direction, 1.0)
+	_break_bush_stealth()
+	attack_cd = attack_interval / attack_speed_multiplier
+	attack_anim_time = attack_animation_duration
 	_play_anim("attack", true)
+	var guaranteed_crit_multiplier := crit_buff_multiplier if crit_buff else 1.0
+	var damage := roll_direct_damage(attack_damage * get_blessing_damage_multiplier(), guaranteed_crit_multiplier)
+	if crit_buff:
+		crit_buff = false
+		crit_buff_timer = 0.0
+		crit_buff_multiplier = 2.0
+		if crit_buff_ring != null:
+			crit_buff_ring.visible = false
 	if ranged:
 		var color: Color = CLASS_DATA[hero_class]["color"]
-		game.spawn_projectile(global_position + Vector3(0.0, 1.2, 0.0), target, attack_damage, color, self)
+		game.spawn_projectile(global_position + Vector3(0.0, 1.2, 0.0), target, damage, color, self)
 	else:
-		target.take_damage(attack_damage, self)
+		target.take_damage(damage, self, "physical")
 		game.melee_fx(global_position + Vector3(0.0, 1.0, 0.0), target.global_position)
 
 
 func _attack_target() -> Node3D:
 	if game == null:
 		return null
-	var enemy: HeroUnit = game.nearest_enemy(global_position, team, attack_range + 0.5, self)
-	if enemy != null:
-		return enemy
+	var best_enemy: HeroUnit = null
+	var best_health := INF
+	var best_distance := INF
+	var visible_enemies: Array = game.enemies_of(team, self)
+	for candidate in visible_enemies:
+		var enemy := candidate as HeroUnit
+		if enemy == null:
+			continue
+		var distance := global_position.distance_to(enemy.global_position)
+		if distance > attack_range:
+			continue
+		var direction_to_enemy := enemy.global_position - global_position
+		direction_to_enemy.y = 0.0
+		if _facing_direction().dot(direction_to_enemy.normalized()) < 0.0:
+			continue
+		if enemy.health < best_health or (is_equal_approx(enemy.health, best_health) and distance < best_distance):
+			best_enemy = enemy
+			best_health = enemy.health
+			best_distance = distance
+	if best_enemy != null:
+		return best_enemy
 	var shell_target: SkyShell = game.shell
 	if shell_target != null and is_instance_valid(shell_target) and shell_target.alive:
-		if global_position.distance_to(shell_target.global_position) <= attack_range + 0.5:
+		var direction_to_shell := shell_target.global_position - global_position
+		direction_to_shell.y = 0.0
+		if global_position.distance_to(shell_target.global_position) <= attack_range and _facing_direction().dot(direction_to_shell.normalized()) >= 0.0:
 			return shell_target
 	return null
-
 
 func _face(dir: Vector3, _delta: float) -> void:
 	if dir.length_squared() < 0.001:
@@ -602,6 +837,10 @@ func _update_look(_delta: float) -> void:
 	_update_health_display()
 	if health_fill == null:
 		return
+	if lightning_storm_timer > 0.0:
+		if current_anim != "cast" or (anim_player != null and not anim_player.is_playing()):
+			_play_anim("cast", true)
+		return
 	if carry_light != null:
 		carry_light.light_energy = 2.0 if carrying else 0.0
 	if visual != null and visual.visible:
@@ -622,15 +861,89 @@ func set_bush_presence(zone: Area3D, inside: bool) -> void:
 	else:
 		bush_zones.erase(zone)
 	in_bush = not bush_zones.is_empty()
+	_refresh_bush_visibility()
+
+
+func _break_bush_stealth() -> void:
+	if not in_bush:
+		return
+	bush_reveal_timer = BUSH_REVEAL_DURATION
+	seconds_since_damage = 0.0
+	_refresh_bush_visibility()
+
+
+func _is_offensive_ability(ability_type: String) -> bool:
+	return ability_type in ["shadow_assassin", "fear_ult", "root", "ult_lightning_storm", "stun_shot"]
+
+
+func _is_bush_stealthed() -> bool:
+	return in_bush and bush_reveal_timer <= 0.0
+
+
+func _is_at_own_base() -> bool:
+	var base_z := BASE_POSITION_Z if team == 0 else -BASE_POSITION_Z
+	return Vector2(global_position.x, global_position.z - base_z).length() <= BASE_REGEN_RADIUS
+
+
+func _is_under_base_shield() -> bool:
+	var base_z := BASE_POSITION_Z if team == 0 else -BASE_POSITION_Z
+	return Vector2(global_position.x, global_position.z - base_z).length() <= BASE_SHIELD_RADIUS
+
+
+func _update_shop_proximity(_delta: float) -> void:
+	if not is_player or game == null:
+		return
+	if dead or game.state != "live":
+		game.set_shop_open(false)
+		return
+	var near_shop: bool = bool(game.call("is_hero_near_shop", self))
+	if near_shop != in_shop_zone:
+		set_shop_zone_presence(near_shop)
+	if not in_shop_zone:
+		game.set_shop_open(false)
+		return
+	if shop_manual_dismissed:
+		game.set_shop_open(false)
+		return
+	game.set_shop_open(seconds_since_damage >= 5.0)
+
+
+func set_shop_zone_presence(inside: bool) -> void:
+	if inside and not in_shop_zone:
+		shop_manual_dismissed = false
+	elif not inside:
+		shop_manual_dismissed = false
+	in_shop_zone = inside
+	if inside:
+		return
+	if is_player and game != null:
+		game.set_shop_open(false)
+
+
+func dismiss_shop() -> void:
+	shop_manual_dismissed = true
+	if is_player and game != null:
+		game.set_shop_open(false)
+
+
+func _refresh_bush_visibility() -> void:
+	var hidden_now := _is_bush_stealthed()
+	if hidden_now == bush_visual_hidden:
+		return
+	bush_visual_hidden = hidden_now
 	var stack: Array[Node] = []
 	if visual != null:
 		stack.append(visual)
 	while not stack.is_empty():
 		var current: Node = stack.pop_back()
 		if current is GeometryInstance3D:
-			(current as GeometryInstance3D).transparency = 0.5 if in_bush else 0.0
+			(current as GeometryInstance3D).transparency = 0.5 if hidden_now else 0.0
 		for child in current.get_children():
 			stack.append(child)
+	if health_label != null:
+		health_label.visible = _health_bar_visible()
+	if player_nameplate != null:
+		player_nameplate.visible = _health_bar_visible()
 	if health_back != null:
 		health_back.visible = _health_bar_visible()
 	if health_fill != null:
@@ -640,13 +953,21 @@ func set_bush_presence(zone: Area3D, inside: bool) -> void:
 func _health_bar_visible() -> bool:
 	if dead:
 		return false
-	if not in_bush:
+	if not _is_bush_stealthed():
 		return true
 	var observer: HeroUnit = null
 	if game != null and game.has_method("get"):
 		observer = game.get("player") as HeroUnit
 	return observer != null and (self == observer or not is_hidden_from(observer))
 
+
+func is_hidden_from(observer: HeroUnit) -> bool:
+	if not _is_bush_stealthed() or observer == null or observer.team == team:
+		return false
+	for zone in bush_zones:
+		if observer.bush_zones.has(zone):
+			return false
+	return true
 
 func _update_health_display() -> void:
 	var displayed_max := maxi(1, roundi(max_health))
@@ -666,27 +987,28 @@ func _update_health_display() -> void:
 		health_back.visible = _health_bar_visible()
 
 
-func is_hidden_from(observer: HeroUnit) -> bool:
-	if not in_bush or observer == null or observer.team == team:
-		return false
-	for zone in bush_zones:
-		if observer.bush_zones.has(zone):
-			return false
-	return true
 
 
-func take_damage(amount: float, source: Node = null) -> void:
-	if dead:
+func take_damage(amount: float, source: Node = null, damage_type: String = "physical") -> void:
+	if dead or _is_under_base_shield():
 		return
 	if amount > 0.0:
 		seconds_since_damage = 0.0
-	var applied_damage := minf(maxf(amount, 0.0), health)
-	health = clampf(health - maxf(amount, 0.0), 0.0, max_health)
+		if is_player and game != null:
+			shop_manual_dismissed = false
+			game.set_shop_open(false)
+	var reduction := damage_reduction if damage_type == "physical" else 0.0
+	var source_multiplier := HERO_OUTGOING_DAMAGE_MULTIPLIER if source is HeroUnit else 1.0
+	var final_damage := maxf(amount, 0.0) * source_multiplier * (1.0 - reduction)
+	var applied_damage := minf(final_damage, health)
+	health = clampf(health - final_damage, 0.0, max_health)
 	_update_health_display()
 	if game != null and game.has_method("record_hero_damage"):
 		game.record_hero_damage(self, source, applied_damage, health <= 0.0)
 	if game != null and game.has_method("damage_number"):
-		game.damage_number(global_position + Vector3(0.0, 2.0, 0.0), amount, team)
+		game.damage_number(global_position + Vector3(0.0, 2.0, 0.0), final_damage, team)
+	if source is HeroUnit:
+		(source as HeroUnit).on_damage_dealt(applied_damage)
 	if health <= 0.0:
 		_die()
 
@@ -700,15 +1022,51 @@ func heal(amount: float) -> void:
 		game.heal_number(global_position + Vector3(0.0, 2.2, 0.0), amount)
 
 
-func stun(_duration: float) -> void:
+func on_damage_dealt(amount: float) -> void:
+	if amount > 0.0 and lifesteal_fraction > 0.0:
+		heal(amount * lifesteal_fraction)
+
+
+func apply_shop_item(item_id: String) -> bool:
+	match item_id:
+		"life_amulet":
+			max_health += 150.0
+			health = minf(max_health, health + 150.0)
+		"revival_talisman":
+			bonus_regen_per_second += 10.0
+		"titan_shell":
+			damage_reduction = minf(0.85, damage_reduction + 0.15)
+		"power_glove":
+			attack_damage += 25.0
+		"vampire_fang":
+			lifesteal_fraction += 0.15
+		"agility_mark":
+			attack_speed_multiplier *= 1.2
+		"wind_boots":
+			move_speed *= 1.15
+		"hourglass":
+			cooldown_reduction = minf(0.85, cooldown_reduction + 0.15)
+		"cleansing_charm":
+			stun_duration_reduction = minf(0.85, stun_duration_reduction + 0.2)
+		_:
+			return false
+	_update_health_display()
+	return true
+
+
+func stun(duration: float) -> void:
 	if dead:
 		return
-	stun_timer = maxf(stun_timer, STUN_DURATION)
+	stun_timer = maxf(stun_timer, maxf(0.0, duration) * (1.0 - stun_duration_reduction))
 
 
 func _die() -> void:
 	dead = true
-	respawn_timer = 8.0
+	lightning_storm_timer = 0.0
+	lightning_storm_tick_timer = 0.0
+	if lightning_storm_ring != null:
+		lightning_storm_ring.visible = false
+	respawn_timer = game.respawn_delay_for(self) if game != null and game.has_method("respawn_delay_for") else 8.0
 	velocity = Vector3.ZERO
 	carrying = false
 	stun_timer = 0.0
@@ -717,8 +1075,12 @@ func _die() -> void:
 	visual.visible = false
 	if health_label != null:
 		health_label.visible = false
+	if player_nameplate != null:
+		player_nameplate.visible = false
 	bush_zones.clear()
 	in_bush = false
+	set_shop_zone_presence(false)
+	_refresh_bush_visibility()
 	if health_back != null:
 		health_back.visible = false
 	if health_fill != null:
@@ -733,7 +1095,7 @@ func _respawn() -> void:
 	health = max_health
 	seconds_since_damage = 0.0
 	_update_health_display()
-	global_position = _base_position() + Vector3(0.0, 0.4, 0.0)
+	global_position = _base_position() + Vector3(0.0, 0.76, 0.0)
 	velocity = Vector3.ZERO
 	set_collision_layer_value(1, true)
 	set_collision_mask_value(1, true)
@@ -745,12 +1107,14 @@ func _respawn() -> void:
 		health_fill.visible = _health_bar_visible()
 	if health_label != null:
 		health_label.visible = _health_bar_visible()
+	if player_nameplate != null:
+		player_nameplate.visible = _health_bar_visible()
 	if game != null:
 		game.on_hero_respawned(self)
 
 
 func use_ability(index: int) -> bool:
-	if dead or stun_timer > 0.0:
+	if dead or stun_timer > 0.0 or lightning_storm_timer > 0.0:
 		return false
 	if index < 0 or index >= 3:
 		return false
@@ -759,105 +1123,176 @@ func use_ability(index: int) -> bool:
 	if game == null:
 		return false
 	var data: Dictionary = CLASS_DATA[hero_class]["abilities"][index]
-	ability_cds[index] = data["cd"]
+	var ability_type := String(data["type"])
+	if _is_offensive_ability(ability_type):
+		_break_bush_stealth()
+	var bot_cooldown_multiplier := BOT_ABILITY_COOLDOWN_MULTIPLIER if not is_player else 1.0
+	ability_cds[index] = float(data["cd"]) * (1.0 - cooldown_reduction) * bot_cooldown_multiplier
 	cast_flash = 0.35
 	_play_anim("cast")
 	var color: Color = CLASS_DATA[hero_class]["color"]
 	var origin := global_position
-	match String(data["type"]):
-		"dash_stun":
-			var dir := _facing_direction()
-			var start := global_position
-			for step in 8:
-				var moved := move_and_collide(dir * 1.1)
-				if moved != null:
-					break
-			game.aoe(global_position, 2.0, 22.0, team, 1.5, true, self)
-			game.burst(global_position, color, 18)
-			game.ring_fx(start, color, 2.8)
-		"cleave_bleed":
-			game.aoe(origin, 3.0, 18.0, team, 0.0, true, self)
-			for h in game.enemies_of(team, self):
-				if not h.dead and h.global_position.distance_to(origin) <= 3.0:
-					h.take_damage(12.0, self)
-					h.bleed_timer = 4.0
-					h.bleed_damage = 6.0
-			game.burst(origin, color, 22)
-			game.ring_fx(origin, color, 3.5)
-		"ult_aoe_slow":
-			game.aoe(origin, 5.0, 30.0, team, 0.0, true, self)
-			for h in game.enemies_of(team, self):
-				if not h.dead and h.global_position.distance_to(origin) <= 5.0:
-					h.stun(3.0)
-			game.burst(origin, color, 40)
-			game.ring_fx(origin, color, 6.0)
-			game.shake(0.35)
+	match ability_type:
+		"shadow_assassin":
+			var target: HeroUnit = game.nearest_enemy(origin, team, 8.0, self)
+			if target == null:
+				ability_cds[index] = 0.0
+				return false
+			var offset := global_position - target.global_position
+			offset.y = 0.0
+			if offset.length_squared() < 0.001:
+				offset = -_facing_direction()
+			global_position = game.clamp_to_arena(target.global_position + offset.normalized() * 1.2)
+			var hit_position := global_position
+			target.take_damage(roll_direct_damage(attack_damage * get_blessing_damage_multiplier()), self, "physical")
+			target.stun(1.0)
+			game.dash_fx(origin, hit_position, color)
+		"crit_buff":
+			crit_buff = true
+			crit_buff_timer = 3.0
+			crit_buff_multiplier = 3.0 if hero_class == Cls.FAIRY else 2.0
+			_set_crit_buff_ring(true)
+			game.burst(origin, color, 16)
+		"fear_ult":
+			for enemy in game.enemies_in_radius(origin, WARRIOR_ULT_RADIUS, team, self):
+				enemy.take_damage(roll_direct_damage(_outgoing_damage(60.0) * get_blessing_damage_multiplier()), self, "magic")
+				enemy.stun(1.5)
+			game.fear_pulse_fx(origin, WARRIOR_ULT_RADIUS, color)
+			game.earthquake_fx(origin, WARRIOR_ULT_RADIUS, 1.5)
 		"root":
 			var fwd: Vector3 = _facing_direction()
 			var proj_pos := origin + Vector3(0.0, 1.2, 0.0)
 			var root_target: HeroUnit = game.nearest_enemy(proj_pos, team, 10.0, self)
 			if root_target != null:
-				game.spawn_projectile(proj_pos, root_target, 10.0, color, self, 2.0)
+				game.spawn_projectile(proj_pos, root_target, roll_direct_damage(_outgoing_damage(20.0) * get_blessing_damage_multiplier()), color, self, 2.0, "magic", "root")
 			game.burst(proj_pos, color, 14)
 		"heal":
-			var ally: HeroUnit = game.lowest_ally(origin, team, 8.0)
-			if ally != null:
-				ally.heal(50.0)
-				game.burst(ally.global_position, Color(0.65, 1.0, 0.75), 16)
-			else:
-				game.heal_area(origin, 6.0, 40.0, team, 1)
-				game.burst(origin, Color(0.65, 1.0, 0.75), 14)
-		"ult_black_hole":
-			var fwd: Vector3 = _facing_direction()
-			var bh := MeshInstance3D.new()
-			var sphere := SphereMesh.new()
-			sphere.radius = 0.5
-			sphere.height = 0.5
-			bh.mesh = sphere
-			var bh_mat := StandardMaterial3D.new()
-			bh_mat.albedo_color = Color(0.15, 0.05, 0.3)
-			bh_mat.emission_enabled = true
-			bh_mat.emission = Color(0.3, 0.1, 0.5)
-			bh_mat.emission_energy_multiplier = 4.0
-			bh_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			bh.material_override = bh_mat
-			add_child(bh)
-			bh.global_position = origin + Vector3(0.0, 1.5, 0.0) + fwd * 0.6
-			game.projectiles.append({
-				"node": bh,
-				"target": null,
-				"damage": 35.0,
-				"color": Color(0.3, 0.1, 0.5),
-				"source": self,
-				"stun": 0.0,
-				"life": 3.0,
-				"black_hole": true,
-				"bh_dir": fwd,
-				"radius": 3.5,
-			})
-			game.burst(origin, Color(0.3, 0.1, 0.5), 20)
+			game.heal_area(origin, 6.0, 250.0, team, 6)
+			game.burst(origin, Color(0.65, 1.0, 0.75), 18)
+		"ult_lightning_storm":
+			lightning_storm_timer = MAGE_STORM_DURATION
+			lightning_storm_tick_timer = 1.0
+			velocity = Vector3.ZERO
+			_set_lightning_storm_ring(true)
+			game.burst(origin, Color(0.35, 0.78, 1.0), 28)
 		"stun_shot":
 			var target2: HeroUnit = game.nearest_enemy(origin, team, 14.0, self)
 			if target2 != null:
-				game.spawn_projectile(origin + Vector3(0.0, 1.3, 0.0), target2, 20.0, color, self, 1.0)
+				game.spawn_projectile(origin + Vector3(0.0, 1.3, 0.0), target2, roll_direct_damage(_outgoing_damage(40.0) * get_blessing_damage_multiplier()), color, self, 1.5, "physical", "stun")
 			game.burst(origin, color, 10)
-		"heavy_shot":
-			var target3: HeroUnit = game.nearest_enemy(origin, team, 16.0, self)
-			if target3 != null:
-				game.spawn_projectile(origin + Vector3(0.0, 1.3, 0.0), target3, 40.0, color, self, 0.0)
-			game.burst(origin, color, 14)
-		"ult_rain":
-			var fwd2 := Vector3(-sin(visual.rotation.y), 0.0, -cos(visual.rotation.y))
-			var rain_center := origin + fwd2 * 6.0
-			game.aoe(rain_center, 4.5, 50.0, team, 0.0, true, self)
-			game.burst(rain_center, color, 44)
-			game.ring_fx(rain_center, color, 5.0)
-			game.shake(0.25)
+		"golden_blessing":
+			game.bless_team(team, float(data["cd"]))
+			game.golden_blessing_fx(origin, team)
 	return true
+
+
+func _set_lightning_storm_ring(active: bool) -> void:
+	if lightning_storm_ring == null:
+		lightning_storm_ring = MeshInstance3D.new()
+		lightning_storm_ring.name = "LightningStormRange"
+		var torus := TorusMesh.new()
+		torus.inner_radius = 0.97
+		torus.outer_radius = 1.0
+		torus.rings = 48
+		torus.ring_segments = 8
+		lightning_storm_ring.mesh = torus
+		var material := StandardMaterial3D.new()
+		material.albedo_color = Color(0.28, 0.76, 1.0, 0.48)
+		material.emission_enabled = true
+		material.emission = Color(0.2, 0.65, 1.0)
+		material.emission_energy_multiplier = 1.6
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		lightning_storm_ring.material_override = material
+		lightning_storm_ring.scale = Vector3(MAGE_STORM_RADIUS, 1.0, MAGE_STORM_RADIUS)
+		lightning_storm_ring.position.y = 0.14
+		add_child(lightning_storm_ring)
+	lightning_storm_ring.visible = active
+
+
+func _set_crit_buff_ring(active: bool) -> void:
+	if crit_buff_ring == null:
+		crit_buff_ring = MeshInstance3D.new()
+		crit_buff_ring.name = "CriticalBuffRing"
+		var torus := TorusMesh.new()
+		torus.inner_radius = 0.72
+		torus.outer_radius = 0.84
+		torus.rings = 32
+		torus.ring_segments = 8
+		crit_buff_ring.mesh = torus
+		var ring_color := Color(1.0, 0.28, 0.2) if hero_class == Cls.WARRIOR else Color(0.72, 1.0, 0.35)
+		var material := StandardMaterial3D.new()
+		material.albedo_color = Color(ring_color.r, ring_color.g, ring_color.b, 0.9)
+		material.emission_enabled = true
+		material.emission = ring_color
+		material.emission_energy_multiplier = 2.2
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		crit_buff_ring.material_override = material
+		crit_buff_ring.position.y = 0.18
+		visual.add_child(crit_buff_ring)
+	crit_buff_ring.visible = active
+
+
+func roll_direct_damage(amount: float, guaranteed_crit_multiplier: float = 1.0) -> float:
+	if amount <= 0.0:
+		return 0.0
+	var rolled_damage := amount * randf_range(DIRECT_DAMAGE_MIN_MULTIPLIER, DIRECT_DAMAGE_MAX_MULTIPLIER)
+	if guaranteed_crit_multiplier > 1.0:
+		return rolled_damage * guaranteed_crit_multiplier
+	if randf() < CRITICAL_CHANCE:
+		return rolled_damage * CRITICAL_DAMAGE_MULTIPLIER
+	return rolled_damage
+
+
+func _outgoing_damage(amount: float) -> float:
+	return amount * BOT_DAMAGE_MULTIPLIER if not is_player else amount
 
 
 func ability_data(index: int) -> Dictionary:
 	return CLASS_DATA[hero_class]["abilities"][index]
+
+
+func get_blessing_damage_multiplier() -> float:
+	return 1.1 if blessing_timer > 0.0 else 1.0
+
+
+func apply_blessing(duration: float) -> void:
+	if dead or duration <= 0.0:
+		return
+	blessing_timer = maxf(blessing_timer, duration)
+	if blessing_ring != null and is_instance_valid(blessing_ring):
+		return
+	var ring := MeshInstance3D.new()
+	ring.name = "GoldenBlessingRing"
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.98
+	torus.outer_radius = 1.1
+	torus.rings = 32
+	torus.ring_segments = 8
+	ring.mesh = torus
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color(1.0, 0.78, 0.18)
+	material.emission_enabled = true
+	material.emission = Color(1.0, 0.68, 0.12)
+	material.emission_energy_multiplier = 2.6
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring.material_override = material
+	ring.position.y = 0.16
+	visual.add_child(ring)
+	blessing_ring = ring
+
+
+func _update_blessing(delta: float) -> void:
+	if blessing_timer <= 0.0:
+		return
+	blessing_timer = maxf(0.0, blessing_timer - delta)
+	if blessing_ring != null and is_instance_valid(blessing_ring):
+		var pulse := 1.0 + sin(float(Time.get_ticks_msec()) * 0.008) * 0.08
+		blessing_ring.scale = Vector3.ONE * pulse
+	if blessing_timer == 0.0 and blessing_ring != null:
+		blessing_ring.queue_free()
+		blessing_ring = null
 
 
 func ability_ready(index: int) -> bool:

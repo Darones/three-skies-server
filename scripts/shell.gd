@@ -4,31 +4,84 @@ extends CharacterBody3D
 const SHELL_MODEL: PackedScene = preload("res://art/generated/shell/3d_1793744338028.glb")
 
 var game: Node
-var alive := true
+var alive := false
 var max_health := 1080.0
 var health := 1080.0
 var attack_timer := 3.0
 var bob_time := 0.0
 var visual: Node3D
+var collision_shape: CollisionShape3D
 var health_fill: MeshInstance3D
 var core_light: OmniLight3D
 var base_y := 0.16
+var retiring := false
 
 
 func setup(p_game: Node) -> void:
 	game = p_game
 
 
-func _ready() -> void:
+func activate(p_game: Node, spawn_position: Vector3) -> void:
+	game = p_game
+	retiring = false
+	alive = true
+	health = max_health
+	attack_timer = 3.0
+	bob_time = 0.0
+	scale = Vector3.ONE
+	global_position = spawn_position
+	if visual != null:
+		visual.rotation = Vector3.ZERO
+		visual.position = Vector3.ZERO
+	if health_fill != null:
+		health_fill.scale = Vector3.ONE
+		health_fill.position.x = -0.55
 	collision_layer = 1
 	collision_mask = 1
-	var col := CollisionShape3D.new()
+	if collision_shape != null:
+		collision_shape.set_deferred("disabled", false)
+	visible = true
+	set_physics_process(true)
+
+
+func deactivate() -> void:
+	alive = false
+	retiring = false
+	collision_layer = 0
+	collision_mask = 0
+	if collision_shape != null:
+		collision_shape.set_deferred("disabled", true)
+	set_physics_process(false)
+	visible = false
+	scale = Vector3.ONE
+
+
+func retire(duration: float) -> void:
+	if retiring:
+		return
+	retiring = true
+	alive = false
+	collision_layer = 0
+	collision_mask = 0
+	if collision_shape != null:
+		collision_shape.set_deferred("disabled", true)
+	set_physics_process(false)
+	var tween := create_tween()
+	tween.tween_property(self, "scale", Vector3(0.01, 0.01, 0.01), duration)
+	tween.tween_callback(deactivate)
+
+
+func _ready() -> void:
+	collision_layer = 0
+	collision_mask = 0
+	collision_shape = CollisionShape3D.new()
 	var shape := CylinderShape3D.new()
 	shape.radius = 0.9
 	shape.height = 2.2
-	col.shape = shape
-	col.position = Vector3(0.0, 1.1, 0.0)
-	add_child(col)
+	collision_shape.shape = shape
+	collision_shape.position = Vector3(0.0, 1.1, 0.0)
+	collision_shape.disabled = true
+	add_child(collision_shape)
 
 	visual = Node3D.new()
 	visual.name = "Visual"
@@ -60,6 +113,8 @@ func _ready() -> void:
 	pulse.name = "AuraRing"
 	pulse.position = Vector3(0.0, 0.06, 0.0)
 	add_child(pulse)
+	visible = false
+	set_physics_process(false)
 
 
 func _build_visual() -> void:
@@ -160,26 +215,28 @@ func _strike() -> void:
 	await get_tree().create_timer(0.85).timeout
 	if not is_instance_valid(self) or not alive:
 		return
-	game.shell_bolt(pos, 2.7, 22.0)
+	game.shell_bolt(pos, 2.7, 44.0)
 
 
-func take_damage(amount: float, _source: Node = null) -> void:
+func take_damage(amount: float, source: Node = null, _damage_type: String = "physical") -> void:
 	if not alive:
 		return
-	health -= amount
-	game.damage_number(global_position + Vector3(0.0, 3.4, 0.0), amount, 1, true)
+	var source_multiplier := HeroUnit.HERO_OUTGOING_DAMAGE_MULTIPLIER if source is HeroUnit else 1.0
+	var applied_damage := minf(maxf(amount, 0.0) * source_multiplier, health)
+	health -= applied_damage
+	game.damage_number(global_position + Vector3(0.0, 3.4, 0.0), applied_damage, 1, true)
+	if source is HeroUnit:
+		(source as HeroUnit).on_damage_dealt(applied_damage)
 	if health <= 0.0:
 		health = 0.0
 		alive = false
 		collision_layer = 0
 		collision_mask = 0
-		game.on_shell_died(self)
+		if collision_shape != null:
+			collision_shape.set_deferred("disabled", true)
+		set_physics_process(false)
+		game.on_shell_died(self, source)
 
 
 func despawn() -> void:
-	if not alive:
-		return
-	alive = false
-	var tween := create_tween()
-	tween.tween_property(self, "scale", Vector3(0.01, 0.01, 0.01), 0.6)
-	tween.tween_callback(queue_free)
+	retire(0.6)
