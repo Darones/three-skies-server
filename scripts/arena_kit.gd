@@ -184,11 +184,11 @@ static func _add_environment(stage: Node3D) -> void:
 	env.fog_mode = Environment.FOG_MODE_DEPTH
 	env.fog_light_color = Color(0.52, 0.73, 0.84)
 	env.fog_light_energy = 0.8
-	env.fog_density = 0.72
-	env.fog_depth_begin = 28.0
-	env.fog_depth_end = 70.0
+	env.fog_density = 0.55
+	env.fog_depth_begin = 42.0
+	env.fog_depth_end = 82.0
 	env.fog_depth_curve = 1.15
-	env.fog_sky_affect = 0.45
+	env.fog_sky_affect = 0.35
 
 	var world_env := WorldEnvironment.new()
 	world_env.name = "WorldEnvironment"

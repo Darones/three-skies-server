@@ -31,6 +31,7 @@ const BASE_POSITION_Z := 28.0
 const SHOP_INTERACTION_RADIUS := 4.0
 const BOT_CALLSIGNS := ["ЛунныйЛис", "СеверныйВетер", "ТихийШторм", "Искра", "КаменныйПуть", "ЗвёздныйСлед", "СумрачныйКлинок", "БелыйВорон"]
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
+const CLOUD_WALL_SHADER: Shader = preload("res://shaders/cloud_wall.gdshader")
 const FOG_OF_WAR_SHADER_PATH := "res://shaders/fog_of_war.gdshader"
 const FOG_VIEW_RADIUS := 10.0
 const SHOP_STALL_SCENE: PackedScene = preload("res://assets/shop_stall/3d_4f92fe433b084100af7a1d7f_1790958942025.glb")
@@ -165,30 +166,21 @@ func _create_floating_clouds() -> void:
 	var clouds := Node3D.new()
 	clouds.name = "FloatingClouds"
 	arena.add_child(clouds)
-	var cloud_positions: Array[Vector3] = [
-		Vector3(-57.0, -8.0, 0.0),
-		Vector3(57.0, -8.0, 0.0),
-		Vector3(0.0, -8.0, -42.0),
-		Vector3(0.0, -8.0, 42.0),
-		Vector3(-45.0, -8.5, -31.0),
-		Vector3(45.0, -8.5, -31.0),
-		Vector3(-45.0, -8.5, 31.0),
-		Vector3(45.0, -8.5, 31.0),
-	]
-	var cloud_material := StandardMaterial3D.new()
-	cloud_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	cloud_material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	cloud_material.albedo_color = Color(0.68, 0.82, 0.9, 0.32)
-	cloud_material.roughness = 1.0
-	for index in cloud_positions.size():
+	var cloud_material := ShaderMaterial.new()
+	cloud_material.shader = CLOUD_WALL_SHADER
+	cloud_material.set_shader_parameter("cloud_tint", Color(0.72, 0.86, 0.94, 0.38))
+	var segment_count := 16
+	for index in segment_count:
+		var angle := TAU * float(index) / float(segment_count)
 		var cloud := MeshInstance3D.new()
-		cloud.name = "CloudBank_%02d" % (index + 1)
-		var cloud_mesh := PlaneMesh.new()
-		cloud_mesh.size = Vector2(20.0 if index < 4 else 17.0, 11.0 if index < 4 else 9.0)
+		cloud.name = "CloudWall_%02d" % (index + 1)
+		var cloud_mesh := QuadMesh.new()
+		cloud_mesh.size = Vector2(13.0, 26.0)
 		cloud.mesh = cloud_mesh
 		cloud.material_override = cloud_material
-		cloud.position = cloud_positions[index]
-		cloud.rotation.y = deg_to_rad(float(index) * 23.0)
+		cloud.position = Vector3(cos(angle) * 29.2, -5.0, sin(angle) * 21.1)
+		cloud.rotation.y = atan2(-cloud.position.x, -cloud.position.z)
+		cloud.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		clouds.add_child(cloud)
 
 

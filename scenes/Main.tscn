@@ -33,11 +33,11 @@ fog_enabled = true
 fog_mode = 1
 fog_light_color = Color(0.52, 0.73, 0.84, 1)
 fog_light_energy = 0.8
-fog_density = 0.72
-fog_depth_begin = 28.0
-fog_depth_end = 70.0
+fog_density = 0.55
+fog_sky_affect = 0.35
 fog_depth_curve = 1.15
-fog_sky_affect = 0.45
+fog_depth_begin = 42.0
+fog_depth_end = 82.0
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_c01mt"]
 cull_mode = 2
