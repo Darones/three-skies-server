@@ -2,10 +2,10 @@
 
 ## Current Visual Update
 
-- The light-side arena trees use `Glowing Fantasy Tree.glb` through `scenes/GlowingFantasyTree.tscn`; their visibility occluders remain in place.
+- The light-side arena trees use the optimized `tree_light.glb` through `scenes/GlowingFantasyTree.tscn`; their separate visibility occluders remain in place.
 - Godot's built-in import LODs were measured at 249,998, 124,996, 62,498, and 36,728 triangles from a 500,000-triangle base mesh. The base mesh was not reduced to 5–10k.
 - Floor tiles now share continuous vertex heights and normals, removing the visible mesh grid seams; slate vein contrast is reduced.
-- A narrow, translucent blue-gray edge-mist gradient softens the outer floor rim without obscuring the arena.
+- Edge mist and environment depth fog are disabled; the floor rim stays clear. Fog of war remains a separate gameplay visibility mechanic.
 
 ## Vision
 Три игрока против трёх на обломках небесного храма, висящего над пропастью. Каждый матч длится пять минут, цель одна: разбить охранника-Оболочку, подобрать кристалл и дотащить его на базу раньше, чем это сделает враг. Простая задача, но носитель кристалла замедлен, Оболочка бьёт молниями, а противник уже бежит с другого фланга.
@@ -23,7 +23,7 @@
 - Typography: Philosopher Regular is the project-wide UI and 3D-label font; Philosopher Bold is available for emphasized text.
 
 - **Art style**: стилизованный low-poly 3D, изометрия под 45°. Пропорции героев слегка утрированы. Светлая сторона карты: золотые доспехи, белые ткани, солнечные лучи сквозь листву. Тёмная сторона: обсидиан, фиолетовые кристаллы, туман. Камень и металл с физически корректными материалами, но без фотореализма. Цветовая палитра: тёмный сланец и древесный уголь как основа, насыщенные ювелирные акценты на магии и эффектах.
-- Небо — процедурный градиент от глубокого синего к бирюзовому; вокруг обрезанного края острова — мягкая бело-голубая облачная стена и лёгкая дальняя дымка.
+- Небо — процедурный градиент от глубокого синего к бирюзовому; вокруг обрезанного края острова остаётся бело-голубая облачная стена, без атмосферной дымки.
 - **Mood and sound**: в спокойные моменты, когда кристалл ещё не появился, звучит тревожное низкое гудение. В момент появления Оболочки темп резко вырастает: тяжёлые виолончели, редкие удары больших барабанов, мрачные хоровые распевы. Ритм всегда чёткий, музыка не усыпляет даже между схватками.
 - Ульта Воина сопровождается кратким землетрясением с трещинами на земле; ульта Феи — золотыми кольцами, частицами и бесплатным звуковым эффектом колокольчиков.
 - На обеих базах действует защита от урона с полупрозрачным куполом цвета команды; декоративные кристаллы стоят вне кустовых зон, а осколок при падении выбирает свободное место.

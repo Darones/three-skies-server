@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=4]
 
-[ext_resource type="PackedScene" path="res://assets/models/Glowing Fantasy Tree.glb" id="1_model"]
+[ext_resource type="PackedScene" path="res://assets/models/tree_light.glb" id="1_model"]
 [ext_resource type="Script" path="res://scripts/glowing_fantasy_tree.gd" id="2_script"]
 
 [node name="GlowingFantasyTree" type="Node3D"]
