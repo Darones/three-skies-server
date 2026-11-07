@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://rd1aiig267nt" path="res://scripts/game.gd" id="1_game"]
 [ext_resource type="Texture2D" uid="uid://bdnlystb8aws7" path="res://art/textures/slate_floor/img-6adcd384-a1c6-4d03-ab8f-2885c6220fd5-1793744784102-0_1793744784102_va1pqsew.png" id="2_0bbpv"]
 [ext_resource type="Texture2D" uid="uid://cyctyj6q05k5h" path="res://art/textures/obsidian_rock/img-6adcd384-a1c6-4d03-ab8f-2885c6220fd5-1793744225681-0_1793744225682_zroihsmf.png" id="3_rarhs"]
-[ext_resource type="PackedScene" uid="uid://cbdqi4csglncf" path="res://assets/trees/bfc7f2ef-34c2-4168-82a9-3b36072860e2/3d_bfc7f2ef34c2416882a93b36_1789395180469.glb" id="4_bjd11"]
+[ext_resource type="PackedScene" path="res://scenes/GlowingFantasyTree.tscn" id="4_bjd11"]
 [ext_resource type="PackedScene" uid="uid://bv746eqoyjbd3" path="res://assets/trees/0f9fdd6d-f957-4b7c-8b82-5d21a42179b9/3d_1782947454217.glb" id="6_mwfav"]
 [ext_resource type="PackedScene" uid="uid://bgvjfal46pbtk" path="res://assets/trees/3d4b4d8b-0d20-4eb7-90f1-d2fb85cee6e9/3d_3d4b4d8b0d204eb790f1d2fb_1784900839243.glb" id="8_cvmbd"]
 

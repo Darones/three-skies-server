@@ -4,6 +4,7 @@ extends RefCounted
 const FLOOR_LIGHT_TEX := "res://art/textures/temple_floor/img-6adcd384-a1c6-4d03-ab8f-2885c6220fd5-1793744216285-0_1793744216285_y4vdgmr5.png"
 const FLOOR_DARK_TEX := "res://art/textures/obsidian_rock/img-6adcd384-a1c6-4d03-ab8f-2885c6220fd5-1793744225681-0_1793744225682_zroihsmf.png"
 const SLATE_DIR := "res://art/textures/slate_floor"
+const GLOWING_TREE_SCENE := preload("res://scenes/GlowingFantasyTree.tscn")
 
 const HALF_X := 27.0
 const HALF_Z := 19.5
@@ -597,8 +598,11 @@ static func _add_decor(decor: Node3D, mat_rock: StandardMaterial3D) -> void:
 	for i in 16:
 		var ang := TAU * float(i) / 16.0 + 0.22
 		var p := _shape_point(ang, 1.045)
-		var dark := sin(ang) > 0.0
-		_add_tree(decor, Vector3(p.x, -0.9, p.y), 0.95 + 0.25 * sin(float(i) * 1.7), dark, trunk, light_green, light_green2, dark_foliage)
+		var scale_factor := 0.95 + 0.25 * sin(float(i) * 1.7)
+		if p.y > 0.0:
+			_add_glowing_tree(decor, Vector3(p.x, -0.9, p.y), scale_factor, i)
+		else:
+			_add_tree(decor, Vector3(p.x, -0.9, p.y), scale_factor, true, trunk, light_green, light_green2, dark_foliage)
 
 	var bush_spots := [
 		Vector3(-20.0, 0.0, -6.0), Vector3(20.0, 0.0, -6.5),
@@ -676,6 +680,29 @@ static func _add_tree(parent: Node3D, pos: Vector3, scale_factor: float, dark: b
 	visibility_capsule.height = 5.4
 	visibility_shape.shape = visibility_capsule
 	visibility_shape.position = Vector3(0.0, 2.7, 0.0)
+	visibility_body.add_child(visibility_shape)
+	tree.add_child(visibility_body)
+
+
+static func _add_glowing_tree(parent: Node3D, pos: Vector3, scale_factor: float, tree_index: int) -> void:
+	var tree := GLOWING_TREE_SCENE.instantiate() as Node3D
+	if tree == null:
+		return
+	tree.name = "GlowingLightTree_%02d" % tree_index
+	tree.position = pos
+	tree.scale = Vector3.ONE * 4.8 * scale_factor
+	parent.add_child(tree)
+
+	var visibility_body := StaticBody3D.new()
+	visibility_body.name = "VisibilityOccluder"
+	visibility_body.collision_layer = 2
+	visibility_body.collision_mask = 0
+	var visibility_shape := CollisionShape3D.new()
+	var visibility_capsule := CapsuleShape3D.new()
+	visibility_capsule.radius = 0.17
+	visibility_capsule.height = 0.9
+	visibility_shape.shape = visibility_capsule
+	visibility_shape.position = Vector3(0.0, 0.5, 0.0)
 	visibility_body.add_child(visibility_shape)
 	tree.add_child(visibility_body)
 
