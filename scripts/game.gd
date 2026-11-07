@@ -14,6 +14,8 @@ const CRYSTAL_DROP_SEARCH_RADII := [7.8, 9.0, 10.2, 11.4, 12.6]
 const TEST_STARTING_GOLD := 500
 const ARENA_SAFE_HALF_X := 52.0
 const ARENA_SAFE_HALF_Z := 37.0
+const VISIBILITY_COLLISION_MASK := 3
+const VISIBILITY_REFRESH_INTERVAL := 0.12
 const VFX_POOL_SIZE := 10
 const SHELL_BEAM_POOL_SIZE := 5
 const PROJECTILE_POOL_SIZE := 16
@@ -100,6 +102,7 @@ var earthquake_intensity := 0.0
 var select_angle := 0.6
 var camera_pos := Vector3.ZERO
 var camera_distance := 16.0
+var visibility_refresh_timer := 0.0
 var death_camera_active := false
 var death_camera_last_distance := 16.0
 var zoom_speed := 1.0
@@ -929,6 +932,10 @@ func _process(delta: float) -> void:
 		_update_match(delta)
 		if state == "live":
 			_update_gold_fountain(delta)
+			visibility_refresh_timer -= delta
+			if visibility_refresh_timer <= 0.0:
+				_update_enemy_visibility()
+				visibility_refresh_timer = VISIBILITY_REFRESH_INTERVAL
 
 	_update_projectiles(delta)
 	if earthquake_timer > 0.0:
@@ -981,6 +988,33 @@ func _update_camera(delta: float) -> void:
 	camera_pos = camera_pos.lerp(target_pos, 1.0 - exp(-5.0 * delta))
 	camera.global_position = camera_pos
 	camera.look_at(focus, Vector3.UP)
+
+
+func _update_enemy_visibility() -> void:
+	if player == null or not is_instance_valid(player) or camera == null or not is_instance_valid(camera):
+		return
+	var excluded_rids: Array[RID] = []
+	for hero in heroes:
+		if hero != null and is_instance_valid(hero):
+			excluded_rids.append(hero.get_rid())
+	var space_state := get_world_3d().direct_space_state
+	for hero in heroes:
+		if hero == null or not is_instance_valid(hero):
+			continue
+		if hero == player or hero.team == player.team or hero.dead:
+			hero.set_occluded_from_player(false)
+			continue
+		var target_position := hero.global_position + Vector3(0.0, 1.15, 0.0)
+		var ray := PhysicsRayQueryParameters3D.create(
+			camera.global_position,
+			target_position,
+			VISIBILITY_COLLISION_MASK,
+			excluded_rids
+		)
+		ray.collide_with_areas = false
+		ray.collide_with_bodies = true
+		var hit := space_state.intersect_ray(ray)
+		hero.set_occluded_from_player(not hit.is_empty())
 
 func _update_shake(delta: float) -> void:
 	shake_amount = maxf(0.0, shake_amount - delta * 2.2)

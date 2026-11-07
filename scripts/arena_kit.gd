@@ -666,6 +666,19 @@ static func _add_tree(parent: Node3D, pos: Vector3, scale_factor: float, dark: b
 		leaves.position = Vector3(0.0, 2.6 + float(i) * 0.85, 0.0)
 		tree.add_child(leaves)
 
+	var visibility_body := StaticBody3D.new()
+	visibility_body.name = "VisibilityOccluder"
+	visibility_body.collision_layer = 2
+	visibility_body.collision_mask = 0
+	var visibility_shape := CollisionShape3D.new()
+	var visibility_capsule := CapsuleShape3D.new()
+	visibility_capsule.radius = 1.35
+	visibility_capsule.height = 5.4
+	visibility_shape.shape = visibility_capsule
+	visibility_shape.position = Vector3(0.0, 2.7, 0.0)
+	visibility_body.add_child(visibility_shape)
+	tree.add_child(visibility_body)
+
 
 static func _add_rock(parent: Node3D, pos: Vector3, size: float, mat: StandardMaterial3D, floating := false) -> void:
 	var rock := MeshInstance3D.new()

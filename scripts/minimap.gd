@@ -165,8 +165,10 @@ func _draw_heroes(map_rect: Rect2, player_team: int) -> void:
 		_draw_hero_marker(hero, map_rect, ALLY_COLOR, hero == game.player)
 	if game.player == null or not is_instance_valid(game.player):
 		return
-	for enemy in game.enemies_of(player_team, game.player):
-		if enemy == null or not is_instance_valid(enemy):
+	for enemy in game.heroes:
+		if enemy == null or not is_instance_valid(enemy) or enemy.team == player_team:
+			continue
+		if not enemy.is_visible_to_player(game.player):
 			continue
 		_draw_hero_marker(enemy, map_rect, ENEMY_COLOR, false)
 

@@ -143,6 +143,7 @@ var health_back: MeshInstance3D
 var health_fill: MeshInstance3D
 var health_label: Label3D
 var player_nameplate: Label3D
+var occluded_from_player := false
 var carry_light: OmniLight3D
 var bush_zones: Array[Area3D] = []
 var in_bush := false
@@ -741,8 +742,6 @@ func _base_position() -> Vector3:
 
 
 func _try_auto_attack(movement_direction: Vector3) -> void:
-	if _is_bush_stealthed():
-		return
 	if attack_cd > 0.0:
 		return
 	if game == null:
@@ -790,8 +789,8 @@ func _attack_target() -> Node3D:
 	var best_enemy: HeroUnit = null
 	var best_health := INF
 	var best_distance := INF
-	var visible_enemies: Array = game.enemies_of(team, self)
-	for candidate in visible_enemies:
+	var attackable_enemies: Array = game.enemies_of(team, self)
+	for candidate in attackable_enemies:
 		var enemy := candidate as HeroUnit
 		if enemy == null:
 			continue
@@ -951,7 +950,7 @@ func _refresh_bush_visibility() -> void:
 
 
 func _health_bar_visible() -> bool:
-	if dead:
+	if dead or occluded_from_player:
 		return false
 	if not _is_bush_stealthed():
 		return true
@@ -968,6 +967,21 @@ func is_hidden_from(observer: HeroUnit) -> bool:
 		if observer.bush_zones.has(zone):
 			return false
 	return true
+
+
+func set_occluded_from_player(occluded: bool) -> void:
+	if occluded_from_player == occluded:
+		return
+	occluded_from_player = occluded
+	if visual != null:
+		visual.visible = not dead and not occluded_from_player
+	_update_health_display()
+	if player_nameplate != null:
+		player_nameplate.visible = _health_bar_visible()
+
+
+func is_visible_to_player(observer: HeroUnit) -> bool:
+	return not dead and not occluded_from_player and not is_hidden_from(observer)
 
 func _update_health_display() -> void:
 	var displayed_max := maxi(1, roundi(max_health))
@@ -1099,7 +1113,7 @@ func _respawn() -> void:
 	velocity = Vector3.ZERO
 	set_collision_layer_value(1, true)
 	set_collision_mask_value(1, true)
-	visual.visible = true
+	visual.visible = not occluded_from_player
 	current_anim = ""
 	if health_back != null:
 		health_back.visible = _health_bar_visible()
