@@ -31,6 +31,8 @@ const BASE_POSITION_Z := 28.0
 const SHOP_INTERACTION_RADIUS := 4.0
 const BOT_CALLSIGNS := ["ЛунныйЛис", "СеверныйВетер", "ТихийШторм", "Искра", "КаменныйПуть", "ЗвёздныйСлед", "СумрачныйКлинок", "БелыйВорон"]
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
+const FOG_OF_WAR_SHADER: Shader = preload("res://shaders/fog_of_war.gdshader")
+const FOG_VIEW_RADIUS := 15.0
 const SHOP_STALL_SCENE: PackedScene = preload("res://assets/shop_stall/3d_4f92fe433b084100af7a1d7f_1790958942025.glb")
 const GOLD_FOUNTAIN_SCENE: PackedScene = preload("res://assets/gold_fountain/3d_aeb9c9ced6384164aff32ae5_1790300466128.glb")
 const SHOP_ITEMS := [
@@ -55,6 +57,8 @@ const SFX_PATHS := {
 
 var camera: Camera3D
 var hud: Node
+var fog_of_war_plane: MeshInstance3D
+var fog_of_war_material: ShaderMaterial
 var heroes: Array[HeroUnit] = []
 var player: HeroUnit = null
 var shell: SkyShell = null
@@ -129,6 +133,7 @@ func _ready() -> void:
 		arena.name = "Arena"
 		add_child(arena)
 		ArenaKit.build(arena)
+	_create_fog_of_war()
 	_create_shop_stall()
 	_create_gold_fountain()
 	_setup_audio()
@@ -927,6 +932,7 @@ func _process(delta: float) -> void:
 		camera.look_at(focus, Vector3.UP)
 	else:
 		_update_camera(delta)
+	_update_fog_of_war()
 
 	if state == "live":
 		_update_match(delta)
@@ -943,6 +949,36 @@ func _process(delta: float) -> void:
 		shake(earthquake_intensity)
 	_update_shake(delta)
 	_update_crystal(delta)
+
+
+func _create_fog_of_war() -> void:
+	var arena := get_node_or_null("Arena") as Node3D
+	if arena == null or arena.get_node_or_null("FogOfWar") != null:
+		return
+
+	fog_of_war_plane = MeshInstance3D.new()
+	fog_of_war_plane.name = "FogOfWar"
+	var plane_mesh := PlaneMesh.new()
+	plane_mesh.size = Vector2(ArenaKit.HALF_X * 2.0, ArenaKit.HALF_Z * 2.0)
+	fog_of_war_plane.mesh = plane_mesh
+	fog_of_war_plane.position = Vector3(0.0, 0.35, 0.0)
+	fog_of_war_plane.visible = false
+	fog_of_war_material = ShaderMaterial.new()
+	fog_of_war_material.shader = FOG_OF_WAR_SHADER
+	fog_of_war_material.set_shader_parameter("view_radius", FOG_VIEW_RADIUS)
+	fog_of_war_material.set_shader_parameter("arena_half_extent", Vector2(ArenaKit.HALF_X, ArenaKit.HALF_Z))
+	fog_of_war_plane.material_override = fog_of_war_material
+	arena.add_child(fog_of_war_plane)
+
+
+func _update_fog_of_war() -> void:
+	if fog_of_war_plane == null or fog_of_war_material == null:
+		return
+	fog_of_war_plane.visible = state == "live"
+	if state != "live":
+		return
+	if player != null and is_instance_valid(player):
+		fog_of_war_material.set_shader_parameter("player_position", player.global_position)
 
 
 func _update_camera(delta: float) -> void:
