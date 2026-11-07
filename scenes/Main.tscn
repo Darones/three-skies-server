@@ -3,6 +3,9 @@
 [ext_resource type="Script" uid="uid://rd1aiig267nt" path="res://scripts/game.gd" id="1_game"]
 [ext_resource type="Texture2D" uid="uid://bdnlystb8aws7" path="res://art/textures/slate_floor/img-6adcd384-a1c6-4d03-ab8f-2885c6220fd5-1793744784102-0_1793744784102_va1pqsew.png" id="2_0bbpv"]
 [ext_resource type="Texture2D" uid="uid://cyctyj6q05k5h" path="res://art/textures/obsidian_rock/img-6adcd384-a1c6-4d03-ab8f-2885c6220fd5-1793744225681-0_1793744225682_zroihsmf.png" id="3_rarhs"]
+[ext_resource type="PackedScene" uid="uid://cbdqi4csglncf" path="res://assets/trees/bfc7f2ef-34c2-4168-82a9-3b36072860e2/3d_bfc7f2ef34c2416882a93b36_1789395180469.glb" id="4_bjd11"]
+[ext_resource type="PackedScene" uid="uid://bv746eqoyjbd3" path="res://assets/trees/0f9fdd6d-f957-4b7c-8b82-5d21a42179b9/3d_1782947454217.glb" id="6_mwfav"]
+[ext_resource type="PackedScene" uid="uid://bgvjfal46pbtk" path="res://assets/trees/3d4b4d8b-0d20-4eb7-90f1-d2fb85cee6e9/3d_3d4b4d8b0d204eb790f1d2fb_1784900839243.glb" id="8_cvmbd"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_0bbpv"]
 sky_top_color = Color(0.05, 0.07, 0.13, 1)
@@ -533,357 +536,9 @@ radial_segments = 40
 rings = 20
 is_hemisphere = true
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_r0h7t"]
-albedo_color = Color(0.16, 0.13, 0.14, 1)
-roughness = 0.95
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_4mw0a"]
-top_radius = 0.18
-bottom_radius = 0.3
-height = 3.2
-radial_segments = 6
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_a54x0"]
-albedo_color = Color(0.2, 0.13, 0.3, 1)
-roughness = 0.95
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_weayx"]
-top_radius = 0.0
-bottom_radius = 1.5
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_hl0eo"]
-top_radius = 0.0
-bottom_radius = 1.18
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_nov6g"]
-top_radius = 0.0
-bottom_radius = 0.86
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_708gh"]
-top_radius = 0.18
-bottom_radius = 0.3
-height = 3.2
-radial_segments = 6
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_gnlq8"]
-top_radius = 0.0
-bottom_radius = 1.5
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_qa0xl"]
-top_radius = 0.0
-bottom_radius = 1.18
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_lv3yw"]
-top_radius = 0.0
-bottom_radius = 0.86
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_5q1ge"]
-top_radius = 0.18
-bottom_radius = 0.3
-height = 3.2
-radial_segments = 6
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_nch24"]
-top_radius = 0.0
-bottom_radius = 1.5
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_h7ea0"]
-top_radius = 0.0
-bottom_radius = 1.18
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_p2wxp"]
-top_radius = 0.0
-bottom_radius = 0.86
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_so1ur"]
-top_radius = 0.18
-bottom_radius = 0.3
-height = 3.2
-radial_segments = 6
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_4jthf"]
-top_radius = 0.0
-bottom_radius = 1.5
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_2ntqj"]
-top_radius = 0.0
-bottom_radius = 1.18
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_0nt4r"]
-top_radius = 0.0
-bottom_radius = 0.86
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_xqjv3"]
-top_radius = 0.18
-bottom_radius = 0.3
-height = 3.2
-radial_segments = 6
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_e6xh0"]
-top_radius = 0.0
-bottom_radius = 1.5
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_6bk4a"]
-top_radius = 0.0
-bottom_radius = 1.18
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_x2ac1"]
-top_radius = 0.0
-bottom_radius = 0.86
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_numhm"]
-top_radius = 0.18
-bottom_radius = 0.3
-height = 3.2
-radial_segments = 6
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_2ao5w"]
-top_radius = 0.0
-bottom_radius = 1.5
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_ev2em"]
-top_radius = 0.0
-bottom_radius = 1.18
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_c6fve"]
-top_radius = 0.0
-bottom_radius = 0.86
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_qm4a8"]
-top_radius = 0.18
-bottom_radius = 0.3
-height = 3.2
-radial_segments = 6
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_ultn8"]
-top_radius = 0.0
-bottom_radius = 1.5
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_53vpr"]
-top_radius = 0.0
-bottom_radius = 1.18
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_nv1v0"]
-top_radius = 0.0
-bottom_radius = 0.86
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_e0url"]
-top_radius = 0.18
-bottom_radius = 0.3
-height = 3.2
-radial_segments = 6
-
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_yxed4"]
 albedo_color = Color(0.26, 0.42, 0.34, 1)
 roughness = 0.9
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_pmlxg"]
-top_radius = 0.0
-bottom_radius = 1.5
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_w2sqe"]
-albedo_color = Color(0.42, 0.5, 0.3, 1)
-roughness = 0.9
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_pbsro"]
-top_radius = 0.0
-bottom_radius = 1.18
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_v0mtf"]
-top_radius = 0.0
-bottom_radius = 0.86
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_l2u81"]
-top_radius = 0.18
-bottom_radius = 0.3
-height = 3.2
-radial_segments = 6
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_cton6"]
-top_radius = 0.0
-bottom_radius = 1.5
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_7f41k"]
-top_radius = 0.0
-bottom_radius = 1.18
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_qiqef"]
-top_radius = 0.0
-bottom_radius = 0.86
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_0d7yf"]
-top_radius = 0.18
-bottom_radius = 0.3
-height = 3.2
-radial_segments = 6
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_uer86"]
-top_radius = 0.0
-bottom_radius = 1.5
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_w0c4r"]
-top_radius = 0.0
-bottom_radius = 1.18
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_ste0v"]
-top_radius = 0.0
-bottom_radius = 0.86
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_dx8qs"]
-top_radius = 0.18
-bottom_radius = 0.3
-height = 3.2
-radial_segments = 6
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_vbttc"]
-top_radius = 0.0
-bottom_radius = 1.5
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_723yh"]
-top_radius = 0.0
-bottom_radius = 1.18
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_cr6mk"]
-top_radius = 0.0
-bottom_radius = 0.86
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_l4k6j"]
-top_radius = 0.18
-bottom_radius = 0.3
-height = 3.2
-radial_segments = 6
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_fldd5"]
-top_radius = 0.0
-bottom_radius = 1.5
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_muqxe"]
-top_radius = 0.0
-bottom_radius = 1.18
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_cuva4"]
-top_radius = 0.0
-bottom_radius = 0.86
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_0ri4p"]
-top_radius = 0.18
-bottom_radius = 0.3
-height = 3.2
-radial_segments = 6
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_hjpbf"]
-top_radius = 0.0
-bottom_radius = 1.5
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_lgim7"]
-top_radius = 0.0
-bottom_radius = 1.18
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_24id4"]
-top_radius = 0.0
-bottom_radius = 0.86
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_u5ctp"]
-top_radius = 0.18
-bottom_radius = 0.3
-height = 3.2
-radial_segments = 6
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_pjdn0"]
-top_radius = 0.0
-bottom_radius = 1.5
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_d6eqw"]
-top_radius = 0.0
-bottom_radius = 1.18
-height = 1.7
-radial_segments = 7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_m3650"]
-top_radius = 0.0
-bottom_radius = 0.86
-height = 1.7
-radial_segments = 7
 
 [sub_resource type="SphereMesh" id="SphereMesh_7ai6v"]
 radius = 0.75
@@ -896,6 +551,10 @@ radius = 0.75
 height = 0.9
 radial_segments = 6
 rings = 3
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_a54x0"]
+albedo_color = Color(0.2, 0.13, 0.3, 1)
+roughness = 0.95
 
 [sub_resource type="SphereMesh" id="SphereMesh_bs17g"]
 radius = 0.75
@@ -1537,6 +1196,66 @@ height = 1.272115
 radial_segments = 5
 rings = 2
 
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_c01mt"]
+radius = 0.848846
+height = 4.224
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_nxtc6"]
+radius = 0.81347746
+height = 4.048
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_jlsqs"]
+radius = 0.848846
+height = 4.224
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_q8u5g"]
+radius = 0.81347746
+height = 4.048
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_lhr70"]
+radius = 0.848846
+height = 4.224
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_wp0k4"]
+radius = 1.2488445
+height = 4.4
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_bjd11"]
+radius = 1.2987983
+height = 4.576
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_qmy6f"]
+radius = 1.1988907
+height = 4.224
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_mwfav"]
+radius = 1.2488445
+height = 4.4
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_3p2gp"]
+radius = 1.1988907
+height = 4.224
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_cvmbd"]
+radius = 0.6386889
+height = 4.224
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_ft6cd"]
+radius = 0.6120769
+height = 4.048
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_bb450"]
+radius = 0.6386889
+height = 4.224
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_nfivy"]
+radius = 0.6120769
+height = 4.048
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1nqs0"]
+radius = 0.6386889
+height = 4.224
+
 [sub_resource type="SphereShape3D" id="SphereShape3D_0bbpv"]
 radius = 3.4
 
@@ -2097,328 +1816,6 @@ cast_shadow = 0
 mesh = SubResource("SphereMesh_c01mt")
 
 [node name="Decor" type="Node3D" parent="Arena" unique_id=2064998729]
-
-[node name="@Node3D@25554" type="Node3D" parent="Arena/Decor" unique_id=1324736144]
-transform = Transform3D(0.95, 0, 0, 0, 0.95, 0, 0, 0, 0.95, 29.11931, -0.9, 4.7028537)
-
-[node name="@MeshInstance3D@25555" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25554" unique_id=141487200]
-transform = Transform3D(0.9961947, -0.08715574, 0, 0.08715574, 0.9961947, 0, 0, 0, 1, 0, 1.6, 0)
-material_override = SubResource("StandardMaterial3D_r0h7t")
-mesh = SubResource("CylinderMesh_4mw0a")
-
-[node name="@MeshInstance3D@25556" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25554" unique_id=1901247571]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_weayx")
-
-[node name="@MeshInstance3D@25557" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25554" unique_id=1682319075]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.45, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_hl0eo")
-
-[node name="@MeshInstance3D@25558" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25554" unique_id=238640212]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.3, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_nov6g")
-
-[node name="@Node3D@25559" type="Node3D" parent="Arena/Decor" unique_id=688640147]
-transform = Transform3D(1.1979162, 0, 0, 0, 1.1979162, 0, 0, 0, 1.1979162, 23.925945, -0.9, 12.146767)
-
-[node name="@MeshInstance3D@25560" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25559" unique_id=38222517]
-transform = Transform3D(0.9961947, -0.08715574, 0, 0.08715574, 0.9961947, 0, 0, 0, 1, 0, 1.6, 0)
-material_override = SubResource("StandardMaterial3D_r0h7t")
-mesh = SubResource("CylinderMesh_708gh")
-
-[node name="@MeshInstance3D@25561" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25559" unique_id=2129105661]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_gnlq8")
-
-[node name="@MeshInstance3D@25562" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25559" unique_id=945732657]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.45, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_qa0xl")
-
-[node name="@MeshInstance3D@25563" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25559" unique_id=1252450790]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.3, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_lv3yw")
-
-[node name="@Node3D@25564" type="Node3D" parent="Arena/Decor" unique_id=874757322]
-transform = Transform3D(0.8861147, 0, 0, 0, 0.8861147, 0, 0, 0, 0.8861147, 14.424355, -0.9, 16.418707)
-
-[node name="@MeshInstance3D@25565" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25564" unique_id=682937604]
-transform = Transform3D(0.9961947, -0.08715574, 0, 0.08715574, 0.9961947, 0, 0, 0, 1, 0, 1.6, 0)
-material_override = SubResource("StandardMaterial3D_r0h7t")
-mesh = SubResource("CylinderMesh_5q1ge")
-
-[node name="@MeshInstance3D@25566" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25564" unique_id=1414859687]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_nch24")
-
-[node name="@MeshInstance3D@25567" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25564" unique_id=1924759546]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.45, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_h7ea0")
-
-[node name="@MeshInstance3D@25568" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25564" unique_id=1724901900]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.3, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_p2wxp")
-
-[node name="@Node3D@25574" type="Node3D" parent="Arena/Decor" unique_id=59190534]
-transform = Transform3D(1.0735283, 0, 0, 0, 1.0735283, 0, 0, 0, 1.0735283, -5.7318525, -0.9, 18.512127)
-
-[node name="@MeshInstance3D@25575" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25574" unique_id=575153031]
-transform = Transform3D(0.9961947, -0.08715574, 0, 0.08715574, 0.9961947, 0, 0, 0, 1, 0, 1.6, 0)
-material_override = SubResource("StandardMaterial3D_r0h7t")
-mesh = SubResource("CylinderMesh_so1ur")
-
-[node name="@MeshInstance3D@25576" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25574" unique_id=830618190]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_4jthf")
-
-[node name="@MeshInstance3D@25577" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25574" unique_id=1257027123]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.45, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_2ntqj")
-
-[node name="@MeshInstance3D@25578" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25574" unique_id=434217585]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.3, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_0nt4r")
-
-[node name="@Node3D@25579" type="Node3D" parent="Arena/Decor" unique_id=1024387669]
-transform = Transform3D(1.1496217, 0, 0, 0, 1.1496217, 0, 0, 0, 1.1496217, -16.482107, -0.9, 16.934128)
-
-[node name="@MeshInstance3D@25580" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25579" unique_id=1024300568]
-transform = Transform3D(0.9961947, -0.08715574, 0, 0.08715574, 0.9961947, 0, 0, 0, 1, 0, 1.6, 0)
-material_override = SubResource("StandardMaterial3D_r0h7t")
-mesh = SubResource("CylinderMesh_xqjv3")
-
-[node name="@MeshInstance3D@25581" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25579" unique_id=400088714]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_e6xh0")
-
-[node name="@MeshInstance3D@25582" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25579" unique_id=767205654]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.45, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_6bk4a")
-
-[node name="@MeshInstance3D@25583" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25579" unique_id=2078450514]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.3, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_x2ac1")
-
-[node name="@Node3D@25584" type="Node3D" parent="Arena/Decor" unique_id=1916813501]
-transform = Transform3D(0.7750313, 0, 0, 0, 0.7750313, 0, 0, 0, 0.7750313, -26.583141, -0.9, 12.181631)
-
-[node name="@MeshInstance3D@25585" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25584" unique_id=1329059349]
-transform = Transform3D(0.9961947, -0.08715574, 0, 0.08715574, 0.9961947, 0, 0, 0, 1, 0, 1.6, 0)
-material_override = SubResource("StandardMaterial3D_r0h7t")
-mesh = SubResource("CylinderMesh_numhm")
-
-[node name="@MeshInstance3D@25586" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25584" unique_id=1548556766]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_2ao5w")
-
-[node name="@MeshInstance3D@25587" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25584" unique_id=1063090988]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.45, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_ev2em")
-
-[node name="@MeshInstance3D@25588" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25584" unique_id=2014650855]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.3, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_c6fve")
-
-[node name="@Node3D@25589" type="Node3D" parent="Arena/Decor" unique_id=1587531197]
-transform = Transform3D(0.7954657, 0, 0, 0, 0.7954657, 0, 0, 0, 0.7954657, -26.954693, -0.9, 3.3958085)
-
-[node name="@MeshInstance3D@25590" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25589" unique_id=1905677292]
-transform = Transform3D(0.9961947, -0.08715574, 0, 0.08715574, 0.9961947, 0, 0, 0, 1, 0, 1.6, 0)
-material_override = SubResource("StandardMaterial3D_r0h7t")
-mesh = SubResource("CylinderMesh_qm4a8")
-
-[node name="@MeshInstance3D@25591" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25589" unique_id=1553354800]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_ultn8")
-
-[node name="@MeshInstance3D@25592" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25589" unique_id=1835282894]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.45, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_53vpr")
-
-[node name="@MeshInstance3D@25593" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25589" unique_id=1055039617]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.3, 0)
-material_override = SubResource("StandardMaterial3D_a54x0")
-mesh = SubResource("CylinderMesh_nv1v0")
-
-[node name="@Node3D@25594" type="Node3D" parent="Arena/Decor" unique_id=68759580]
-transform = Transform3D(1.1647905, 0, 0, 0, 1.1647905, 0, 0, 0, 1.1647905, -25.950583, -0.9, -4.191095)
-
-[node name="@MeshInstance3D@25595" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25594" unique_id=1098287181]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
-material_override = SubResource("StandardMaterial3D_r0h7t")
-mesh = SubResource("CylinderMesh_e0url")
-
-[node name="@MeshInstance3D@25596" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25594" unique_id=1901279090]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0)
-material_override = SubResource("StandardMaterial3D_yxed4")
-mesh = SubResource("CylinderMesh_pmlxg")
-
-[node name="@MeshInstance3D@25597" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25594" unique_id=570140441]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.45, 0)
-material_override = SubResource("StandardMaterial3D_w2sqe")
-mesh = SubResource("CylinderMesh_pbsro")
-
-[node name="@MeshInstance3D@25598" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25594" unique_id=1408878144]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.3, 0)
-material_override = SubResource("StandardMaterial3D_yxed4")
-mesh = SubResource("CylinderMesh_v0mtf")
-
-[node name="@Node3D@25599" type="Node3D" parent="Arena/Decor" unique_id=1360056238]
-transform = Transform3D(1.0491852, 0, 0, 0, 1.0491852, 0, 0, 0, 1.0491852, -22.23937, -0.9, -11.290524)
-
-[node name="@MeshInstance3D@25600" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25599" unique_id=1089951329]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
-material_override = SubResource("StandardMaterial3D_r0h7t")
-mesh = SubResource("CylinderMesh_l2u81")
-
-[node name="@MeshInstance3D@25601" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25599" unique_id=733918219]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0)
-material_override = SubResource("StandardMaterial3D_yxed4")
-mesh = SubResource("CylinderMesh_cton6")
-
-[node name="@MeshInstance3D@25602" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25599" unique_id=607756444]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.45, 0)
-material_override = SubResource("StandardMaterial3D_w2sqe")
-mesh = SubResource("CylinderMesh_7f41k")
-
-[node name="@MeshInstance3D@25603" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25599" unique_id=1729786602]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.3, 0)
-material_override = SubResource("StandardMaterial3D_yxed4")
-mesh = SubResource("CylinderMesh_qiqef")
-
-[node name="@Node3D@25604" type="Node3D" parent="Arena/Decor" unique_id=1412349280]
-transform = Transform3D(0.70965064, 0, 0, 0, 0.70965064, 0, 0, 0, 0.70965064, -15.808134, -0.9, -17.99381)
-
-[node name="@MeshInstance3D@25605" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25604" unique_id=1536281847]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
-material_override = SubResource("StandardMaterial3D_r0h7t")
-mesh = SubResource("CylinderMesh_0d7yf")
-
-[node name="@MeshInstance3D@25606" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25604" unique_id=1095775622]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0)
-material_override = SubResource("StandardMaterial3D_yxed4")
-mesh = SubResource("CylinderMesh_uer86")
-
-[node name="@MeshInstance3D@25607" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25604" unique_id=1073894149]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.45, 0)
-material_override = SubResource("StandardMaterial3D_w2sqe")
-mesh = SubResource("CylinderMesh_w0c4r")
-
-[node name="@MeshInstance3D@25608" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25604" unique_id=797607618]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.3, 0)
-material_override = SubResource("StandardMaterial3D_yxed4")
-mesh = SubResource("CylinderMesh_ste0v")
-
-[node name="@Node3D@25614" type="Node3D" parent="Arena/Decor" unique_id=2035660717]
-transform = Transform3D(1.1999482, 0, 0, 0, 1.1999482, 0, 0, 0, 1.1999482, 6.582845, -0.9, -21.260572)
-
-[node name="@MeshInstance3D@25615" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25614" unique_id=2051587913]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
-material_override = SubResource("StandardMaterial3D_r0h7t")
-mesh = SubResource("CylinderMesh_dx8qs")
-
-[node name="@MeshInstance3D@25616" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25614" unique_id=1371113131]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0)
-material_override = SubResource("StandardMaterial3D_yxed4")
-mesh = SubResource("CylinderMesh_vbttc")
-
-[node name="@MeshInstance3D@25617" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25614" unique_id=945108604]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.45, 0)
-material_override = SubResource("StandardMaterial3D_w2sqe")
-mesh = SubResource("CylinderMesh_723yh")
-
-[node name="@MeshInstance3D@25618" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25614" unique_id=1377092780]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.3, 0)
-material_override = SubResource("StandardMaterial3D_yxed4")
-mesh = SubResource("CylinderMesh_cr6mk")
-
-[node name="@Node3D@25619" type="Node3D" parent="Arena/Decor" unique_id=1926083418]
-transform = Transform3D(0.92284083, 0, 0, 0, 0.92284083, 0, 0, 0, 0.92284083, 15.969525, -0.9, -16.407488)
-
-[node name="@MeshInstance3D@25620" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25619" unique_id=497734697]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
-material_override = SubResource("StandardMaterial3D_r0h7t")
-mesh = SubResource("CylinderMesh_l4k6j")
-
-[node name="@MeshInstance3D@25621" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25619" unique_id=1540516688]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0)
-material_override = SubResource("StandardMaterial3D_yxed4")
-mesh = SubResource("CylinderMesh_fldd5")
-
-[node name="@MeshInstance3D@25622" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25619" unique_id=1700760396]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.45, 0)
-material_override = SubResource("StandardMaterial3D_w2sqe")
-mesh = SubResource("CylinderMesh_muqxe")
-
-[node name="@MeshInstance3D@25623" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25619" unique_id=896370574]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.3, 0)
-material_override = SubResource("StandardMaterial3D_yxed4")
-mesh = SubResource("CylinderMesh_cuva4")
-
-[node name="@Node3D@25624" type="Node3D" parent="Arena/Decor" unique_id=1504448854]
-transform = Transform3D(0.7070504, 0, 0, 0, 0.7070504, 0, 0, 0, 0.7070504, 21.06496, -0.9, -9.652944)
-
-[node name="@MeshInstance3D@25625" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25624" unique_id=614146863]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
-material_override = SubResource("StandardMaterial3D_r0h7t")
-mesh = SubResource("CylinderMesh_0ri4p")
-
-[node name="@MeshInstance3D@25626" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25624" unique_id=773896944]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0)
-material_override = SubResource("StandardMaterial3D_yxed4")
-mesh = SubResource("CylinderMesh_hjpbf")
-
-[node name="@MeshInstance3D@25627" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25624" unique_id=585631354]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.45, 0)
-material_override = SubResource("StandardMaterial3D_w2sqe")
-mesh = SubResource("CylinderMesh_lgim7")
-
-[node name="@MeshInstance3D@25628" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25624" unique_id=2036718137]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.3, 0)
-material_override = SubResource("StandardMaterial3D_yxed4")
-mesh = SubResource("CylinderMesh_24id4")
-
-[node name="@Node3D@25629" type="Node3D" parent="Arena/Decor" unique_id=923749994]
-transform = Transform3D(1.0397646, 0, 0, 0, 1.0397646, 0, 0, 0, 1.0397646, 28.635885, -0.9, -3.6076083)
-
-[node name="@MeshInstance3D@25630" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25629" unique_id=1903708753]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
-material_override = SubResource("StandardMaterial3D_r0h7t")
-mesh = SubResource("CylinderMesh_u5ctp")
-
-[node name="@MeshInstance3D@25631" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25629" unique_id=1756368798]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0)
-material_override = SubResource("StandardMaterial3D_yxed4")
-mesh = SubResource("CylinderMesh_pjdn0")
-
-[node name="@MeshInstance3D@25632" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25629" unique_id=1957714352]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.45, 0)
-material_override = SubResource("StandardMaterial3D_w2sqe")
-mesh = SubResource("CylinderMesh_d6eqw")
-
-[node name="@MeshInstance3D@25633" type="MeshInstance3D" parent="Arena/Decor/@Node3D@25629" unique_id=2025161024]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.3, 0)
-material_override = SubResource("StandardMaterial3D_yxed4")
-mesh = SubResource("CylinderMesh_m3650")
 
 [node name="@MeshInstance3D@25634" type="MeshInstance3D" parent="Arena/Decor" unique_id=1164086408]
 transform = Transform3D(1, 0, 0, 0, 0.62, 0, 0, 0, 1, -20, 0.22, -6)
@@ -3095,6 +2492,171 @@ mesh = SubResource("SphereMesh_3am16")
 transform = Transform3D(0.9762058, -0.093682244, -0.13419941, 0.14676306, 0.5360109, -0.16936044, 0.1596335, 0.08009932, 0.9763747, 27.645905, -0.11619825, -2.7443304)
 material_override = SubResource("StandardMaterial3D_q8u5g")
 mesh = SubResource("SphereMesh_q285r")
+
+[node name="StylizedLightTree01" type="Node3D" parent="Arena/Decor" unique_id=453722608 instance=ExtResource("4_bjd11")]
+transform = Transform3D(4.8484554, 0, 0, 0, 4.8484554, 0, 0, 0, 4.8484554, 29.119, 0, 4.703)
+
+[node name="TreeVisibilityOccluder1" type="StaticBody3D" parent="Arena/Decor" unique_id=241086278]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 29.119, 2.4, 4.703)
+collision_layer = 2
+collision_mask = 0
+
+[node name="@CollisionShape3D@25152" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder1" unique_id=1471428808]
+shape = SubResource("CapsuleShape3D_c01mt")
+
+[node name="StylizedLightTree02" type="Node3D" parent="Arena/Decor" unique_id=284610903 instance=ExtResource("4_bjd11")]
+transform = Transform3D(4.646436, 0, 0, 0, 4.646436, 0, 0, 0, 4.646436, 23.926, 0, 12.147)
+
+[node name="TreeVisibilityOccluder2" type="StaticBody3D" parent="Arena/Decor" unique_id=831462032]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.926, 2.3, 12.147)
+collision_layer = 2
+collision_mask = 0
+
+[node name="@CollisionShape3D@25153" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder2" unique_id=1533307935]
+shape = SubResource("CapsuleShape3D_nxtc6")
+
+[node name="StylizedLightTree03" type="Node3D" parent="Arena/Decor" unique_id=1026252896 instance=ExtResource("4_bjd11")]
+transform = Transform3D(4.8484554, 0, 0, 0, 4.8484554, 0, 0, 0, 4.8484554, 14.424, 0, 16.419)
+
+[node name="TreeVisibilityOccluder3" type="StaticBody3D" parent="Arena/Decor" unique_id=1082340514]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.424, 2.4, 16.419)
+collision_layer = 2
+collision_mask = 0
+
+[node name="@CollisionShape3D@25154" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder3" unique_id=425168903]
+shape = SubResource("CapsuleShape3D_jlsqs")
+
+[node name="StylizedLightTree04" type="Node3D" parent="Arena/Decor" unique_id=1079071663 instance=ExtResource("4_bjd11")]
+transform = Transform3D(4.646436, 0, 0, 0, 4.646436, 0, 0, 0, 4.646436, -5.732, 0, 18.512)
+
+[node name="TreeVisibilityOccluder4" type="StaticBody3D" parent="Arena/Decor" unique_id=558818050]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.732, 2.3, 18.512)
+collision_layer = 2
+collision_mask = 0
+
+[node name="@CollisionShape3D@25155" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder4" unique_id=1838878163]
+shape = SubResource("CapsuleShape3D_q8u5g")
+
+[node name="StylizedLightTree05" type="Node3D" parent="Arena/Decor" unique_id=1649555418 instance=ExtResource("4_bjd11")]
+transform = Transform3D(4.8484554, 0, 0, 0, 4.8484554, 0, 0, 0, 4.8484554, -16.482, 0, 16.934)
+
+[node name="TreeVisibilityOccluder5" type="StaticBody3D" parent="Arena/Decor" unique_id=1447271867]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16.482, 2.4, 16.934)
+collision_layer = 2
+collision_mask = 0
+
+[node name="@CollisionShape3D@25156" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder5" unique_id=1156360955]
+shape = SubResource("CapsuleShape3D_lhr70")
+
+[node name="AncientDarkTree01" type="Node3D" parent="Arena/Decor" unique_id=465028220 instance=ExtResource("6_mwfav")]
+transform = Transform3D(5.6662874, 0, 0, 0, 5.6662874, 0, 0, 0, 5.6662874, -25.951, 0, -4.191)
+
+[node name="TreeVisibilityOccluder6" type="StaticBody3D" parent="Arena/Decor" unique_id=859226939]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25.951, 2.5, -4.191)
+collision_layer = 2
+collision_mask = 0
+
+[node name="@CollisionShape3D@25157" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder6" unique_id=1046713912]
+shape = SubResource("CapsuleShape3D_wp0k4")
+
+[node name="AncientDarkTree02" type="Node3D" parent="Arena/Decor" unique_id=1055929089 instance=ExtResource("6_mwfav")]
+transform = Transform3D(5.8929386, 0, 0, 0, 5.8929386, 0, 0, 0, 5.8929386, -22.239, 0, -11.291)
+
+[node name="TreeVisibilityOccluder7" type="StaticBody3D" parent="Arena/Decor" unique_id=521461213]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22.239, 2.6, -11.291)
+collision_layer = 2
+collision_mask = 0
+
+[node name="@CollisionShape3D@25158" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder7" unique_id=683583956]
+shape = SubResource("CapsuleShape3D_bjd11")
+
+[node name="AncientDarkTree03" type="Node3D" parent="Arena/Decor" unique_id=445483267 instance=ExtResource("6_mwfav")]
+transform = Transform3D(5.4396358, 0, 0, 0, 5.4396358, 0, 0, 0, 5.4396358, -15.808, 0, -17.994)
+
+[node name="TreeVisibilityOccluder8" type="StaticBody3D" parent="Arena/Decor" unique_id=1312232343]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.808, 2.4, -17.994)
+collision_layer = 2
+collision_mask = 0
+
+[node name="@CollisionShape3D@25159" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder8" unique_id=263905452]
+shape = SubResource("CapsuleShape3D_qmy6f")
+
+[node name="AncientDarkTree04" type="Node3D" parent="Arena/Decor" unique_id=356354438 instance=ExtResource("6_mwfav")]
+transform = Transform3D(5.6662874, 0, 0, 0, 5.6662874, 0, 0, 0, 5.6662874, 6.583, 0, -21.261)
+
+[node name="TreeVisibilityOccluder9" type="StaticBody3D" parent="Arena/Decor" unique_id=1641121141]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.583, 2.5, -21.261)
+collision_layer = 2
+collision_mask = 0
+
+[node name="@CollisionShape3D@25160" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder9" unique_id=470541820]
+shape = SubResource("CapsuleShape3D_mwfav")
+
+[node name="AncientDarkTree05" type="Node3D" parent="Arena/Decor" unique_id=956305925 instance=ExtResource("6_mwfav")]
+transform = Transform3D(5.4396358, 0, 0, 0, 5.4396358, 0, 0, 0, 5.4396358, 15.969, 0, -16.407)
+
+[node name="TreeVisibilityOccluder10" type="StaticBody3D" parent="Arena/Decor" unique_id=1963020644]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15.969, 2.4, -16.407)
+collision_layer = 2
+collision_mask = 0
+
+[node name="@CollisionShape3D@25161" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder10" unique_id=1323520587]
+shape = SubResource("CapsuleShape3D_3p2gp")
+
+[node name="BlueleafTree01" type="Node3D" parent="Arena/Decor" unique_id=1285206770 instance=ExtResource("8_cvmbd")]
+transform = Transform3D(2.5304978, 0, 0, 0, 2.5304978, 0, 0, 0, 2.5304978, -26.583, 2.4059618, 12.182)
+
+[node name="TreeVisibilityOccluder11" type="StaticBody3D" parent="Arena/Decor" unique_id=1209520553]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.583, 4.8059616, 12.182)
+collision_layer = 2
+collision_mask = 0
+
+[node name="@CollisionShape3D@25162" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder11" unique_id=2021762360]
+shape = SubResource("CapsuleShape3D_cvmbd")
+
+[node name="BlueleafTree02" type="Node3D" parent="Arena/Decor" unique_id=933188388 instance=ExtResource("8_cvmbd")]
+transform = Transform3D(2.4250603, 0, 0, 0, 2.4250603, 0, 0, 0, 2.4250603, -26.955, 2.3057134, 3.396)
+
+[node name="TreeVisibilityOccluder12" type="StaticBody3D" parent="Arena/Decor" unique_id=991778951]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.955, 4.6057134, 3.396)
+collision_layer = 2
+collision_mask = 0
+
+[node name="@CollisionShape3D@25163" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder12" unique_id=1004965439]
+shape = SubResource("CapsuleShape3D_ft6cd")
+
+[node name="BlueleafTree03" type="Node3D" parent="Arena/Decor" unique_id=1645626539 instance=ExtResource("8_cvmbd")]
+transform = Transform3D(2.5304978, 0, 0, 0, 2.5304978, 0, 0, 0, 2.5304978, 28.636, 2.4059618, -3.608)
+
+[node name="TreeVisibilityOccluder13" type="StaticBody3D" parent="Arena/Decor" unique_id=98639807]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28.636, 4.8059616, -3.608)
+collision_layer = 2
+collision_mask = 0
+
+[node name="@CollisionShape3D@25164" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder13" unique_id=1209753697]
+shape = SubResource("CapsuleShape3D_bb450")
+
+[node name="BlueleafTree04" type="Node3D" parent="Arena/Decor" unique_id=279754676 instance=ExtResource("8_cvmbd")]
+transform = Transform3D(2.4250603, 0, 0, 0, 2.4250603, 0, 0, 0, 2.4250603, 21.065, 2.3057134, -9.653)
+
+[node name="TreeVisibilityOccluder14" type="StaticBody3D" parent="Arena/Decor" unique_id=2080296761]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.065, 4.6057134, -9.653)
+collision_layer = 2
+collision_mask = 0
+
+[node name="@CollisionShape3D@25165" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder14" unique_id=173419758]
+shape = SubResource("CapsuleShape3D_nfivy")
+
+[node name="BlueleafTree05" type="Node3D" parent="Arena/Decor" unique_id=718170930 instance=ExtResource("8_cvmbd")]
+transform = Transform3D(2.5304978, 0, 0, 0, 2.5304978, 0, 0, 0, 2.5304978, -19, 2.4059618, 0)
+
+[node name="TreeVisibilityOccluder15" type="StaticBody3D" parent="Arena/Decor" unique_id=792639754]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19, 4.8059616, 0)
+collision_layer = 2
+collision_mask = 0
+
+[node name="@CollisionShape3D@25166" type="CollisionShape3D" parent="Arena/Decor/TreeVisibilityOccluder15" unique_id=713162281]
+shape = SubResource("CapsuleShape3D_1nqs0")
 
 [node name="Bushes" type="Node3D" parent="Arena" unique_id=1037635800]
 
