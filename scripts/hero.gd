@@ -959,7 +959,7 @@ func _update_health_display() -> void:
 	var displayed_health := clampi(roundi(health), 0, displayed_max)
 	var hp_ratio := float(displayed_health) / float(displayed_max)
 	if health_label != null:
-		health_label.text = "%d/%d" % [displayed_health, displayed_max]
+		health_label.text = "%d" % displayed_health
 		health_label.visible = _health_bar_visible()
 	if health_fill != null:
 		var fill_quad := health_fill.mesh as QuadMesh
