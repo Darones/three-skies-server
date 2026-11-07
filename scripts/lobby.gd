@@ -93,17 +93,6 @@ func _build_background() -> void:
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(background)
 
-	var top_rule := ColorRect.new()
-	top_rule.name = "TopAccent"
-	top_rule.anchor_left = 0.36
-	top_rule.anchor_top = 0.235
-	top_rule.anchor_right = 0.64
-	top_rule.anchor_bottom = 0.237
-	top_rule.color = Color(GOLD.r, GOLD.g, GOLD.b, 0.48)
-	top_rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(top_rule)
-
-
 func _build_header() -> void:
 	lobby_logo = TextureRect.new()
 	lobby_logo.name = "LobbyLogo"
