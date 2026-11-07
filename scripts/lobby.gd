@@ -62,6 +62,12 @@ func _ready() -> void:
 	_build_player_menu()
 	_refresh_wing_shop()
 	_refresh_selection()
+	if not MetaProgression.wing_purchase_updated.is_connected(_on_wing_purchase_updated):
+		MetaProgression.wing_purchase_updated.connect(_on_wing_purchase_updated)
+	if not NetworkClient.registration_completed.is_connected(_on_registration_completed):
+		NetworkClient.registration_completed.connect(_on_registration_completed)
+	if MetaProgression.player_id <= 0 and not MetaProgression.player_nickname.is_empty():
+		MetaProgression.register_player(MetaProgression.player_nickname)
 
 
 func _load_selection() -> int:
@@ -344,7 +350,12 @@ func _on_wing_button_pressed(wing_id: int, price: int) -> void:
 	if MetaProgression.buy_wing(wing_id, price):
 		_refresh_wing_shop()
 	else:
-		_show_info("Недостаточно осколков для покупки.")
+		if MetaProgression.player_id <= 0:
+			_show_info("Сначала сохраните никнейм и дождитесь регистрации профиля.")
+		elif MetaProgression.pending_wing_id > 0:
+			_show_info("Покупка уже обрабатывается.")
+		else:
+			_show_info("Покупку не удалось отправить.")
 
 
 func _refresh_wing_shop() -> void:
@@ -357,9 +368,16 @@ func _refresh_wing_shop() -> void:
 		var card := wing_cards[wing_id - 1]
 		var is_unlocked: bool = wing_id in MetaProgression.unlocked_wings
 		var is_equipped: bool = MetaProgression.equipped_wing == wing_id
-		button.text = "Надето" if is_equipped else ("Надеть" if is_unlocked else "Купить")
-		button.disabled = is_equipped
+		var is_pending: bool = MetaProgression.pending_wing_id == wing_id
+		button.text = "Покупка..." if is_pending else ("Надето" if is_equipped else ("Надеть" if is_unlocked else "Купить"))
+		button.disabled = is_equipped or is_pending
 		card.add_theme_stylebox_override("panel", _wing_card_style(is_equipped))
+
+
+func _on_wing_purchase_updated(success: bool, _wing_id: int, _new_shards: int) -> void:
+	_refresh_wing_shop()
+	if not success:
+		_show_info("Сервер не подтвердил покупку. Проверь баланс и подключение.")
 
 
 func _wing_card_style(is_equipped: bool) -> StyleBoxFlat:
@@ -564,9 +582,22 @@ func _save_player_nickname() -> void:
 		return
 	MetaProgression.player_nickname = nickname
 	MetaProgression.save_game()
+	if MetaProgression.player_id <= 0:
+		MetaProgression.register_player(nickname)
 	nickname_line_edit.text = nickname
-	nickname_status_label.text = "Никнейм сохранен."
+	nickname_status_label.text = "Сохраняем профиль на сервере..." if MetaProgression.player_id <= 0 else "Никнейм сохранен."
 	nickname_status_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
+
+
+func _on_registration_completed(success: bool, registered_player_id: int) -> void:
+	if nickname_status_label == null:
+		return
+	if success and registered_player_id > 0:
+		nickname_status_label.text = "Профиль подключен."
+		nickname_status_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
+	else:
+		nickname_status_label.text = "Регистрация не удалась: сервер недоступен или ник занят."
+		nickname_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
 
 
 func _refresh_player_menu() -> void:

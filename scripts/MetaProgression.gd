@@ -1,5 +1,7 @@
 extends Node
 
+signal wing_purchase_updated(success: bool, wing_id: int, new_shards: int)
+
 const SAVE_PATH := "user://meta_save.cfg"
 
 const MAX_CHARACTER_LEVEL := 15
@@ -11,22 +13,36 @@ const LEVEL_UP_SHARD_REWARDS: Dictionary = {
 
 var sky_shards: int = 0
 var player_nickname: String = ""
+var player_id: int = 0
 var char_levels: Dictionary = {"warrior": 1, "mage": 1, "fairy": 1}
 var char_xps: Dictionary = {"warrior": 0, "mage": 0, "fairy": 0}
 var just_leveled_up: bool = false
 var just_leveled_up_character: String = ""
 var equipped_wing: int = 0
 var unlocked_wings: Array[int] = []
+var pending_wing_id: int = 0
 
 
 func _ready() -> void:
 	load_game()
+	if not NetworkClient.registration_completed.is_connected(_on_registration_completed):
+		NetworkClient.registration_completed.connect(_on_registration_completed)
+	if not NetworkClient.purchase_completed.is_connected(_on_purchase_completed):
+		NetworkClient.purchase_completed.connect(_on_purchase_completed)
+
+
+func register_player(nickname: String) -> void:
+	var clean_nickname := nickname.strip_edges()
+	if player_id > 0 or clean_nickname.is_empty():
+		return
+	NetworkClient.register_player(clean_nickname)
 
 
 func save_game() -> void:
 	var config := ConfigFile.new()
 	config.set_value("progression", "sky_shards", sky_shards)
 	config.set_value("progression", "player_nickname", player_nickname)
+	config.set_value("progression", "player_id", player_id)
 	config.set_value("progression", "char_levels", char_levels)
 	config.set_value("progression", "char_xps", char_xps)
 	config.set_value("progression", "equipped_wing", equipped_wing)
@@ -42,6 +58,7 @@ func load_game() -> void:
 	if error != OK:
 		sky_shards = 0
 		player_nickname = ""
+		player_id = 0
 		char_levels = {"warrior": 1, "mage": 1, "fairy": 1}
 		char_xps = {"warrior": 0, "mage": 0, "fairy": 0}
 		just_leveled_up = false
@@ -51,6 +68,7 @@ func load_game() -> void:
 		return
 	sky_shards = maxi(0, int(config.get_value("progression", "sky_shards", 0)))
 	player_nickname = String(config.get_value("progression", "player_nickname", ""))
+	player_id = maxi(0, int(config.get_value("progression", "player_id", 0)))
 	char_levels = {"warrior": 1, "mage": 1, "fairy": 1}
 	char_xps = {"warrior": 0, "mage": 0, "fairy": 0}
 	var saved_levels: Variant = config.get_value("progression", "char_levels", {})
@@ -130,9 +148,30 @@ func equip_wing(wing_id: int) -> bool:
 
 
 func buy_wing(wing_id: int, cost: int) -> bool:
-	if wing_id < 1 or wing_id > 4 or cost <= 0 or wing_id in unlocked_wings or sky_shards < cost:
+	if wing_id < 1 or wing_id > 4 or cost <= 0 or wing_id in unlocked_wings:
 		return false
-	sky_shards -= cost
-	unlocked_wings.append(wing_id)
-	save_game()
+	if player_id <= 0 or pending_wing_id != 0:
+		return false
+	pending_wing_id = wing_id
+	NetworkClient.buy_wing_server(player_id, wing_id, cost)
 	return true
+
+
+func _on_registration_completed(success: bool, registered_player_id: int) -> void:
+	if not success or registered_player_id <= 0 or player_id > 0:
+		return
+	player_id = registered_player_id
+	save_game()
+
+
+func _on_purchase_completed(success: bool, new_shards: int) -> void:
+	if pending_wing_id <= 0:
+		return
+	var completed_wing_id := pending_wing_id
+	pending_wing_id = 0
+	if success:
+		sky_shards = maxi(0, new_shards)
+		if completed_wing_id not in unlocked_wings:
+			unlocked_wings.append(completed_wing_id)
+		save_game()
+	wing_purchase_updated.emit(success, completed_wing_id, sky_shards)
