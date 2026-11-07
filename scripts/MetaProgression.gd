@@ -2,6 +2,13 @@ extends Node
 
 const SAVE_PATH := "user://meta_save.cfg"
 
+const MAX_CHARACTER_LEVEL := 15
+const LEVEL_UP_SHARD_REWARDS: Dictionary = {
+	1: 50, 2: 75, 3: 100, 4: 125, 5: 150,
+	6: 175, 7: 200, 8: 225, 9: 250, 10: 300,
+	11: 325, 12: 350, 13: 375, 14: 400, 15: 450,
+}
+
 var sky_shards: int = 0
 var char_levels: Dictionary = {"warrior": 1, "mage": 1, "fairy": 1}
 var char_xps: Dictionary = {"warrior": 0, "mage": 0, "fairy": 0}
@@ -46,10 +53,13 @@ func load_game() -> void:
 	var saved_xps: Variant = config.get_value("progression", "char_xps", {})
 	if saved_levels is Dictionary:
 		for char_name in char_levels.keys():
-			char_levels[char_name] = maxi(1, int(saved_levels.get(char_name, 1)))
+			char_levels[char_name] = clampi(int(saved_levels.get(char_name, 1)), 1, MAX_CHARACTER_LEVEL)
 	if saved_xps is Dictionary:
 		for char_name in char_xps.keys():
 			char_xps[char_name] = maxi(0, int(saved_xps.get(char_name, 0)))
+	for char_name in char_levels.keys():
+		if int(char_levels[char_name]) >= MAX_CHARACTER_LEVEL:
+			char_xps[char_name] = 0
 	just_leveled_up = false
 	just_leveled_up_character = ""
 	unlocked_wings.clear()
@@ -69,17 +79,29 @@ func add_shards(shards_amount: int) -> void:
 	save_game()
 
 
+func get_xp_for_next_level(char_name: String) -> int:
+	if not char_levels.has(char_name):
+		return 1000
+	return int(char_levels[char_name]) * 1000
+
+
 func add_character_xp(char_name: String, amount: int) -> void:
 	if not char_levels.has(char_name) or amount <= 0:
 		return
 	just_leveled_up = false
 	just_leveled_up_character = ""
+	if int(char_levels[char_name]) >= MAX_CHARACTER_LEVEL:
+		char_xps[char_name] = 0
+		return
 	char_xps[char_name] = int(char_xps[char_name]) + amount
-	while int(char_xps[char_name]) >= int(char_levels[char_name]) * 100:
-		char_xps[char_name] = int(char_xps[char_name]) - int(char_levels[char_name]) * 100
+	while int(char_levels[char_name]) < MAX_CHARACTER_LEVEL and int(char_xps[char_name]) >= get_xp_for_next_level(char_name):
+		char_xps[char_name] = int(char_xps[char_name]) - get_xp_for_next_level(char_name)
 		char_levels[char_name] = int(char_levels[char_name]) + 1
+		sky_shards += int(LEVEL_UP_SHARD_REWARDS.get(int(char_levels[char_name]), 0))
 		just_leveled_up = true
 		just_leveled_up_character = char_name
+	if int(char_levels[char_name]) >= MAX_CHARACTER_LEVEL:
+		char_xps[char_name] = 0
 	save_game()
 
 

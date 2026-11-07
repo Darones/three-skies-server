@@ -164,7 +164,7 @@ func _build_player_profile() -> void:
 	experience_bar.name = "ExperienceBar"
 	experience_bar.custom_minimum_size = Vector2(0, 10)
 	experience_bar.min_value = 0
-	experience_bar.max_value = 100
+	experience_bar.max_value = 1000
 	experience_bar.value = 0
 	experience_bar.show_percentage = false
 	var experience_bg := StyleBoxFlat.new()
@@ -475,7 +475,7 @@ func _refresh_player_profile() -> void:
 	profile_level_label.add_theme_constant_override('shadow_offset_x', 1)
 	profile_level_label.add_theme_constant_override('shadow_offset_y', 2)
 	profile_level_label.scale = Vector2.ONE
-	experience_bar.max_value = character_level * 100
+	experience_bar.max_value = MetaProgression.get_xp_for_next_level(character_key)
 	experience_bar.value = character_xp
 	if MetaProgression.consume_level_up_for(character_key):
 		profile_level_label.add_theme_color_override('font_color', GOLD)
