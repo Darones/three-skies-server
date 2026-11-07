@@ -31,8 +31,8 @@ const BASE_POSITION_Z := 28.0
 const SHOP_INTERACTION_RADIUS := 4.0
 const BOT_CALLSIGNS := ["ЛунныйЛис", "СеверныйВетер", "ТихийШторм", "Искра", "КаменныйПуть", "ЗвёздныйСлед", "СумрачныйКлинок", "БелыйВорон"]
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
-const FOG_OF_WAR_SHADER: Shader = preload("res://shaders/fog_of_war.gdshader")
-const FOG_VIEW_RADIUS := 15.0
+const FOG_OF_WAR_SHADER_PATH := "res://shaders/fog_of_war.gdshader"
+const FOG_VIEW_RADIUS := 10.0
 const SHOP_STALL_SCENE: PackedScene = preload("res://assets/shop_stall/3d_4f92fe433b084100af7a1d7f_1790958942025.glb")
 const GOLD_FOUNTAIN_SCENE: PackedScene = preload("res://assets/gold_fountain/3d_aeb9c9ced6384164aff32ae5_1790300466128.glb")
 const SHOP_ITEMS := [
@@ -955,6 +955,9 @@ func _create_fog_of_war() -> void:
 	var arena := get_node_or_null("Arena") as Node3D
 	if arena == null or arena.get_node_or_null("FogOfWar") != null:
 		return
+	var fog_shader := load(FOG_OF_WAR_SHADER_PATH) as Shader
+	if fog_shader == null:
+		return
 
 	fog_of_war_plane = MeshInstance3D.new()
 	fog_of_war_plane.name = "FogOfWar"
@@ -964,7 +967,7 @@ func _create_fog_of_war() -> void:
 	fog_of_war_plane.position = Vector3(0.0, 0.35, 0.0)
 	fog_of_war_plane.visible = false
 	fog_of_war_material = ShaderMaterial.new()
-	fog_of_war_material.shader = FOG_OF_WAR_SHADER
+	fog_of_war_material.shader = fog_shader
 	fog_of_war_material.set_shader_parameter("view_radius", FOG_VIEW_RADIUS)
 	fog_of_war_material.set_shader_parameter("arena_half_extent", Vector2(ArenaKit.HALF_X, ArenaKit.HALF_Z))
 	fog_of_war_plane.material_override = fog_of_war_material
@@ -1039,6 +1042,9 @@ func _update_enemy_visibility() -> void:
 			continue
 		if hero == player or hero.team == player.team or hero.dead:
 			hero.set_occluded_from_player(false)
+			continue
+		if not hero.is_within_view_distance(player, FOG_VIEW_RADIUS):
+			hero.set_occluded_from_player(true)
 			continue
 		var target_position := hero.global_position + Vector3(0.0, 1.15, 0.0)
 		var ray := PhysicsRayQueryParameters3D.create(

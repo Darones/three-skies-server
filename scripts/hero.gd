@@ -980,6 +980,13 @@ func set_occluded_from_player(occluded: bool) -> void:
 		player_nameplate.visible = _health_bar_visible()
 
 
+func is_within_view_distance(observer: HeroUnit, view_radius: float) -> bool:
+	if observer == null or not is_instance_valid(observer):
+		return false
+	var offset := Vector2(global_position.x - observer.global_position.x, global_position.z - observer.global_position.z)
+	return offset.length_squared() <= view_radius * view_radius
+
+
 func is_visible_to_player(observer: HeroUnit) -> bool:
 	return not dead and not occluded_from_player and not is_hidden_from(observer)
 
