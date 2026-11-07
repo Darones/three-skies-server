@@ -156,11 +156,11 @@ static func _place_inside(pos: Vector3) -> Vector3:
 
 static func _add_environment(stage: Node3D) -> void:
 	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.05, 0.07, 0.13)
-	sky_mat.sky_horizon_color = Color(0.24, 0.29, 0.4)
+	sky_mat.sky_top_color = Color(0.025, 0.09, 0.24)
+	sky_mat.sky_horizon_color = Color(0.13, 0.62, 0.69)
 	sky_mat.sky_curve = 0.15
-	sky_mat.ground_horizon_color = Color(0.22, 0.26, 0.36)
-	sky_mat.ground_bottom_color = Color(0.03, 0.04, 0.07)
+	sky_mat.ground_horizon_color = Color(0.1, 0.46, 0.55)
+	sky_mat.ground_bottom_color = Color(0.02, 0.055, 0.13)
 	sky_mat.sun_angle_max = 18.0
 	sky_mat.sun_curve = 0.1
 
@@ -181,7 +181,7 @@ static func _add_environment(stage: Node3D) -> void:
 	env.glow_bloom = 0.08
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.35, 0.42, 0.55)
+	env.fog_light_color = Color(0.27, 0.52, 0.62)
 	env.fog_light_energy = 0.8
 	env.fog_density = 0.009
 	env.fog_sky_affect = 0.35

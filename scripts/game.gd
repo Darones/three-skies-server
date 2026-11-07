@@ -14,6 +14,8 @@ const CRYSTAL_DROP_SEARCH_RADII := [7.8, 9.0, 10.2, 11.4, 12.6]
 const TEST_STARTING_GOLD := 500
 const ARENA_SAFE_HALF_X := 52.0
 const ARENA_SAFE_HALF_Z := 37.0
+const CAMERA_LIMIT_HALF_X := 50.0
+const CAMERA_LIMIT_HALF_Z := 35.0
 const VISIBILITY_COLLISION_MASK := 3
 const VISIBILITY_REFRESH_INTERVAL := 0.12
 const VFX_POOL_SIZE := 10
@@ -134,6 +136,7 @@ func _ready() -> void:
 		add_child(arena)
 		ArenaKit.build(arena)
 	_create_fog_of_war()
+	_create_floating_clouds()
 	_create_shop_stall()
 	_create_gold_fountain()
 	_setup_audio()
@@ -155,6 +158,40 @@ func _ready() -> void:
 		if selected_class >= 0 and selected_class <= 2:
 			var selected_team := clampi(int(get_tree().get_meta("selected_team", get_meta("selected_team", 0))), 0, 1)
 			call_deferred("start_match", selected_class, selected_team)
+
+
+func _create_floating_clouds() -> void:
+	var arena := get_node_or_null("Arena") as Node3D
+	if arena == null or arena.get_node_or_null("FloatingClouds") != null:
+		return
+	var clouds := Node3D.new()
+	clouds.name = "FloatingClouds"
+	arena.add_child(clouds)
+	var cloud_positions: Array[Vector3] = [
+		Vector3(-57.0, -8.0, 0.0),
+		Vector3(57.0, -8.0, 0.0),
+		Vector3(0.0, -8.0, -42.0),
+		Vector3(0.0, -8.0, 42.0),
+		Vector3(-45.0, -8.5, -31.0),
+		Vector3(45.0, -8.5, -31.0),
+		Vector3(-45.0, -8.5, 31.0),
+		Vector3(45.0, -8.5, 31.0),
+	]
+	var cloud_material := StandardMaterial3D.new()
+	cloud_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	cloud_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	cloud_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	cloud_material.albedo_color = Color(0.68, 0.88, 1.0, 0.16)
+	for index in cloud_positions.size():
+		var cloud := MeshInstance3D.new()
+		cloud.name = "CloudBank_%02d" % (index + 1)
+		var cloud_mesh := PlaneMesh.new()
+		cloud_mesh.size = Vector2(26.0 if index < 4 else 22.0, 15.0 if index < 4 else 13.0)
+		cloud.mesh = cloud_mesh
+		cloud.material_override = cloud_material
+		cloud.position = cloud_positions[index]
+		cloud.rotation.y = deg_to_rad(float(index) * 23.0)
+		clouds.add_child(cloud)
 
 
 func _create_shop_stall() -> void:
@@ -826,6 +863,14 @@ func clamp_to_arena(position: Vector3) -> Vector3:
 	return Vector3(normalized_position.x * ARENA_SAFE_HALF_X, position.y, normalized_position.y * ARENA_SAFE_HALF_Z)
 
 
+func _clamp_camera_position(position: Vector3) -> Vector3:
+	return Vector3(
+		clampf(position.x, -CAMERA_LIMIT_HALF_X, CAMERA_LIMIT_HALF_X),
+		position.y,
+		clampf(position.z, -CAMERA_LIMIT_HALF_Z, CAMERA_LIMIT_HALF_Z)
+	)
+
+
 func get_shop_items() -> Array:
 	return SHOP_ITEMS
 
@@ -927,7 +972,7 @@ func _process(delta: float) -> void:
 		select_angle += delta * 0.12
 		var focus := Vector3(0.0, 1.5, 0.0)
 		var target_pos := focus + Vector3(cos(select_angle) * 27.0, 21.0, sin(select_angle) * 27.0)
-		camera_pos = camera_pos.lerp(target_pos, 1.0 - exp(-3.0 * delta))
+		camera_pos = _clamp_camera_position(camera_pos.lerp(target_pos, 1.0 - exp(-3.0 * delta)))
 		camera.global_position = camera_pos
 		camera.look_at(focus, Vector3.UP)
 	else:
@@ -1019,7 +1064,7 @@ func _update_camera(delta: float) -> void:
 
 		if not is_equal_approx(camera_distance, death_camera_last_distance):
 			var zoom_delta := camera_distance - death_camera_last_distance
-			camera.global_position -= -camera.global_transform.basis.z * zoom_delta
+			camera.global_position = _clamp_camera_position(camera.global_position + camera.global_transform.basis.z * zoom_delta)
 			camera_pos = camera.global_position
 			death_camera_last_distance = camera_distance
 
@@ -1037,7 +1082,7 @@ func _update_camera(delta: float) -> void:
 			pan_input = pan_input.normalized()
 			var team_orientation := 1.0 if player.team == 0 else -1.0
 			var pan_direction := Vector3(pan_input.x * team_orientation, 0.0, -pan_input.y * team_orientation)
-			camera_pos = clamp_to_arena(camera.global_position + pan_direction * 16.0 * delta)
+			camera_pos = _clamp_camera_position(camera.global_position + pan_direction * 16.0 * delta)
 			camera.global_position = camera_pos
 		return
 
@@ -1046,7 +1091,7 @@ func _update_camera(delta: float) -> void:
 	var camera_side := 1.0 if player.team == 0 else -1.0
 	var camera_axis := Vector3(0.0, 13.0, 20.0 * camera_side).normalized()
 	var target_pos := focus + camera_axis * camera_distance
-	camera_pos = camera_pos.lerp(target_pos, 1.0 - exp(-5.0 * delta))
+	camera_pos = _clamp_camera_position(camera_pos.lerp(target_pos, 1.0 - exp(-5.0 * delta)))
 	camera.global_position = camera_pos
 	camera.look_at(focus, Vector3.UP)
 

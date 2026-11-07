@@ -8,10 +8,10 @@
 [ext_resource type="PackedScene" uid="uid://bgvjfal46pbtk" path="res://assets/trees/3d4b4d8b-0d20-4eb7-90f1-d2fb85cee6e9/3d_3d4b4d8b0d204eb790f1d2fb_1784900839243.glb" id="8_cvmbd"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_0bbpv"]
-sky_top_color = Color(0.05, 0.07, 0.13, 1)
-sky_horizon_color = Color(0.24, 0.29, 0.4, 1)
-ground_bottom_color = Color(0.03, 0.04, 0.07, 1)
-ground_horizon_color = Color(0.22, 0.26, 0.36, 1)
+sky_top_color = Color(0.025, 0.09, 0.24, 1)
+sky_horizon_color = Color(0.13, 0.62, 0.69, 1)
+ground_bottom_color = Color(0.02, 0.055, 0.13, 1)
+ground_horizon_color = Color(0.1, 0.46, 0.55, 1)
 sun_angle_max = 18.0
 sun_curve = 0.1
 
@@ -30,7 +30,7 @@ glow_intensity = 0.55
 glow_bloom = 0.08
 glow_blend_mode = 0
 fog_enabled = true
-fog_light_color = Color(0.35, 0.42, 0.55, 1)
+fog_light_color = Color(0.27, 0.52, 0.62, 1)
 fog_light_energy = 0.8
 fog_density = 0.009
 fog_sky_affect = 0.35
