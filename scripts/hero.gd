@@ -950,14 +950,7 @@ func _refresh_bush_visibility() -> void:
 
 
 func _health_bar_visible() -> bool:
-	if dead or occluded_from_player:
-		return false
-	if not _is_bush_stealthed():
-		return true
-	var observer: HeroUnit = null
-	if game != null and game.has_method("get"):
-		observer = game.get("player") as HeroUnit
-	return observer != null and (self == observer or not is_hidden_from(observer))
+	return not dead and not occluded_from_player
 
 
 func is_hidden_from(observer: HeroUnit) -> bool:
@@ -987,8 +980,8 @@ func is_within_view_distance(observer: HeroUnit, view_radius: float) -> bool:
 	return offset.length_squared() <= view_radius * view_radius
 
 
-func is_visible_to_player(observer: HeroUnit) -> bool:
-	return not dead and not occluded_from_player and not is_hidden_from(observer)
+func is_visible_to_player(_observer: HeroUnit) -> bool:
+	return not dead and not occluded_from_player
 
 func _update_health_display() -> void:
 	var displayed_max := maxi(1, roundi(max_health))

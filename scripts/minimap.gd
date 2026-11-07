@@ -168,8 +168,6 @@ func _draw_heroes(map_rect: Rect2, player_team: int) -> void:
 	for enemy in game.heroes:
 		if enemy == null or not is_instance_valid(enemy) or enemy.team == player_team:
 			continue
-		if not enemy.is_within_view_distance(game.player, float(game.FOG_VIEW_RADIUS)):
-			continue
 		if not enemy.is_visible_to_player(game.player):
 			continue
 		_draw_hero_marker(enemy, map_rect, ENEMY_COLOR, false)

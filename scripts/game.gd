@@ -962,14 +962,14 @@ func _create_fog_of_war() -> void:
 	fog_of_war_plane = MeshInstance3D.new()
 	fog_of_war_plane.name = "FogOfWar"
 	var plane_mesh := PlaneMesh.new()
-	plane_mesh.size = Vector2(ArenaKit.HALF_X * 2.0, ArenaKit.HALF_Z * 2.0)
+	plane_mesh.size = Vector2(ARENA_SAFE_HALF_X * 2.0, ARENA_SAFE_HALF_Z * 2.0)
 	fog_of_war_plane.mesh = plane_mesh
 	fog_of_war_plane.position = Vector3(0.0, 0.35, 0.0)
 	fog_of_war_plane.visible = false
 	fog_of_war_material = ShaderMaterial.new()
 	fog_of_war_material.shader = fog_shader
 	fog_of_war_material.set_shader_parameter("view_radius", FOG_VIEW_RADIUS)
-	fog_of_war_material.set_shader_parameter("arena_half_extent", Vector2(ArenaKit.HALF_X, ArenaKit.HALF_Z))
+	fog_of_war_material.set_shader_parameter("arena_half_extent", Vector2(ARENA_SAFE_HALF_X, ARENA_SAFE_HALF_Z))
 	fog_of_war_plane.material_override = fog_of_war_material
 	arena.add_child(fog_of_war_plane)
 
@@ -980,8 +980,30 @@ func _update_fog_of_war() -> void:
 	fog_of_war_plane.visible = state == "live"
 	if state != "live":
 		return
-	if player != null and is_instance_valid(player):
-		fog_of_war_material.set_shader_parameter("player_position", player.global_position)
+	if player == null or not is_instance_valid(player):
+		return
+
+	var vision_positions: Array[Vector3] = []
+	for ally in heroes:
+		if ally == null or not is_instance_valid(ally) or ally.dead or ally.team != player.team:
+			continue
+		vision_positions.append(ally.global_position)
+		if vision_positions.size() >= 3:
+			break
+
+	var primary_position := player.global_position
+	var ally_position_1 := Vector3(100000.0, 0.0, 100000.0)
+	var ally_position_2 := Vector3(100000.0, 0.0, 100000.0)
+	if not vision_positions.is_empty():
+		primary_position = vision_positions[0]
+	if vision_positions.size() > 1:
+		ally_position_1 = vision_positions[1]
+	if vision_positions.size() > 2:
+		ally_position_2 = vision_positions[2]
+	fog_of_war_material.set_shader_parameter("player_position", primary_position)
+	fog_of_war_material.set_shader_parameter("ally_position_1", ally_position_1)
+	fog_of_war_material.set_shader_parameter("ally_position_2", ally_position_2)
+	fog_of_war_material.set_shader_parameter("vision_count", vision_positions.size())
 
 
 func _update_camera(delta: float) -> void:
@@ -1030,12 +1052,15 @@ func _update_camera(delta: float) -> void:
 
 
 func _update_enemy_visibility() -> void:
-	if player == null or not is_instance_valid(player) or camera == null or not is_instance_valid(camera):
+	if player == null or not is_instance_valid(player):
 		return
 	var excluded_rids: Array[RID] = []
+	var vision_allies: Array[HeroUnit] = []
 	for hero in heroes:
 		if hero != null and is_instance_valid(hero):
 			excluded_rids.append(hero.get_rid())
+			if hero.team == player.team and not hero.dead:
+				vision_allies.append(hero)
 	var space_state := get_world_3d().direct_space_state
 	for hero in heroes:
 		if hero == null or not is_instance_valid(hero):
@@ -1043,20 +1068,23 @@ func _update_enemy_visibility() -> void:
 		if hero == player or hero.team == player.team or hero.dead:
 			hero.set_occluded_from_player(false)
 			continue
-		if not hero.is_within_view_distance(player, FOG_VIEW_RADIUS):
-			hero.set_occluded_from_player(true)
-			continue
+		var seen_by_team := false
 		var target_position := hero.global_position + Vector3(0.0, 1.15, 0.0)
-		var ray := PhysicsRayQueryParameters3D.create(
-			camera.global_position,
-			target_position,
-			VISIBILITY_COLLISION_MASK,
-			excluded_rids
-		)
-		ray.collide_with_areas = false
-		ray.collide_with_bodies = true
-		var hit := space_state.intersect_ray(ray)
-		hero.set_occluded_from_player(not hit.is_empty())
+		for ally in vision_allies:
+			if not hero.is_within_view_distance(ally, FOG_VIEW_RADIUS) or hero.is_hidden_from(ally):
+				continue
+			var ray := PhysicsRayQueryParameters3D.create(
+				ally.global_position + Vector3(0.0, 1.15, 0.0),
+				target_position,
+				VISIBILITY_COLLISION_MASK,
+				excluded_rids
+			)
+			ray.collide_with_areas = false
+			ray.collide_with_bodies = true
+			if space_state.intersect_ray(ray).is_empty():
+				seen_by_team = true
+				break
+		hero.set_occluded_from_player(not seen_by_team)
 
 func _update_shake(delta: float) -> void:
 	shake_amount = maxf(0.0, shake_amount - delta * 2.2)
