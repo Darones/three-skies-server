@@ -26,6 +26,17 @@ var shard_shop_overlay: ColorRect
 var shop_panel: PanelContainer
 var info_dialog: AcceptDialog
 var shard_amount_label: Label
+var player_menu_overlay: ColorRect
+var nickname_line_edit: LineEdit
+var nickname_status_label: Label
+var menu_hero_portrait: TextureRect
+var menu_hero_name_label: Label
+var menu_level_label: Label
+var menu_xp_bar: ProgressBar
+var menu_xp_remaining_label: Label
+var menu_next_reward_label: Label
+var wing_slot_cards: Array[PanelContainer] = []
+var wing_slot_status_labels: Array[Label] = []
 var lobby_logo: TextureRect
 var wing_buttons: Dictionary = {}
 var wing_cards: Array[PanelContainer] = []
@@ -48,6 +59,7 @@ func _ready() -> void:
 	_build_hero_cards()
 	_build_actions()
 	_build_shard_shop()
+	_build_player_menu()
 	_refresh_wing_shop()
 	_refresh_selection()
 
@@ -128,7 +140,7 @@ func _build_player_profile() -> void:
 	profile_button.add_theme_stylebox_override("normal", _action_style(false, false))
 	profile_button.add_theme_stylebox_override("hover", _action_style(false, true))
 	profile_button.add_theme_stylebox_override("pressed", _action_style(false, true))
-	profile_button.pressed.connect(_show_info.bind("Меню Игрока (В разработке)"))
+	profile_button.pressed.connect(_open_player_menu)
 	add_child(profile_button)
 
 	var row := HBoxContainer.new()
@@ -358,6 +370,236 @@ func _wing_card_style(is_equipped: bool) -> StyleBoxFlat:
 	return _panel_style(Color(0.38, 0.46, 0.62, 0.8), Color(0.055, 0.07, 0.105, 0.98))
 
 
+func _build_player_menu() -> void:
+	player_menu_overlay = ColorRect.new()
+	player_menu_overlay.name = "PlayerMenuOverlay"
+	player_menu_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	player_menu_overlay.color = Color(0.005, 0.008, 0.018, 0.86)
+	player_menu_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	player_menu_overlay.visible = false
+	player_menu_overlay.z_index = 30
+	add_child(player_menu_overlay)
+
+	var panel := PanelContainer.new()
+	panel.name = "PlayerMenuPanel"
+	panel.anchor_left = 0.045
+	panel.anchor_top = 0.07
+	panel.anchor_right = 0.955
+	panel.anchor_bottom = 0.93
+	panel.add_theme_stylebox_override("panel", _panel_style(Color(0.78, 0.62, 0.32), Color(0.035, 0.045, 0.07, 0.99)))
+	player_menu_overlay.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	panel.add_child(margin)
+
+	var layout := VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 10)
+	margin.add_child(layout)
+
+	var header := HBoxContainer.new()
+	layout.add_child(header)
+	var title := _make_label("МЕНЮ ИГРОКА", 25, GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+	var close_button := _make_action_button("×", false)
+	close_button.custom_minimum_size = Vector2(46, 44)
+	close_button.add_theme_font_size_override("font_size", 25)
+	close_button.pressed.connect(_close_player_menu)
+	header.add_child(close_button)
+
+	var columns := HBoxContainer.new()
+	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	columns.add_theme_constant_override("separation", 12)
+	layout.add_child(columns)
+
+	var profile_panel := PanelContainer.new()
+	profile_panel.name = "PlayerMenuProfile"
+	profile_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	profile_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	profile_panel.custom_minimum_size = Vector2(260, 0)
+	profile_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.4, 0.48, 0.63, 0.8), Color(0.045, 0.055, 0.085, 0.97)))
+	columns.add_child(profile_panel)
+	var profile_content := VBoxContainer.new()
+	profile_content.add_theme_constant_override("separation", 9)
+	profile_panel.add_child(profile_content)
+	var profile_title := _make_label("ПРОФИЛЬ", 19, GOLD)
+	profile_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	profile_content.add_child(profile_title)
+	nickname_line_edit = LineEdit.new()
+	nickname_line_edit.name = "NicknameInput"
+	nickname_line_edit.placeholder_text = "Никнейм (3–12 символов)"
+	nickname_line_edit.max_length = 12
+	nickname_line_edit.text = MetaProgression.player_nickname
+	nickname_line_edit.custom_minimum_size = Vector2(0, 42)
+	nickname_line_edit.add_theme_font_override("font", font)
+	profile_content.add_child(nickname_line_edit)
+	var save_nickname_button := _make_action_button("Сохранить", true)
+	save_nickname_button.custom_minimum_size = Vector2(0, 42)
+	save_nickname_button.pressed.connect(_save_player_nickname)
+	profile_content.add_child(save_nickname_button)
+	nickname_status_label = _make_label("", 13, Color(0.58, 0.9, 0.64))
+	nickname_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	profile_content.add_child(nickname_status_label)
+	var profile_divider := ColorRect.new()
+	profile_divider.custom_minimum_size = Vector2(0, 1)
+	profile_divider.color = Color(GOLD.r, GOLD.g, GOLD.b, 0.32)
+	profile_content.add_child(profile_divider)
+	menu_level_label = _make_label("Уровень 1", 19, PALE)
+	menu_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	profile_content.add_child(menu_level_label)
+	menu_xp_bar = ProgressBar.new()
+	menu_xp_bar.name = "PlayerMenuExperienceBar"
+	menu_xp_bar.custom_minimum_size = Vector2(0, 12)
+	menu_xp_bar.min_value = 0
+	menu_xp_bar.max_value = 1000
+	menu_xp_bar.show_percentage = false
+	var xp_background := StyleBoxFlat.new()
+	xp_background.bg_color = Color(0.08, 0.09, 0.13)
+	xp_background.set_corner_radius_all(5)
+	var xp_fill := StyleBoxFlat.new()
+	xp_fill.bg_color = Color(0.46, 0.74, 1.0)
+	xp_fill.set_corner_radius_all(5)
+	menu_xp_bar.add_theme_stylebox_override("background", xp_background)
+	menu_xp_bar.add_theme_stylebox_override("fill", xp_fill)
+	profile_content.add_child(menu_xp_bar)
+	menu_xp_remaining_label = _make_label("До следующего уровня: 1000 XP", 14, Color(0.76, 0.8, 0.89))
+	menu_xp_remaining_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	profile_content.add_child(menu_xp_remaining_label)
+	menu_next_reward_label = _make_label("Награда: 75 осколков", 14, Color(0.43, 0.84, 1.0))
+	menu_next_reward_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	profile_content.add_child(menu_next_reward_label)
+
+	var hero_panel := PanelContainer.new()
+	hero_panel.name = "PlayerMenuHero"
+	hero_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hero_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	hero_panel.custom_minimum_size = Vector2(280, 0)
+	hero_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.57, 0.48, 0.31, 0.8), Color(0.025, 0.032, 0.05, 0.98)))
+	columns.add_child(hero_panel)
+	var hero_content := VBoxContainer.new()
+	hero_content.add_theme_constant_override("separation", 8)
+	hero_panel.add_child(hero_content)
+	menu_hero_name_label = _make_label("Воин", 20, PALE)
+	hero_content.add_child(menu_hero_name_label)
+	var portrait_frame := PanelContainer.new()
+	portrait_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	portrait_frame.add_theme_stylebox_override("panel", _panel_style(Color(0.24, 0.27, 0.34), Color(0.01, 0.014, 0.025)))
+	hero_content.add_child(portrait_frame)
+	menu_hero_portrait = TextureRect.new()
+	menu_hero_portrait.name = "SelectedHeroPortrait"
+	menu_hero_portrait.custom_minimum_size = Vector2(0, 280)
+	menu_hero_portrait.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	menu_hero_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	menu_hero_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	menu_hero_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait_frame.add_child(menu_hero_portrait)
+
+	var wardrobe_panel := PanelContainer.new()
+	wardrobe_panel.name = "PlayerMenuWardrobe"
+	wardrobe_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wardrobe_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	wardrobe_panel.custom_minimum_size = Vector2(280, 0)
+	wardrobe_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.4, 0.48, 0.63, 0.8), Color(0.045, 0.055, 0.085, 0.97)))
+	columns.add_child(wardrobe_panel)
+	var wardrobe_content := VBoxContainer.new()
+	wardrobe_content.add_theme_constant_override("separation", 9)
+	wardrobe_panel.add_child(wardrobe_content)
+	var wings_tab := _make_action_button("КРЫЛЬЯ", true)
+	wings_tab.custom_minimum_size = Vector2(0, 42)
+	wings_tab.disabled = true
+	wardrobe_content.add_child(wings_tab)
+	var wing_grid := GridContainer.new()
+	wing_grid.name = "WingInventoryGrid"
+	wing_grid.columns = 2
+	wing_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	wing_grid.add_theme_constant_override("h_separation", 8)
+	wing_grid.add_theme_constant_override("v_separation", 8)
+	wardrobe_content.add_child(wing_grid)
+	var wing_names := ["Белые крылья", "Черные крылья", "Багровые крылья", "Золотые крылья"]
+	var wing_colors := [Color(0.86, 0.9, 1.0), Color(0.18, 0.2, 0.27), Color(0.66, 0.16, 0.23), Color(0.98, 0.72, 0.18)]
+	for wing_index in range(4):
+		var wing_card := PanelContainer.new()
+		wing_card.name = "OwnedWing%d" % (wing_index + 1)
+		wing_card.custom_minimum_size = Vector2(110, 120)
+		wing_card.add_theme_stylebox_override("panel", _panel_style(Color(0.34, 0.37, 0.44), Color(0.065, 0.072, 0.09, 0.92)))
+		wing_grid.add_child(wing_card)
+		wing_slot_cards.append(wing_card)
+		var wing_content := VBoxContainer.new()
+		wing_content.add_theme_constant_override("separation", 3)
+		wing_card.add_child(wing_content)
+		var wing_icon := ColorRect.new()
+		wing_icon.name = "WingColor%d" % (wing_index + 1)
+		wing_icon.custom_minimum_size = Vector2(0, 48)
+		wing_icon.color = wing_colors[wing_index]
+		wing_icon.modulate.a = 0.35
+		wing_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		wing_content.add_child(wing_icon)
+		wing_content.add_child(_make_label(wing_names[wing_index], 12, PALE))
+		wing_content.add_child(_make_label("Ур. %d" % (wing_index + 1), 14, PALE))
+		var status := _make_label("🔒 Закрыто", 12, Color(0.62, 0.65, 0.72))
+		wing_content.add_child(status)
+		wing_slot_status_labels.append(status)
+	_refresh_player_menu()
+
+
+func _open_player_menu() -> void:
+	_refresh_player_menu()
+	player_menu_overlay.visible = true
+
+
+func _close_player_menu() -> void:
+	player_menu_overlay.visible = false
+
+
+func _save_player_nickname() -> void:
+	var nickname := nickname_line_edit.text.strip_edges()
+	if nickname.length() < 3 or nickname.length() > 12:
+		nickname_status_label.text = "Введите от 3 до 12 символов."
+		nickname_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
+		return
+	MetaProgression.player_nickname = nickname
+	MetaProgression.save_game()
+	nickname_line_edit.text = nickname
+	nickname_status_label.text = "Никнейм сохранен."
+	nickname_status_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
+
+
+func _refresh_player_menu() -> void:
+	if menu_hero_portrait == null:
+		return
+	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
+	var character_level := int(MetaProgression.char_levels.get(character_key, 1))
+	var character_xp := int(MetaProgression.char_xps.get(character_key, 0))
+	menu_hero_name_label.text = HERO_NAMES[selected_class]
+	menu_hero_portrait.texture = load(HERO_ART[selected_class]) as Texture2D
+	menu_level_label.text = "Уровень %d — %s" % [character_level, HERO_NAMES[selected_class]]
+	var max_xp := MetaProgression.get_xp_for_next_level(character_key)
+	menu_xp_bar.max_value = max_xp
+	menu_xp_bar.value = character_xp
+	if character_level >= MetaProgression.MAX_CHARACTER_LEVEL:
+		menu_xp_remaining_label.text = "До следующего уровня: максимальный уровень"
+		menu_next_reward_label.text = "Награда: —"
+	else:
+		menu_xp_remaining_label.text = "До следующего уровня: %d XP" % maxi(0, max_xp - character_xp)
+		menu_next_reward_label.text = "Награда: %d осколков" % MetaProgression.get_shard_reward_for_level(character_level + 1)
+	for wing_index in range(wing_slot_cards.size()):
+		var wing_id := wing_index + 1
+		var unlocked := wing_id in MetaProgression.unlocked_wings
+		var status := wing_slot_status_labels[wing_index]
+		var card := wing_slot_cards[wing_index]
+		var icon := card.find_child("WingColor%d" % wing_id, true, false) as ColorRect
+		status.text = "Куплено" if unlocked else "🔒 Закрыто"
+		status.add_theme_color_override("font_color", Color(0.95, 0.8, 0.42) if unlocked else Color(0.62, 0.65, 0.72))
+		if icon != null:
+			icon.modulate.a = 1.0 if unlocked else 0.35
+		card.add_theme_stylebox_override("panel", _panel_style(Color(0.83, 0.67, 0.34) if unlocked else Color(0.34, 0.37, 0.44), Color(0.14, 0.11, 0.06, 0.98) if unlocked else Color(0.065, 0.072, 0.09, 0.92)))
+
+
 func _build_hero_cards() -> void:
 	_build_hero_card(0, false)
 	_build_hero_card(1, true)
@@ -461,6 +703,7 @@ func _refresh_selection() -> void:
 			card_names[slot].add_theme_color_override("font_color", Color(0.62, 0.65, 0.72))
 	avatar.texture = load(HERO_ART[selected_class]) as Texture2D
 	_refresh_player_profile()
+	_refresh_player_menu()
 
 
 func _refresh_player_profile() -> void:

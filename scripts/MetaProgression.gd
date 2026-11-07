@@ -10,6 +10,7 @@ const LEVEL_UP_SHARD_REWARDS: Dictionary = {
 }
 
 var sky_shards: int = 0
+var player_nickname: String = ""
 var char_levels: Dictionary = {"warrior": 1, "mage": 1, "fairy": 1}
 var char_xps: Dictionary = {"warrior": 0, "mage": 0, "fairy": 0}
 var just_leveled_up: bool = false
@@ -25,6 +26,7 @@ func _ready() -> void:
 func save_game() -> void:
 	var config := ConfigFile.new()
 	config.set_value("progression", "sky_shards", sky_shards)
+	config.set_value("progression", "player_nickname", player_nickname)
 	config.set_value("progression", "char_levels", char_levels)
 	config.set_value("progression", "char_xps", char_xps)
 	config.set_value("progression", "equipped_wing", equipped_wing)
@@ -39,6 +41,7 @@ func load_game() -> void:
 	var error := config.load(SAVE_PATH)
 	if error != OK:
 		sky_shards = 0
+		player_nickname = ""
 		char_levels = {"warrior": 1, "mage": 1, "fairy": 1}
 		char_xps = {"warrior": 0, "mage": 0, "fairy": 0}
 		just_leveled_up = false
@@ -47,6 +50,7 @@ func load_game() -> void:
 		unlocked_wings.clear()
 		return
 	sky_shards = maxi(0, int(config.get_value("progression", "sky_shards", 0)))
+	player_nickname = String(config.get_value("progression", "player_nickname", ""))
 	char_levels = {"warrior": 1, "mage": 1, "fairy": 1}
 	char_xps = {"warrior": 0, "mage": 0, "fairy": 0}
 	var saved_levels: Variant = config.get_value("progression", "char_levels", {})
@@ -83,6 +87,10 @@ func get_xp_for_next_level(char_name: String) -> int:
 	if not char_levels.has(char_name):
 		return 1000
 	return int(char_levels[char_name]) * 1000
+
+
+func get_shard_reward_for_level(level: int) -> int:
+	return int(LEVEL_UP_SHARD_REWARDS.get(level, 0))
 
 
 func add_character_xp(char_name: String, amount: int) -> void:
