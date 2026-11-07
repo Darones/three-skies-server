@@ -168,20 +168,41 @@ func _create_floating_clouds() -> void:
 	arena.add_child(clouds)
 	var cloud_material := ShaderMaterial.new()
 	cloud_material.shader = CLOUD_WALL_SHADER
-	cloud_material.set_shader_parameter("cloud_tint", Color(0.72, 0.86, 0.94, 0.38))
-	var segment_count := 16
+	cloud_material.set_shader_parameter("cloud_tint", Color(0.78, 0.9, 0.97, 0.22))
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var segment_count := 64
+	var ring_radius_x := 28.9
+	var ring_radius_z := 20.9
+	var wall_bottom := -14.0
+	var wall_top := 3.0
 	for index in segment_count:
-		var angle := TAU * float(index) / float(segment_count)
-		var cloud := MeshInstance3D.new()
-		cloud.name = "CloudWall_%02d" % (index + 1)
-		var cloud_mesh := QuadMesh.new()
-		cloud_mesh.size = Vector2(13.0, 26.0)
-		cloud.mesh = cloud_mesh
-		cloud.material_override = cloud_material
-		cloud.position = Vector3(cos(angle) * 29.2, -5.0, sin(angle) * 21.1)
-		cloud.rotation.y = atan2(-cloud.position.x, -cloud.position.z)
-		cloud.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		clouds.add_child(cloud)
+		var u0 := float(index) / float(segment_count)
+		var u1 := float(index + 1) / float(segment_count)
+		var angle0 := TAU * u0
+		var angle1 := TAU * u1
+		var bottom0 := Vector3(cos(angle0) * ring_radius_x, wall_bottom, sin(angle0) * ring_radius_z)
+		var bottom1 := Vector3(cos(angle1) * ring_radius_x, wall_bottom, sin(angle1) * ring_radius_z)
+		var top0 := Vector3(bottom0.x, wall_top, bottom0.z)
+		var top1 := Vector3(bottom1.x, wall_top, bottom1.z)
+		surface.set_uv(Vector2(u0, 0.0))
+		surface.add_vertex(bottom0)
+		surface.set_uv(Vector2(u1, 0.0))
+		surface.add_vertex(bottom1)
+		surface.set_uv(Vector2(u1, 1.0))
+		surface.add_vertex(top1)
+		surface.set_uv(Vector2(u0, 0.0))
+		surface.add_vertex(bottom0)
+		surface.set_uv(Vector2(u1, 1.0))
+		surface.add_vertex(top1)
+		surface.set_uv(Vector2(u0, 1.0))
+		surface.add_vertex(top0)
+	var cloud_wall := MeshInstance3D.new()
+	cloud_wall.name = "CloudWall"
+	cloud_wall.mesh = surface.commit()
+	cloud_wall.material_override = cloud_material
+	cloud_wall.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	clouds.add_child(cloud_wall)
 
 
 func _create_shop_stall() -> void:
