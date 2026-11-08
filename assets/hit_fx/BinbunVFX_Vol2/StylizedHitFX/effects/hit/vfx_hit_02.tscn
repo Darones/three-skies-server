@@ -107,7 +107,7 @@ tracks/1/keys = {
 "times": PackedFloat32Array(0, 0.2),
 "transitions": PackedFloat32Array(0.5, 1),
 "update": 0,
-"values": [Vector3(3, 3, 3), Vector3(0, 0, 0)]
+"values": [Vector3(1.5, 1.5, 1.5), Vector3(0, 0, 0)]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
@@ -398,4 +398,4 @@ transform_align = 3
 process_material = SubResource("ParticleProcessMaterial_vwmd1")
 draw_pass_1 = SubResource("QuadMesh_0hikk")
 
-[node name="AudioStreamPlayer3D" type="AudioStreamPlayer3D" parent="." unique_id=466338663]
+[node name="AudioStreamPlayer3D" type="AudioStreamPlayer3D" parent="." unique_id=46633      

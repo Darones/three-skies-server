@@ -197,7 +197,7 @@ tracks/4/keys = {
 "times": PackedFloat32Array(0, 0.6),
 "transitions": PackedFloat32Array(0.6, 1),
 "update": 0,
-"values": [Vector3(4, 4, 4), Vector3(0, 0, 0)]
+"values": [Vector3(1.5, 1.5, 1.5), Vector3(0, 0, 0)]
 }
 tracks/5/type = "value"
 tracks/5/imported = false
@@ -718,4 +718,4 @@ script = ExtResource("6_0rtx1")
 light_mult = 0.0
 vfx_light_energy = 4.0
 
-[node name="AudioStreamPlayer3D" type="AudioStreamPlayer3D" parent="." unique_id=2079509458]
+[node name="AudioStreamPlayer3D" type="AudioStreamPlayer3D" parent="." unique_id=207950      

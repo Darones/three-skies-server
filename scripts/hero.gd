@@ -1673,4 +1673,4 @@ func _update_blessing(delta: float) -> void:
 
 
 func ability_ready(index: int) -> bool:
-	return ability_cds[index] <= 0.01 
+	return ability_cds[index] <= 0.01
