@@ -1,0 +1,29 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/low_poly_rpg_items/models/chest_loot_model.glb" id="1"]
+[ext_resource type="Script" path="res://addons/low_poly_rpg_items/pickup.gd" id="2"]
+
+[sub_resource type="BoxShape3D" id="box0"]
+size = Vector3(0.6000, 0.3000, 0.4080)
+
+[sub_resource type="BoxShape3D" id="box1"]
+size = Vector3(0.6000, 0.1200, 0.3914)
+
+[node name="chest_loot" instance=ExtResource("1")]
+script = ExtResource("2")
+kind = "storage"
+clip = "open"
+title = "Loot Chest"
+text = "A loot chest, its lock already broken. Someone was here first, but not for long."
+
+[node name="Collision" type="StaticBody3D" parent="chest_loot"]
+
+[node name="Box" type="CollisionShape3D" parent="chest_loot/Collision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0000, 0.1500, 0.0060)
+shape = SubResource("box0")
+
+[node name="Collision" type="StaticBody3D" parent="chest_loot/chest_loot_lid"]
+
+[node name="Box" type="CollisionShape3D" parent="chest_loot/chest_loot_lid/Collision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0000, 0.0599, 0.1900)
+shape = SubResource("box1")

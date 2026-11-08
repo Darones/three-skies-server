@@ -1,0 +1,1015 @@
+{
+ "atlas": 2048,
+ "atlas_used": 224,
+ "fps": 30,
+ "props": [
+  {
+   "name": "longsword",
+   "title": "Longsword",
+   "group": "swords",
+   "place": "hand",
+   "note": "1.1 m, a hand and a half on its grip",
+   "tris": 222,
+   "size": [
+    0.044,
+    0.239,
+    1.111
+   ],
+   "min": [
+    -0.022,
+    -0.12,
+    -0.131
+   ],
+   "max": [
+    0.022,
+    0.12,
+    0.98
+   ],
+   "parts": [
+    {
+     "name": "longsword",
+     "parent": null,
+     "pivot": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "tris": 222,
+     "min": [
+      -0.022,
+      -0.1195,
+      -0.1308
+     ],
+     "max": [
+      0.022,
+      0.1195,
+      0.98
+     ]
+    }
+   ],
+   "anims": [
+    {
+     "name": "swing",
+     "seconds": 0.7,
+     "loop": false
+    }
+   ],
+   "melee": {
+    "swing": "swing",
+    "hit": 0.47,
+    "reach": 1.5
+   },
+   "pickup": {
+    "kind": "item",
+    "item": "longsword",
+    "amount": 1,
+    "title": "Longsword",
+    "text": "A knight's longsword. Balanced a hand's breadth above the guard.",
+    "glint": false
+   }
+  },
+  {
+   "name": "battle_axe",
+   "title": "Battle Axe",
+   "group": "axes",
+   "place": "hand",
+   "note": "0.9 m, a broad bearded bit and a hammer behind",
+   "tris": 148,
+   "size": [
+    0.044,
+    0.298,
+    0.92
+   ],
+   "min": [
+    -0.022,
+    -0.208,
+    -0.27
+   ],
+   "max": [
+    0.022,
+    0.09,
+    0.65
+   ],
+   "parts": [
+    {
+     "name": "battle_axe",
+     "parent": null,
+     "pivot": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "tris": 148,
+     "min": [
+      -0.022,
+      -0.208,
+      -0.27
+     ],
+     "max": [
+      0.022,
+      0.09,
+      0.65
+     ]
+    }
+   ],
+   "anims": [
+    {
+     "name": "swing",
+     "seconds": 0.8,
+     "loop": false
+    }
+   ],
+   "melee": {
+    "swing": "swing",
+    "hit": 0.47,
+    "reach": 1.5
+   },
+   "pickup": {
+    "kind": "item",
+    "item": "battle_axe",
+    "amount": 1,
+    "title": "Battle Axe",
+    "text": "A battle axe. The beard hooks a shield's rim and pulls it down.",
+    "glint": false
+   }
+  },
+  {
+   "name": "short_bow",
+   "title": "Short Bow",
+   "group": "bows",
+   "place": "hand",
+   "note": "1.05 m, a recurved hunting bow",
+   "tris": 238,
+   "size": [
+    0.056,
+    0.63,
+    1.081
+   ],
+   "min": [
+    -0.018,
+    -0.49,
+    -0.54
+   ],
+   "max": [
+    0.038,
+    0.14,
+    0.54
+   ],
+   "parts": [
+    {
+     "name": "short_bow",
+     "parent": null,
+     "pivot": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "tris": 32,
+     "min": [
+      -0.018,
+      -0.0156,
+      -0.07
+     ],
+     "max": [
+      0.035,
+      0.0156,
+      0.07
+     ]
+    },
+    {
+     "name": "short_bow_limb_up",
+     "parent": "short_bow",
+     "pivot": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "tris": 62,
+     "min": [
+      -0.0143,
+      -0.012,
+      0.0578
+     ],
+     "max": [
+      0.0143,
+      0.1395,
+      0.5405
+     ]
+    },
+    {
+     "name": "short_bow_limb_down",
+     "parent": "short_bow",
+     "pivot": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "tris": 62,
+     "min": [
+      -0.0143,
+      -0.0148,
+      -0.5405
+     ],
+     "max": [
+      0.0143,
+      0.1395,
+      -0.0582
+     ]
+    },
+    {
+     "name": "short_bow_string_up",
+     "parent": "short_bow_limb_up",
+     "pivot": [
+      0.0,
+      0.13,
+      0.5
+     ],
+     "tris": 8,
+     "min": [
+      -0.0019,
+      0.1278,
+      0.0
+     ],
+     "max": [
+      0.0019,
+      0.1311,
+      0.5
+     ]
+    },
+    {
+     "name": "short_bow_string_down",
+     "parent": "short_bow_limb_down",
+     "pivot": [
+      0.0,
+      0.13,
+      -0.5
+     ],
+     "tris": 8,
+     "min": [
+      -0.0019,
+      0.1289,
+      -0.5
+     ],
+     "max": [
+      0.0019,
+      0.1322,
+      0.0
+     ]
+    },
+    {
+     "name": "short_bow_arrow",
+     "parent": "short_bow",
+     "pivot": [
+      0.026,
+      0.13,
+      0.0
+     ],
+     "tris": 66,
+     "min": [
+      0.0136,
+      -0.49,
+      -0.009
+     ],
+     "max": [
+      0.0384,
+      0.132,
+      0.014
+     ]
+    }
+   ],
+   "anims": [
+    {
+     "name": "shoot",
+     "seconds": 1.3,
+     "loop": false
+    }
+   ],
+   "melee": {
+    "swing": "shoot",
+    "hit": 0.6,
+    "reach": 25.0
+   },
+   "pickup": {
+    "kind": "item",
+    "item": "short_bow",
+    "amount": 1,
+    "title": "Short Bow",
+    "text": "A short hunting bow, recurved at the tips. Quick to draw on horseback.",
+    "glint": false
+   }
+  },
+  {
+   "name": "round_shield",
+   "title": "Round Shield",
+   "group": "shields",
+   "place": "wall",
+   "note": "0.84 m across, painted boards on an iron boss",
+   "tris": 410,
+   "size": [
+    0.864,
+    0.085,
+    0.864
+   ],
+   "min": [
+    -0.432,
+    -0.085,
+    0.968
+   ],
+   "max": [
+    0.432,
+    0.0,
+    1.832
+   ],
+   "parts": [
+    {
+     "name": "round_shield",
+     "parent": null,
+     "pivot": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "tris": 410,
+     "min": [
+      -0.432,
+      -0.085,
+      0.968
+     ],
+     "max": [
+      0.432,
+      0.0,
+      1.832
+     ]
+    }
+   ],
+   "anims": [],
+   "pickup": {
+    "kind": "item",
+    "item": "round_shield",
+    "amount": 1,
+    "title": "Round Shield",
+    "text": "A round shield of limewood boards. It will take a few blows before it splits.",
+    "glint": false
+   }
+  },
+  {
+   "name": "staff_wizard",
+   "title": "Wizard's Staff",
+   "group": "magic",
+   "place": "hand",
+   "note": "1.95 m of bog oak, a blue crystal held in its roots",
+   "tris": 280,
+   "size": [
+    0.076,
+    0.076,
+    1.953
+   ],
+   "min": [
+    -0.038,
+    -0.038,
+    -0.751
+   ],
+   "max": [
+    0.038,
+    0.038,
+    1.202
+   ],
+   "parts": [
+    {
+     "name": "staff_wizard",
+     "parent": null,
+     "pivot": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "tris": 280,
+     "min": [
+      -0.0382,
+      -0.0382,
+      -0.7507
+     ],
+     "max": [
+      0.0382,
+      0.0382,
+      1.2019
+     ]
+    }
+   ],
+   "anims": [
+    {
+     "name": "swing",
+     "seconds": 0.8,
+     "loop": false
+    }
+   ],
+   "melee": {
+    "swing": "swing",
+    "hit": 0.47,
+    "reach": 1.8
+   },
+   "pickup": {
+    "kind": "item",
+    "item": "staff_wizard",
+    "amount": 1,
+    "title": "Wizard's Staff",
+    "text": "A wizard's staff. The crystal hums when spells are near.",
+    "glint": false
+   }
+  },
+  {
+   "name": "helmet_nasal",
+   "title": "Nasal Helm",
+   "group": "armour",
+   "place": "item",
+   "note": "a conical iron helm 0.26 m high, a nose guard down its front",
+   "tris": 170,
+   "size": [
+    0.22,
+    0.22,
+    0.255
+   ],
+   "min": [
+    -0.11,
+    -0.115,
+    0.0
+   ],
+   "max": [
+    0.11,
+    0.105,
+    0.255
+   ],
+   "parts": [
+    {
+     "name": "helmet_nasal",
+     "parent": null,
+     "pivot": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "tris": 170,
+     "min": [
+      -0.11,
+      -0.115,
+      0.0
+     ],
+     "max": [
+      0.11,
+      0.1046,
+      0.255
+     ]
+    }
+   ],
+   "anims": [],
+   "pickup": {
+    "kind": "item",
+    "item": "helmet_nasal",
+    "amount": 1,
+    "title": "Nasal Helm",
+    "text": "A nasal helm, banded in brass. It keeps a sword off the nose.",
+    "glint": false
+   }
+  },
+  {
+   "name": "potion_health",
+   "title": "Health Potion",
+   "group": "potions",
+   "place": "item",
+   "note": "a red draught in a round flask, 0.18 m",
+   "tris": 212,
+   "size": [
+    0.13,
+    0.13,
+    0.186
+   ],
+   "min": [
+    -0.065,
+    -0.065,
+    0.0
+   ],
+   "max": [
+    0.065,
+    0.065,
+    0.186
+   ],
+   "parts": [
+    {
+     "name": "potion_health",
+     "parent": null,
+     "pivot": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "tris": 212,
+     "min": [
+      -0.065,
+      -0.065,
+      0.0
+     ],
+     "max": [
+      0.065,
+      0.065,
+      0.186
+     ]
+    }
+   ],
+   "anims": [],
+   "pickup": {
+    "kind": "item",
+    "item": "potion_health",
+    "amount": 1,
+    "title": "Health Potion",
+    "text": "A health potion. It tastes of iron and cherries, and closes wounds.",
+    "glint": true
+   }
+  },
+  {
+   "name": "potion_mana",
+   "title": "Mana Potion",
+   "group": "potions",
+   "place": "item",
+   "note": "a blue draught in a tall bottle, 0.21 m",
+   "tris": 192,
+   "size": [
+    0.078,
+    0.078,
+    0.221
+   ],
+   "min": [
+    -0.039,
+    -0.039,
+    0.0
+   ],
+   "max": [
+    0.039,
+    0.039,
+    0.221
+   ],
+   "parts": [
+    {
+     "name": "potion_mana",
+     "parent": null,
+     "pivot": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "tris": 192,
+     "min": [
+      -0.039,
+      -0.039,
+      0.0
+     ],
+     "max": [
+      0.039,
+      0.039,
+      0.221
+     ]
+    }
+   ],
+   "anims": [],
+   "pickup": {
+    "kind": "item",
+    "item": "potion_mana",
+    "amount": 1,
+    "title": "Mana Potion",
+    "text": "A mana potion. It fizzes, and the mind clears like a winter sky.",
+    "glint": false
+   }
+  },
+  {
+   "name": "scroll",
+   "title": "Scroll",
+   "group": "books",
+   "place": "item",
+   "note": "rolled and tied with a green ribbon, 0.3 m",
+   "tris": 88,
+   "size": [
+    0.3,
+    0.049,
+    0.052
+   ],
+   "min": [
+    -0.15,
+    -0.025,
+    0.0
+   ],
+   "max": [
+    0.15,
+    0.025,
+    0.052
+   ],
+   "parts": [
+    {
+     "name": "scroll",
+     "parent": null,
+     "pivot": [
+      0.0,
+      0.0,
+      0.004
+     ],
+     "tris": 88,
+     "min": [
+      -0.15,
+      -0.0247,
+      0.0
+     ],
+     "max": [
+      0.15,
+      0.0247,
+      0.052
+     ]
+    }
+   ],
+   "anims": [],
+   "pickup": {
+    "kind": "item",
+    "item": "scroll",
+    "amount": 1,
+    "title": "Scroll",
+    "text": "A scroll, tied. What it says is for whoever unties it.",
+    "glint": false
+   }
+  },
+  {
+   "name": "key_iron",
+   "title": "Iron Key",
+   "group": "keys",
+   "place": "item",
+   "note": "a big iron key, 0.18 m",
+   "tris": 172,
+   "size": [
+    0.188,
+    0.074,
+    0.021
+   ],
+   "min": [
+    -0.112,
+    -0.037,
+    0.0
+   ],
+   "max": [
+    0.076,
+    0.037,
+    0.021
+   ],
+   "parts": [
+    {
+     "name": "key_iron",
+     "parent": null,
+     "pivot": [
+      0.0,
+      0.0,
+      0.0015
+     ],
+     "tris": 172,
+     "min": [
+      -0.112,
+      -0.037,
+      0.0
+     ],
+     "max": [
+      0.076,
+      0.037,
+      0.021
+     ]
+    }
+   ],
+   "anims": [],
+   "pickup": {
+    "kind": "item",
+    "item": "key_iron",
+    "amount": 1,
+    "title": "Iron Key",
+    "text": "An iron key, heavy and plain. It opens something that matters.",
+    "glint": true
+   }
+  },
+  {
+   "name": "coin_stack",
+   "title": "Stack of Gold",
+   "group": "treasure",
+   "place": "item",
+   "note": "twelve gold coins in a stack",
+   "tris": 432,
+   "size": [
+    0.035,
+    0.033,
+    0.036
+   ],
+   "min": [
+    -0.017,
+    -0.017,
+    0.0
+   ],
+   "max": [
+    0.018,
+    0.016,
+    0.036
+   ],
+   "parts": [
+    {
+     "name": "coin_stack",
+     "parent": null,
+     "pivot": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "tris": 432,
+     "min": [
+      -0.0172,
+      -0.0169,
+      0.0
+     ],
+     "max": [
+      0.0178,
+      0.0165,
+      0.036
+     ]
+    }
+   ],
+   "anims": [],
+   "pickup": {
+    "kind": "item",
+    "item": "gold_coins",
+    "amount": 12,
+    "title": "Stack of Gold",
+    "text": "A stack of twelve gold coins.",
+    "glint": false
+   }
+  },
+  {
+   "name": "gem_ruby",
+   "title": "Ruby",
+   "group": "treasure",
+   "place": "item",
+   "note": "a red stone cut round",
+   "tris": 48,
+   "size": [
+    0.064,
+    0.064,
+    0.04
+   ],
+   "min": [
+    -0.032,
+    -0.032,
+    0.0
+   ],
+   "max": [
+    0.032,
+    0.032,
+    0.04
+   ],
+   "parts": [
+    {
+     "name": "gem_ruby",
+     "parent": null,
+     "pivot": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "tris": 48,
+     "min": [
+      -0.032,
+      -0.032,
+      0.0
+     ],
+     "max": [
+      0.032,
+      0.032,
+      0.04
+     ]
+    }
+   ],
+   "anims": [],
+   "pickup": {
+    "kind": "item",
+    "item": "gems",
+    "amount": 1,
+    "title": "Ruby",
+    "text": "A ruby, deep as wine. Worth a horse.",
+    "glint": false
+   }
+  },
+  {
+   "name": "chest_loot",
+   "title": "Loot Chest",
+   "group": "treasure",
+   "place": "floor",
+   "note": "an iron-bound chest 0.6 m long, gold and gems in it; its lid lifts towards +Y",
+   "tris": 642,
+   "size": [
+    0.6,
+    0.408,
+    0.42
+   ],
+   "min": [
+    -0.3,
+    -0.21,
+    0.0
+   ],
+   "max": [
+    0.3,
+    0.198,
+    0.42
+   ],
+   "parts": [
+    {
+     "name": "chest_loot",
+     "parent": null,
+     "pivot": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "tris": 514,
+     "min": [
+      -0.3,
+      -0.21,
+      0.0
+     ],
+     "max": [
+      0.3,
+      0.198,
+      0.3
+     ]
+    },
+    {
+     "name": "chest_loot_lid",
+     "parent": "chest_loot",
+     "pivot": [
+      0.0,
+      0.19,
+      0.3
+     ],
+     "tris": 128,
+     "min": [
+      -0.3,
+      -0.1957,
+      0.3
+     ],
+     "max": [
+      0.3,
+      0.1957,
+      0.4197
+     ]
+    }
+   ],
+   "anims": [
+    {
+     "name": "open",
+     "seconds": 1.2,
+     "loop": false
+    }
+   ],
+   "pickup": {
+    "kind": "storage",
+    "clip": "open",
+    "title": "Loot Chest",
+    "text": "A loot chest, its lock already broken. Someone was here first, but not for long."
+   }
+  },
+  {
+   "name": "display_table",
+   "title": "Display Table",
+   "group": "display",
+   "place": "floor",
+   "note": "oak, 1.6 x 0.8 m, its top at 0.8 m under a red runner",
+   "tris": 126,
+   "size": [
+    1.6,
+    0.812,
+    0.804
+   ],
+   "min": [
+    -0.8,
+    -0.407,
+    0.0
+   ],
+   "max": [
+    0.8,
+    0.405,
+    0.804
+   ],
+   "parts": [
+    {
+     "name": "display_table",
+     "parent": null,
+     "pivot": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "tris": 126,
+     "min": [
+      -0.8,
+      -0.407,
+      0.0
+     ],
+     "max": [
+      0.8,
+      0.405,
+      0.804
+     ]
+    }
+   ],
+   "anims": []
+  },
+  {
+   "name": "floor_vault",
+   "title": "Flagstone Floor",
+   "group": "vault",
+   "place": "floor",
+   "note": "worn flagstones; 2 x 2 m",
+   "tris": 8,
+   "size": [
+    2.0,
+    2.0,
+    0.0
+   ],
+   "min": [
+    -1.0,
+    -1.0,
+    0.0
+   ],
+   "max": [
+    1.0,
+    1.0,
+    0.0
+   ],
+   "parts": [
+    {
+     "name": "floor_vault",
+     "parent": null,
+     "pivot": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "tris": 8,
+     "min": [
+      -1.0,
+      -1.0,
+      0.0
+     ],
+     "max": [
+      1.0,
+      1.0,
+      0.0
+     ]
+    }
+   ],
+   "anims": []
+  },
+  {
+   "name": "wall_vault",
+   "title": "Stone Wall",
+   "group": "vault",
+   "place": "floor",
+   "note": "dressed stone in courses on a plinth of big blocks; 2 x 4 m",
+   "tris": 36,
+   "size": [
+    2.0,
+    0.25,
+    4.0
+   ],
+   "min": [
+    -1.0,
+    -0.125,
+    0.0
+   ],
+   "max": [
+    1.0,
+    0.125,
+    4.0
+   ],
+   "parts": [
+    {
+     "name": "wall_vault",
+     "parent": null,
+     "pivot": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "tris": 36,
+     "min": [
+      -1.0,
+      -0.125,
+      0.0
+     ],
+     "max": [
+      1.0,
+      0.125,
+      4.0
+     ]
+    }
+   ],
+   "anims": []
+  }
+ ]
+}

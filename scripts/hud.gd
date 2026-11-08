@@ -17,15 +17,24 @@ class AbilityCooldownWipe extends Control:
 		for segment in range(segments + 1):
 			var angle := -PI * 0.5 + TAU * progress * float(segment) / float(segments)
 			points.append(center + Vector2(cos(angle), sin(angle)) * radius)
-		draw_colored_polygon(points, Color(0.04, 0.72, 0.22, 0.94))
+		draw_colored_polygon(points, Color(0.92, 0.67, 0.2, 0.94))
 
 var game: Node
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
+const SETTINGS_PANEL_SCRIPT := preload("res://scripts/settings_panel.gd")
 const HERO_PORTRAITS := {
 	HeroUnit.Cls.WARRIOR: preload("res://assets/characters/warrior_light.png"),
 	HeroUnit.Cls.MAGE: preload("res://assets/characters/mage_dark.png"),
 	HeroUnit.Cls.FAIRY: preload("res://assets/characters/fairy.png"),
 }
+
+const ABILITY_SHORT_LABELS := {
+	HeroUnit.Cls.WARRIOR: ["СТАН", "КРИТ", "УЛЬТА"],
+	HeroUnit.Cls.MAGE: ["СТАН", "ХИЛ", "УЛЬТА"],
+	HeroUnit.Cls.FAIRY: ["СТАН", "КРИТ", "БАФ"],
+}
+
+
 
 var font: FontFile
 
@@ -46,6 +55,7 @@ var ability_buttons: Array[Button] = []
 var ability_wipes: Array[AbilityCooldownWipe] = []
 var ability_ready: Array[bool] = []
 var ability_name_labels: Array[Label] = []
+var ability_key_labels: Array[Label] = []
 var select_panel: Control
 var end_panel: Control
 var end_title: Label
@@ -53,8 +63,12 @@ var end_score: Label
 var shop_panel: PanelContainer
 var shop_dim: ColorRect
 var shop_buttons: Dictionary = {}
-var ability_row: HBoxContainer
+var ability_row: Control
 var announce_tween: Tween
+var pause_button: Button
+var pause_overlay: Control
+var pause_menu_panel: Control
+var pause_settings_panel: Control
 
 const GOLD := Color(0.96, 0.82, 0.52)
 const PALE := Color(0.86, 0.9, 1.0)
@@ -63,6 +77,7 @@ const SHOP_ICON_SHEET: Texture2D = preload("res://assets/shop_icons/e1689879_126
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 10
 	font = UI_FONT
 	var root := Control.new()
@@ -80,6 +95,7 @@ func _ready() -> void:
 	_build_select(root)
 	_build_end(root)
 	_build_shop(root)
+	_build_pause_menu(root)
 
 
 func _panel_style(border: Color, fill := DARK_BG) -> StyleBoxFlat:
@@ -113,9 +129,9 @@ func _build_top(root: Control) -> void:
 	var box := VBoxContainer.new()
 	box.name = "MatchInfo"
 	box.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	box.offset_left = -360.0
+	box.offset_left = -380.0 if OS.has_feature("mobile") else -360.0
 	box.offset_top = 20.0
-	box.offset_right = -20.0
+	box.offset_right = -74.0 if OS.has_feature("mobile") else -20.0
 	box.offset_bottom = 142.0
 	box.add_theme_constant_override("separation", 2)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -143,6 +159,155 @@ func _build_top(root: Control) -> void:
 	respawn_label.visible = false
 	box.add_child(respawn_label)
 	_build_player_panel(root)
+	if OS.has_feature("mobile"):
+		pause_button = Button.new()
+		pause_button.name = "MobilePauseButton"
+		pause_button.text = "☰"
+		pause_button.tooltip_text = "Пауза"
+		pause_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		pause_button.offset_left = -64.0
+		pause_button.offset_top = 20.0
+		pause_button.offset_right = -20.0
+		pause_button.offset_bottom = 64.0
+		pause_button.focus_mode = Control.FOCUS_NONE
+		pause_button.add_theme_font_override("font", font)
+		pause_button.add_theme_font_size_override("font_size", 23)
+		pause_button.add_theme_color_override("font_color", GOLD)
+		pause_button.add_theme_stylebox_override("normal", _pause_button_style(false))
+		pause_button.add_theme_stylebox_override("hover", _pause_button_style(true))
+		pause_button.add_theme_stylebox_override("pressed", _pause_button_style(true))
+		pause_button.pressed.connect(_toggle_pause_menu)
+		root.add_child(pause_button)
+
+
+func _pause_button_style(hovered: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.07, 0.09, 0.13, 0.93) if not hovered else Color(0.12, 0.16, 0.22, 1.0)
+	style.border_color = Color(0.46, 0.54, 0.69, 0.9) if not hovered else Color(0.95, 0.76, 0.38)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(22)
+	return style
+
+
+func _build_pause_menu(root: Control) -> void:
+	pause_overlay = Control.new()
+	pause_overlay.name = "PauseOverlay"
+	pause_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	pause_overlay.process_mode = Node.PROCESS_MODE_ALWAYS
+	pause_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	pause_overlay.z_index = 50
+	pause_overlay.visible = false
+	root.add_child(pause_overlay)
+
+	var dim := ColorRect.new()
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.005, 0.008, 0.018, 0.78)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	pause_overlay.add_child(dim)
+
+	var panel := PanelContainer.new()
+	panel.name = "PauseMenuPanel"
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.anchor_left = 0.5
+	panel.anchor_top = 0.5
+	panel.anchor_right = 0.5
+	panel.anchor_bottom = 0.5
+	panel.offset_left = -210.0
+	panel.offset_top = -190.0
+	panel.offset_right = 210.0
+	panel.offset_bottom = 190.0
+	panel.add_theme_stylebox_override("panel", _panel_style(Color(0.78, 0.62, 0.32), Color(0.035, 0.045, 0.07, 0.99)))
+	pause_overlay.add_child(panel)
+	pause_menu_panel = panel
+
+	var layout := VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 14)
+	panel.add_child(layout)
+	var title := _make_label("ПАУЗА", 34, GOLD)
+	layout.add_child(title)
+	var resume_button := _pause_action_button("Продолжить", true)
+	resume_button.pressed.connect(_resume_game)
+	layout.add_child(resume_button)
+	var settings_button := _pause_action_button("Настройки", false)
+	settings_button.pressed.connect(_open_pause_settings)
+	layout.add_child(settings_button)
+	var exit_button := _pause_action_button("Выйти из игры", false)
+	exit_button.pressed.connect(_exit_game)
+	layout.add_child(exit_button)
+
+	pause_settings_panel = SETTINGS_PANEL_SCRIPT.new() as Control
+	pause_settings_panel.name = "PauseSettingsPanel"
+	pause_settings_panel.visible = false
+	pause_settings_panel.z_index = 10
+	pause_settings_panel.connect("back_requested", _on_pause_settings_back)
+	pause_overlay.add_child(pause_settings_panel)
+
+
+func _pause_action_button(text: String, primary: bool) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.custom_minimum_size = Vector2(300.0, 50.0)
+	button.focus_mode = Control.FOCUS_NONE
+	button.add_theme_font_override("font", font)
+	button.add_theme_font_size_override("font_size", 20)
+	button.add_theme_color_override("font_color", GOLD if primary else PALE)
+	button.add_theme_stylebox_override("normal", _panel_style(Color(0.8, 0.65, 0.37, 0.72), Color(0.07, 0.09, 0.13, 0.93)))
+	button.add_theme_stylebox_override("hover", _panel_style(Color(0.95, 0.76, 0.38), Color(0.12, 0.16, 0.22, 1.0)))
+	button.add_theme_stylebox_override("pressed", _panel_style(Color(1.0, 0.88, 0.58), Color(0.18, 0.14, 0.08, 1.0)))
+	return button
+
+
+func _toggle_pause_menu() -> void:
+	if pause_overlay.visible:
+		_resume_game()
+	else:
+		_open_pause_menu()
+
+
+func _open_pause_menu() -> void:
+	if game == null or game.state != "live":
+		return
+	pause_overlay.visible = true
+	pause_menu_panel.visible = true
+	pause_settings_panel.visible = false
+	get_tree().paused = true
+	SETTINGS_PANEL_SCRIPT.vibrate_if_enabled()
+
+
+func _resume_game() -> void:
+	pause_overlay.visible = false
+	pause_settings_panel.visible = false
+	get_tree().paused = false
+
+
+func _open_pause_settings() -> void:
+	pause_menu_panel.visible = false
+	pause_settings_panel.visible = true
+
+
+func _on_pause_settings_back() -> void:
+	pause_settings_panel.visible = false
+	pause_menu_panel.visible = true
+
+
+func _exit_game() -> void:
+	get_tree().paused = false
+	get_tree().change_scene_to_file("res://scenes/Lobby.tscn")
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not (event is InputEventKey):
+		return
+	var key_event := event as InputEventKey
+	if not key_event.pressed or key_event.echo or (key_event.keycode != KEY_ESCAPE and key_event.physical_keycode != KEY_ESCAPE):
+		return
+	if pause_settings_panel != null and pause_settings_panel.visible:
+		_on_pause_settings_back()
+	elif pause_overlay != null and pause_overlay.visible:
+		_resume_game()
+	elif game != null and game.state == "live":
+		_open_pause_menu()
+	get_viewport().set_input_as_handled()
 
 
 func _build_player_panel(root: Control) -> void:
@@ -220,26 +385,50 @@ func _build_player_panel(root: Control) -> void:
 
 
 func _build_abilities(root: Control) -> void:
-	var row := HBoxContainer.new()
+	var is_mobile := OS.has_feature("mobile")
+	var row: Control
+	if is_mobile:
+		row = Control.new()
+		row.set_anchors_preset(Control.PRESET_FULL_RECT)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	else:
+		row = HBoxContainer.new()
+		row.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+		row.anchor_left = 1.0
+		row.anchor_top = 1.0
+		row.anchor_right = 1.0
+		row.anchor_bottom = 1.0
+		row.offset_left = -296.0
+		row.offset_top = -128.0
+		row.offset_right = -20.0
+		row.offset_bottom = -20.0
+		row.add_theme_constant_override("separation", 8)
+		row.alignment = BoxContainer.ALIGNMENT_END
 	ability_row = row
-	row.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	row.anchor_left = 1.0
-	row.anchor_top = 1.0
-	row.anchor_right = 1.0
-	row.anchor_bottom = 1.0
-	row.offset_left = -296.0
-	row.offset_top = -104.0
-	row.offset_right = -20.0
-	row.offset_bottom = -20.0
-	row.add_theme_constant_override("separation", 8)
-	row.alignment = BoxContainer.ALIGNMENT_END
 	root.add_child(row)
 
+	var slot_offsets := [Vector2(-209.0, -150.0), Vector2(-128.0, -231.0), Vector2(-290.0, -231.0)]
 	for i in 3:
+		var slot := VBoxContainer.new()
+		if is_mobile:
+			slot.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+			slot.offset_left = slot_offsets[i].x
+			slot.offset_top = slot_offsets[i].y
+			slot.offset_right = slot_offsets[i].x + 88.0
+			slot.offset_bottom = slot_offsets[i].y + 110.0
+			slot.custom_minimum_size = Vector2(88.0, 110.0)
+		else:
+			slot.custom_minimum_size = Vector2(84.0, 106.0)
+		slot.add_theme_constant_override("separation", 2)
+		slot.alignment = BoxContainer.ALIGNMENT_CENTER
 		var button := Button.new()
-		button.custom_minimum_size = Vector2(84, 84)
+		button.text = ""
+		button.custom_minimum_size = Vector2(88.0, 88.0) if is_mobile else Vector2(84.0, 84.0)
 		button.clip_contents = true
 		button.focus_mode = Control.FOCUS_NONE
+		button.add_theme_font_override("font", font)
+		button.add_theme_font_size_override("font_size", 16 if is_mobile else 28)
+		button.add_theme_color_override("font_color", Color.WHITE)
 		button.add_theme_stylebox_override("normal", _ability_style(true, false))
 		button.add_theme_stylebox_override("hover", _ability_style(true, true))
 		button.add_theme_stylebox_override("pressed", _ability_style(true, true))
@@ -248,31 +437,34 @@ func _build_abilities(root: Control) -> void:
 		wipe.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		wipe.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(wipe)
-		var box := VBoxContainer.new()
-		box.set_anchors_preset(Control.PRESET_FULL_RECT)
-		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		box.add_theme_constant_override("separation", 0)
-		button.add_child(box)
-		var key := _make_label(str(i + 1), 24, Color.WHITE)
-		box.add_child(key)
-		var name_label := _make_label("", 10, PALE)
-		name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		name_label.custom_minimum_size = Vector2(70, 28)
+		var key_label := _make_label(str(i + 1), 28, Color.WHITE)
+		key_label.text = str(ABILITY_SHORT_LABELS[HeroUnit.Cls.WARRIOR][i]) if is_mobile else str(i + 1)
+		key_label.add_theme_font_size_override("font_size", 16 if is_mobile else 28)
+		key_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+		key_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		key_label.z_index = 1
+		key_label.visible = true
+		button.add_child(key_label)
+		var name_label := _make_label("", 13, PALE)
+		name_label.custom_minimum_size = Vector2(84.0 if not is_mobile else 88.0, 20.0)
 		name_label.clip_text = true
-		box.add_child(name_label)
-		row.add_child(button)
+		name_label.visible = not is_mobile
+		slot.add_child(button)
+		slot.add_child(name_label)
+		row.add_child(slot)
 		ability_buttons.append(button)
 		ability_wipes.append(wipe)
 		ability_ready.append(true)
 		ability_name_labels.append(name_label)
+		ability_key_labels.append(key_label)
 
 func _ability_style(is_ready: bool, hovered: bool) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	var base_color := Color(0.04, 0.68, 0.2) if is_ready else Color(0.88, 0.035, 0.045)
+	var base_color := Color(0.68, 0.43, 0.12) if is_ready else Color(0.14, 0.1, 0.21)
 	style.bg_color = base_color.lightened(0.08) if hovered else base_color
-	style.border_color = Color(0.72, 1.0, 0.76) if is_ready else Color(1.0, 0.65, 0.62)
+	style.border_color = Color(1.0, 0.79, 0.4) if is_ready else Color(0.48, 0.39, 0.62)
 	style.set_border_width_all(2)
-	style.set_corner_radius_all(42)
+	style.set_corner_radius_all(44 if OS.has_feature("mobile") else 42)
 	style.content_margin_left = 2.0
 	style.content_margin_right = 2.0
 	style.content_margin_top = 2.0
@@ -385,7 +577,7 @@ func _build_shop(root: Control) -> void:
 	var header := Control.new()
 	header.custom_minimum_size = Vector2(0.0, 30.0)
 	layout.add_child(header)
-	var title := _make_label("МАГАЗИН", 21, GOLD)
+	var title := _make_label("МАГАЗИН", 28, GOLD)
 	title.set_anchors_preset(Control.PRESET_FULL_RECT)
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	header.add_child(title)
@@ -399,7 +591,7 @@ func _build_shop(root: Control) -> void:
 	close_button.offset_top = 0.0
 	close_button.offset_right = 0.0
 	close_button.offset_bottom = 30.0
-	close_button.add_theme_font_size_override("font_size", 22)
+	close_button.add_theme_font_size_override("font_size", 24)
 	close_button.add_theme_color_override("font_color", PALE)
 	close_button.add_theme_color_override("font_hover_color", Color.WHITE)
 	close_button.add_theme_stylebox_override("normal", _panel_style(Color(0.62, 0.49, 0.29, 0.75), Color(0.07, 0.075, 0.11, 0.9)))
@@ -408,7 +600,7 @@ func _build_shop(root: Control) -> void:
 	close_button.pressed.connect(_on_shop_close_pressed)
 	header.add_child(close_button)
 
-	var subtitle := _make_label("Улучшения до конца боя · по одной покупке каждого предмета", 11, PALE)
+	var subtitle := _make_label("Улучшения до конца боя · по одной покупке каждого предмета", 14, PALE)
 	layout.add_child(subtitle)
 
 	var grid_center := CenterContainer.new()
@@ -428,7 +620,7 @@ func _build_shop(root: Control) -> void:
 	for item in game.get_shop_items():
 		var item_id := String(item["id"])
 		var button := Button.new()
-		button.custom_minimum_size = Vector2(0.0, 102.0)
+		button.custom_minimum_size = Vector2(0.0, 122.0)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		button.focus_mode = Control.FOCUS_NONE
@@ -450,7 +642,7 @@ func _build_shop(root: Control) -> void:
 
 		var icon := TextureRect.new()
 		icon.texture = _shop_icon(int(item["icon"]))
-		icon.custom_minimum_size = Vector2(42.0, 42.0)
+		icon.custom_minimum_size = Vector2(50.0, 50.0)
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -463,17 +655,17 @@ func _build_shop(root: Control) -> void:
 		details.add_theme_constant_override("separation", 0)
 		details.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		content.add_child(details)
-		var name_label := _make_label(String(item["name"]), 12, PALE)
+		var name_label := _make_label(String(item["name"]), 17, PALE)
 		name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		name_label.custom_minimum_size = Vector2(0.0, 16.0)
+		name_label.custom_minimum_size = Vector2(0.0, 22.0)
 		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		details.add_child(name_label)
-		var effect_label := _make_label(String(item["effect"]), 11, Color(0.72, 0.88, 0.75))
+		var effect_label := _make_label(String(item["effect"]), 15, Color(0.78, 0.92, 0.8))
 		effect_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		effect_label.custom_minimum_size = Vector2(0.0, 15.0)
+		effect_label.custom_minimum_size = Vector2(0.0, 20.0)
 		effect_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		details.add_child(effect_label)
-		var price_label := _make_label("%d Золота" % int(item["price"]), 11, GOLD)
+		var price_label := _make_label("%d Золота" % int(item["price"]), 15, GOLD)
 		price_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		details.add_child(price_label)
 
@@ -592,6 +784,7 @@ func _build_end(root: Control) -> void:
 
 func _on_ability_pressed(index: int) -> void:
 	if game != null and game.player != null:
+		SETTINGS_PANEL_SCRIPT.vibrate_if_enabled(25)
 		game.player.use_ability(index)
 
 
@@ -624,6 +817,8 @@ func show_announcement(text: String, color: Color, duration: float) -> void:
 func _process(_delta: float) -> void:
 	if game == null:
 		return
+	if pause_button != null:
+		pause_button.visible = game.state == "live"
 	update_gold()
 	_update_player_panel()
 	var match_time_left: float = maxf(0.0, game.match_time)
@@ -650,7 +845,9 @@ func _process(_delta: float) -> void:
 			respawn_label.text = ""
 		for i in 3:
 			var data: Dictionary = HeroUnit.CLASS_DATA[p.hero_class]["abilities"][i]
-			ability_name_labels[i].text = str(data["name"])
+			ability_name_labels[i].text = str(ABILITY_SHORT_LABELS[p.hero_class][i])
+			if OS.has_feature("mobile"):
+				ability_key_labels[i].text = str(ABILITY_SHORT_LABELS[p.hero_class][i])
 			var cd: float = p.ability_cds[i]
 			var cooldown_length := maxf(0.001, float(data["cd"]) * (1.0 - p.cooldown_reduction))
 			var progress := 1.0 if cd <= 0.01 else clampf(1.0 - cd / cooldown_length, 0.0, 1.0)

@@ -1,0 +1,22 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/low_poly_rpg_items/models/longsword_model.glb" id="1"]
+[ext_resource type="Script" path="res://addons/low_poly_rpg_items/pickup.gd" id="2"]
+
+[sub_resource type="BoxShape3D" id="box0"]
+size = Vector3(0.1200, 1.1108, 0.2390)
+
+[node name="longsword" instance=ExtResource("1")]
+script = ExtResource("2")
+kind = "item"
+item = "longsword"
+amount = 1
+title = "Longsword"
+text = "A knight's longsword. Balanced a hand's breadth above the guard."
+glint = false
+
+[node name="Collision" type="StaticBody3D" parent="longsword"]
+
+[node name="Box" type="CollisionShape3D" parent="longsword/Collision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0000, 0.4246, -0.0000)
+shape = SubResource("box0")

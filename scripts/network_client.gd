@@ -1,6 +1,9 @@
 extends Node
 
 signal match_started
+signal connected
+signal players_list(players: Array)
+signal connection_failed
 signal registration_completed(success: bool, player_id: int)
 signal purchase_completed(success: bool, new_shards: int)
 
@@ -11,6 +14,7 @@ var current_class: int = 1
 var http_request: HTTPRequest
 var http_request_busy := false
 var current_http_request_type := ""
+var players_list_received := false
 
 
 func _ready() -> void:
@@ -69,29 +73,51 @@ func _emit_http_failure(request_type: String) -> void:
 	elif request_type == "purchase":
 		purchase_completed.emit(false, 0)
 
-func connect_and_join(hero_class: int) -> void:
+func connect_and_join(hero_class: int) -> Error:
 	current_class = hero_class
+	players_list_received = false
 	peer = WebSocketMultiplayerPeer.new()
 	print("=== ПОПЫТКА ПОДКЛЮЧЕНИЯ К СЕРВЕРУ ===")
 	var err = peer.create_client("wss://three-skies-server.relaxdev.ru")
 	if err != OK:
 		print("=== ОШИБКА СОЗДАНИЯ КЛИЕНТА: ", err, " ===")
-		return
+		connection_failed.emit()
+		return err
 	
 	multiplayer.multiplayer_peer = peer
-	multiplayer.connected_to_server.connect(_on_connected)
-	multiplayer.connection_failed.connect(_on_connection_failed)
-	multiplayer.server_disconnected.connect(_on_server_disconnected)
+	if not multiplayer.connected_to_server.is_connected(_on_connected):
+		multiplayer.connected_to_server.connect(_on_connected)
+	if not multiplayer.connection_failed.is_connected(_on_connection_failed):
+		multiplayer.connection_failed.connect(_on_connection_failed)
+	if not multiplayer.server_disconnected.is_connected(_on_server_disconnected):
+		multiplayer.server_disconnected.connect(_on_server_disconnected)
+	return OK
 
 func _on_connected() -> void:
 	print("=== ПОДКЛЮЧЕНО К СЕРВЕРУ ===")
 	rpc_id(1, "join_queue", current_class)
+	connected.emit()
+	get_tree().create_timer(1.0).timeout.connect(_emit_empty_players_list_if_missing)
+
+
+func _emit_empty_players_list_if_missing() -> void:
+	if not players_list_received:
+		players_list_received = true
+		players_list.emit([])
+
+
+@rpc("authority")
+func receive_players_list(players: Array) -> void:
+	players_list_received = true
+	players_list.emit(players)
 
 func _on_connection_failed() -> void:
 	print("=== ОШИБКА ПОДКЛЮЧЕНИЯ К СЕРВЕРУ ===")
+	connection_failed.emit()
 
 func _on_server_disconnected() -> void:
 	print("=== СЕРВЕР ОТКЛЮЧЕН ===")
+	connection_failed.emit()
 
 @rpc("authority")
 func start_match() -> void:

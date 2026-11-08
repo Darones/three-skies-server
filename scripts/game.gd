@@ -54,6 +54,10 @@ const SFX_PATHS := {
 	"hit": "res://audio/sfx/sword_hit.wav",
 	"magic": "res://audio/sfx/magic_burst.wav",
 	"thunder": "res://audio/sfx/shell_thunder.wav",
+	"coin_pickup": "res://assets/audio/Soundza_Game_SFX_Pack/pickups_powerups/bright_coin_pickup.wav",
+	"shop_purchase": "res://assets/audio/Soundza_Game_SFX_Pack/pickups_powerups/coins_1.wav",
+	"shard_pickup": "res://assets/audio/Soundza_Game_SFX_Pack/pickups_powerups/synth_power_up_ascending.wav",
+	"shard_delivery": "res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/level_clear.wav",
 }
 
 var camera: Camera3D
@@ -134,8 +138,11 @@ func _ready() -> void:
 		arena.name = "Arena"
 		add_child(arena)
 		ArenaKit.build(arena)
+	var arena_root := get_node_or_null("Arena") as Node3D
+	if arena_root != null:
+		ArenaKit.ensure_perimeter_ridge(arena_root)
+	_create_base_shield_domes()
 	_create_fog_of_war()
-	_create_floating_clouds()
 	_create_shop_stall()
 	_create_gold_fountain()
 	_setup_audio()
@@ -157,6 +164,33 @@ func _ready() -> void:
 		if selected_class >= 0 and selected_class <= 2:
 			var selected_team := clampi(int(get_tree().get_meta("selected_team", get_meta("selected_team", 0))), 0, 1)
 			call_deferred("start_match", selected_class, selected_team)
+
+
+func _create_base_shield_domes() -> void:
+	var shield_configs := [
+		{"path": "Arena/Bases/LightBase", "color": Color(0.42, 0.72, 1.0, 0.065)},
+		{"path": "Arena/Bases/DarkBase", "color": Color(0.72, 0.46, 0.92, 0.065)},
+	]
+	for shield_config in shield_configs:
+		var base := get_node_or_null(String(shield_config["path"])) as Node3D
+		if base == null or base.has_node("SpawnShieldDome"):
+			continue
+		var dome := MeshInstance3D.new()
+		dome.name = "SpawnShieldDome"
+		var sphere := SphereMesh.new()
+		sphere.radius = 4.9
+		sphere.height = 9.8
+		sphere.radial_segments = 32
+		sphere.rings = 16
+		dome.mesh = sphere
+		var material := StandardMaterial3D.new()
+		material.albedo_color = shield_config["color"]
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		material.roughness = 0.9
+		dome.material_override = material
+		dome.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		dome.position.y = 0.15
+		base.add_child(dome)
 
 
 func _create_floating_clouds() -> void:
@@ -473,6 +507,7 @@ func _update_gold_fountain(delta: float) -> void:
 			coin.queue_free()
 			gold_coins.remove_at(index)
 			collector.match_coins_collected += 1
+			play_sfx("coin_pickup", -12.0)
 			if collector.is_player:
 				award_gold(1)
 			else:
@@ -502,6 +537,8 @@ func _setup_audio() -> void:
 			sfx_streams[key] = s
 	for i in 8:
 		var p := AudioStreamPlayer.new()
+		p.bus = "Master"
+		p.max_polyphony = 1
 		add_child(p)
 		sfx_players.append(p)
 
@@ -790,11 +827,16 @@ func _release_projectile(node: Node3D, pooled: bool) -> void:
 func play_sfx(key: String, volume_db := -4.0) -> void:
 	if not sfx_streams.has(key) or sfx_players.is_empty():
 		return
-	var p := sfx_players[sfx_index]
-	sfx_index = (sfx_index + 1) % sfx_players.size()
-	p.stream = sfx_streams[key]
-	p.volume_db = volume_db
-	p.play()
+	for offset in range(sfx_players.size()):
+		var index := (sfx_index + offset) % sfx_players.size()
+		var player := sfx_players[index]
+		if player.is_playing():
+			continue
+		player.stream = sfx_streams[key]
+		player.volume_db = volume_db
+		player.play()
+		sfx_index = (index + 1) % sfx_players.size()
+		return
 
 
 func start_match(player_class: int, requested_team: int = -1) -> void:
@@ -965,6 +1007,7 @@ func buy_item(item_id: String) -> bool:
 		if hud != null:
 			hud.update_gold()
 			hud.update_shop()
+		play_sfx("shop_purchase", -10.0)
 		return true
 	return false
 
@@ -1072,13 +1115,13 @@ func _update_camera(delta: float) -> void:
 			death_camera_last_distance = camera_distance
 
 		var pan_input := Vector2.ZERO
-		if Input.is_physical_key_pressed(KEY_A):
+		if Input.is_action_pressed("move_left") or Input.is_action_pressed("move_left_2") or Input.is_key_pressed(KEY_LEFT):
 			pan_input.x -= 1.0
-		if Input.is_physical_key_pressed(KEY_D):
+		if Input.is_action_pressed("move_right") or Input.is_action_pressed("move_right_2") or Input.is_key_pressed(KEY_RIGHT):
 			pan_input.x += 1.0
-		if Input.is_physical_key_pressed(KEY_W):
+		if Input.is_action_pressed("move_forward") or Input.is_action_pressed("move_forward_2") or Input.is_key_pressed(KEY_UP):
 			pan_input.y += 1.0
-		if Input.is_physical_key_pressed(KEY_S):
+		if Input.is_action_pressed("move_back") or Input.is_action_pressed("move_back_2") or Input.is_key_pressed(KEY_DOWN):
 			pan_input.y -= 1.0
 
 		if pan_input.length_squared() > 0.0:
@@ -1092,7 +1135,8 @@ func _update_camera(delta: float) -> void:
 	death_camera_active = false
 	var focus := player.global_position + Vector3(0.0, 1.0, 0.0)
 	var camera_side := 1.0 if player.team == 0 else -1.0
-	var camera_axis := Vector3(0.0, 13.0, 20.0 * camera_side).normalized()
+	# Previous angle was approximately 33 degrees: Vector3(0.0, 13.0, 20.0 * camera_side).
+	var camera_axis := Vector3(0.0, 20.0, 20.0 * camera_side).normalized()
 	var target_pos := focus + camera_axis * camera_distance
 	camera_pos = camera_pos.lerp(target_pos, 1.0 - exp(-5.0 * delta))
 	camera.global_position = camera_pos
@@ -1394,7 +1438,7 @@ func _try_pickup() -> void:
 		best.carrying = true
 		carrier = best
 		crystal_state = "carried"
-		play_sfx("magic", -8.0)
+		play_sfx("shard_pickup", -9.0)
 		if best == player:
 			announce("Осколок у тебя! Неси на базу", Color(0.75, 1.0, 0.85), 2.0)
 		else:
@@ -1416,7 +1460,7 @@ func _deliver(h: HeroUnit) -> void:
 		burst(crystal_node.global_position, Color(0.7, 0.95, 1.0), 40)
 		crystal_node.queue_free()
 		crystal_node = null
-	play_sfx("magic", -2.0)
+	play_sfx("shard_delivery", -8.0)
 	var team_name := "Свет" if h.team == 0 else "Тьма"
 	announce("Осколок на базе: %s  %d : %d" % [team_name, score[0], score[1]], Color(1.0, 0.9, 0.6), 2.6)
 	if sudden_death or score[h.team] >= CRYSTALS_TO_WIN:
@@ -1710,6 +1754,9 @@ func _update_projectiles(delta: float) -> void:
 		if dist < 0.6:
 			if target.has_method("take_damage"):
 				target.take_damage(p["damage"], p["source"], String(p.get("damage_type", "physical")))
+				var attack_source := p.get("source") as HeroUnit
+				if attack_source != null:
+					attack_source.spawn_attack_impact_vfx(target.global_position + Vector3(0.0, 0.9, 0.0), String(p.get("effect_type", "")))
 				if float(p["stun"]) > 0.0 and target is HeroUnit:
 					(target as HeroUnit).stun(float(p["stun"]))
 			var effect_type := String(p.get("effect_type", ""))
@@ -1718,10 +1765,7 @@ func _update_projectiles(delta: float) -> void:
 			elif effect_type == "stun":
 				stun_impact_fx(target.global_position, p["color"])
 			burst(node.global_position, p["color"], 10)
-			var attack_source := p.get("source") as HeroUnit
-			if attack_source != null:
-				play_hero_attack_sfx(attack_source)
-			else:
+			if p.get("source") == null:
 				play_sfx("magic", -12.0)
 			_release_projectile(node, bool(p.get("pooled", false)))
 			continue
@@ -1731,20 +1775,7 @@ func _update_projectiles(delta: float) -> void:
 
 
 func melee_fx(_from: Vector3, to: Vector3) -> void:
-	play_sfx("hit", -10.0)
 	burst(to + Vector3(0.0, 1.0, 0.0), Color(1.0, 0.85, 0.5), 10)
-
-
-func play_hero_attack_sfx(source: HeroUnit) -> void:
-	if source == null:
-		return
-	match source.hero_class:
-		HeroUnit.Cls.WARRIOR:
-			play_sfx("hit", -10.0)
-		HeroUnit.Cls.MAGE:
-			play_sfx("magic", -12.0)
-		HeroUnit.Cls.FAIRY:
-			play_sfx("thunder", -16.0)
 
 
 func mage_storm_tick(mage: HeroUnit, radius: float, damage: float) -> void:
@@ -1753,7 +1784,9 @@ func mage_storm_tick(mage: HeroUnit, radius: float, damage: float) -> void:
 	play_sfx("thunder", -10.0)
 	for enemy in enemies_in_radius(mage.global_position, radius, mage.team):
 		_activate_shell_beam(enemy.global_position, Color(0.38, 0.82, 1.0, 0.95))
-		enemy.take_damage(mage._outgoing_damage(damage) * mage.get_blessing_damage_multiplier(), mage, "magic")
+		mage.spawn_ability_vfx(2, enemy.global_position + Vector3(0.0, 0.1, 0.0))
+		var rolled_damage := mage.roll_ultimate_damage(damage)
+		enemy.take_damage(mage._outgoing_damage(rolled_damage) * mage.get_blessing_damage_multiplier(), mage, "magic")
 
 
 func shell_bolt(pos: Vector3, radius: float, damage: float) -> void:
@@ -1848,17 +1881,21 @@ func earthquake_fx(center: Vector3, radius: float, duration: float) -> void:
 	fade_tween.tween_callback(cracks.queue_free)
 
 
-func golden_blessing_fx(center: Vector3, team: int) -> void:
+func golden_blessing_fx(center: Vector3, team: int, caster: HeroUnit) -> void:
 	play_sfx('fairy_ult', -4.0)
 	var gold := Color(1.0, 0.78, 0.22)
 	burst(center + Vector3(0.0, 1.0, 0.0), gold, 28)
 	_activate_ring(Vector3(center.x, 0.22, center.z), gold, 0.85, Vector3.ONE * 0.35, Vector3(4.5, 1.0, 4.5), true, 0.9)
+	if caster != null and is_instance_valid(caster):
+		caster.spawn_ability_vfx(2, center)
 	for hero in heroes:
 		if hero.dead or hero.team != team:
 			continue
 		var hero_position: Vector3 = hero.global_position
 		burst(hero_position + Vector3(0.0, 1.25, 0.0), gold, 18)
 		_activate_ring(Vector3(hero_position.x, 0.24, hero_position.z), gold, 0.8, Vector3.ONE * 0.35, Vector3(2.8, 1.0, 2.8), true, 0.85)
+		if caster != null and is_instance_valid(caster):
+			caster.spawn_ability_vfx(2, hero_position)
 
 
 func fear_pulse_fx(center: Vector3, radius: float, color: Color) -> void:
@@ -1963,8 +2000,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			if digit_index >= 0:
 				start_match(digit_index)
 		elif state == "live" and player != null:
-			if digit_index >= 0:
-				player.use_ability(digit_index)
+			var ability_index := _ability_index_from_event(event)
+			if ability_index >= 0:
+				player.use_ability(ability_index)
 
 
 func _digit_index_from_event(event: InputEventKey) -> int:
@@ -1972,6 +2010,17 @@ func _digit_index_from_event(event: InputEventKey) -> int:
 	var numpad_codes := [KEY_KP_1, KEY_KP_2, KEY_KP_3]
 	for index in range(3):
 		if event.keycode == key_codes[index] or event.physical_keycode == key_codes[index]:
+			return index
+		if event.keycode == numpad_codes[index] or event.physical_keycode == numpad_codes[index]:
+			return index
+	return -1
+
+
+func _ability_index_from_event(event: InputEventKey) -> int:
+	var actions := ["ability_1", "ability_2", "ability_3"]
+	var numpad_codes := [KEY_KP_1, KEY_KP_2, KEY_KP_3]
+	for index in range(actions.size()):
+		if event.is_action_pressed(actions[index]):
 			return index
 		if event.keycode == numpad_codes[index] or event.physical_keycode == numpad_codes[index]:
 			return index

@@ -1,9 +1,9 @@
 extends Control
 
 const HERO_ART := [
-	"res://assets/characters/warrior_light.png",
-	"res://assets/characters/mage_dark.png",
-	"res://assets/characters/fairy.png",
+	"res://ui/portraits/warrior_portrait.png",
+	"res://ui/portraits/mage_portrait.png",
+	"res://ui/portraits/fairy_portrait.png",
 ]
 const HERO_NAMES := ["Воин", "Маг", "Фея"]
 const SAVE_PATH := "user://lobby.cfg"
@@ -11,6 +11,7 @@ const GOLD := Color(0.95, 0.76, 0.38)
 const PALE := Color(0.9, 0.92, 0.98)
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const LOBBY_LOGO: Texture2D = preload("res://ui/logo.png")
+const UI_CLICK_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/ui_menu/menu_selection_click.wav")
 
 var selected_class := 0
 var slot_classes: Array[int] = [HeroUnit.Cls.MAGE, HeroUnit.Cls.WARRIOR, HeroUnit.Cls.FAIRY]
@@ -26,6 +27,7 @@ var shard_shop_overlay: ColorRect
 var shop_panel: PanelContainer
 var info_dialog: AcceptDialog
 var shard_amount_label: Label
+var settings_panel: Control
 var player_menu_overlay: ColorRect
 var nickname_line_edit: LineEdit
 var nickname_status_label: Label
@@ -37,9 +39,11 @@ var menu_xp_remaining_label: Label
 var menu_next_reward_label: Label
 var wing_slot_cards: Array[PanelContainer] = []
 var wing_slot_status_labels: Array[Label] = []
+var wing_slot_equip_buttons: Array[Button] = []
 var lobby_logo: TextureRect
 var wing_buttons: Dictionary = {}
 var wing_cards: Array[PanelContainer] = []
+var ui_click_player: AudioStreamPlayer
 
 
 func _notification(what: int) -> void:
@@ -68,6 +72,36 @@ func _ready() -> void:
 		NetworkClient.registration_completed.connect(_on_registration_completed)
 	if MetaProgression.player_id <= 0 and not MetaProgression.player_nickname.is_empty():
 		MetaProgression.register_player(MetaProgression.player_nickname)
+	_setup_ui_click_sound()
+	_wire_ui_click_sounds(self)
+
+
+func _setup_ui_click_sound() -> void:
+	var tree_root := get_tree().root
+	ui_click_player = tree_root.get_node_or_null("LobbyUIClickPlayer") as AudioStreamPlayer
+	if ui_click_player != null:
+		return
+	ui_click_player = AudioStreamPlayer.new()
+	ui_click_player.name = "LobbyUIClickPlayer"
+	ui_click_player.stream = UI_CLICK_SOUND
+	ui_click_player.bus = "Master"
+	ui_click_player.volume_db = -12.0
+	ui_click_player.max_polyphony = 1
+	ui_click_player.process_mode = Node.PROCESS_MODE_ALWAYS
+	tree_root.add_child(ui_click_player)
+
+
+func _wire_ui_click_sounds(node: Node) -> void:
+	for child in node.get_children():
+		var button := child as Button
+		if button != null and not button.button_down.is_connected(_play_ui_click):
+			button.button_down.connect(_play_ui_click)
+		_wire_ui_click_sounds(child)
+
+
+func _play_ui_click() -> void:
+	if ui_click_player != null and not ui_click_player.is_playing():
+		ui_click_player.play()
 
 
 func _load_selection() -> int:
@@ -162,9 +196,11 @@ func _build_player_profile() -> void:
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(info)
 	profile_name_label = _make_label("Игрок", 18, PALE)
+	profile_name_label.add_theme_font_size_override("font_size", 27)
 	profile_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	info.add_child(profile_name_label)
 	profile_level_label = _make_label("Уровень 1", 13, Color(0.7, 0.75, 0.84))
+	profile_level_label.add_theme_font_size_override("font_size", 27)
 	profile_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	info.add_child(profile_level_label)
 	experience_bar = ProgressBar.new()
@@ -206,6 +242,7 @@ func _build_shard_shop_button() -> void:
 	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(content)
 	shard_amount_label = _make_label("Осколки: %d" % MetaProgression.sky_shards, 17, Color(0.43, 0.84, 1.0))
+	shard_amount_label.add_theme_font_size_override("font_size", 27)
 	content.add_child(shard_amount_label)
 	content.add_child(_make_label("Магазин", 12, Color(0.72, 0.77, 0.86)))
 
@@ -243,7 +280,7 @@ func _build_shard_shop() -> void:
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 10)
 	layout.add_child(header)
-	var title := _make_label("Магазин осколков неба", 24, GOLD)
+	var title := _make_label("Магазин небесных осколков", 24, GOLD)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	header.add_child(title)
@@ -333,8 +370,6 @@ func _show_info(message: String) -> void:
 
 func _on_wing_button_pressed(wing_id: int, price: int) -> void:
 	if wing_id in MetaProgression.unlocked_wings:
-		if MetaProgression.equip_wing(wing_id):
-			_refresh_wing_shop()
 		return
 	if MetaProgression.buy_wing(wing_id, price):
 		_refresh_wing_shop()
@@ -356,21 +391,21 @@ func _refresh_wing_shop() -> void:
 		var button := wing_buttons[wing_id] as Button
 		var card := wing_cards[wing_id - 1]
 		var is_unlocked: bool = wing_id in MetaProgression.unlocked_wings
-		var is_equipped: bool = MetaProgression.equipped_wing == wing_id
 		var is_pending: bool = MetaProgression.pending_wing_id == wing_id
-		button.text = "Покупка..." if is_pending else ("Надето" if is_equipped else ("Надеть" if is_unlocked else "Купить"))
-		button.disabled = is_equipped or is_pending
-		card.add_theme_stylebox_override("panel", _wing_card_style(is_equipped))
+		button.text = "Покупка..." if is_pending else ("Куплено" if is_unlocked else "Купить")
+		button.disabled = is_unlocked or is_pending
+		card.add_theme_stylebox_override("panel", _wing_card_style(is_unlocked))
 
 
 func _on_wing_purchase_updated(success: bool, _wing_id: int, _new_shards: int) -> void:
 	_refresh_wing_shop()
+	_refresh_player_menu()
 	if not success:
 		_show_info("Сервер не подтвердил покупку. Проверь баланс и подключение.")
 
 
-func _wing_card_style(is_equipped: bool) -> StyleBoxFlat:
-	if is_equipped:
+func _wing_card_style(is_owned: bool) -> StyleBoxFlat:
+	if is_owned:
 		var selected_style := _panel_style(Color(1.0, 0.82, 0.42, 1.0), Color(0.15, 0.115, 0.05, 0.98))
 		selected_style.set_border_width_all(3)
 		return selected_style
@@ -491,8 +526,26 @@ func _build_player_menu() -> void:
 	var hero_content := VBoxContainer.new()
 	hero_content.add_theme_constant_override("separation", 8)
 	hero_panel.add_child(hero_content)
+	var hero_selector := HBoxContainer.new()
+	hero_selector.name = "HeroSelector"
+	hero_selector.alignment = BoxContainer.ALIGNMENT_CENTER
+	hero_selector.add_theme_constant_override("separation", 8)
+	hero_content.add_child(hero_selector)
+	var previous_hero_button := _make_action_button("◀", false)
+	previous_hero_button.name = "PreviousHeroButton"
+	previous_hero_button.custom_minimum_size = Vector2(46, 40)
+	previous_hero_button.add_theme_font_size_override("font_size", 19)
+	previous_hero_button.pressed.connect(_cycle_selected_hero.bind(-1))
+	hero_selector.add_child(previous_hero_button)
 	menu_hero_name_label = _make_label("Воин", 20, PALE)
-	hero_content.add_child(menu_hero_name_label)
+	menu_hero_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hero_selector.add_child(menu_hero_name_label)
+	var next_hero_button := _make_action_button("▶", false)
+	next_hero_button.name = "NextHeroButton"
+	next_hero_button.custom_minimum_size = Vector2(46, 40)
+	next_hero_button.add_theme_font_size_override("font_size", 19)
+	next_hero_button.pressed.connect(_cycle_selected_hero.bind(1))
+	hero_selector.add_child(next_hero_button)
 	var portrait_frame := PanelContainer.new()
 	portrait_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	portrait_frame.add_theme_stylebox_override("panel", _panel_style(Color(0.24, 0.27, 0.34), Color(0.01, 0.014, 0.025)))
@@ -502,7 +555,7 @@ func _build_player_menu() -> void:
 	menu_hero_portrait.custom_minimum_size = Vector2(0, 280)
 	menu_hero_portrait.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	menu_hero_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	menu_hero_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	menu_hero_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	menu_hero_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	portrait_frame.add_child(menu_hero_portrait)
 
@@ -532,7 +585,7 @@ func _build_player_menu() -> void:
 	for wing_index in range(4):
 		var wing_card := PanelContainer.new()
 		wing_card.name = "OwnedWing%d" % (wing_index + 1)
-		wing_card.custom_minimum_size = Vector2(110, 120)
+		wing_card.custom_minimum_size = Vector2(110, 154)
 		wing_card.add_theme_stylebox_override("panel", _panel_style(Color(0.34, 0.37, 0.44), Color(0.065, 0.072, 0.09, 0.92)))
 		wing_grid.add_child(wing_card)
 		wing_slot_cards.append(wing_card)
@@ -551,6 +604,13 @@ func _build_player_menu() -> void:
 		var status := _make_label("🔒 Закрыто", 12, Color(0.62, 0.65, 0.72))
 		wing_content.add_child(status)
 		wing_slot_status_labels.append(status)
+		var equip_button := _make_action_button("Надеть", false)
+		equip_button.name = "EquipWing%d" % (wing_index + 1)
+		equip_button.custom_minimum_size = Vector2(0, 30)
+		equip_button.add_theme_font_size_override("font_size", 13)
+		equip_button.pressed.connect(_on_wardrobe_wing_pressed.bind(wing_index + 1))
+		wing_content.add_child(equip_button)
+		wing_slot_equip_buttons.append(equip_button)
 	_refresh_player_menu()
 
 
@@ -593,6 +653,7 @@ func _refresh_player_menu() -> void:
 	if menu_hero_portrait == null:
 		return
 	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
+	var character_equipped_wing := MetaProgression.get_equipped_wing(character_key)
 	var character_level := int(MetaProgression.char_levels.get(character_key, 1))
 	var character_xp := int(MetaProgression.char_xps.get(character_key, 0))
 	menu_hero_name_label.text = HERO_NAMES[selected_class]
@@ -613,11 +674,29 @@ func _refresh_player_menu() -> void:
 		var status := wing_slot_status_labels[wing_index]
 		var card := wing_slot_cards[wing_index]
 		var icon := card.find_child("WingColor%d" % wing_id, true, false) as ColorRect
-		status.text = "Куплено" if unlocked else "🔒 Закрыто"
+		var is_equipped := character_equipped_wing == wing_id
+		status.text = "Надето" if is_equipped else ("Куплено" if unlocked else "🔒 Закрыто")
 		status.add_theme_color_override("font_color", Color(0.95, 0.8, 0.42) if unlocked else Color(0.62, 0.65, 0.72))
 		if icon != null:
 			icon.modulate.a = 1.0 if unlocked else 0.35
 		card.add_theme_stylebox_override("panel", _panel_style(Color(0.83, 0.67, 0.34) if unlocked else Color(0.34, 0.37, 0.44), Color(0.14, 0.11, 0.06, 0.98) if unlocked else Color(0.065, 0.072, 0.09, 0.92)))
+		var equip_button := wing_slot_equip_buttons[wing_index]
+		equip_button.visible = unlocked
+		equip_button.text = "Снять" if is_equipped else "Надеть"
+
+
+func _cycle_selected_hero(direction: int) -> void:
+	selected_class = wrapi(selected_class + direction, 0, HERO_NAMES.size())
+	_save_selection()
+	_refresh_selection()
+
+
+func _on_wardrobe_wing_pressed(wing_id: int) -> void:
+	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
+	var equipped_wing_id := MetaProgression.get_equipped_wing(character_key)
+	var target_wing_id := 0 if equipped_wing_id == wing_id else wing_id
+	if MetaProgression.equip_wing(target_wing_id, character_key):
+		_refresh_player_menu()
 
 
 func _build_hero_cards() -> void:
@@ -627,14 +706,11 @@ func _build_hero_cards() -> void:
 
 
 func _build_hero_card(slot: int, is_center: bool) -> void:
-	var card: Control
-	if is_center:
-		card = PanelContainer.new()
-	else:
-		card = Button.new()
-		(card as Button).focus_mode = Control.FOCUS_NONE
-		(card as Button).clip_contents = true
-		(card as Button).pressed.connect(_on_side_card_pressed.bind(slot))
+	var card := Button.new()
+	card.focus_mode = Control.FOCUS_NONE
+	card.clip_contents = true
+	if not is_center:
+		card.pressed.connect(_on_side_card_pressed.bind(slot))
 
 	card.name = "HeroCard%d" % slot
 	card.set_anchors_preset(Control.PRESET_CENTER)
@@ -642,46 +718,65 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 	card.anchor_top = 0.5
 	card.anchor_right = 0.5
 	card.anchor_bottom = 0.5
+	var card_width := 300.0 if is_center else 192.0
+	var card_height := 400.0 if is_center else 256.0
+	card.custom_minimum_size = Vector2(card_width, card_height)
 	if is_center:
-		card.offset_left = -175.0
-		card.offset_top = -178.0
-		card.offset_right = 175.0
-		card.offset_bottom = 270.0
+		card.offset_left = -150.0
+		card.offset_top = -154.0
+		card.offset_right = 150.0
+		card.offset_bottom = 246.0
 		card.z_index = 2
 	else:
-		var side_offset := -415.0 if slot == 0 else 185.0
+		var side_offset := -352.0 if slot == 0 else 160.0
 		card.offset_left = side_offset
-		card.offset_top = -145.0
-		card.offset_right = side_offset + 230.0
-		card.offset_bottom = 185.0
+		card.offset_top = -108.0
+		card.offset_right = side_offset + 192.0
+		card.offset_bottom = 148.0
 		card.z_index = 1
 	if is_center:
-		card.add_theme_stylebox_override("panel", _card_style(true, false))
+		card.add_theme_stylebox_override("normal", _card_style(true, false))
+		card.add_theme_stylebox_override("hover", _card_style(true, false))
+		card.add_theme_stylebox_override("pressed", _card_style(true, false))
+		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	else:
-		var side_button := card as Button
-		side_button.add_theme_stylebox_override("normal", _card_style(false, false))
-		side_button.add_theme_stylebox_override("hover", _card_style(false, true))
-		side_button.add_theme_stylebox_override("pressed", _card_style(false, true))
+		card.add_theme_stylebox_override("normal", _card_style(false, false))
+		card.add_theme_stylebox_override("hover", _card_style(false, true))
+		card.add_theme_stylebox_override("pressed", _card_style(false, true))
 	add_child(card)
 
-	var content := VBoxContainer.new()
-	content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	content.add_theme_constant_override("separation", 6)
-	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card.add_child(content)
-
 	var image := TextureRect.new()
-	image.custom_minimum_size = Vector2(0, 365 if is_center else 255)
-	image.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	image.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	image.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	image.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	content.add_child(image)
+	card.add_child(image)
+
+	var title_backing := ColorRect.new()
+	title_backing.color = Color(0.02, 0.028, 0.05, 0.84)
+	title_backing.anchor_top = 1.0
+	title_backing.anchor_right = 1.0
+	title_backing.anchor_bottom = 1.0
+	title_backing.offset_left = 2.0
+	title_backing.offset_top = -46.0 if is_center else -38.0
+	title_backing.offset_right = -2.0
+	title_backing.offset_bottom = -2.0
+	title_backing.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(title_backing)
+
 	var name_label := _make_label("", 27 if is_center else 19, PALE)
 	name_label.name = "HeroName%d" % slot
-	name_label.custom_minimum_size = Vector2(0, 34)
-	content.add_child(name_label)
+	name_label.anchor_top = 1.0
+	name_label.anchor_right = 1.0
+	name_label.anchor_bottom = 1.0
+	name_label.offset_left = 8.0
+	name_label.offset_top = -44.0 if is_center else -36.0
+	name_label.offset_right = -8.0
+	name_label.offset_bottom = -4.0
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(name_label)
 	cards.append(card)
 	card_images.append(image)
 	card_names.append(name_label)
@@ -690,17 +785,67 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 func _build_actions() -> void:
 	var play_button := _make_action_button("В БОЙ", true)
 	play_button.name = "PlayButton"
-	play_button.anchor_left = 0.5
+	play_button.anchor_left = 1.0
 	play_button.anchor_top = 1.0
-	play_button.anchor_right = 0.5
+	play_button.anchor_right = 1.0
 	play_button.anchor_bottom = 1.0
-	play_button.offset_left = -140.0
-	play_button.offset_top = -82.0
-	play_button.offset_right = 140.0
-	play_button.offset_bottom = -26.0
+	play_button.offset_left = -325.0
+	play_button.offset_top = -101.0
+	play_button.offset_right = -45.0
+	play_button.offset_bottom = -45.0
 	play_button.custom_minimum_size = Vector2(280.0, 56.0)
 	play_button.pressed.connect(_start_battle)
 	add_child(play_button)
+
+	var settings_button := _make_action_button("", false)
+	settings_button.name = "SettingsButton"
+	settings_button.anchor_left = 0.0
+	settings_button.anchor_top = 1.0
+	settings_button.anchor_right = 0.0
+	settings_button.anchor_bottom = 1.0
+	settings_button.offset_left = 45.0
+	settings_button.offset_top = -109.0
+	settings_button.offset_right = 109.0
+	settings_button.offset_bottom = -45.0
+	settings_button.custom_minimum_size = Vector2(64.0, 64.0)
+	settings_button.add_theme_stylebox_override("normal", _gear_button_style(false))
+	settings_button.add_theme_stylebox_override("hover", _gear_button_style(true))
+	settings_button.add_theme_stylebox_override("pressed", _gear_button_style(true))
+	settings_button.pressed.connect(_open_settings)
+	var gear_icon := Label.new()
+	gear_icon.name = "GearIcon"
+	gear_icon.text = "⚙"
+	gear_icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	gear_icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	gear_icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	gear_icon.add_theme_font_override("font", font)
+	gear_icon.add_theme_font_size_override("font_size", 28)
+	gear_icon.add_theme_color_override("font_color", PALE)
+	gear_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	settings_button.add_child(gear_icon)
+	add_child(settings_button)
+
+	settings_panel = preload("res://scripts/settings_panel.gd").new() as Control
+	settings_panel.name = "LobbySettingsPanel"
+	settings_panel.visible = false
+	settings_panel.z_index = 100
+	settings_panel.process_mode = Node.PROCESS_MODE_ALWAYS
+	settings_panel.connect("back_requested", _close_settings)
+	add_child(settings_panel)
+
+
+func _gear_button_style(hovered: bool) -> StyleBoxFlat:
+	var style := _action_style(false, hovered)
+	style.set_corner_radius_all(32)
+	return style
+
+
+func _open_settings() -> void:
+	settings_panel.visible = true
+
+
+func _close_settings() -> void:
+	settings_panel.visible = false
 
 
 func _refresh_selection() -> void:
@@ -759,7 +904,11 @@ func _on_side_card_pressed(slot: int) -> void:
 func _start_battle() -> void:
 	_save_selection()
 	get_tree().set_meta("selected_class", selected_class)
-	get_tree().set_meta("selected_team", randi_range(0, 1))
+	var selected_team := randi_range(0, 1)
+	get_tree().set_meta("selected_team", selected_team)
+	var connection_error: Error = NetworkClient.connect_and_join(selected_class)
+	get_tree().set_meta("matchmaking_no_network", connection_error != OK)
+	get_tree().set_meta("matchmaking_message", "Сервер недоступен, игра с ботами" if connection_error != OK else "")
 	var error := get_tree().change_scene_to_file("res://scenes/LoadingScreen.tscn")
 	if error != OK:
 		push_error("Не удалось открыть экран загрузки: %s" % error_string(error))

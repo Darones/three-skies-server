@@ -2,10 +2,20 @@
 
 ## Current Visual Update
 
-- The light-side arena trees use the optimized `tree_light.glb` through `scenes/GlowingFantasyTree.tscn`; their separate visibility occluders remain in place.
+- Binbun VFX in `scripts/hero.gd` use a 1.6 scale / +0.6 m / 1.6 emission / 2.0 light default; class auto-attacks use 1.2 scale, abilities 1/2 use 1.15/1.5, ultimates use 2.0 scale and light energy 3.0. Warrior routes to hit_01, hit_02, impact_01, big_impact_01; Mage to hit_02, hit_01, impact_02, impact_01; Fairy to hit_02, hit_01, impact_01, impact_02 (auto, abilities 1/2, ultimate). Effects are class-tinted and cleaned up after their clip with a 0.6 s minimum.
+- The match waiting card always shows the tutorial and one rotating gameplay tip under the class guide.
+- Lobby actions are anchored symmetrically at the bottom corners: Play on the right and settings on the left, each 45 px from the edges.
+- Lobby player name/level and shard balance labels match the 27 px central hero-name size.
+- The two arena floor materials use triplanar texture mapping at 0.12 scale to avoid stretching across the expanded floor.
+- The warm-sky/light-fog lighting experiment was rolled back; the arena keeps its prior near-black background and depth fog (10–55), cool blue-white sun (energy 0.95), and blue-gray ambient fill (energy 0.75). The triplanar floor update remains.
+- Runtime class weapons attach to humanoid hand bones: Warrior sword on RightHand at scale 0.72, Mage staff on RightHand at 0.62, and Fairy bow on LeftHand at 0.9. Weapon attack clips are `swing` for Warrior/Mage and `shoot` for Fairy.
+- Soundza SFX are wired with max-polyphony limits: persistent lobby UI clicks use `menu_selection_click`; Warrior uses randomized sword swings and impact sounds plus an explosion for the fear ultimate, Mage uses magic casts, and Fairy uses airy bow whooshes. Fountain coins, successful shop purchases, shard pickup/delivery, and victory/defeat use pickup and jingle stingers.
+
+- Optimized light-side tree assets remain imported, but tree instances and their visibility occluders are no longer placed in the match arena.
 - Godot's built-in import LODs were measured at 249,998, 124,996, 62,498, and 36,728 triangles from a 500,000-triangle base mesh. The base mesh was not reduced to 5–10k.
 - Floor tiles now share continuous vertex heights and normals, removing the visible mesh grid seams; slate vein contrast is reduced.
-- Edge mist and environment depth fog are disabled; the floor rim stays clear. Fog of war remains a separate gameplay visibility mechanic.
+- Decorative trees, loose rocks and visible perimeter boulders remain removed. Eight primitive crystal clusters and eight primitive-foliage bush zones are placed across the arena; bush zones use the existing stealth logic. The five braziers, tactical ruin blocks, and perimeter collision remain.
+- The radial translucent `FloatingClouds/CloudWall` and the altar's two glowing rings are removed; the shard pedestal remains. Match fog-of-war is restored as a soft ground overlay, with 10-meter team vision and obstacle-aware enemy visibility. A fully opaque black annulus still hides cut terrain beyond the island.
 
 ## Vision
 Три игрока против трёх на обломках небесного храма, висящего над пропастью. Каждый матч длится пять минут, цель одна: разбить охранника-Оболочку, подобрать кристалл и дотащить его на базу раньше, чем это сделает враг. Простая задача, но носитель кристалла замедлен, Оболочка бьёт молниями, а противник уже бежит с другого фланга.
@@ -23,7 +33,7 @@
 - Typography: Philosopher Regular is the project-wide UI and 3D-label font; Philosopher Bold is available for emphasized text.
 
 - **Art style**: стилизованный low-poly 3D, изометрия под 45°. Пропорции героев слегка утрированы. Светлая сторона карты: золотые доспехи, белые ткани, солнечные лучи сквозь листву. Тёмная сторона: обсидиан, фиолетовые кристаллы, туман. Камень и металл с физически корректными материалами, но без фотореализма. Цветовая палитра: тёмный сланец и древесный уголь как основа, насыщенные ювелирные акценты на магии и эффектах.
-- Небо — процедурный градиент от глубокого синего к бирюзовому; вокруг обрезанного края острова остаётся бело-голубая облачная стена, без атмосферной дымки.
+- Небо — процедурный градиент от глубокого синего к бирюзовому; край острова закрывает невысокая каменная гряда, за которой весь обрыв уходит в сплошной чёрный фон.
 - **Mood and sound**: в спокойные моменты, когда кристалл ещё не появился, звучит тревожное низкое гудение. В момент появления Оболочки темп резко вырастает: тяжёлые виолончели, редкие удары больших барабанов, мрачные хоровые распевы. Ритм всегда чёткий, музыка не усыпляет даже между схватками.
 - Ульта Воина сопровождается кратким землетрясением с трещинами на земле; ульта Феи — золотыми кольцами, частицами и бесплатным звуковым эффектом колокольчиков.
 - На обеих базах действует защита от урона с полупрозрачным куполом цвета команды; декоративные кристаллы стоят вне кустовых зон, а осколок при падении выбирает свободное место.
@@ -54,3 +64,10 @@
 Как именно работает эволюция класса на 10 уровне: меняется только визуал и пассивка, или открываются новые ульты?
 Кусты дают полную невидимость или только прерывают прицел?
 Что видит игрок, пока он мёртв: камера союзника или статичный вид сверху?
+
+- The visual floor mesh at Arena/Island/Floor is 230x200 world units with its original slate texture and UV scale compensated. The 104x74 world collision remains unchanged; Dark_Apron is removed. The 45-degree camera, near-black background/fog (end 55), and layer-0 vignette remain.
+- The match HUD now opens a pause menu on Escape and on a mobile-only circular menu button beside the scoreboard. It offers resume, settings, and exit; web returns to the lobby because browsers cannot close themselves.
+- Lobby and pause share a settings panel: master volume on all platforms, editable keyboard bindings on non-mobile platforms, and a vibration toggle on mobile. Settings persist in `user://game_settings.cfg`; enabled mobile vibration provides haptics on skill taps and when pausing.
+- Both bases now show very subtle team-tinted, non-colliding spawn-protection domes, matching the existing 4.9-meter damage-immunity radius. The pause-menu exit returns to the lobby on all platforms.
+- Lobby player-menu arrows switch among Warrior, Mage, and Fairy. Wing ownership stays shared, but equipped wings are saved per character; the shop only purchases wings, while each character's wardrobe can equip or remove them.
+- Battle effects use the Binbun Stylized Hit FX pack: `vfx_hit_01` on melee and projectile hits, `vfx_big_impact_01` on the Warrior ultimate, blue-tinted `vfx_impact_01` on Mage lightning hits, and `vfx_impact_02` on Fairy golden-buff rings. Spawned effects play their `main` animation once, fill missing 3D hit audio streams from the existing SFX pack, then free themselves on completion. Selected scene resource paths point to the actual `assets/hit_fx/BinbunVFX_Vol2` folder.

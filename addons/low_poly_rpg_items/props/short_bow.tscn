@@ -1,0 +1,67 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/low_poly_rpg_items/models/short_bow_model.glb" id="1"]
+[ext_resource type="Script" path="res://addons/low_poly_rpg_items/pickup.gd" id="2"]
+
+[sub_resource type="BoxShape3D" id="box0"]
+size = Vector3(0.1200, 0.1400, 0.1200)
+
+[sub_resource type="BoxShape3D" id="box1"]
+size = Vector3(0.1200, 0.4827, 0.1515)
+
+[sub_resource type="BoxShape3D" id="box2"]
+size = Vector3(0.1200, 0.4823, 0.1543)
+
+[sub_resource type="BoxShape3D" id="box3"]
+size = Vector3(0.1200, 0.5000, 0.1200)
+
+[sub_resource type="BoxShape3D" id="box4"]
+size = Vector3(0.1200, 0.5000, 0.1200)
+
+[sub_resource type="BoxShape3D" id="box5"]
+size = Vector3(0.1200, 0.1200, 0.6220)
+
+[node name="short_bow" instance=ExtResource("1")]
+script = ExtResource("2")
+kind = "item"
+item = "short_bow"
+amount = 1
+title = "Short Bow"
+text = "A short hunting bow, recurved at the tips. Quick to draw on horseback."
+glint = false
+
+[node name="Collision" type="StaticBody3D" parent="short_bow"]
+
+[node name="Box" type="CollisionShape3D" parent="short_bow/Collision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0085, 0.0000, -0.0000)
+shape = SubResource("box0")
+
+[node name="Collision" type="StaticBody3D" parent="short_bow/short_bow_limb_up"]
+
+[node name="Box" type="CollisionShape3D" parent="short_bow/short_bow_limb_up/Collision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0000, 0.2991, -0.0638)
+shape = SubResource("box1")
+
+[node name="Collision" type="StaticBody3D" parent="short_bow/short_bow_limb_down"]
+
+[node name="Box" type="CollisionShape3D" parent="short_bow/short_bow_limb_down/Collision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0000, -0.2994, -0.0624)
+shape = SubResource("box2")
+
+[node name="Collision" type="StaticBody3D" parent="short_bow/short_bow_limb_up/short_bow_string_up"]
+
+[node name="Box" type="CollisionShape3D" parent="short_bow/short_bow_limb_up/short_bow_string_up/Collision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0000, -0.2500, 0.0005)
+shape = SubResource("box3")
+
+[node name="Collision" type="StaticBody3D" parent="short_bow/short_bow_limb_down/short_bow_string_down"]
+
+[node name="Box" type="CollisionShape3D" parent="short_bow/short_bow_limb_down/short_bow_string_down/Collision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0000, 0.2500, -0.0005)
+shape = SubResource("box4")
+
+[node name="Collision" type="StaticBody3D" parent="short_bow/short_bow_arrow"]
+
+[node name="Box" type="CollisionShape3D" parent="short_bow/short_bow_arrow/Collision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0000, 0.0025, 0.3090)
+shape = SubResource("box5")

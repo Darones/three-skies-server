@@ -13,7 +13,8 @@ const GOLD := Color(0.94, 0.78, 0.43)
 const PALE := Color(0.9, 0.91, 0.95)
 
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
-const VICTORY_SOUND: AudioStream = preload("res://audio/sfx/fairy_blessing_free/sfx_magical_fairy_chime_bell_brig_.wav")
+const VICTORY_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/glockenspiel_success_chime.wav")
+const DEFEAT_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/horn_fail_wah_wah_low.wav")
 
 var font: FontFile
 var selected_class := 0
@@ -54,8 +55,10 @@ func _ready() -> void:
 	final_shards = 5 if player_won and player_is_mvp else 3 if player_won or player_is_mvp else 1
 	final_xp = kills * 10 + shells_destroyed * 25 + crystals_delivered * 25 + (50 if player_won else 20)
 	_build_screen()
-	if player_won or player_is_mvp or player_place == 1:
+	if player_won:
 		_play_victory_celebration()
+	else:
+		_play_defeat_stinger()
 
 
 func _build_screen() -> void:
@@ -201,7 +204,7 @@ func _build_content() -> void:
 	double_reward_button = _make_button("", true)
 	double_reward_button.name = "DoubleRewardsButton"
 	double_reward_button.custom_minimum_size = Vector2(0.0, 46.0)
-	double_reward_button.add_theme_font_size_override("font_size", 13)
+	double_reward_button.add_theme_font_size_override("font_size", 18)
 	double_reward_button.add_theme_color_override("font_color", Color(0.18, 0.11, 0.02))
 	double_reward_button.add_theme_color_override("font_hover_color", Color(0.12, 0.075, 0.01))
 	double_reward_button.add_theme_color_override("font_pressed_color", Color(0.12, 0.075, 0.01))
@@ -374,7 +377,7 @@ func _refresh_reward_ui() -> void:
 		double_reward_button.text = "Награды удвоены"
 		double_reward_button.disabled = true
 	else:
-		double_reward_button.text = "▶ Смотреть рекламу (x2: %d осколков, %d XP)" % [final_shards * 2, final_xp * 2]
+		double_reward_button.text = "▶ Смотреть рекламу: награды x2"
 		double_reward_button.disabled = false
 
 
@@ -402,12 +405,25 @@ func _start_ad_button_pulse() -> void:
 
 func _play_victory_celebration() -> void:
 	victory_player = AudioStreamPlayer.new()
-	victory_player.name = 'VictoryFanfare'
+	victory_player.name = "VictoryFanfare"
 	victory_player.stream = VICTORY_SOUND
-	victory_player.volume_db = -6.0
+	victory_player.volume_db = -10.0
+	victory_player.bus = "Master"
+	victory_player.max_polyphony = 1
 	add_child(victory_player)
 	victory_player.play()
 	_spawn_victory_confetti()
+
+
+func _play_defeat_stinger() -> void:
+	victory_player = AudioStreamPlayer.new()
+	victory_player.name = "DefeatStinger"
+	victory_player.stream = DEFEAT_SOUND
+	victory_player.volume_db = -10.0
+	victory_player.bus = "Master"
+	victory_player.max_polyphony = 1
+	add_child(victory_player)
+	victory_player.play()
 
 func _spawn_victory_confetti() -> void:
 	var particles := CPUParticles2D.new()

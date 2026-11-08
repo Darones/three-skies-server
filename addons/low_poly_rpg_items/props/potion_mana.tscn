@@ -1,0 +1,22 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/low_poly_rpg_items/models/potion_mana_model.glb" id="1"]
+[ext_resource type="Script" path="res://addons/low_poly_rpg_items/pickup.gd" id="2"]
+
+[sub_resource type="BoxShape3D" id="box0"]
+size = Vector3(0.1200, 0.2210, 0.1200)
+
+[node name="potion_mana" instance=ExtResource("1")]
+script = ExtResource("2")
+kind = "item"
+item = "potion_mana"
+amount = 1
+title = "Mana Potion"
+text = "A mana potion. It fizzes, and the mind clears like a winter sky."
+glint = false
+
+[node name="Collision" type="StaticBody3D" parent="potion_mana"]
+
+[node name="Box" type="CollisionShape3D" parent="potion_mana/Collision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0000, 0.1105, -0.0000)
+shape = SubResource("box0")

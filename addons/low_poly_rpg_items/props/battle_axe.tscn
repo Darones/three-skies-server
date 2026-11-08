@@ -1,0 +1,22 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/low_poly_rpg_items/models/battle_axe_model.glb" id="1"]
+[ext_resource type="Script" path="res://addons/low_poly_rpg_items/pickup.gd" id="2"]
+
+[sub_resource type="BoxShape3D" id="box0"]
+size = Vector3(0.1200, 0.9200, 0.2980)
+
+[node name="battle_axe" instance=ExtResource("1")]
+script = ExtResource("2")
+kind = "item"
+item = "battle_axe"
+amount = 1
+title = "Battle Axe"
+text = "A battle axe. The beard hooks a shield's rim and pulls it down."
+glint = false
+
+[node name="Collision" type="StaticBody3D" parent="battle_axe"]
+
+[node name="Box" type="CollisionShape3D" parent="battle_axe/Collision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0000, 0.1900, 0.0590)
+shape = SubResource("box0")

@@ -24,6 +24,37 @@ const BOT_MOVE_ACCELERATION := 14.0
 const BOT_RETREAT_START_RATIO := 0.22
 const BOT_RETREAT_END_RATIO := 0.4
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
+const WARRIOR_SWING_SOUNDS := [
+	preload("res://assets/audio/Soundza_Game_SFX_Pack/swords_melee/sword_slash.wav"),
+	preload("res://assets/audio/Soundza_Game_SFX_Pack/swords_melee/weapon_swing_1.wav"),
+	preload("res://assets/audio/Soundza_Game_SFX_Pack/swords_melee/sword_attack_3.wav"),
+]
+const WARRIOR_HIT_SOUNDS := [
+	preload("res://assets/audio/Soundza_Game_SFX_Pack/hits_impacts/deep_industrial_impact.wav"),
+	preload("res://assets/audio/Soundza_Game_SFX_Pack/hits_impacts/deep_punch_impact.wav"),
+	preload("res://assets/audio/Soundza_Game_SFX_Pack/hits_impacts/cinematic_impact_hit.wav"),
+]
+const MAGE_ATTACK_SOUNDS := [
+	preload("res://assets/audio/Soundza_Game_SFX_Pack/magic/sparkle_magic_spell.wav"),
+	preload("res://assets/audio/Soundza_Game_SFX_Pack/magic/spell_2.wav"),
+]
+const FAIRY_ATTACK_SOUNDS := [
+	preload("res://assets/audio/Soundza_Game_SFX_Pack/whooshes_swings/fast_air_whoosh.wav"),
+	preload("res://assets/audio/Soundza_Game_SFX_Pack/whooshes_swings/quick_air_whoosh.wav"),
+]
+const WARRIOR_ULT_SOUND := [
+	preload("res://assets/audio/Soundza_Game_SFX_Pack/explosions/fireball_explosion.wav"),
+]
+const VFX_HIT_SCENE: PackedScene = preload("res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn")
+const VFX_HIT_02_SCENE: PackedScene = preload("res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn")
+const VFX_BIG_IMPACT_SCENE: PackedScene = preload("res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_01.tscn")
+const VFX_BIG_IMPACT_02_SCENE: PackedScene = preload("res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn")
+const VFX_LIGHTNING_SCENE: PackedScene = preload("res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_01.tscn")
+const VFX_GOLDEN_SCENE: PackedScene = preload("res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn")
+const VFX_HIT_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/hits_impacts/deep_punch_impact.wav")
+const VFX_BIG_IMPACT_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/explosions/fireball_explosion.wav")
+const VFX_LIGHTNING_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/magic/spell_2.wav")
+const VFX_GOLDEN_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/pickups_powerups/synth_power_up_ascending.wav")
 const MAGE_STORM_DURATION := 5.0
 const MAGE_STORM_RADIUS := 10.0
 const WARRIOR_ULT_RADIUS := 8.0
@@ -136,9 +167,15 @@ var ai_strafe_timer := 0.0
 
 var visual: Node3D
 var wing_attachment: Node3D
+var wing_bone_attachment: BoneAttachment3D
+var wing_attachment_fallback := false
 var wing_sway_time := 0.0
 var anim_player: AnimationPlayer = null
 var current_anim := ""
+var weapon_attachment: BoneAttachment3D = null
+var weapon_instance: Node3D = null
+var weapon_anim_player: AnimationPlayer = null
+var combat_audio_players: Dictionary = {}
 var health_back: MeshInstance3D
 var health_fill: MeshInstance3D
 var health_label: Label3D
@@ -187,17 +224,21 @@ func setup(p_game: Node, p_class: int, p_team: int, p_player: bool) -> void:
 func update_wings() -> void:
 	if not is_player or visual == null:
 		return
-	var wing_id := clampi(int(MetaProgression.equipped_wing), 0, 4)
+	var character_key: String = ["warrior", "mage", "fairy"][hero_class]
+	var wing_id := MetaProgression.get_equipped_wing(character_key)
 	if wing_id == 0:
 		if wing_attachment != null and is_instance_valid(wing_attachment):
 			wing_attachment.queue_free()
+		if wing_bone_attachment != null and is_instance_valid(wing_bone_attachment):
+			wing_bone_attachment.queue_free()
 		wing_attachment = null
+		wing_bone_attachment = null
+		wing_attachment_fallback = false
 		return
 	if wing_attachment == null or not is_instance_valid(wing_attachment):
 		wing_attachment = Node3D.new()
 		wing_attachment.name = "WingAttachment"
-		wing_attachment.position = Vector3(0.0, 1.43, 0.32)
-		visual.add_child(wing_attachment)
+	_configure_wing_attachment()
 	for old_wing in wing_attachment.get_children():
 		wing_attachment.remove_child(old_wing)
 		old_wing.queue_free()
@@ -240,10 +281,75 @@ func update_wings() -> void:
 	wing_sway_time = 0.0
 
 
+func _configure_wing_attachment() -> void:
+	var model_root := visual.get_node_or_null("Model") as Node3D
+	var fallback_parent: Node3D = model_root if model_root != null else visual
+	var skeleton := _find_skeleton(model_root)
+	var bone_index := _find_wing_bone_index(skeleton)
+	var target_parent: Node3D = fallback_parent
+	wing_attachment_fallback = true
+	if skeleton != null and bone_index >= 0:
+		var selected_bone := skeleton.get_bone_name(bone_index)
+		if wing_bone_attachment == null or not is_instance_valid(wing_bone_attachment) or wing_bone_attachment.get_parent() != skeleton or wing_bone_attachment.bone_name != selected_bone:
+			if wing_bone_attachment != null and is_instance_valid(wing_bone_attachment):
+				if wing_attachment.get_parent() == wing_bone_attachment:
+					wing_attachment.reparent(fallback_parent, false)
+				wing_bone_attachment.queue_free()
+			wing_bone_attachment = BoneAttachment3D.new()
+			wing_bone_attachment.name = "WingBoneAttachment"
+			wing_bone_attachment.bone_name = selected_bone
+			skeleton.add_child(wing_bone_attachment)
+		target_parent = wing_bone_attachment
+		wing_attachment_fallback = false
+	elif wing_bone_attachment != null and is_instance_valid(wing_bone_attachment):
+		if wing_attachment.get_parent() == wing_bone_attachment:
+			wing_attachment.reparent(fallback_parent, false)
+		wing_bone_attachment.queue_free()
+		wing_bone_attachment = null
+	if wing_attachment.get_parent() != target_parent:
+		if wing_attachment.get_parent() == null:
+			target_parent.add_child(wing_attachment)
+		else:
+			wing_attachment.reparent(target_parent, false)
+	var parent_scale := target_parent.global_transform.basis.get_scale()
+	var inverse_parent_scale := Vector3(
+		1.0 / maxf(absf(parent_scale.x), 0.001),
+		1.0 / maxf(absf(parent_scale.y), 0.001),
+		1.0 / maxf(absf(parent_scale.z), 0.001)
+	)
+	wing_attachment.scale = inverse_parent_scale
+	wing_attachment.position = Vector3(0.0, 0.0, -0.32) * inverse_parent_scale if not wing_attachment_fallback else Vector3(0.0, 1.43, 0.32)
+
+
+func _find_skeleton(node: Node) -> Skeleton3D:
+	if node == null:
+		return null
+	if node is Skeleton3D:
+		return node as Skeleton3D
+	for child in node.get_children():
+		var found := _find_skeleton(child)
+		if found != null:
+			return found
+	return null
+
+
+func _find_wing_bone_index(skeleton: Skeleton3D) -> int:
+	if skeleton == null or skeleton.get_bone_count() == 0:
+		return -1
+	var preferred_names := ["spine02", "chest", "torso", "body", "spine", "char1"]
+	for preferred_name in preferred_names:
+		for bone_index in range(skeleton.get_bone_count()):
+			if String(skeleton.get_bone_name(bone_index)).to_lower().contains(preferred_name):
+				return bone_index
+	return -1
+
+
 func _process(delta: float) -> void:
 	if wing_attachment == null or not is_instance_valid(wing_attachment):
 		return
 	wing_sway_time += delta
+	if wing_attachment_fallback:
+		wing_attachment.rotation.x = lerp(wing_attachment.rotation.x, -clampf(velocity.length() * 0.015, 0.0, 0.35), 0.15)
 	wing_attachment.rotation.z = sin(wing_sway_time * 1.8) * 0.035
 
 
@@ -293,6 +399,197 @@ func _build_body() -> void:
 	carry_light.omni_range = 5.0
 	carry_light.position = Vector3(0.0, 2.4, 0.0)
 	add_child(carry_light)
+	_build_combat_audio_players()
+
+
+func _build_combat_audio_players() -> void:
+	for channel in ["attack", "impact", "ultimate"]:
+		var player := AudioStreamPlayer3D.new()
+		player.name = "CombatAudio_%s" % channel.capitalize()
+		player.bus = "Master"
+		player.max_polyphony = 1
+		player.max_distance = 42.0
+		player.unit_size = 8.0
+		player.volume_db = -10.0
+		add_child(player)
+		combat_audio_players[channel] = player
+
+
+func _play_combat_sfx(channel: String, sounds: Array, volume_db: float) -> void:
+	var player := combat_audio_players.get(channel) as AudioStreamPlayer3D
+	if player == null or player.is_playing() or sounds.is_empty():
+		return
+	player.stream = sounds[randi_range(0, sounds.size() - 1)] as AudioStream
+	player.volume_db = volume_db
+	player.play()
+
+
+func _play_class_attack_sfx() -> void:
+	match hero_class:
+		Cls.WARRIOR:
+			_play_combat_sfx("attack", WARRIOR_SWING_SOUNDS, -8.0)
+		Cls.MAGE:
+			_play_combat_sfx("attack", MAGE_ATTACK_SOUNDS, -11.0)
+		Cls.FAIRY:
+			_play_combat_sfx("attack", FAIRY_ATTACK_SOUNDS, -10.0)
+
+
+func _vfx_palette() -> Dictionary:
+	match hero_class:
+		Cls.WARRIOR:
+			return {
+				"primary": Color(1.0, 0.3, 0.16),
+				"secondary": Color(1.0, 0.72, 0.24),
+				"light": Color(1.0, 0.38, 0.12),
+			}
+		Cls.MAGE:
+			return {
+				"primary": Color(0.28, 0.7, 1.0),
+				"secondary": Color(0.78, 0.94, 1.0),
+				"light": Color(0.3, 0.64, 1.0),
+			}
+		_:
+			return {
+				"primary": Color(0.68, 1.0, 0.42),
+				"secondary": Color(1.0, 0.8, 0.28),
+				"light": Color(0.78, 1.0, 0.45),
+			}
+
+
+func spawn_attack_impact_vfx(pos: Vector3, effect_type: String = "") -> void:
+	if effect_type == "root" or effect_type == "stun":
+		spawn_ability_vfx(0, pos)
+		return
+	var scene := VFX_HIT_SCENE
+	match hero_class:
+		Cls.MAGE:
+			scene = VFX_HIT_02_SCENE
+		Cls.FAIRY:
+			scene = VFX_HIT_02_SCENE
+	var palette := _vfx_palette()
+	spawn_vfx(scene, pos, 1.2, 1.3, 1.5, palette["primary"], palette["secondary"], palette["light"])
+
+
+func spawn_ability_vfx(index: int, pos: Vector3) -> void:
+	var scene: PackedScene = VFX_HIT_SCENE
+	var effect_scale := 1.15
+	var effect_emission := 1.4
+	var effect_light := 1.5
+	match hero_class:
+		Cls.WARRIOR:
+			match index:
+				0:
+					scene = VFX_HIT_02_SCENE
+				1:
+					scene = VFX_LIGHTNING_SCENE
+					effect_scale = 1.5
+					effect_emission = 1.8
+					effect_light = 2.0
+				_:
+					scene = VFX_BIG_IMPACT_SCENE
+					effect_scale = 2.0
+					effect_emission = 1.8
+					effect_light = 3.0
+		Cls.MAGE:
+			match index:
+				0:
+					scene = VFX_HIT_SCENE
+				1:
+					scene = VFX_GOLDEN_SCENE
+					effect_scale = 1.5
+					effect_emission = 1.8
+					effect_light = 2.0
+				_:
+					scene = VFX_LIGHTNING_SCENE
+					effect_scale = 2.0
+					effect_emission = 1.8
+					effect_light = 3.0
+		Cls.FAIRY:
+			match index:
+				0:
+					scene = VFX_HIT_SCENE
+				1:
+					scene = VFX_LIGHTNING_SCENE
+					effect_scale = 1.5
+					effect_emission = 1.8
+					effect_light = 2.0
+				_:
+					scene = VFX_GOLDEN_SCENE
+					effect_scale = 2.0
+					effect_emission = 1.8
+					effect_light = 3.0
+	var palette := _vfx_palette()
+	spawn_vfx(scene, pos, effect_scale, effect_emission, effect_light, palette["primary"], palette["secondary"], palette["light"])
+
+
+func spawn_vfx(
+	vfx_scene: PackedScene,
+	pos: Vector3,
+	effect_scale: float = 1.6,
+	effect_emission: float = 1.6,
+	effect_light_energy: float = 2.0,
+	primary_tint: Color = Color(1.0, 1.0, 1.0),
+	secondary_tint: Color = Color(1.0, 0.8, 0.4),
+	light_tint: Color = Color(1.0, 0.8, 0.4)
+) -> void:
+	if vfx_scene == null:
+		return
+	var effect := vfx_scene.instantiate() as Node3D
+	if effect == null:
+		return
+	var effect_parent: Node = game if game != null and is_instance_valid(game) else get_tree().current_scene
+	if effect_parent == null:
+		effect.free()
+		return
+	effect_parent.add_child(effect)
+	var effect_position := pos
+	effect_position.y += 0.6
+	effect.global_position = effect_position
+	effect.visible = true
+	effect.scale = Vector3.ONE * effect_scale
+	if effect.has_method("set"):
+		effect.set("emission", effect_emission)
+		effect.set("light_energy", effect_light_energy)
+		effect.set("primary_color", primary_tint)
+		effect.set("secondary_color", secondary_tint)
+		effect.set("light_color", light_tint)
+	var audio_player := effect.get_node_or_null("AudioStreamPlayer3D") as AudioStreamPlayer3D
+	if audio_player != null:
+		if audio_player.stream == null:
+			audio_player.stream = _vfx_audio_for_scene(vfx_scene)
+		audio_player.max_polyphony = 1
+		audio_player.max_distance = 42.0
+		audio_player.unit_size = 8.0
+		audio_player.volume_db = -12.0
+		audio_player.bus = "Master"
+	if effect.has_method("set"):
+		effect.set("one_shot", true)
+	var animation_player := effect.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	var lifetime := 1.0
+	if animation_player != null and animation_player.has_animation("main"):
+		lifetime = maxf(animation_player.get_animation("main").length, 0.6) + 0.25
+	if animation_player != null and animation_player.has_animation("main"):
+		animation_player.speed_scale = 1.0
+		animation_player.play("main")
+		animation_player.seek(0.0, true)
+	elif effect.has_method("play"):
+		effect.call("play")
+	else:
+		effect.queue_free()
+		return
+	get_tree().create_timer(lifetime).timeout.connect(Callable(effect, "queue_free"), CONNECT_ONE_SHOT)
+
+
+func _vfx_audio_for_scene(vfx_scene: PackedScene) -> AudioStream:
+	if vfx_scene == VFX_HIT_SCENE or vfx_scene == VFX_HIT_02_SCENE:
+		return VFX_HIT_SOUND
+	if vfx_scene == VFX_BIG_IMPACT_SCENE or vfx_scene == VFX_BIG_IMPACT_02_SCENE:
+		return VFX_BIG_IMPACT_SOUND
+	if vfx_scene == VFX_LIGHTNING_SCENE:
+		return VFX_LIGHTNING_SOUND
+	if vfx_scene == VFX_GOLDEN_SCENE:
+		return VFX_GOLDEN_SOUND
+	return null
 
 
 func _build_health_bar() -> void:
@@ -353,6 +650,7 @@ func _build_visual() -> void:
 		visual.add_child(holder)
 		_fit_model(holder)
 		anim_player = _find_animation_player(holder)
+		_attach_class_weapon(holder)
 		_play_anim("idle")
 		return
 	_build_placeholder()
@@ -426,6 +724,81 @@ func _find_animation_player(node: Node) -> AnimationPlayer:
 		if found != null:
 			return found
 	return null
+
+
+func _attach_class_weapon(holder: Node3D) -> void:
+	var skeleton := _find_skeleton(holder)
+	if skeleton == null:
+		return
+	var desired_bone := "LeftHand" if hero_class == Cls.FAIRY else "RightHand"
+	var bone_index := -1
+	for index in range(skeleton.get_bone_count()):
+		if String(skeleton.get_bone_name(index)).to_lower() == desired_bone.to_lower():
+			bone_index = index
+			break
+	if bone_index < 0:
+		return
+	var weapon_path := ""
+	var weapon_scale := 1.0
+	var hand_offset := Vector3(0.06, 0.0, -0.1)
+	var weapon_rotation := Vector3.ZERO
+	match hero_class:
+		Cls.WARRIOR:
+			weapon_path = "res://addons/low_poly_rpg_items/props/longsword.tscn"
+			weapon_scale = 0.72
+			hand_offset = Vector3(0.06, 0.0, -0.12)
+			weapon_rotation = Vector3(0.0, 0.0, -12.0)
+		Cls.MAGE:
+			weapon_path = "res://addons/low_poly_rpg_items/props/staff_wizard.tscn"
+			weapon_scale = 0.62
+			hand_offset = Vector3(0.04, 0.0, -0.1)
+		Cls.FAIRY:
+			weapon_path = "res://addons/low_poly_rpg_items/props/short_bow.tscn"
+			weapon_scale = 0.9
+			hand_offset = Vector3(-0.06, 0.0, -0.1)
+			weapon_rotation = Vector3(0.0, 0.0, 8.0)
+	var packed_weapon := load(weapon_path) as PackedScene
+	if packed_weapon == null:
+		return
+	weapon_attachment = BoneAttachment3D.new()
+	weapon_attachment.name = "WeaponBoneAttachment"
+	weapon_attachment.bone_name = skeleton.get_bone_name(bone_index)
+	skeleton.add_child(weapon_attachment)
+	var attachment_scale := maxf(absf(skeleton.global_transform.basis.get_scale().x), 0.001)
+	weapon_attachment.position = hand_offset / attachment_scale
+	weapon_instance = packed_weapon.instantiate() as Node3D
+	if weapon_instance == null:
+		weapon_attachment.queue_free()
+		weapon_attachment = null
+		return
+	weapon_instance.name = "EquippedWeapon"
+	weapon_instance.scale = Vector3.ONE * (weapon_scale / attachment_scale)
+	weapon_instance.rotation_degrees = weapon_rotation
+	weapon_instance.visible = true
+	_disable_weapon_collisions(weapon_instance)
+	weapon_attachment.add_child(weapon_instance)
+	weapon_anim_player = _find_animation_player(weapon_instance)
+
+
+func _disable_weapon_collisions(node: Node) -> void:
+	if node is CollisionObject3D:
+		var collision_object := node as CollisionObject3D
+		collision_object.collision_layer = 0
+		collision_object.collision_mask = 0
+	for child in node.get_children():
+		_disable_weapon_collisions(child)
+
+
+func _play_weapon_attack_animation() -> void:
+	if weapon_anim_player == null or not is_instance_valid(weapon_anim_player):
+		return
+	var desired_animation := "shoot" if hero_class == Cls.FAIRY else "swing"
+	for animation_name in weapon_anim_player.get_animation_list():
+		var candidate := String(animation_name)
+		var lowered := candidate.to_lower()
+		if lowered == desired_animation or lowered.ends_with("/" + desired_animation):
+			weapon_anim_player.play(candidate)
+			return
 
 
 func _play_anim(key: String, restart: bool = false) -> void:
@@ -548,13 +921,13 @@ func _physics_process(delta: float) -> void:
 func _player_dir() -> Vector3:
 	var x := 0.0
 	var y := 0.0
-	if Input.is_physical_key_pressed(KEY_A) or Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
+	if Input.is_action_pressed("move_left") or Input.is_action_pressed("move_left_2") or Input.is_key_pressed(KEY_LEFT):
 		x -= 1.0
-	if Input.is_physical_key_pressed(KEY_D) or Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
+	if Input.is_action_pressed("move_right") or Input.is_action_pressed("move_right_2") or Input.is_key_pressed(KEY_RIGHT):
 		x += 1.0
-	if Input.is_physical_key_pressed(KEY_W) or Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
+	if Input.is_action_pressed("move_forward") or Input.is_action_pressed("move_forward_2") or Input.is_key_pressed(KEY_UP):
 		y += 1.0
-	if Input.is_physical_key_pressed(KEY_S) or Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
+	if Input.is_action_pressed("move_back") or Input.is_action_pressed("move_back_2") or Input.is_key_pressed(KEY_DOWN):
 		y -= 1.0
 	var input := Vector2(x, y)
 	if input.length() < 0.1:
@@ -742,6 +1115,8 @@ func _try_auto_attack(movement_direction: Vector3) -> void:
 	attack_cd = attack_interval / attack_speed_multiplier
 	attack_anim_time = attack_animation_duration
 	_play_anim("attack", true)
+	_play_weapon_attack_animation()
+	_play_class_attack_sfx()
 	var guaranteed_crit_multiplier := crit_buff_multiplier if crit_buff else 1.0
 	var damage := roll_direct_damage(attack_damage * get_blessing_damage_multiplier(), guaranteed_crit_multiplier)
 	if crit_buff:
@@ -755,6 +1130,7 @@ func _try_auto_attack(movement_direction: Vector3) -> void:
 		game.spawn_projectile(global_position + Vector3(0.0, 1.2, 0.0), target, damage, color, self)
 	else:
 		target.take_damage(damage, self, "physical")
+		spawn_attack_impact_vfx(target.global_position + Vector3(0.0, 0.9, 0.0))
 		game.melee_fx(global_position + Vector3(0.0, 1.0, 0.0), target.global_position)
 
 
@@ -993,6 +1369,9 @@ func take_damage(amount: float, source: Node = null, damage_type: String = "phys
 	if game != null and game.has_method("damage_number"):
 		game.damage_number(global_position + Vector3(0.0, 2.0, 0.0), final_damage, team)
 	if source is HeroUnit:
+		var source_hero := source as HeroUnit
+		if source_hero.hero_class == Cls.WARRIOR and applied_damage > 0.0:
+			source_hero._play_combat_sfx("impact", WARRIOR_HIT_SOUNDS, -11.0)
 		(source as HeroUnit).on_damage_dealt(applied_damage)
 	if health <= 0.0:
 		_die()
@@ -1127,14 +1506,18 @@ func use_ability(index: int) -> bool:
 			var hit_position := global_position
 			target.take_damage(roll_direct_damage(attack_damage * get_blessing_damage_multiplier()), self, "physical")
 			target.stun(1.0)
+			spawn_ability_vfx(0, target.global_position)
 			game.dash_fx(origin, hit_position, color)
 		"crit_buff":
 			crit_buff = true
 			crit_buff_timer = 3.0
 			crit_buff_multiplier = 3.0 if hero_class == Cls.FAIRY else 2.0
 			_set_crit_buff_ring(true)
+			spawn_ability_vfx(1, origin + Vector3(0.0, 0.4, 0.0))
 			game.burst(origin, color, 16)
 		"fear_ult":
+			_play_combat_sfx("ultimate", WARRIOR_ULT_SOUND, -7.0)
+			spawn_ability_vfx(2, origin)
 			for enemy in game.enemies_in_radius(origin, WARRIOR_ULT_RADIUS, team, self):
 				enemy.take_damage(roll_direct_damage(_outgoing_damage(60.0) * get_blessing_damage_multiplier()), self, "magic")
 				enemy.stun(1.5)
@@ -1148,7 +1531,8 @@ func use_ability(index: int) -> bool:
 				game.spawn_projectile(proj_pos, root_target, roll_direct_damage(_outgoing_damage(20.0) * get_blessing_damage_multiplier()), color, self, 2.0, "magic", "root")
 			game.burst(proj_pos, color, 14)
 		"heal":
-			game.heal_area(origin, 6.0, 250.0, team, 6)
+			spawn_ability_vfx(1, origin)
+			game.heal_area(origin, 10.0, float(randi_range(100, 300)), team, 6)
 			game.burst(origin, Color(0.65, 1.0, 0.75), 18)
 		"ult_lightning_storm":
 			lightning_storm_timer = MAGE_STORM_DURATION
@@ -1163,7 +1547,7 @@ func use_ability(index: int) -> bool:
 			game.burst(origin, color, 10)
 		"golden_blessing":
 			game.bless_team(team, float(data["cd"]))
-			game.golden_blessing_fx(origin, team)
+			game.golden_blessing_fx(origin, team, self)
 	return true
 
 
@@ -1224,6 +1608,10 @@ func roll_direct_damage(amount: float, guaranteed_crit_multiplier: float = 1.0) 
 	if randf() < CRITICAL_CHANCE:
 		return rolled_damage * CRITICAL_DAMAGE_MULTIPLIER
 	return rolled_damage
+
+
+func roll_ultimate_damage(amount: float) -> float:
+	return maxf(amount, 0.0) * randf_range(DIRECT_DAMAGE_MIN_MULTIPLIER, DIRECT_DAMAGE_MAX_MULTIPLIER)
 
 
 func _outgoing_damage(amount: float) -> float:

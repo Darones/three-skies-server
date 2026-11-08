@@ -1,0 +1,22 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/low_poly_rpg_items/models/potion_health_model.glb" id="1"]
+[ext_resource type="Script" path="res://addons/low_poly_rpg_items/pickup.gd" id="2"]
+
+[sub_resource type="BoxShape3D" id="box0"]
+size = Vector3(0.1300, 0.1860, 0.1300)
+
+[node name="potion_health" instance=ExtResource("1")]
+script = ExtResource("2")
+kind = "item"
+item = "potion_health"
+amount = 1
+title = "Health Potion"
+text = "A health potion. It tastes of iron and cherries, and closes wounds."
+glint = true
+
+[node name="Collision" type="StaticBody3D" parent="potion_health"]
+
+[node name="Box" type="CollisionShape3D" parent="potion_health/Collision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0000, 0.0930, -0.0000)
+shape = SubResource("box0")

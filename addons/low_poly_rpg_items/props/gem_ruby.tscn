@@ -1,0 +1,22 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/low_poly_rpg_items/models/gem_ruby_model.glb" id="1"]
+[ext_resource type="Script" path="res://addons/low_poly_rpg_items/pickup.gd" id="2"]
+
+[sub_resource type="BoxShape3D" id="box0"]
+size = Vector3(0.1200, 0.1200, 0.1200)
+
+[node name="gem_ruby" instance=ExtResource("1")]
+script = ExtResource("2")
+kind = "item"
+item = "gems"
+amount = 1
+title = "Ruby"
+text = "A ruby, deep as wine. Worth a horse."
+glint = false
+
+[node name="Collision" type="StaticBody3D" parent="gem_ruby"]
+
+[node name="Box" type="CollisionShape3D" parent="gem_ruby/Collision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0000, 0.0200, -0.0000)
+shape = SubResource("box0")

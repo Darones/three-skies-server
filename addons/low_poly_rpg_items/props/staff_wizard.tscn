@@ -1,0 +1,22 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/low_poly_rpg_items/models/staff_wizard_model.glb" id="1"]
+[ext_resource type="Script" path="res://addons/low_poly_rpg_items/pickup.gd" id="2"]
+
+[sub_resource type="BoxShape3D" id="box0"]
+size = Vector3(0.1200, 1.9526, 0.1200)
+
+[node name="staff_wizard" instance=ExtResource("1")]
+script = ExtResource("2")
+kind = "item"
+item = "staff_wizard"
+amount = 1
+title = "Wizard's Staff"
+text = "A wizard's staff. The crystal hums when spells are near."
+glint = false
+
+[node name="Collision" type="StaticBody3D" parent="staff_wizard"]
+
+[node name="Box" type="CollisionShape3D" parent="staff_wizard/Collision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0000, 0.2256, -0.0000)
+shape = SubResource("box0")

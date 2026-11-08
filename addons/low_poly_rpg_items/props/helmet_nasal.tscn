@@ -1,0 +1,22 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/low_poly_rpg_items/models/helmet_nasal_model.glb" id="1"]
+[ext_resource type="Script" path="res://addons/low_poly_rpg_items/pickup.gd" id="2"]
+
+[sub_resource type="BoxShape3D" id="box0"]
+size = Vector3(0.2200, 0.2550, 0.2196)
+
+[node name="helmet_nasal" instance=ExtResource("1")]
+script = ExtResource("2")
+kind = "item"
+item = "helmet_nasal"
+amount = 1
+title = "Nasal Helm"
+text = "A nasal helm, banded in brass. It keeps a sword off the nose."
+glint = false
+
+[node name="Collision" type="StaticBody3D" parent="helmet_nasal"]
+
+[node name="Box" type="CollisionShape3D" parent="helmet_nasal/Collision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0000, 0.1275, 0.0052)
+shape = SubResource("box0")
