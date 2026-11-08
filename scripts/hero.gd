@@ -517,7 +517,7 @@ func spawn_ability_vfx(index: int, pos: Vector3) -> void:
 					scene = VFX_GOLDEN_SCENE
 					effect_scale = 2.0
 					effect_emission = 1.8
-					effect_light = 3.0
+					effect_light = 1.2
 	var palette := _vfx_palette()
 	spawn_vfx(scene, pos, effect_scale, effect_emission, effect_light, palette["primary"], palette["secondary"], palette["light"])
 
@@ -1673,4 +1673,4 @@ func _update_blessing(delta: float) -> void:
 
 
 func ability_ready(index: int) -> bool:
-	return ability_cds[index] <= 0.01
+	return ability_cds[index] <= 0.01 
