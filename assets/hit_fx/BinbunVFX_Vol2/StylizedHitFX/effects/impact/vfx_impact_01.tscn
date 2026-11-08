@@ -1,11 +1,11 @@
 [gd_scene format=3 uid="uid://dp6fn641cy82u"]
 
-[ext_resource type="Script" uid="uid://cmpof68vvmhk2" path="res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/script/VFXImpactBB.gd" id="1_q6427"]
-[ext_resource type="Shader" uid="uid://8mnb5nsi3n2" path="res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_sphere.gdshader" id="2_luq7r"]
-[ext_resource type="Shader" uid="uid://c3vn75lshe3xo" path="res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_slash.gdshader" id="3_fbxes"]
-[ext_resource type="Shader" uid="uid://bssccbrmdo0rm" path="res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_core.gdshader" id="5_vj3r5"]
-[ext_resource type="Script" uid="uid://bwmucxp58uvvt" path="res://assets/hit_fx/BinbunVFX_Vol2/shared/script/VFXOmniLightBB.gd" id="6_q6427"]
-[ext_resource type="Shader" uid="uid://ddaykxb1ucbsl" path="res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/glow.gdshader" id="7_3ufwk"]
+[ext_resource type="Script" uid="uid://c2rw74b57nxo8" path="res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/script/VFXImpactBB.gd" id="1_q6427"]
+[ext_resource type="Shader" uid="uid://du5jha88jyxow" path="res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_sphere.gdshader" id="2_luq7r"]
+[ext_resource type="Shader" uid="uid://b7226xenww8ow" path="res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_slash.gdshader" id="3_fbxes"]
+[ext_resource type="Shader" uid="uid://jdqriw2lkvbr" path="res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_core.gdshader" id="5_vj3r5"]
+[ext_resource type="Script" uid="uid://ccnxujroci3py" path="res://assets/hit_fx/BinbunVFX_Vol2/shared/script/VFXOmniLightBB.gd" id="6_q6427"]
+[ext_resource type="Shader" uid="uid://mktgurlgg4m1" path="res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/glow.gdshader" id="7_3ufwk"]
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_71ved"]
 noise_type = 2
@@ -600,6 +600,7 @@ lifetime = 0.3
 one_shot = true
 explosiveness = 1.0
 transform_align = 1
+transform_align_channel_filter = 1
 process_material = SubResource("ParticleProcessMaterial_wejg2")
 draw_pass_1 = SubResource("QuadMesh_2ukpv")
 

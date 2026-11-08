@@ -547,12 +547,19 @@ func spawn_vfx(
 	effect.global_position = effect_position
 	effect.visible = true
 	effect.scale = Vector3.ONE * effect_scale
-	if effect.has_method("set"):
-		effect.set("emission", effect_emission)
-		effect.set("light_energy", effect_light_energy)
-		effect.set("primary_color", primary_tint)
-		effect.set("secondary_color", secondary_tint)
-		effect.set("light_color", light_tint)
+	# Apply emission to GeometryInstance3D nodes that have StandardMaterial3D
+	for child in effect.find_children("*", "GeometryInstance3D"):
+		var mat := child.get("material_override") as StandardMaterial3D
+		if mat != null:
+			mat.emission_enabled = true
+			mat.emission = primary_tint
+			mat.emission_energy_multiplier = effect_emission
+	# Apply light properties only to Light3D nodes
+	for child in effect.find_children("*", "Light3D"):
+		var light := child as Light3D
+		if light != null:
+			light.light_energy = effect_light_energy
+			light.light_color = light_tint
 	var audio_player := effect.get_node_or_null("AudioStreamPlayer3D") as AudioStreamPlayer3D
 	if audio_player != null:
 		if audio_player.stream == null:
@@ -562,8 +569,9 @@ func spawn_vfx(
 		audio_player.unit_size = 8.0
 		audio_player.volume_db = -12.0
 		audio_player.bus = "Master"
-	if effect.has_method("set"):
-		effect.set("one_shot", true)
+	# Apply custom script properties only if the effect node supports them
+	if effect.has_method("_set_vfx_params"):
+		effect.call("_set_vfx_params", primary_tint, secondary_tint, effect_emission)
 	var animation_player := effect.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	var lifetime := 1.0
 	if animation_player != null and animation_player.has_animation("main"):

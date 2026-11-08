@@ -1,12 +1,12 @@
 [gd_scene format=3 uid="uid://cnoje43lix5p1"]
 
-[ext_resource type="Shader" uid="uid://mvwi25cb826n" path="res://assets/BinbunVFX_Vol2/shared/shader/checker.gdshader" id="1_ahr3k"]
-[ext_resource type="PackedScene" uid="uid://dpntm33m1fs4l" path="res://assets/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_01.tscn" id="2_b2uwn"]
-[ext_resource type="PackedScene" uid="uid://dsbj3443hx0xe" path="res://assets/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn" id="3_l6p6r"]
-[ext_resource type="PackedScene" uid="uid://dp6fn641cy82u" path="res://assets/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_01.tscn" id="10_javt3"]
-[ext_resource type="PackedScene" uid="uid://c2g8hg2ilujf8" path="res://assets/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn" id="11_5uqvy"]
-[ext_resource type="PackedScene" uid="uid://dbxojkr0k7vsg" path="res://assets/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn" id="18_q8at4"]
-[ext_resource type="PackedScene" uid="uid://b8ukjib0taqrg" path="res://assets/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn" id="19_2pl21"]
+[ext_resource type="Shader" uid="uid://mvwi25cb826n" path="res://assets/hit_fx/BinbunVFX_Vol2/shared/shader/checker.gdshader" id="1_ahr3k"]
+[ext_resource type="PackedScene" uid="uid://dpntm33m1fs4l" path="res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_01.tscn" id="2_b2uwn"]
+[ext_resource type="PackedScene" uid="uid://dsbj3443hx0xe" path="res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn" id="3_l6p6r"]
+[ext_resource type="PackedScene" uid="uid://dp6fn641cy82u" path="res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_01.tscn" id="10_javt3"]
+[ext_resource type="PackedScene" uid="uid://c2g8hg2ilujf8" path="res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn" id="11_5uqvy"]
+[ext_resource type="PackedScene" uid="uid://dbxojkr0k7vsg" path="res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn" id="18_q8at4"]
+[ext_resource type="PackedScene" uid="uid://b8ukjib0taqrg" path="res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn" id="19_2pl21"]
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_ip3vt"]
 
