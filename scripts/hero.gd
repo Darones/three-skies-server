@@ -243,41 +243,21 @@ func update_wings() -> void:
 		wing_attachment.remove_child(old_wing)
 		old_wing.queue_free()
 
-	var wing_color := Color(0.92, 0.95, 1.0, 0.78)
-	var emission_color := Color(0.82, 0.9, 1.0)
-	var emission_energy := 0.35
-	match wing_id:
-		2:
-			wing_color = Color(0.075, 0.065, 0.09, 0.92)
-			emission_energy = 0.0
-		3:
-			wing_color = Color(0.34, 0.025, 0.055, 0.84)
-			emission_color = Color(1.0, 0.025, 0.045)
-			emission_energy = 2.2
-		4:
-			wing_color = Color(0.95, 0.62, 0.08, 0.86)
-			emission_color = Color(1.0, 0.67, 0.12)
-			emission_energy = 2.5
-
-	var wing_material := StandardMaterial3D.new()
-	wing_material.albedo_color = wing_color
-	wing_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	wing_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	wing_material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	if emission_energy > 0.0:
-		wing_material.emission_enabled = true
-		wing_material.emission = emission_color
-		wing_material.emission_energy_multiplier = emission_energy
-	var wing_mesh := QuadMesh.new()
-	wing_mesh.size = Vector2(0.66, 0.98)
-	for side in [-1, 1]:
-		var wing := MeshInstance3D.new()
-		wing.name = "WingLeft" if side < 0 else "WingRight"
-		wing.mesh = wing_mesh
-		wing.material_override = wing_material
-		wing.position = Vector3(float(side) * 0.31, 0.04, 0.0)
-		wing.rotation_degrees = Vector3(0.0, float(side) * -12.0, float(side) * -24.0)
-		wing_attachment.add_child(wing)
+	var wing_scene := load("res://assets/wings/realistic_detailed_wings_lowpoly.glb") as PackedScene
+	if wing_scene == null:
+		push_warning("Unable to load realistic_detailed_wings_lowpoly.glb")
+		return
+	var wing_model := wing_scene.instantiate() as Node3D
+	if wing_model == null:
+		return
+	wing_model.name = "Wings3D"
+	wing_attachment.add_child(wing_model)
+	wing_model.scale = Vector3.ONE * 1.0
+	wing_model.position = Vector3(0, 0, 0)
+	wing_model.rotation_degrees = Vector3.ZERO
+	var wing_anim_player := _find_animation_player(wing_model)
+	if wing_anim_player != null:
+		wing_anim_player.stop()
 	wing_sway_time = 0.0
 
 
@@ -651,6 +631,12 @@ func _build_health_label() -> void:
 func _build_visual() -> void:
 	var model := _load_model()
 	if model != null:
+		for child in model.find_children("*", "MeshInstance3D", true, false):
+			var mesh_node := child as MeshInstance3D
+			var mesh_name := mesh_node.name.to_lower()
+			print("HERO: mesh = ", mesh_node.name)
+			if mesh_name.contains("sword") or mesh_name.contains("blade") or mesh_name.contains("weapon") or mesh_name.contains("weapon_bone") or mesh_name.contains("меч"):
+				mesh_node.visible = false
 		var holder := Node3D.new()
 		holder.name = "Model"
 		holder.add_child(model)

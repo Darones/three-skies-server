@@ -8,6 +8,8 @@
 
 config_version=5
 
+"ï»¿config_version"=5
+
 [animation]
 
 compatibility/default_parent_skeleton_in_mesh_instance_3d=true
@@ -15,7 +17,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="Небесные осколки"
-config/description="3D-игра на Godot 4 — Три Неба"
+config/description="3D-РёРіСЂР° РЅР° Godot 4 вЂ” РўСЂРё РќРµР±Р°"
 run/main_scene="res://scenes/Lobby.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 config/icon="res://icon.svg"
@@ -25,6 +27,7 @@ config/icon="res://icon.svg"
 NetworkClient="*res://scripts/network_client.gd"
 MetaProgression="*res://scripts/MetaProgression.gd"
 AdManager="*res://scripts/AdManager.gd"
+MCPRuntimeServer="*res://addons/godot_mcp_toolkit/runtime/mcp_runtime_server.gd"
 
 [display]
 
@@ -36,7 +39,11 @@ window/handheld/orientation="landscape"
 
 [dotnet]
 
-project/assembly_name="Три Неба"
+project/assembly_name="РўСЂРё РќРµР±Р°"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/godot_mcp_toolkit/plugin.cfg")
 
 [gui]
 

@@ -23,7 +23,7 @@ render_priority = 0
 shader = ExtResource("2_luq7r")
 shader_parameter/primary_color = Color(1, 1, 1, 1)
 shader_parameter/secondary_color = Color(1, 0.8, 0.4, 1)
-shader_parameter/emission = 2.0
+shader_parameter/emission = 2.5
 shader_parameter/emission_mult = 1.0
 shader_parameter/alpha_as_factor = true
 shader_parameter/animation_factor = 0.0
@@ -197,7 +197,7 @@ tracks/4/keys = {
 "times": PackedFloat32Array(0, 0.4),
 "transitions": PackedFloat32Array(0.5, 1),
 "update": 0,
-"values": [Vector3(1.5, 1.5, 1.5), Vector3(0, 0, 0)]
+"values": [Vector3(3, 3, 3), Vector3(0, 0, 0)]
 }
 tracks/5/type = "value"
 tracks/5/imported = false
@@ -349,7 +349,7 @@ render_priority = 0
 shader = ExtResource("3_fbxes")
 shader_parameter/primary_color = Color(1, 1, 1, 1)
 shader_parameter/secondary_color = Color(1, 0.8, 0.4, 1)
-shader_parameter/emission = 2.0
+shader_parameter/emission = 2.5
 shader_parameter/emission_mult = 1.0
 shader_parameter/pinch_amount = 0.4
 shader_parameter/alpha_as_factor = true
@@ -454,7 +454,7 @@ render_priority = 0
 shader = ExtResource("5_vj3r5")
 shader_parameter/primary_color = Color(1, 1, 1, 1)
 shader_parameter/secondary_color = Color(1, 0.8, 0.4, 1)
-shader_parameter/emission = 6.0
+shader_parameter/emission = 2.5
 shader_parameter/emission_mult = 1.0
 shader_parameter/alpha_as_factor = true
 shader_parameter/grow_factor = 0.5
@@ -504,7 +504,7 @@ render_priority = 0
 shader = ExtResource("7_3ufwk")
 shader_parameter/primary_color = Color(1, 1, 1, 1)
 shader_parameter/secondary_color = Color(1, 0.8, 0.4, 1)
-shader_parameter/emission = 2.0
+shader_parameter/emission = 2.5
 shader_parameter/emission_mult = 1.0
 
 [sub_resource type="SphereMesh" id="SphereMesh_aq5mh"]
@@ -514,7 +514,7 @@ render_priority = 0
 shader = ExtResource("7_3ufwk")
 shader_parameter/primary_color = Color(1, 1, 1, 1)
 shader_parameter/secondary_color = Color(1, 0.8, 0.4, 1)
-shader_parameter/emission = 2.0
+shader_parameter/emission = 2.5
 shader_parameter/emission_mult = 1.0
 
 [sub_resource type="Curve" id="Curve_3ufwk"]
@@ -628,4 +628,4 @@ script = ExtResource("6_q6427")
 light_mult = 0.0
 vfx_light_energy = 4.0
 
-[node name="AudioStreamPlayer3D" type="AudioStreamPlayer3D" parent="." unique_id=96103      
+[node name="AudioStreamPlayer3D" type="AudioStreamPlayer3D" parent="." unique_id=961030675]

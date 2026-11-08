@@ -107,7 +107,7 @@ tracks/1/keys = {
 "times": PackedFloat32Array(0, 0.2),
 "transitions": PackedFloat32Array(0.5, 1),
 "update": 0,
-"values": [Vector3(1.5, 1.5, 1.5), Vector3(0, 0, 0)]
+"values": [Vector3(3, 3, 3), Vector3(0, 0, 0)]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
@@ -234,7 +234,7 @@ render_priority = 0
 shader = ExtResource("1_3ytvb")
 shader_parameter/primary_color = Color(1, 1, 1, 1)
 shader_parameter/secondary_color = Color(1, 0.8, 0.4, 1)
-shader_parameter/emission = 2.0
+shader_parameter/emission = 1.5
 shader_parameter/emission_mult = 1.0
 
 [sub_resource type="Curve" id="Curve_fm4iy"]
@@ -249,8 +249,8 @@ spread = 180.0
 initial_velocity_min = 4.0
 initial_velocity_max = 7.0
 gravity = Vector3(0, -10, 0)
-scale_min = 0.7
-scale_max = 1.3
+shader_parameter/emission = 1.5
+scale_max = 2.0
 scale_curve = SubResource("CurveTexture_3ytvb")
 
 [sub_resource type="SphereMesh" id="SphereMesh_e48sq"]
@@ -262,7 +262,7 @@ render_priority = 0
 shader = ExtResource("1_3ytvb")
 shader_parameter/primary_color = Color(1, 1, 1, 1)
 shader_parameter/secondary_color = Color(1, 0.8, 0.4, 1)
-shader_parameter/emission = 2.0
+shader_parameter/emission = 1.5
 shader_parameter/emission_mult = 1.0
 
 [sub_resource type="SphereMesh" id="SphereMesh_fm4iy"]
@@ -272,7 +272,7 @@ render_priority = 0
 shader = ExtResource("2_fm4iy")
 shader_parameter/primary_color = Color(1, 1, 1, 1)
 shader_parameter/secondary_color = Color(1, 0.8, 0.4, 1)
-shader_parameter/emission = 4.0
+shader_parameter/emission = 1.5
 shader_parameter/emission_mult = 1.0
 shader_parameter/streaks1_count = 15.0
 shader_parameter/streaks2_count = 21.0
@@ -311,7 +311,7 @@ render_priority = 0
 shader = ExtResource("5_3jdin")
 shader_parameter/primary_color = Color(1, 1, 1, 1)
 shader_parameter/secondary_color = Color(1, 0.8, 0.4, 1)
-shader_parameter/emission = 2.0
+shader_parameter/emission = 1.5
 shader_parameter/emission_mult = 1.0
 shader_parameter/star_shape = 0.59999999031412
 shader_parameter/star_smoothness = 0.10000000149012
@@ -337,8 +337,8 @@ spread = 180.0
 initial_velocity_min = 0.01
 initial_velocity_max = 0.01
 gravity = Vector3(0, 0, 0)
-scale_min = 3.0
-scale_max = 5.0
+shader_parameter/emission = 1.5
+scale_max = 2.0
 scale_curve = SubResource("CurveTexture_3jdin")
 alpha_curve = SubResource("CurveTexture_e48sq")
 
@@ -398,4 +398,4 @@ transform_align = 3
 process_material = SubResource("ParticleProcessMaterial_vwmd1")
 draw_pass_1 = SubResource("QuadMesh_0hikk")
 
-[node name="AudioStreamPlayer3D" type="AudioStreamPlayer3D" parent="." unique_id=46633      
+[node name="AudioStreamPlayer3D" type="AudioStreamPlayer3D" parent="." unique_id=466338663]
