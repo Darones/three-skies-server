@@ -7,6 +7,7 @@ enum Cls { WARRIOR, MAGE, FAIRY }
 
 const GRAVITY := 26.0
 const BASE_POSITION_Z := 28.0
+const WING_BACK_TILT := deg_to_rad(-25.0)
 const HERO_OUTGOING_DAMAGE_MULTIPLIER := 2.0
 const DIRECT_DAMAGE_MIN_MULTIPLIER := 0.75
 const DIRECT_DAMAGE_MAX_MULTIPLIER := 1.25
@@ -299,6 +300,7 @@ func _configure_wing_attachment() -> void:
 	)
 	wing_attachment.scale = inverse_parent_scale
 	wing_attachment.position = Vector3(0.0, 0.0, -0.32) * inverse_parent_scale if not wing_attachment_fallback else Vector3(0.0, 1.43, 0.32)
+	wing_attachment.rotation.x = WING_BACK_TILT
 
 
 func _find_skeleton(node: Node) -> Skeleton3D:
@@ -329,7 +331,7 @@ func _process(delta: float) -> void:
 		return
 	wing_sway_time += delta
 	if wing_attachment_fallback:
-		wing_attachment.rotation.x = lerp(wing_attachment.rotation.x, -clampf(velocity.length() * 0.015, 0.0, 0.35), 0.15)
+		wing_attachment.rotation.x = lerp(wing_attachment.rotation.x, WING_BACK_TILT - clampf(velocity.length() * 0.015, 0.0, 0.35), 0.15)
 	wing_attachment.rotation.z = sin(wing_sway_time * 1.8) * 0.035
 
 
