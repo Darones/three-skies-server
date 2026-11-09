@@ -62,6 +62,13 @@
 
 ## Open Questions
 
+## Current Implementation Update
+
+- The loading-screen logo is static; its idle float and scale pulse are removed.
+- Arena foliage and leaf-tip meshes are enlarged in both the saved main scene and the arena generator; stealth collision volumes are unchanged.
+- The shard shop keeps the cheapest wing item and adds text-only staff, bow, and sword placeholders. The inventory shows Legendary sword, staff, and bow slots instead of wings.
+- Team 0's Light base is at Z=-12.5 and team 1's Dark base is at Z=12.5. Spawns, bot return targets, base checks, and shard delivery use the same coordinates inside the arena fence.
+
 Сколько секунд длится респавн по умолчанию?
 Как именно работает эволюция класса на 10 уровне: меняется только визуал и пассивка, или открываются новые ульты?
 Кусты дают полную невидимость или только прерывают прицел?

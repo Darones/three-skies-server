@@ -6,7 +6,7 @@ signal hero_died(hero: HeroUnit)
 enum Cls { WARRIOR, MAGE, FAIRY }
 
 const GRAVITY := 26.0
-const BASE_POSITION_Z := 28.0
+const BASE_POSITION_Z := 12.5
 const HERO_OUTGOING_DAMAGE_MULTIPLIER := 2.0
 const DIRECT_DAMAGE_MIN_MULTIPLIER := 0.75
 const DIRECT_DAMAGE_MAX_MULTIPLIER := 1.25
@@ -993,7 +993,17 @@ func _ai_dir(delta: float) -> Vector3:
 		if navigation_agent != null:
 			navigation_agent.target_position = Vector3(ai_goal.x, global_position.y, ai_goal.z)
 			navigation_target_set = true
-		_ai_abilities()
+		if not carrying:
+			_ai_abilities()
+	if carrying:
+		var base_goal := _base_position()
+		ai_goal = base_goal
+		if navigation_agent != null:
+			var current_target := navigation_agent.target_position
+			var target_delta := Vector2(current_target.x - base_goal.x, current_target.z - base_goal.z)
+			if not navigation_target_set or target_delta.length_squared() > 0.25:
+				navigation_agent.target_position = Vector3(base_goal.x, global_position.y, base_goal.z)
+				navigation_target_set = true
 	var to_goal := ai_goal - global_position
 	to_goal.y = 0.0
 	if navigation_agent != null and navigation_target_set:
@@ -1114,7 +1124,7 @@ func _ai_pick_goal() -> void:
 			ai_goal = coin.global_position
 			return
 	if enemy != null:
-		var enemy_base := Vector3(0.0, 0.0, -BASE_POSITION_Z if team == 0 else BASE_POSITION_Z)
+		var enemy_base := Vector3(0.0, 0.0, BASE_POSITION_Z if team == 0 else -BASE_POSITION_Z)
 		var goal := enemy.global_position
 		var from_base := goal - enemy_base
 		from_base.y = 0.0
@@ -1126,7 +1136,7 @@ func _ai_pick_goal() -> void:
 
 
 func _base_position() -> Vector3:
-	var z := BASE_POSITION_Z - 1.5 if team == 0 else -BASE_POSITION_Z + 1.5
+	var z := -BASE_POSITION_Z + 1.5 if team == 0 else BASE_POSITION_Z - 1.5
 	var safe_x := clampf(ai_offset.x, -2.5, 2.5)
 	var base_position := Vector3(safe_x, 0.0, z)
 	return game.clamp_to_arena(base_position) if game != null and game.has_method("clamp_to_arena") else base_position
@@ -1282,12 +1292,12 @@ func _is_bush_stealthed() -> bool:
 
 
 func _is_at_own_base() -> bool:
-	var base_z := BASE_POSITION_Z if team == 0 else -BASE_POSITION_Z
+	var base_z := -BASE_POSITION_Z if team == 0 else BASE_POSITION_Z
 	return Vector2(global_position.x, global_position.z - base_z).length() <= BASE_REGEN_RADIUS
 
 
 func _is_under_base_shield() -> bool:
-	var base_z := BASE_POSITION_Z if team == 0 else -BASE_POSITION_Z
+	var base_z := -BASE_POSITION_Z if team == 0 else BASE_POSITION_Z
 	return Vector2(global_position.x, global_position.z - base_z).length() <= BASE_SHIELD_RADIUS
 
 

@@ -1953,42 +1953,42 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 shape = SubResource("SphereShape3D_5grtr")
 
 [node name="Foliage_1" type="MeshInstance3D" parent="Arena/Bushes/BushZone_01" unique_id=1112956253]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0, 0.8, 0)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 0.8, 0)
 material_override = SubResource("StandardMaterial3D_vua0o")
 mesh = SubResource("SphereMesh_t70y2")
 
 [node name="Foliage_2" type="MeshInstance3D" parent="Arena/Bushes/BushZone_01" unique_id=108076092]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, -0.82, 0.92, 0.12)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, -0.82, 0.92, 0.12)
 material_override = SubResource("StandardMaterial3D_8gny2")
 mesh = SubResource("SphereMesh_s3wmy")
 
 [node name="Foliage_3" type="MeshInstance3D" parent="Arena/Bushes/BushZone_01" unique_id=1102392731]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0.82, 0.96, 0.08)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.82, 0.96, 0.08)
 material_override = SubResource("StandardMaterial3D_gdcyb")
 mesh = SubResource("SphereMesh_oa6sj")
 
 [node name="Foliage_4" type="MeshInstance3D" parent="Arena/Bushes/BushZone_01" unique_id=1811881858]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0, 1.05, -0.78)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 1.05, -0.78)
 material_override = SubResource("StandardMaterial3D_0f1tp")
 mesh = SubResource("SphereMesh_0qimb")
 
 [node name="Foliage_5" type="MeshInstance3D" parent="Arena/Bushes/BushZone_01" unique_id=1356188915]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0.05, 0.98, 0.78)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.05, 0.98, 0.78)
 material_override = SubResource("StandardMaterial3D_in2eo")
 mesh = SubResource("SphereMesh_dyyw8")
 
 [node name="LeafTip_1" type="MeshInstance3D" parent="Arena/Bushes/BushZone_01" unique_id=379979035]
-transform = Transform3D(0.95105654, 0.309017, 0, -0.309017, 0.95105654, 0, 0, 0, 1, -0.55, 1.65, -0.05)
+transform = Transform3D(1.093715, 0.38627124, 0, -0.35536954, 1.1888207, 0, 0, 0, 1.15, -0.55, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_gjpm3")
 mesh = SubResource("CylinderMesh_knagv")
 
 [node name="LeafTip_2" type="MeshInstance3D" parent="Arena/Bushes/BushZone_01" unique_id=752890839]
-transform = Transform3D(-0.50000006, 0, 0.8660254, 0, 1, 0, -0.8660254, 0, -0.50000006, 0, 1.65, -0.05)
+transform = Transform3D(-0.57500005, 0, 0.9959292, 0, 1.25, 0, -0.9959292, 0, -0.57500005, 0, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_siyqs")
 mesh = SubResource("CylinderMesh_pb578")
 
 [node name="LeafTip_3" type="MeshInstance3D" parent="Arena/Bushes/BushZone_01" unique_id=621318611]
-transform = Transform3D(-0.47552818, 0.15450847, -0.86602545, 0.309017, 0.95105654, 0, 0.82363915, -0.2676166, -0.4999999, 0.55, 1.65, -0.05)
+transform = Transform3D(-0.54685736, 0.19313557, -0.9959293, 0.35536954, 1.1888207, 0, 0.9471851, -0.33452076, -0.5749998, 0.55, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_vshs7")
 mesh = SubResource("CylinderMesh_2ki8c")
 
@@ -2001,42 +2001,42 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 shape = SubResource("SphereShape3D_0owt5")
 
 [node name="Foliage_1" type="MeshInstance3D" parent="Arena/Bushes/BushZone_02" unique_id=1361569260]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0, 0.8, 0)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 0.8, 0)
 material_override = SubResource("StandardMaterial3D_o1tg2")
 mesh = SubResource("SphereMesh_hyu0y")
 
 [node name="Foliage_2" type="MeshInstance3D" parent="Arena/Bushes/BushZone_02" unique_id=1795555669]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, -0.82, 0.92, 0.12)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, -0.82, 0.92, 0.12)
 material_override = SubResource("StandardMaterial3D_lfilp")
 mesh = SubResource("SphereMesh_nu61c")
 
 [node name="Foliage_3" type="MeshInstance3D" parent="Arena/Bushes/BushZone_02" unique_id=19527811]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0.82, 0.96, 0.08)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.82, 0.96, 0.08)
 material_override = SubResource("StandardMaterial3D_e2bht")
 mesh = SubResource("SphereMesh_a3hxr")
 
 [node name="Foliage_4" type="MeshInstance3D" parent="Arena/Bushes/BushZone_02" unique_id=1623388847]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0, 1.05, -0.78)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 1.05, -0.78)
 material_override = SubResource("StandardMaterial3D_gcaob")
 mesh = SubResource("SphereMesh_aqa1v")
 
 [node name="Foliage_5" type="MeshInstance3D" parent="Arena/Bushes/BushZone_02" unique_id=1735334370]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0.05, 0.98, 0.78)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.05, 0.98, 0.78)
 material_override = SubResource("StandardMaterial3D_8t8ul")
 mesh = SubResource("SphereMesh_1x1rp")
 
 [node name="LeafTip_1" type="MeshInstance3D" parent="Arena/Bushes/BushZone_02" unique_id=1996234218]
-transform = Transform3D(0.95105654, 0.309017, 0, -0.309017, 0.95105654, 0, 0, 0, 1, -0.55, 1.65, -0.05)
+transform = Transform3D(1.093715, 0.38627124, 0, -0.35536954, 1.1888207, 0, 0, 0, 1.15, -0.55, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_ylqph")
 mesh = SubResource("CylinderMesh_fcv70")
 
 [node name="LeafTip_2" type="MeshInstance3D" parent="Arena/Bushes/BushZone_02" unique_id=1080644923]
-transform = Transform3D(-0.50000006, 0, 0.8660254, 0, 1, 0, -0.8660254, 0, -0.50000006, 0, 1.65, -0.05)
+transform = Transform3D(-0.57500005, 0, 0.9959292, 0, 1.25, 0, -0.9959292, 0, -0.57500005, 0, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_mou0d")
 mesh = SubResource("CylinderMesh_ugmlg")
 
 [node name="LeafTip_3" type="MeshInstance3D" parent="Arena/Bushes/BushZone_02" unique_id=21694887]
-transform = Transform3D(-0.47552818, 0.15450847, -0.86602545, 0.309017, 0.95105654, 0, 0.82363915, -0.2676166, -0.4999999, 0.55, 1.65, -0.05)
+transform = Transform3D(-0.54685736, 0.19313557, -0.9959293, 0.35536954, 1.1888207, 0, 0.9471851, -0.33452076, -0.5749998, 0.55, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_qd1pt")
 mesh = SubResource("CylinderMesh_vwcyu")
 
@@ -2049,42 +2049,42 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 shape = SubResource("SphereShape3D_rsknx")
 
 [node name="Foliage_1" type="MeshInstance3D" parent="Arena/Bushes/BushZone_03" unique_id=550058193]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0, 0.8, 0)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 0.8, 0)
 material_override = SubResource("StandardMaterial3D_gia1l")
 mesh = SubResource("SphereMesh_aw8hi")
 
 [node name="Foliage_2" type="MeshInstance3D" parent="Arena/Bushes/BushZone_03" unique_id=544888642]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, -0.82, 0.92, 0.12)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, -0.82, 0.92, 0.12)
 material_override = SubResource("StandardMaterial3D_cm7k6")
 mesh = SubResource("SphereMesh_csfbn")
 
 [node name="Foliage_3" type="MeshInstance3D" parent="Arena/Bushes/BushZone_03" unique_id=738172217]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0.82, 0.96, 0.08)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.82, 0.96, 0.08)
 material_override = SubResource("StandardMaterial3D_sj5fg")
 mesh = SubResource("SphereMesh_1xgkc")
 
 [node name="Foliage_4" type="MeshInstance3D" parent="Arena/Bushes/BushZone_03" unique_id=599944995]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0, 1.05, -0.78)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 1.05, -0.78)
 material_override = SubResource("StandardMaterial3D_x1gp3")
 mesh = SubResource("SphereMesh_le2d2")
 
 [node name="Foliage_5" type="MeshInstance3D" parent="Arena/Bushes/BushZone_03" unique_id=1964442970]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0.05, 0.98, 0.78)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.05, 0.98, 0.78)
 material_override = SubResource("StandardMaterial3D_fun0h")
 mesh = SubResource("SphereMesh_oqdxe")
 
 [node name="LeafTip_1" type="MeshInstance3D" parent="Arena/Bushes/BushZone_03" unique_id=659371719]
-transform = Transform3D(0.95105654, 0.309017, 0, -0.309017, 0.95105654, 0, 0, 0, 1, -0.55, 1.65, -0.05)
+transform = Transform3D(1.093715, 0.38627124, 0, -0.35536954, 1.1888207, 0, 0, 0, 1.15, -0.55, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_4pmbt")
 mesh = SubResource("CylinderMesh_4pegn")
 
 [node name="LeafTip_2" type="MeshInstance3D" parent="Arena/Bushes/BushZone_03" unique_id=711895499]
-transform = Transform3D(-0.50000006, 0, 0.8660254, 0, 1, 0, -0.8660254, 0, -0.50000006, 0, 1.65, -0.05)
+transform = Transform3D(-0.57500005, 0, 0.9959292, 0, 1.25, 0, -0.9959292, 0, -0.57500005, 0, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_iarty")
 mesh = SubResource("CylinderMesh_tcd68")
 
 [node name="LeafTip_3" type="MeshInstance3D" parent="Arena/Bushes/BushZone_03" unique_id=780821128]
-transform = Transform3D(-0.47552818, 0.15450847, -0.86602545, 0.309017, 0.95105654, 0, 0.82363915, -0.2676166, -0.4999999, 0.55, 1.65, -0.05)
+transform = Transform3D(-0.54685736, 0.19313557, -0.9959293, 0.35536954, 1.1888207, 0, 0.9471851, -0.33452076, -0.5749998, 0.55, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_3mhcn")
 mesh = SubResource("CylinderMesh_nc5fr")
 
@@ -2097,42 +2097,42 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 shape = SubResource("SphereShape3D_3fqo2")
 
 [node name="Foliage_1" type="MeshInstance3D" parent="Arena/Bushes/BushZone_04" unique_id=589901245]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0, 0.8, 0)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 0.8, 0)
 material_override = SubResource("StandardMaterial3D_csdio")
 mesh = SubResource("SphereMesh_p6l88")
 
 [node name="Foliage_2" type="MeshInstance3D" parent="Arena/Bushes/BushZone_04" unique_id=1068936666]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, -0.82, 0.92, 0.12)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, -0.82, 0.92, 0.12)
 material_override = SubResource("StandardMaterial3D_84vju")
 mesh = SubResource("SphereMesh_ps7y1")
 
 [node name="Foliage_3" type="MeshInstance3D" parent="Arena/Bushes/BushZone_04" unique_id=1572145913]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0.82, 0.96, 0.08)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.82, 0.96, 0.08)
 material_override = SubResource("StandardMaterial3D_4c8xy")
 mesh = SubResource("SphereMesh_jhuvt")
 
 [node name="Foliage_4" type="MeshInstance3D" parent="Arena/Bushes/BushZone_04" unique_id=2042750840]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0, 1.05, -0.78)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 1.05, -0.78)
 material_override = SubResource("StandardMaterial3D_smcir")
 mesh = SubResource("SphereMesh_2eo8w")
 
 [node name="Foliage_5" type="MeshInstance3D" parent="Arena/Bushes/BushZone_04" unique_id=1042065426]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0.05, 0.98, 0.78)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.05, 0.98, 0.78)
 material_override = SubResource("StandardMaterial3D_t7hiy")
 mesh = SubResource("SphereMesh_13nov")
 
 [node name="LeafTip_1" type="MeshInstance3D" parent="Arena/Bushes/BushZone_04" unique_id=366698640]
-transform = Transform3D(0.95105654, 0.309017, 0, -0.309017, 0.95105654, 0, 0, 0, 1, -0.55, 1.65, -0.05)
+transform = Transform3D(1.093715, 0.38627124, 0, -0.35536954, 1.1888207, 0, 0, 0, 1.15, -0.55, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_yg7m7")
 mesh = SubResource("CylinderMesh_7ovee")
 
 [node name="LeafTip_2" type="MeshInstance3D" parent="Arena/Bushes/BushZone_04" unique_id=984084492]
-transform = Transform3D(-0.50000006, 0, 0.8660254, 0, 1, 0, -0.8660254, 0, -0.50000006, 0, 1.65, -0.05)
+transform = Transform3D(-0.57500005, 0, 0.9959292, 0, 1.25, 0, -0.9959292, 0, -0.57500005, 0, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_7figm")
 mesh = SubResource("CylinderMesh_r0h7t")
 
 [node name="LeafTip_3" type="MeshInstance3D" parent="Arena/Bushes/BushZone_04" unique_id=1636971534]
-transform = Transform3D(-0.47552818, 0.15450847, -0.86602545, 0.309017, 0.95105654, 0, 0.82363915, -0.2676166, -0.4999999, 0.55, 1.65, -0.05)
+transform = Transform3D(-0.54685736, 0.19313557, -0.9959293, 0.35536954, 1.1888207, 0, 0.9471851, -0.33452076, -0.5749998, 0.55, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_4mw0a")
 mesh = SubResource("CylinderMesh_a54x0")
 
@@ -2145,42 +2145,42 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 shape = SubResource("SphereShape3D_weayx")
 
 [node name="Foliage_1" type="MeshInstance3D" parent="Arena/Bushes/BushZone_05" unique_id=2076384143]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0, 0.8, 0)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 0.8, 0)
 material_override = SubResource("StandardMaterial3D_hl0eo")
 mesh = SubResource("SphereMesh_nov6g")
 
 [node name="Foliage_2" type="MeshInstance3D" parent="Arena/Bushes/BushZone_05" unique_id=1347280676]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, -0.82, 0.92, 0.12)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, -0.82, 0.92, 0.12)
 material_override = SubResource("StandardMaterial3D_708gh")
 mesh = SubResource("SphereMesh_gnlq8")
 
 [node name="Foliage_3" type="MeshInstance3D" parent="Arena/Bushes/BushZone_05" unique_id=1171925685]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0.82, 0.96, 0.08)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.82, 0.96, 0.08)
 material_override = SubResource("StandardMaterial3D_qa0xl")
 mesh = SubResource("SphereMesh_lv3yw")
 
 [node name="Foliage_4" type="MeshInstance3D" parent="Arena/Bushes/BushZone_05" unique_id=1176478670]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0, 1.05, -0.78)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 1.05, -0.78)
 material_override = SubResource("StandardMaterial3D_5q1ge")
 mesh = SubResource("SphereMesh_nch24")
 
 [node name="Foliage_5" type="MeshInstance3D" parent="Arena/Bushes/BushZone_05" unique_id=1211393926]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0.05, 0.98, 0.78)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.05, 0.98, 0.78)
 material_override = SubResource("StandardMaterial3D_h7ea0")
 mesh = SubResource("SphereMesh_p2wxp")
 
 [node name="LeafTip_1" type="MeshInstance3D" parent="Arena/Bushes/BushZone_05" unique_id=1766045249]
-transform = Transform3D(0.95105654, 0.309017, 0, -0.309017, 0.95105654, 0, 0, 0, 1, -0.55, 1.65, -0.05)
+transform = Transform3D(1.093715, 0.38627124, 0, -0.35536954, 1.1888207, 0, 0, 0, 1.15, -0.55, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_rf4q7")
 mesh = SubResource("CylinderMesh_76koy")
 
 [node name="LeafTip_2" type="MeshInstance3D" parent="Arena/Bushes/BushZone_05" unique_id=811449081]
-transform = Transform3D(-0.50000006, 0, 0.8660254, 0, 1, 0, -0.8660254, 0, -0.50000006, 0, 1.65, -0.05)
+transform = Transform3D(-0.57500005, 0, 0.9959292, 0, 1.25, 0, -0.9959292, 0, -0.57500005, 0, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_ktb27")
 mesh = SubResource("CylinderMesh_uil6m")
 
 [node name="LeafTip_3" type="MeshInstance3D" parent="Arena/Bushes/BushZone_05" unique_id=303976551]
-transform = Transform3D(-0.47552818, 0.15450847, -0.86602545, 0.309017, 0.95105654, 0, 0.82363915, -0.2676166, -0.4999999, 0.55, 1.65, -0.05)
+transform = Transform3D(-0.54685736, 0.19313557, -0.9959293, 0.35536954, 1.1888207, 0, 0.9471851, -0.33452076, -0.5749998, 0.55, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_so1ur")
 mesh = SubResource("CylinderMesh_4jthf")
 
@@ -2193,42 +2193,42 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 shape = SubResource("SphereShape3D_2ntqj")
 
 [node name="Foliage_1" type="MeshInstance3D" parent="Arena/Bushes/BushZone_06" unique_id=2052371310]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0, 0.8, 0)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 0.8, 0)
 material_override = SubResource("StandardMaterial3D_0nt4r")
 mesh = SubResource("SphereMesh_xqjv3")
 
 [node name="Foliage_2" type="MeshInstance3D" parent="Arena/Bushes/BushZone_06" unique_id=1101262997]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, -0.82, 0.92, 0.12)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, -0.82, 0.92, 0.12)
 material_override = SubResource("StandardMaterial3D_e6xh0")
 mesh = SubResource("SphereMesh_6bk4a")
 
 [node name="Foliage_3" type="MeshInstance3D" parent="Arena/Bushes/BushZone_06" unique_id=864051854]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0.82, 0.96, 0.08)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.82, 0.96, 0.08)
 material_override = SubResource("StandardMaterial3D_x2ac1")
 mesh = SubResource("SphereMesh_numhm")
 
 [node name="Foliage_4" type="MeshInstance3D" parent="Arena/Bushes/BushZone_06" unique_id=1383506367]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0, 1.05, -0.78)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 1.05, -0.78)
 material_override = SubResource("StandardMaterial3D_2ao5w")
 mesh = SubResource("SphereMesh_ev2em")
 
 [node name="Foliage_5" type="MeshInstance3D" parent="Arena/Bushes/BushZone_06" unique_id=686939593]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0.05, 0.98, 0.78)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.05, 0.98, 0.78)
 material_override = SubResource("StandardMaterial3D_c6fve")
 mesh = SubResource("SphereMesh_qm4a8")
 
 [node name="LeafTip_1" type="MeshInstance3D" parent="Arena/Bushes/BushZone_06" unique_id=1783324229]
-transform = Transform3D(0.95105654, 0.309017, 0, -0.309017, 0.95105654, 0, 0, 0, 1, -0.55, 1.65, -0.05)
+transform = Transform3D(1.093715, 0.38627124, 0, -0.35536954, 1.1888207, 0, 0, 0, 1.15, -0.55, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_ultn8")
 mesh = SubResource("CylinderMesh_53vpr")
 
 [node name="LeafTip_2" type="MeshInstance3D" parent="Arena/Bushes/BushZone_06" unique_id=447978284]
-transform = Transform3D(-0.50000006, 0, 0.8660254, 0, 1, 0, -0.8660254, 0, -0.50000006, 0, 1.65, -0.05)
+transform = Transform3D(-0.57500005, 0, 0.9959292, 0, 1.25, 0, -0.9959292, 0, -0.57500005, 0, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_nv1v0")
 mesh = SubResource("CylinderMesh_e0url")
 
 [node name="LeafTip_3" type="MeshInstance3D" parent="Arena/Bushes/BushZone_06" unique_id=225806559]
-transform = Transform3D(-0.47552818, 0.15450847, -0.86602545, 0.309017, 0.95105654, 0, 0.82363915, -0.2676166, -0.4999999, 0.55, 1.65, -0.05)
+transform = Transform3D(-0.54685736, 0.19313557, -0.9959293, 0.35536954, 1.1888207, 0, 0.9471851, -0.33452076, -0.5749998, 0.55, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_yxed4")
 mesh = SubResource("CylinderMesh_pmlxg")
 
@@ -2241,42 +2241,42 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 shape = SubResource("SphereShape3D_w2sqe")
 
 [node name="Foliage_1" type="MeshInstance3D" parent="Arena/Bushes/BushZone_07" unique_id=1776770835]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0, 0.8, 0)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 0.8, 0)
 material_override = SubResource("StandardMaterial3D_pbsro")
 mesh = SubResource("SphereMesh_v0mtf")
 
 [node name="Foliage_2" type="MeshInstance3D" parent="Arena/Bushes/BushZone_07" unique_id=280683232]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, -0.82, 0.92, 0.12)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, -0.82, 0.92, 0.12)
 material_override = SubResource("StandardMaterial3D_l2u81")
 mesh = SubResource("SphereMesh_cton6")
 
 [node name="Foliage_3" type="MeshInstance3D" parent="Arena/Bushes/BushZone_07" unique_id=1533883625]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0.82, 0.96, 0.08)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.82, 0.96, 0.08)
 material_override = SubResource("StandardMaterial3D_7f41k")
 mesh = SubResource("SphereMesh_qiqef")
 
 [node name="Foliage_4" type="MeshInstance3D" parent="Arena/Bushes/BushZone_07" unique_id=1240299992]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0, 1.05, -0.78)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 1.05, -0.78)
 material_override = SubResource("StandardMaterial3D_0d7yf")
 mesh = SubResource("SphereMesh_uer86")
 
 [node name="Foliage_5" type="MeshInstance3D" parent="Arena/Bushes/BushZone_07" unique_id=272179845]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0.05, 0.98, 0.78)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.05, 0.98, 0.78)
 material_override = SubResource("StandardMaterial3D_w0c4r")
 mesh = SubResource("SphereMesh_ste0v")
 
 [node name="LeafTip_1" type="MeshInstance3D" parent="Arena/Bushes/BushZone_07" unique_id=1709830412]
-transform = Transform3D(0.95105654, 0.309017, 0, -0.309017, 0.95105654, 0, 0, 0, 1, -0.55, 1.65, -0.05)
+transform = Transform3D(1.093715, 0.38627124, 0, -0.35536954, 1.1888207, 0, 0, 0, 1.15, -0.55, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_doojd")
 mesh = SubResource("CylinderMesh_t80hs")
 
 [node name="LeafTip_2" type="MeshInstance3D" parent="Arena/Bushes/BushZone_07" unique_id=1961662532]
-transform = Transform3D(-0.50000006, 0, 0.8660254, 0, 1, 0, -0.8660254, 0, -0.50000006, 0, 1.65, -0.05)
+transform = Transform3D(-0.57500005, 0, 0.9959292, 0, 1.25, 0, -0.9959292, 0, -0.57500005, 0, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_d77s7")
 mesh = SubResource("CylinderMesh_kigls")
 
 [node name="LeafTip_3" type="MeshInstance3D" parent="Arena/Bushes/BushZone_07" unique_id=1991511341]
-transform = Transform3D(-0.47552818, 0.15450847, -0.86602545, 0.309017, 0.95105654, 0, 0.82363915, -0.2676166, -0.4999999, 0.55, 1.65, -0.05)
+transform = Transform3D(-0.54685736, 0.19313557, -0.9959293, 0.35536954, 1.1888207, 0, 0.9471851, -0.33452076, -0.5749998, 0.55, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_dx8qs")
 mesh = SubResource("CylinderMesh_vbttc")
 
@@ -2289,42 +2289,42 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 shape = SubResource("SphereShape3D_723yh")
 
 [node name="Foliage_1" type="MeshInstance3D" parent="Arena/Bushes/BushZone_08" unique_id=511811778]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0, 0.8, 0)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 0.8, 0)
 material_override = SubResource("StandardMaterial3D_cr6mk")
 mesh = SubResource("SphereMesh_l4k6j")
 
 [node name="Foliage_2" type="MeshInstance3D" parent="Arena/Bushes/BushZone_08" unique_id=1586214405]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, -0.82, 0.92, 0.12)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, -0.82, 0.92, 0.12)
 material_override = SubResource("StandardMaterial3D_fldd5")
 mesh = SubResource("SphereMesh_muqxe")
 
 [node name="Foliage_3" type="MeshInstance3D" parent="Arena/Bushes/BushZone_08" unique_id=861107348]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0.82, 0.96, 0.08)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.82, 0.96, 0.08)
 material_override = SubResource("StandardMaterial3D_cuva4")
 mesh = SubResource("SphereMesh_0ri4p")
 
 [node name="Foliage_4" type="MeshInstance3D" parent="Arena/Bushes/BushZone_08" unique_id=902425552]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0, 1.05, -0.78)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 1.05, -0.78)
 material_override = SubResource("StandardMaterial3D_hjpbf")
 mesh = SubResource("SphereMesh_lgim7")
 
 [node name="Foliage_5" type="MeshInstance3D" parent="Arena/Bushes/BushZone_08" unique_id=1071553341]
-transform = Transform3D(1, 0, 0, 0, 0.92, 0, 0, 0, 0.9, 0.05, 0.98, 0.78)
+transform = Transform3D(1.3, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.05, 0.98, 0.78)
 material_override = SubResource("StandardMaterial3D_24id4")
 mesh = SubResource("SphereMesh_u5ctp")
 
 [node name="LeafTip_1" type="MeshInstance3D" parent="Arena/Bushes/BushZone_08" unique_id=1863855255]
-transform = Transform3D(0.95105654, 0.309017, 0, -0.309017, 0.95105654, 0, 0, 0, 1, -0.55, 1.65, -0.05)
+transform = Transform3D(1.093715, 0.38627124, 0, -0.35536954, 1.1888207, 0, 0, 0, 1.15, -0.55, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_pjdn0")
 mesh = SubResource("CylinderMesh_d6eqw")
 
 [node name="LeafTip_2" type="MeshInstance3D" parent="Arena/Bushes/BushZone_08" unique_id=73012824]
-transform = Transform3D(-0.50000006, 0, 0.8660254, 0, 1, 0, -0.8660254, 0, -0.50000006, 0, 1.65, -0.05)
+transform = Transform3D(-0.57500005, 0, 0.9959292, 0, 1.25, 0, -0.9959292, 0, -0.57500005, 0, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_m3650")
 mesh = SubResource("CylinderMesh_7ai6v")
 
 [node name="LeafTip_3" type="MeshInstance3D" parent="Arena/Bushes/BushZone_08" unique_id=737992062]
-transform = Transform3D(-0.47552818, 0.15450847, -0.86602545, 0.309017, 0.95105654, 0, 0.82363915, -0.2676166, -0.4999999, 0.55, 1.65, -0.05)
+transform = Transform3D(-0.54685736, 0.19313557, -0.9959293, 0.35536954, 1.1888207, 0, 0.9471851, -0.33452076, -0.5749998, 0.55, 1.65, -0.05)
 material_override = SubResource("StandardMaterial3D_nyvoi")
 mesh = SubResource("CylinderMesh_bs17g")
 

@@ -33,7 +33,6 @@ var load_failed := false
 func _ready() -> void:
 	randomize()
 	_build_screen()
-	_start_logo_animation()
 	_start_match_scene_loading()
 	no_network = bool(get_tree().get_meta('matchmaking_no_network', false))
 	if no_network:
@@ -336,18 +335,6 @@ func _build_player_slot(team_index: int, slot_index: int, parent: VBoxContainer)
 	row.add_child(spinner)
 	searching_spinners.append(spinner)
 	return {'panel': panel, 'portrait': portrait, 'name': slot_name, 'spinner': spinner, 'state': 'searching'}
-
-func _start_logo_animation() -> void:
-	var logo := get_node_or_null('GameLogo') as TextureRect
-	if logo == null:
-		return
-	logo.pivot_offset = logo.size * 0.5
-	var float_tween := create_tween().set_loops()
-	float_tween.tween_property(logo, 'position:y', logo.position.y - 7.0, 1.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	float_tween.tween_property(logo, 'position:y', logo.position.y, 1.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	var pulse_tween := create_tween().set_loops()
-	pulse_tween.tween_property(logo, 'scale', Vector2.ONE * 1.035, 1.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	pulse_tween.tween_property(logo, 'scale', Vector2.ONE, 1.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 func _team_style(team_index: int) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()

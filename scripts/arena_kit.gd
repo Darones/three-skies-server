@@ -849,7 +849,7 @@ static func _add_bush_foliage(parent: Node3D, dark_side: bool) -> void:
 		mesh.rings = 4
 		leaf.mesh = mesh
 		leaf.position = offsets[index]
-		leaf.scale = Vector3(1.0, 0.92, 0.9)
+		leaf.scale = Vector3(1.3, 1.2, 1.2)
 		var material := StandardMaterial3D.new()
 		material.albedo_color = colors[index % colors.size()]
 		material.roughness = 0.95
@@ -866,6 +866,7 @@ static func _add_bush_foliage(parent: Node3D, dark_side: bool) -> void:
 		tip.mesh = cone
 		tip.position = Vector3(float(index - 1) * 0.55, 1.65, -0.05)
 		tip.rotation_degrees = Vector3(0.0, float(index) * 120.0, float(index - 1) * 18.0)
+		tip.scale = Vector3(1.15, 1.25, 1.15)
 		var material := StandardMaterial3D.new()
 		material.albedo_color = colors[(index + 1) % colors.size()]
 		material.roughness = 0.95
