@@ -1249,6 +1249,11 @@ func on_shell_died(s: SkyShell, source: Node = null) -> void:
 	if source is HeroUnit and not (source as HeroUnit).is_player:
 		(source as HeroUnit).bot_gold += 100
 	var pos := s.global_position
+	var vfx_host := source as HeroUnit
+	if vfx_host == null or not is_instance_valid(vfx_host):
+		vfx_host = player
+	if vfx_host != null and is_instance_valid(vfx_host):
+		vfx_host.spawn_vfx_silent(HeroUnit.VFX_BIG_IMPACT_02_SCENE, pos, 1.8)
 	burst(pos, Color(0.75, 0.9, 1.0), 60)
 	ring_fx(Vector3(pos.x, 0.25, pos.z), Color(0.8, 0.95, 1.0), 9.0)
 	play_sfx("thunder", -2.0)

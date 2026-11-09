@@ -511,7 +511,8 @@ func spawn_vfx(
 	effect_light_energy: float = 2.0,
 	primary_tint: Color = Color(1.0, 1.0, 1.0),
 	secondary_tint: Color = Color(1.0, 0.8, 0.4),
-	light_tint: Color = Color(1.0, 0.8, 0.4)
+	light_tint: Color = Color(1.0, 0.8, 0.4),
+	play_vfx_audio: bool = true
 ) -> void:
 	if vfx_scene == null:
 		return
@@ -543,9 +544,13 @@ func spawn_vfx(
 			light.light_color = light_tint
 	var audio_player := effect.find_child("AudioStreamPlayer3D", true, false) as AudioStreamPlayer3D
 	if audio_player != null:
-		var mapped_stream := _vfx_audio_for_scene(vfx_scene)
-		if mapped_stream != null:
-			audio_player.stream = mapped_stream
+		if play_vfx_audio:
+			var mapped_stream := _vfx_audio_for_scene(vfx_scene)
+			if mapped_stream != null:
+				audio_player.stream = mapped_stream
+		else:
+			audio_player.stop()
+			audio_player.stream = null
 		audio_player.max_polyphony = 1
 		audio_player.max_distance = 80.0
 		audio_player.unit_size = 14.0
@@ -570,6 +575,11 @@ func spawn_vfx(
 	if audio_player != null and audio_player.stream != null and not audio_player.is_playing():
 		audio_player.play()
 	get_tree().create_timer(lifetime).timeout.connect(Callable(effect, "queue_free"), CONNECT_ONE_SHOT)
+
+
+func spawn_vfx_silent(vfx_scene: PackedScene, pos: Vector3, effect_scale: float = 1.6) -> void:
+	var palette := _vfx_palette()
+	spawn_vfx(vfx_scene, pos, effect_scale, 1.6, 2.0, palette.primary, palette.secondary, palette.light, false)
 
 
 func _vfx_audio_for_scene(vfx_scene: PackedScene) -> AudioStream:
