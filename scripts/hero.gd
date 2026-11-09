@@ -444,7 +444,7 @@ func spawn_attack_impact_vfx(pos: Vector3, effect_type: String = "") -> void:
 	var scene := VFX_HIT_SCENE
 	match hero_class:
 		Cls.MAGE:
-			scene = VFX_HIT_02_SCENE
+			scene = VFX_GOLDEN_SCENE
 		Cls.FAIRY:
 			scene = VFX_HIT_02_SCENE
 	var palette := _vfx_palette()
