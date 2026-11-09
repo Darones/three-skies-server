@@ -552,6 +552,8 @@ func _prepare_effect_pools() -> void:
 	shell_pool.setup(self)
 	shell_pool.deactivate()
 
+	var burst_texture := _create_soft_particle_texture()
+	var burst_fade := _create_burst_fade_gradient()
 	var burst_amounts := [3, 10, 14, 16, 18, 20, 28, 34, 44, 60]
 	for amount in burst_amounts:
 		var particles := CPUParticles3D.new()
@@ -570,9 +572,14 @@ func _prepare_effect_pools() -> void:
 		var quad := QuadMesh.new()
 		quad.size = Vector2(0.28, 0.28)
 		particles.mesh = quad
+		particles.color_ramp = burst_fade
 		var material := StandardMaterial3D.new()
+		material.albedo_texture = burst_texture
+		material.emission_texture = burst_texture
+		material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		material.emission_enabled = true
-		material.emission_energy_multiplier = 3.0
+		material.emission_energy_multiplier = 1.35
 		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 		material.vertex_color_use_as_albedo = true
@@ -660,6 +667,26 @@ func _prepare_effect_pools() -> void:
 		projectile.visible = false
 		add_child(projectile)
 		projectile_pool.append({"node": projectile, "material": material, "busy": false})
+
+
+func _create_soft_particle_texture() -> Texture2D:
+	var image := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	for y in range(64):
+		for x in range(64):
+			var uv := Vector2(x, y) / 63.0 * 2.0 - Vector2.ONE
+			var radius := uv.length()
+			var alpha := pow(maxf(1.0 - radius * radius, 0.0), 3.0)
+			image.set_pixel(x, y, Color(1.0, 1.0, 1.0, alpha))
+	return ImageTexture.create_from_image(image)
+
+
+func _create_burst_fade_gradient() -> Gradient:
+	var gradient := Gradient.new()
+	gradient.set_color(0, Color(1.0, 1.0, 1.0, 0.0))
+	gradient.add_point(0.14, Color(1.0, 1.0, 1.0, 1.0))
+	gradient.add_point(0.66, Color(1.0, 1.0, 1.0, 0.72))
+	gradient.set_color(3, Color(1.0, 1.0, 1.0, 0.0))
+	return gradient
 
 
 func _update_effect_pools(delta: float) -> void:
