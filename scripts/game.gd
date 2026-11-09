@@ -10,6 +10,7 @@ const SHELL_WARNING_TIME := 10.0
 const CRYSTALS_TO_WIN := 3
 const GROUND_CRYSTAL_LIFETIME := 30.0
 const CRYSTAL_PICKUP_DELAY := 1.25
+const CRYSTAL_PICKUP_RADIUS := 3.2
 const CRYSTAL_DROP_SEARCH_RADII := [7.8, 9.0, 10.2, 11.4, 12.6]
 const TEST_STARTING_GOLD := 500
 const ARENA_SAFE_HALF_X := 52.0
@@ -1431,11 +1432,13 @@ func _update_crystal(delta: float) -> void:
 
 func _try_pickup() -> void:
 	var best: HeroUnit = null
-	var best_d := 2.1
+	var best_d := CRYSTAL_PICKUP_RADIUS
 	for h in heroes:
-		if h.dead or h.carrying:
+		if h == null or not is_instance_valid(h) or h.dead or h.carrying:
 			continue
-		var d := h.global_position.distance_to(crystal_node.global_position)
+		var d := Vector2(h.global_position.x, h.global_position.z).distance_to(
+			Vector2(crystal_node.global_position.x, crystal_node.global_position.z)
+		)
 		if d < best_d:
 			best_d = d
 			best = h
