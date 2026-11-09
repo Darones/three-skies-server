@@ -2,7 +2,7 @@
 
 ## Current Visual Update
 
-- The shared runtime wing attachment is tilted backward by 25 degrees for Warrior, Mage, and Fairy; fallback attachments preserve that tilt while adding movement lean.
+- The shared runtime wing attachment stays at zero rotation on X; the wing model uses Y=18 degrees and Z=10 degrees for Warrior, Mage, and Fairy. Its BaseMaterial3D surfaces are duplicated with culling disabled so both sides render.
 - Binbun VFX in `scripts/hero.gd` use a 1.6 scale / +0.6 m / 1.6 emission / 2.0 light default; class auto-attacks use 1.2 scale, abilities 1/2 use 1.15/1.5, ultimates use 2.0 scale and light energy 3.0. Warrior routes to hit_01, hit_02, impact_01, big_impact_01; Mage to hit_02, hit_01, impact_02, impact_01; Fairy to hit_02, hit_01, impact_01, impact_02 (auto, abilities 1/2, ultimate). Effects are class-tinted and cleaned up after their clip with a 0.6 s minimum.
 - The match waiting card always shows the tutorial and one rotating gameplay tip under the class guide.
 - Lobby actions are anchored symmetrically at the bottom corners: Play on the right and settings on the left, each 45 px from the edges.

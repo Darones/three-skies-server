@@ -7,7 +7,6 @@ enum Cls { WARRIOR, MAGE, FAIRY }
 
 const GRAVITY := 26.0
 const BASE_POSITION_Z := 28.0
-const WING_BACK_TILT := deg_to_rad(-25.0)
 const HERO_OUTGOING_DAMAGE_MULTIPLIER := 2.0
 const DIRECT_DAMAGE_MIN_MULTIPLIER := 0.75
 const DIRECT_DAMAGE_MAX_MULTIPLIER := 1.25
@@ -255,7 +254,8 @@ func update_wings() -> void:
 	wing_attachment.add_child(wing_model)
 	wing_model.scale = Vector3.ONE * 1.0
 	wing_model.position = Vector3(0, 0, 0)
-	wing_model.rotation_degrees = Vector3.ZERO
+	wing_model.rotation_degrees = Vector3(0.0, 18.0, 10.0)
+	_set_wing_materials_double_sided(wing_model)
 	var wing_anim_player := _find_animation_player(wing_model)
 	if wing_anim_player != null:
 		wing_anim_player.stop()
@@ -300,7 +300,25 @@ func _configure_wing_attachment() -> void:
 	)
 	wing_attachment.scale = inverse_parent_scale
 	wing_attachment.position = Vector3(0.0, 0.0, -0.32) * inverse_parent_scale if not wing_attachment_fallback else Vector3(0.0, 1.43, 0.32)
-	wing_attachment.rotation.x = WING_BACK_TILT
+	wing_attachment.rotation = Vector3.ZERO
+
+
+func _set_wing_materials_double_sided(node: Node) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance.material_override is BaseMaterial3D:
+			var double_sided_override := mesh_instance.material_override.duplicate() as BaseMaterial3D
+			double_sided_override.cull_mode = BaseMaterial3D.CULL_DISABLED
+			mesh_instance.material_override = double_sided_override
+		elif mesh_instance.mesh != null:
+			for surface_index in range(mesh_instance.mesh.get_surface_count()):
+				var source_material := mesh_instance.get_active_material(surface_index)
+				if source_material is BaseMaterial3D:
+					var double_sided_material := source_material.duplicate() as BaseMaterial3D
+					double_sided_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+					mesh_instance.set_surface_override_material(surface_index, double_sided_material)
+	for child in node.get_children():
+		_set_wing_materials_double_sided(child)
 
 
 func _find_skeleton(node: Node) -> Skeleton3D:
@@ -330,8 +348,6 @@ func _process(delta: float) -> void:
 	if wing_attachment == null or not is_instance_valid(wing_attachment):
 		return
 	wing_sway_time += delta
-	if wing_attachment_fallback:
-		wing_attachment.rotation.x = lerp(wing_attachment.rotation.x, WING_BACK_TILT - clampf(velocity.length() * 0.015, 0.0, 0.35), 0.15)
 	wing_attachment.rotation.z = sin(wing_sway_time * 1.8) * 0.035
 
 
