@@ -1136,10 +1136,7 @@ func _ai_pick_goal() -> void:
 
 
 func _base_position() -> Vector3:
-	var z := BASE_POSITION_Z - 1.5 if team == 0 else -BASE_POSITION_Z + 1.5
-	var safe_x := clampf(ai_offset.x, -2.5, 2.5)
-	var base_position := Vector3(safe_x, 0.0, z)
-	return game.clamp_to_arena(base_position) if game != null and game.has_method("clamp_to_arena") else base_position
+	return _base_spawn_position()
 
 
 func _base_spawn_position() -> Vector3:
