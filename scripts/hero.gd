@@ -946,7 +946,7 @@ func _physics_process(delta: float) -> void:
 	if dir.length_squared() > 0.01:
 		_face(dir, delta)
 	if global_position.y < -8.0:
-		global_position = _base_position() + Vector3(0.0, 0.76, 0.0)
+		global_position = _base_spawn_position() + Vector3(0.0, 0.76, 0.0)
 		velocity = Vector3.ZERO
 
 	_update_look(delta)
@@ -1140,6 +1140,13 @@ func _base_position() -> Vector3:
 	var safe_x := clampf(ai_offset.x, -2.5, 2.5)
 	var base_position := Vector3(safe_x, 0.0, z)
 	return game.clamp_to_arena(base_position) if game != null and game.has_method("clamp_to_arena") else base_position
+
+
+func _base_spawn_position() -> Vector3:
+	var base_z := -BASE_POSITION_Z if team == 0 else BASE_POSITION_Z
+	var safe_x := clampf(ai_offset.x, -2.0, 2.0)
+	var spawn_position := Vector3(safe_x, 0.0, base_z)
+	return game.clamp_to_arena(spawn_position) if game != null and game.has_method("clamp_to_arena") else spawn_position
 
 
 func _try_auto_attack(movement_direction: Vector3) -> void:
@@ -1518,7 +1525,7 @@ func _respawn() -> void:
 	health = max_health
 	seconds_since_damage = 0.0
 	_update_health_display()
-	global_position = _base_position() + Vector3(0.0, 0.76, 0.0)
+	global_position = _base_spawn_position() + Vector3(0.0, 0.76, 0.0)
 	velocity = Vector3.ZERO
 	set_collision_layer_value(1, true)
 	set_collision_mask_value(1, true)
