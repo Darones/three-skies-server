@@ -177,8 +177,8 @@ static func build(root: Node3D) -> void:
 	var bases := Node3D.new()
 	bases.name = "Bases"
 	root.add_child(bases)
-	_add_base(bases, -12.5, Color(0.55, 0.85, 1.0), mat_rock, "LightBase")
-	_add_base(bases, 12.5, Color(0.68, 0.32, 1.0), mat_rock, "DarkBase")
+	_add_base(bases, 28.0, Color(0.55, 0.85, 1.0), mat_rock, "LightBase")
+	_add_base(bases, -28.0, Color(0.68, 0.32, 1.0), mat_rock, "DarkBase")
 
 	var decor := Node3D.new()
 	decor.name = "Decor"

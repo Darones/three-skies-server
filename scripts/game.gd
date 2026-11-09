@@ -28,7 +28,7 @@ const GOLD_COIN_PULL_SPEED := 7.5
 const GOLD_COIN_SPAWN_BASE_RADIUS := 5.0
 const GOLD_COIN_SPAWN_EXTRA_RADIUS := 1.2
 const SHOP_INTERACTION_POINT := Vector3(-40.0, 0.0, 0.0)
-const BASE_POSITION_Z := 12.5
+const BASE_POSITION_Z := 28.0
 const BASE_DELIVERY_RADIUS := 6.0
 const SHOP_INTERACTION_RADIUS := 4.0
 const BOT_CALLSIGNS := ["ЛунныйЛис", "СеверныйВетер", "ТихийШторм", "Искра", "КаменныйПуть", "ЗвёздныйСлед", "СумрачныйКлинок", "БелыйВорон"]
@@ -892,8 +892,8 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	for c in classes:
 		if c != player_class:
 			ally_classes.append(c)
-	var light_spots: Array[Vector3] = [Vector3(-2.0, 0.76, -BASE_POSITION_Z + 1.5), Vector3(0.0, 0.76, -BASE_POSITION_Z + 1.0), Vector3(2.0, 0.76, -BASE_POSITION_Z + 1.5)]
-	var dark_spots: Array[Vector3] = [Vector3(2.0, 0.76, BASE_POSITION_Z - 1.5), Vector3(0.0, 0.76, BASE_POSITION_Z - 1.0), Vector3(-2.0, 0.76, BASE_POSITION_Z - 1.5)]
+	var light_spots: Array[Vector3] = [Vector3(-2.0, 0.76, BASE_POSITION_Z - 1.5), Vector3(0.0, 0.76, BASE_POSITION_Z - 1.0), Vector3(2.0, 0.76, BASE_POSITION_Z - 1.5)]
+	var dark_spots: Array[Vector3] = [Vector3(2.0, 0.76, -BASE_POSITION_Z + 1.5), Vector3(0.0, 0.76, -BASE_POSITION_Z + 1.0), Vector3(-2.0, 0.76, -BASE_POSITION_Z + 1.5)]
 	var own_spots: Array[Vector3] = light_spots if player_team == 0 else dark_spots
 	var enemy_spots: Array[Vector3] = dark_spots if player_team == 0 else light_spots
 	var enemy_team := 1 - player_team
@@ -1453,7 +1453,7 @@ func _update_crystal(delta: float) -> void:
 			carrier.carrying = false
 			carrier = null
 		crystal_node.rotation.y += delta * 2.4
-		var base_z := -BASE_POSITION_Z if carrier.team == 0 else BASE_POSITION_Z
+		var base_z := BASE_POSITION_Z if carrier.team == 0 else -BASE_POSITION_Z
 		if Vector2(carrier.global_position.x, carrier.global_position.z - base_z).length() < BASE_DELIVERY_RADIUS:
 			_deliver(carrier)
 

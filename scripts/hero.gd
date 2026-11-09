@@ -6,7 +6,7 @@ signal hero_died(hero: HeroUnit)
 enum Cls { WARRIOR, MAGE, FAIRY }
 
 const GRAVITY := 26.0
-const BASE_POSITION_Z := 12.5
+const BASE_POSITION_Z := 28.0
 const HERO_OUTGOING_DAMAGE_MULTIPLIER := 2.0
 const DIRECT_DAMAGE_MIN_MULTIPLIER := 0.75
 const DIRECT_DAMAGE_MAX_MULTIPLIER := 1.25
@@ -1124,7 +1124,7 @@ func _ai_pick_goal() -> void:
 			ai_goal = coin.global_position
 			return
 	if enemy != null:
-		var enemy_base := Vector3(0.0, 0.0, BASE_POSITION_Z if team == 0 else -BASE_POSITION_Z)
+		var enemy_base := Vector3(0.0, 0.0, -BASE_POSITION_Z if team == 0 else BASE_POSITION_Z)
 		var goal := enemy.global_position
 		var from_base := goal - enemy_base
 		from_base.y = 0.0
@@ -1136,14 +1136,14 @@ func _ai_pick_goal() -> void:
 
 
 func _base_position() -> Vector3:
-	var z := -BASE_POSITION_Z + 1.5 if team == 0 else BASE_POSITION_Z - 1.5
+	var z := BASE_POSITION_Z - 1.5 if team == 0 else -BASE_POSITION_Z + 1.5
 	var safe_x := clampf(ai_offset.x, -2.5, 2.5)
 	var base_position := Vector3(safe_x, 0.0, z)
 	return game.clamp_to_arena(base_position) if game != null and game.has_method("clamp_to_arena") else base_position
 
 
 func _base_spawn_position() -> Vector3:
-	var base_z := -BASE_POSITION_Z if team == 0 else BASE_POSITION_Z
+	var base_z := BASE_POSITION_Z if team == 0 else -BASE_POSITION_Z
 	var safe_x := clampf(ai_offset.x, -2.0, 2.0)
 	var spawn_position := Vector3(safe_x, 0.0, base_z)
 	return game.clamp_to_arena(spawn_position) if game != null and game.has_method("clamp_to_arena") else spawn_position
@@ -1299,12 +1299,12 @@ func _is_bush_stealthed() -> bool:
 
 
 func _is_at_own_base() -> bool:
-	var base_z := -BASE_POSITION_Z if team == 0 else BASE_POSITION_Z
+	var base_z := BASE_POSITION_Z if team == 0 else -BASE_POSITION_Z
 	return Vector2(global_position.x, global_position.z - base_z).length() <= BASE_REGEN_RADIUS
 
 
 func _is_under_base_shield() -> bool:
-	var base_z := -BASE_POSITION_Z if team == 0 else BASE_POSITION_Z
+	var base_z := BASE_POSITION_Z if team == 0 else -BASE_POSITION_Z
 	return Vector2(global_position.x, global_position.z - base_z).length() <= BASE_SHIELD_RADIUS
 
 
