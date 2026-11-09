@@ -141,6 +141,7 @@ func _ready() -> void:
 	var arena_root := get_node_or_null("Arena") as Node3D
 	if arena_root != null:
 		ArenaKit.ensure_perimeter_ridge(arena_root)
+		ArenaKit.ensure_arena_features(arena_root)
 	_create_base_shield_domes()
 	_create_fog_of_war()
 	_create_shop_stall()

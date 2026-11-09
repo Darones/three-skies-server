@@ -26,7 +26,7 @@ static func floor_light_material() -> StandardMaterial3D:
 	var tex := _first_texture(SLATE_DIR, FLOOR_LIGHT_TEX)
 	if tex != null:
 		mat.albedo_texture = tex
-	mat.albedo_color = Color(0.58, 0.6, 0.66)
+	mat.albedo_color = Color(0.82, 0.81, 0.76)
 	mat.roughness = 0.9
 	mat.uv1_triplanar = true
 	mat.uv1_scale = Vector3(0.12, 0.12, 0.12)
@@ -187,6 +187,114 @@ static func build(root: Node3D) -> void:
 	add_crystal_scatter(decor)
 	add_bushes(root)
 	ensure_perimeter_ridge(root)
+	ensure_arena_features(root)
+
+
+static func ensure_arena_features(arena_root: Node3D) -> void:
+	var island := arena_root.get_node_or_null("Island") as Node3D
+	var ruins := arena_root.get_node_or_null("Ruins") as Node3D
+	if island != null:
+		_ensure_light_floor(island)
+		_ensure_visible_boundary_walls(island)
+		island.add_to_group("navigation_mesh_source_group", true)
+	if ruins != null:
+		_ensure_ruin_columns(ruins)
+	_ensure_navigation_region(arena_root)
+
+
+static func _ensure_light_floor(island: Node3D) -> void:
+	var floor_node := island.get_node_or_null("Floor") as MeshInstance3D
+	if floor_node == null or floor_node.mesh == null or floor_node.mesh.get_surface_count() == 0:
+		return
+	var source_material := floor_node.mesh.surface_get_material(0) as StandardMaterial3D
+	if source_material == null:
+		return
+	var material := source_material.duplicate() as StandardMaterial3D
+	material.albedo_color = Color(0.82, 0.81, 0.76, 1.0)
+	material.emission_enabled = true
+	material.emission = Color(0.08, 0.075, 0.06)
+	material.emission_energy_multiplier = 0.35
+	material.roughness = 0.88
+	floor_node.mesh.surface_set_material(0, material)
+
+
+static func _ensure_visible_boundary_walls(island: Node3D) -> void:
+	if island.get_node_or_null("BoundaryWall_North") != null:
+		return
+	var wall_material := StandardMaterial3D.new()
+	wall_material.albedo_color = Color(0.46, 0.49, 0.54)
+	wall_material.roughness = 0.92
+	var wall_specs := [
+		["BoundaryWall_North", Vector3(0.0, 0.7, HALF_Z - 1.0), Vector3(HALF_X * 2.0 - 2.0, 1.4, 1.0)],
+		["BoundaryWall_South", Vector3(0.0, 0.7, -HALF_Z + 1.0), Vector3(HALF_X * 2.0 - 2.0, 1.4, 1.0)],
+		["BoundaryWall_East", Vector3(HALF_X - 1.0, 0.7, 0.0), Vector3(1.0, 1.4, HALF_Z * 2.0 - 2.0)],
+		["BoundaryWall_West", Vector3(-HALF_X + 1.0, 0.7, 0.0), Vector3(1.0, 1.4, HALF_Z * 2.0 - 2.0)],
+	]
+	for wall_spec in wall_specs:
+		var wall := MeshInstance3D.new()
+		wall.name = wall_spec[0]
+		var box := BoxMesh.new()
+		box.size = wall_spec[2]
+		wall.mesh = box
+		wall.material_override = wall_material
+		wall.position = wall_spec[1]
+		island.add_child(wall)
+		if island.owner != null:
+			wall.owner = island.owner
+
+
+static func _ensure_ruin_columns(ruins: Node3D) -> void:
+	if ruins.get_node_or_null("RuinColumn_WestRear") != null:
+		return
+	var column_material := StandardMaterial3D.new()
+	column_material.albedo_color = Color(0.58, 0.57, 0.54)
+	column_material.roughness = 0.9
+	var column_specs := [
+		["RuinColumn_WestRear", Vector3(-15.0, 0.85, -1.1), 1.7, -5.0],
+		["RuinColumn_WestFront", Vector3(-15.0, 0.6, 5.0), 1.2, 7.0],
+		["RuinColumn_EastRear", Vector3(15.0, 1.1, -1.1), 2.2, 4.0],
+		["RuinColumn_EastFront", Vector3(15.0, 0.8, 5.0), 1.6, -8.0],
+	]
+	for column_spec in column_specs:
+		var column := MeshInstance3D.new()
+		column.name = column_spec[0]
+		var mesh := CylinderMesh.new()
+		mesh.top_radius = 0.34
+		mesh.bottom_radius = 0.48
+		mesh.height = column_spec[2]
+		mesh.radial_segments = 8
+		column.mesh = mesh
+		column.material_override = column_material
+		column.position = column_spec[1]
+		column.rotation_degrees.z = column_spec[3]
+		ruins.add_child(column)
+		if ruins.owner != null:
+			column.owner = ruins.owner
+
+
+static func _ensure_navigation_region(arena_root: Node3D) -> void:
+	if arena_root.get_node_or_null("ArenaNavigation") != null:
+		return
+	var navigation_mesh := NavigationMesh.new()
+	navigation_mesh.agent_radius = 0.4
+	navigation_mesh.agent_height = 1.7
+	navigation_mesh.agent_max_climb = 0.2
+	navigation_mesh.agent_max_slope = 35.0
+	navigation_mesh.cell_size = 0.4
+	navigation_mesh.cell_height = 0.1
+	navigation_mesh.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_MESH_INSTANCES
+	navigation_mesh.geometry_source_geometry_mode = NavigationMesh.SOURCE_GEOMETRY_GROUPS_WITH_CHILDREN
+	navigation_mesh.geometry_source_group_name = "navigation_mesh_source_group"
+	navigation_mesh.filter_baking_aabb = AABB(Vector3(-51.0, -0.2, -36.0), Vector3(102.0, 1.0, 72.0))
+	var region := NavigationRegion3D.new()
+	region.name = "ArenaNavigation"
+	region.navigation_mesh = navigation_mesh
+	arena_root.add_child(region)
+	if arena_root.owner != null:
+		region.owner = arena_root.owner
+	region.bake_navigation_mesh(false)
+	if navigation_mesh.get_polygon_count() == 0:
+		push_warning("Arena navigation bake produced no walkable polygons")
 
 
 static func _place_inside(pos: Vector3) -> Vector3:

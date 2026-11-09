@@ -157,6 +157,8 @@ var blessing_timer := 0.0
 var blessing_ring: MeshInstance3D = null
 
 var ai_goal := Vector3.ZERO
+var navigation_agent: NavigationAgent3D = null
+var navigation_target_set := false
 var ai_think := 0.0
 var ai_attack_target: Node3D = null
 var ai_offset := Vector3.ZERO
@@ -215,6 +217,12 @@ func setup(p_game: Node, p_class: int, p_team: int, p_player: bool) -> void:
 	ai_think = randf_range(0.05, 0.35)
 	ai_strafe_sign = -1.0 if randf() < 0.5 else 1.0
 	ai_strafe_timer = randf_range(1.5, 3.0)
+	if not is_player:
+		navigation_agent = NavigationAgent3D.new()
+		navigation_agent.name = "BotNavigationAgent"
+		navigation_agent.path_desired_distance = 0.55
+		navigation_agent.target_desired_distance = 0.8
+		add_child(navigation_agent)
 	_build_body()
 	_build_visual()
 	update_wings()
@@ -982,9 +990,18 @@ func _ai_dir(delta: float) -> Vector3:
 		ai_think = randf_range(0.42, 0.62)
 		_ai_pick_goal()
 		ai_goal = game.clamp_to_arena(ai_goal)
+		if navigation_agent != null:
+			navigation_agent.target_position = Vector3(ai_goal.x, global_position.y, ai_goal.z)
+			navigation_target_set = true
 		_ai_abilities()
 	var to_goal := ai_goal - global_position
 	to_goal.y = 0.0
+	if navigation_agent != null and navigation_target_set:
+		var path_position := navigation_agent.get_next_path_position()
+		var path_direction := path_position - global_position
+		path_direction.y = 0.0
+		if path_direction.length_squared() > 0.04:
+			to_goal = path_direction
 	var dist := to_goal.length()
 	var dir := Vector3.ZERO
 	if dist > 0.8:
