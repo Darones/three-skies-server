@@ -88,7 +88,7 @@ func _setup_ui_click_sound() -> void:
 	ui_click_player.volume_db = -12.0
 	ui_click_player.max_polyphony = 1
 	ui_click_player.process_mode = Node.PROCESS_MODE_ALWAYS
-	tree_root.add_child(ui_click_player)
+	tree_root.call_deferred("add_child", ui_click_player)
 
 
 func _wire_ui_click_sounds(node: Node) -> void:
