@@ -911,10 +911,9 @@ func _next_bot_callsign() -> String:
 
 
 func clamp_to_arena(position: Vector3) -> Vector3:
-	var normalized_position := Vector2(position.x / ARENA_SAFE_HALF_X, position.z / ARENA_SAFE_HALF_Z)
-	if normalized_position.length_squared() > 1.0:
-		normalized_position = normalized_position.normalized()
-	return Vector3(normalized_position.x * ARENA_SAFE_HALF_X, position.y, normalized_position.y * ARENA_SAFE_HALF_Z)
+	var clamped_x := clampf(position.x, -ARENA_SAFE_HALF_X, ARENA_SAFE_HALF_X)
+	var clamped_z := clampf(position.z, -ARENA_SAFE_HALF_Z, ARENA_SAFE_HALF_Z)
+	return Vector3(clamped_x, position.y, clamped_z)
 
 
 func get_shop_items() -> Array:
