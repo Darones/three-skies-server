@@ -69,6 +69,7 @@
 - The shard shop keeps the cheapest wing item and adds text-only staff, bow, and sword placeholders. The inventory shows Legendary sword, staff, and bow slots instead of wings.
 - Team 0's Light base is at Z=28 and team 1's Dark base is at Z=-28 in the current arena. Spawns, bot return targets, base checks, and shard delivery match those altar positions.
 - Respawns use the base center with a small lateral spread on the platform; shard carriers retain their separate, slightly inset approach target.
+- The Sky Shard uses `assets/models/detail-crystal.glb`, scaled to about 1.15 m tall with cyan emission; pickup and carry logic remain attached to the original `Crystal` root node. A neutral colormap fills the GLB's missing external texture URI.
 
 Сколько секунд длится респавн по умолчанию?
 Как именно работает эволюция класса на 10 уровне: меняется только визуал и пассивка, или открываются новые ульты?

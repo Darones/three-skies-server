@@ -31,6 +31,9 @@ const SHOP_INTERACTION_POINT := Vector3(-40.0, 0.0, 0.0)
 const BASE_POSITION_Z := 28.0
 const BASE_DELIVERY_RADIUS := 6.0
 const SHOP_INTERACTION_RADIUS := 4.0
+const CRYSTAL_SCENE: PackedScene = preload("res://assets/models/detail-crystal.glb")
+const CRYSTAL_MODEL_SCALE := 2.7
+const CRYSTAL_EMISSION_COLOR := Color(0.16, 0.68, 1.0)
 const BOT_CALLSIGNS := ["ЛунныйЛис", "СеверныйВетер", "ТихийШторм", "Искра", "КаменныйПуть", "ЗвёздныйСлед", "СумрачныйКлинок", "БелыйВорон"]
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const CLOUD_WALL_SHADER: Shader = preload("res://shaders/cloud_wall.gdshader")
@@ -1302,22 +1305,12 @@ func spawn_crystal(pos: Vector3, spawn_on_pedestal := false) -> void:
 	var c := Node3D.new()
 	c.name = "Crystal"
 	add_child(c)
-	var mesh_node := MeshInstance3D.new()
-	var mesh := SphereMesh.new()
-	mesh.radius = 0.42
-	mesh.height = 1.15
-	mesh.radial_segments = 4
-	mesh.rings = 2
-	mesh_node.mesh = mesh
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.75, 0.95, 1.0)
-	mat.emission_enabled = true
-	mat.emission = Color(0.55, 0.9, 1.0)
-	mat.emission_energy_multiplier = 3.0
-	mat.roughness = 0.1
-	mat.metallic = 0.4
-	mesh_node.material_override = mat
-	c.add_child(mesh_node)
+	var crystal_visual := CRYSTAL_SCENE.instantiate() as Node3D
+	crystal_visual.name = "CrystalModel"
+	crystal_visual.scale = Vector3.ONE * CRYSTAL_MODEL_SCALE
+	crystal_visual.position.y = -0.572
+	_apply_crystal_emission(crystal_visual)
+	c.add_child(crystal_visual)
 	var light := OmniLight3D.new()
 	light.light_color = Color(0.6, 0.9, 1.0)
 	light.light_energy = 3.0
@@ -1347,6 +1340,25 @@ func spawn_crystal(pos: Vector3, spawn_on_pedestal := false) -> void:
 	crystal_timer = 0.0
 	pickup_delay = CRYSTAL_PICKUP_DELAY
 	carrier = null
+
+
+func _apply_crystal_emission(node: Node) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		var source_material := mesh_instance.get_active_material(0) as StandardMaterial3D
+		var crystal_material := StandardMaterial3D.new()
+		if source_material != null:
+			crystal_material = source_material.duplicate() as StandardMaterial3D
+		else:
+			crystal_material.albedo_color = Color(0.45, 0.82, 1.0)
+		crystal_material.roughness = 0.22
+		crystal_material.metallic = 0.25
+		crystal_material.emission_enabled = true
+		crystal_material.emission = CRYSTAL_EMISSION_COLOR
+		crystal_material.emission_energy_multiplier = 1.8
+		mesh_instance.material_override = crystal_material
+	for child in node.get_children():
+		_apply_crystal_emission(child)
 
 
 func _find_crystal_drop_position(origin: Vector3) -> Vector3:
