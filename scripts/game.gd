@@ -1486,6 +1486,7 @@ func drop_crystal(pos: Vector3) -> void:
 
 func on_hero_died(h: HeroUnit) -> void:
 	burst(h.global_position + Vector3(0.0, 1.0, 0.0), Color(1.0, 0.45, 0.4), 22)
+	h.spawn_vfx_silent(HeroUnit.VFX_GOLDEN_SCENE, h.global_position + Vector3(0.0, 0.4, 0.0), 1.2)
 	play_sfx("hit", -6.0)
 	if h == player:
 		p_deaths += 1
