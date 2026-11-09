@@ -129,6 +129,10 @@ bottom_radius = 1.75
 height = 0.45
 radial_segments = 12
 
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_Pedestal"]
+height = 0.45
+radius = 1.65
+
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_yxlcp"]
 albedo_color = Color(1, 0.82, 0.42, 1)
 metallic = 0.25
@@ -1370,6 +1374,12 @@ mesh = SubResource("CylinderMesh_cvmbd")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.22, 0)
 material_override = SubResource("StandardMaterial3D_q8u5g")
 mesh = SubResource("CylinderMesh_1iba3")
+
+[node name="PedestalCollision" type="StaticBody3D" parent="Arena/Altar" unique_id=232239694]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/Altar/PedestalCollision" unique_id=378040811]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.22, 0)
+shape = SubResource("CylinderShape3D_Pedestal")
 
 [node name="PedestalCrown" type="MeshInstance3D" parent="Arena/Altar" unique_id=1370332267]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)

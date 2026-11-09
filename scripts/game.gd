@@ -1258,14 +1258,14 @@ func on_shell_died(s: SkyShell, source: Node = null) -> void:
 	ring_fx(Vector3(pos.x, 0.25, pos.z), Color(0.8, 0.95, 1.0), 9.0)
 	play_sfx("thunder", -2.0)
 	shake(0.8)
-	spawn_crystal(pos)
+	spawn_crystal(pos, true)
 	announce("Оболочка пала! Осколок свободен", Color(0.8, 0.95, 1.0), 2.4)
 	s.retire(0.5)
 	shell = null
 	shell_phase = "idle"
 
 
-func spawn_crystal(pos: Vector3) -> void:
+func spawn_crystal(pos: Vector3, spawn_on_pedestal := false) -> void:
 	if crystal_node != null and is_instance_valid(crystal_node):
 		crystal_node.queue_free()
 	if carrier != null and is_instance_valid(carrier):
@@ -1310,7 +1310,7 @@ func spawn_crystal(pos: Vector3) -> void:
 	ring.material_override = ring_mat
 	ring.position.y = -0.6
 	c.add_child(ring)
-	var drop_position := _find_crystal_drop_position(pos)
+	var drop_position := Vector3.ZERO if spawn_on_pedestal else _find_crystal_drop_position(pos)
 	c.global_position = Vector3(drop_position.x, 1.3, drop_position.z)
 	c.set_meta("spin", 0.0)
 	crystal_node = c
