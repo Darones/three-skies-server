@@ -387,17 +387,18 @@ func _build_combat_audio_players() -> void:
 		var player := AudioStreamPlayer3D.new()
 		player.name = "CombatAudio_%s" % channel.capitalize()
 		player.bus = "Master"
-		player.max_polyphony = 1
-		player.max_distance = 42.0
-		player.unit_size = 8.0
-		player.volume_db = -10.0
+		player.max_polyphony = 4
+		player.max_distance = 80.0
+		player.unit_size = 14.0
+		player.volume_db = -6.0
+		player.position = Vector3(0.0, 1.0, 0.0)
 		add_child(player)
 		combat_audio_players[channel] = player
 
 
 func _play_combat_sfx(channel: String, sounds: Array, volume_db: float) -> void:
 	var player := combat_audio_players.get(channel) as AudioStreamPlayer3D
-	if player == null or player.is_playing() or sounds.is_empty():
+	if player == null or sounds.is_empty():
 		return
 	player.stream = sounds[randi_range(0, sounds.size() - 1)] as AudioStream
 	player.volume_db = volume_db
@@ -540,14 +541,15 @@ func spawn_vfx(
 		if light != null:
 			light.light_energy = effect_light_energy
 			light.light_color = light_tint
-	var audio_player := effect.get_node_or_null("AudioStreamPlayer3D") as AudioStreamPlayer3D
+	var audio_player := effect.find_child("AudioStreamPlayer3D", true, false) as AudioStreamPlayer3D
 	if audio_player != null:
-		if audio_player.stream == null:
-			audio_player.stream = _vfx_audio_for_scene(vfx_scene)
+		var mapped_stream := _vfx_audio_for_scene(vfx_scene)
+		if mapped_stream != null:
+			audio_player.stream = mapped_stream
 		audio_player.max_polyphony = 1
-		audio_player.max_distance = 42.0
-		audio_player.unit_size = 8.0
-		audio_player.volume_db = -12.0
+		audio_player.max_distance = 80.0
+		audio_player.unit_size = 14.0
+		audio_player.volume_db = -6.0
 		audio_player.bus = "Master"
 	# Apply custom script properties only if the effect node supports them
 	if effect.has_method("_set_vfx_params"):
@@ -565,6 +567,8 @@ func spawn_vfx(
 	else:
 		effect.queue_free()
 		return
+	if audio_player != null and audio_player.stream != null and not audio_player.is_playing():
+		audio_player.play()
 	get_tree().create_timer(lifetime).timeout.connect(Callable(effect, "queue_free"), CONNECT_ONE_SHOT)
 
 
