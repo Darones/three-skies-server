@@ -109,16 +109,16 @@ _surfaces = [{
 size = Vector3(52, 3, 37)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_bjd11"]
-size = Vector3(1, 6, 39)
+size = Vector3(1, 1.4, 37)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_qmy6f"]
-size = Vector3(1, 6, 39)
+size = Vector3(1, 1.4, 37)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_mwfav"]
-size = Vector3(54, 6, 1)
+size = Vector3(52, 1.4, 1)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_3p2gp"]
-size = Vector3(54, 6, 1)
+size = Vector3(52, 1.4, 1)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_vcsgt"]
 albedo_color = Color(0.46, 0.49, 0.54, 1)
@@ -1405,22 +1405,22 @@ mesh = SubResource("ArrayMesh_lhr70")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.5, 0)
 shape = SubResource("BoxShape3D_wp0k4")
 
-[node name="Walls" type="StaticBody3D" parent="Arena/Island" unique_id=425092090]
+[node name="FenceCollision" type="StaticBody3D" parent="Arena/Island" unique_id=425092090]
 
-[node name="@CollisionShape3D@25463" type="CollisionShape3D" parent="Arena/Island/Walls" unique_id=1424334637]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, 2, 0)
+[node name="FenceShape_East" type="CollisionShape3D" parent="Arena/Island/FenceCollision" unique_id=1424334637]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, 0.7, 0)
 shape = SubResource("BoxShape3D_bjd11")
 
-[node name="@CollisionShape3D@25464" type="CollisionShape3D" parent="Arena/Island/Walls" unique_id=519420243]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26, 2, 0)
+[node name="FenceShape_West" type="CollisionShape3D" parent="Arena/Island/FenceCollision" unique_id=519420243]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26, 0.7, 0)
 shape = SubResource("BoxShape3D_qmy6f")
 
-[node name="@CollisionShape3D@25465" type="CollisionShape3D" parent="Arena/Island/Walls" unique_id=1161600343]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 18.5)
+[node name="FenceShape_North" type="CollisionShape3D" parent="Arena/Island/FenceCollision" unique_id=1161600343]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 18.5)
 shape = SubResource("BoxShape3D_mwfav")
 
-[node name="@CollisionShape3D@25466" type="CollisionShape3D" parent="Arena/Island/Walls" unique_id=416314666]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -18.5)
+[node name="FenceShape_South" type="CollisionShape3D" parent="Arena/Island/FenceCollision" unique_id=416314666]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, -18.5)
 shape = SubResource("BoxShape3D_3p2gp")
 
 [node name="BoundaryWall_North" type="MeshInstance3D" parent="Arena/Island" unique_id=909023473]

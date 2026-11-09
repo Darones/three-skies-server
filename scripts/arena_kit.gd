@@ -196,6 +196,7 @@ static func ensure_arena_features(arena_root: Node3D) -> void:
 	if island != null:
 		_ensure_light_floor(island)
 		_ensure_visible_boundary_walls(island)
+		_ensure_fence_collision(island)
 		island.add_to_group("navigation_mesh_source_group", true)
 	if ruins != null:
 		_ensure_ruin_columns(ruins)
@@ -241,6 +242,41 @@ static func _ensure_visible_boundary_walls(island: Node3D) -> void:
 		island.add_child(wall)
 		if island.owner != null:
 			wall.owner = island.owner
+
+
+static func _ensure_fence_collision(island: Node3D) -> void:
+	var fence := island.get_node_or_null("FenceCollision") as StaticBody3D
+	if fence != null and fence.get_child_count() == 4:
+		return
+	if fence == null:
+		fence = island.get_node_or_null("Walls") as StaticBody3D
+	if fence == null:
+		fence = StaticBody3D.new()
+		island.add_child(fence)
+	else:
+		for old_shape in fence.get_children():
+			fence.remove_child(old_shape)
+			old_shape.free()
+	fence.name = "FenceCollision"
+	fence.collision_layer = 1
+	fence.collision_mask = 1
+	var wall_specs := [
+		[Vector3(0.0, 0.7, HALF_Z - 1.0), Vector3(HALF_X * 2.0 - 2.0, 1.4, 1.0)],
+		[Vector3(0.0, 0.7, -HALF_Z + 1.0), Vector3(HALF_X * 2.0 - 2.0, 1.4, 1.0)],
+		[Vector3(HALF_X - 1.0, 0.7, 0.0), Vector3(1.0, 1.4, HALF_Z * 2.0 - 2.0)],
+		[Vector3(-HALF_X + 1.0, 0.7, 0.0), Vector3(1.0, 1.4, HALF_Z * 2.0 - 2.0)],
+	]
+	for wall_spec in wall_specs:
+		var collider := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = wall_spec[1]
+		collider.shape = shape
+		collider.position = wall_spec[0]
+		fence.add_child(collider)
+	if island.owner != null:
+		fence.owner = island.owner
+		for collider in fence.get_children():
+			collider.owner = island.owner
 
 
 static func _ensure_ruin_columns(ruins: Node3D) -> void:
@@ -449,13 +485,13 @@ static func _add_island(island: Node3D, mat_light: StandardMaterial3D, mat_dark:
 	body.add_child(col)
 
 	var walls := StaticBody3D.new()
-	walls.name = "Walls"
+	walls.name = "FenceCollision"
 	island.add_child(walls)
 	var wall_specs := [
-		[Vector3(HALF_X - 1.0, 2.0, 0.0), Vector3(1.0, 6.0, HALF_Z * 2.0)],
-		[Vector3(-HALF_X + 1.0, 2.0, 0.0), Vector3(1.0, 6.0, HALF_Z * 2.0)],
-		[Vector3(0.0, 2.0, HALF_Z - 1.0), Vector3(HALF_X * 2.0, 6.0, 1.0)],
-		[Vector3(0.0, 2.0, -HALF_Z + 1.0), Vector3(HALF_X * 2.0, 6.0, 1.0)],
+		[Vector3(HALF_X - 1.0, 0.7, 0.0), Vector3(1.0, 1.4, HALF_Z * 2.0 - 2.0)],
+		[Vector3(-HALF_X + 1.0, 0.7, 0.0), Vector3(1.0, 1.4, HALF_Z * 2.0 - 2.0)],
+		[Vector3(0.0, 0.7, HALF_Z - 1.0), Vector3(HALF_X * 2.0 - 2.0, 1.4, 1.0)],
+		[Vector3(0.0, 0.7, -HALF_Z + 1.0), Vector3(HALF_X * 2.0 - 2.0, 1.4, 1.0)],
 	]
 	for spec in wall_specs:
 		var wc := CollisionShape3D.new()
@@ -950,8 +986,8 @@ static func ensure_perimeter_ridge(arena: Node3D) -> void:
 
 	var barrier := StaticBody3D.new()
 	barrier.name = "CollisionBarrier"
-	barrier.collision_layer = 1
-	barrier.collision_mask = 1
+	barrier.collision_layer = 0
+	barrier.collision_mask = 0
 	ridge.add_child(barrier)
 
 	for index in PERIMETER_RIDGE_SEGMENTS:
