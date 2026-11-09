@@ -1136,6 +1136,14 @@ func _try_auto_attack(movement_direction: Vector3) -> void:
 	if ranged:
 		var color: Color = CLASS_DATA[hero_class]["color"]
 		game.spawn_projectile(global_position + Vector3(0.0, 1.2, 0.0), target, damage, color, self)
+		var cast_position := global_position + Vector3(0.0, 0.6, 0.0)
+		if weapon_attachment != null and is_instance_valid(weapon_attachment):
+			cast_position = weapon_attachment.global_position - Vector3(0.0, 0.6, 0.0)
+		cast_position += _facing_direction() * 0.35
+		if hero_class == Cls.FAIRY:
+			spawn_vfx_silent(VFX_HIT_02_SCENE, cast_position, 0.5)
+		elif hero_class == Cls.MAGE:
+			spawn_vfx_silent(VFX_GOLDEN_SCENE, cast_position, 0.6)
 	else:
 		target.take_damage(damage, self, "physical")
 		spawn_attack_impact_vfx(target.global_position + Vector3(0.0, 0.9, 0.0))
