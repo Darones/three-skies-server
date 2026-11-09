@@ -15,8 +15,9 @@
 
 - Optimized light-side tree assets remain imported, but tree instances and their visibility occluders are no longer placed in the match arena.
 - Godot's built-in import LODs were measured at 249,998, 124,996, 62,498, and 36,728 triangles from a 500,000-triangle base mesh. The base mesh was not reduced to 5–10k.
+- Arena bushes use `small_stylised_bush.glb`, doubled to 4.3 m and placed in pairs at the original eight stealth zones. Two MultiMesh batches render the 16 bushes; Area3D triggers and collision shapes remain unchanged.
 - Floor tiles now share continuous vertex heights and normals, removing the visible mesh grid seams; slate vein contrast is reduced.
-- Decorative trees, loose rocks and visible perimeter boulders remain removed. Eight primitive crystal clusters and eight primitive-foliage bush zones are placed across the arena; bush zones use the existing stealth logic. The five braziers, tactical ruin blocks, and perimeter collision remain.
+- Decorative trees, loose rocks and visible perimeter boulders remain removed. Eight crystal clusters and eight paired stylized-bush stealth zones are placed across the arena. The five braziers, tactical ruin blocks, and perimeter collision remain.
 - The radial translucent `FloatingClouds/CloudWall` and the altar's two glowing rings are removed; the shard pedestal remains. Match fog-of-war is restored as a soft ground overlay, with 10-meter team vision and obstacle-aware enemy visibility. A fully opaque black annulus still hides cut terrain beyond the island.
 
 ## Vision

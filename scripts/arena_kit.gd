@@ -5,6 +5,9 @@ const FLOOR_LIGHT_TEX := "res://art/textures/temple_floor/img-6adcd384-a1c6-4d03
 const FLOOR_DARK_TEX := "res://art/textures/obsidian_rock/img-6adcd384-a1c6-4d03-ab8f-2885c6220fd5-1793744225681-0_1793744225682_zroihsmf.png"
 const SLATE_DIR := "res://art/textures/slate_floor"
 const GLOWING_TREE_SCENE := preload("res://scenes/GlowingFantasyTree.tscn")
+const BUSH_SCENE: PackedScene = preload("res://assets/models/small_stylised_bush.glb")
+const BUSH_TARGET_HEIGHT := 4.3
+const BUSH_PAIR_HALF_SPACING := 1.8
 
 const HALF_X := 27.0
 const HALF_Z := 19.5
@@ -825,53 +828,116 @@ static func add_bushes(arena: Node3D) -> void:
 		shape.radius = 3.4
 		detection.shape = shape
 		zone.add_child(detection)
-		_add_bush_foliage(zone, spots[index].z >= 0.0)
+	rebuild_bush_visuals(bushes)
 
 
-static func _add_bush_foliage(parent: Node3D, dark_side: bool) -> void:
-	var colors: Array[Color] = [
-		Color(0.18, 0.42, 0.2) if not dark_side else Color(0.18, 0.32, 0.25),
-		Color(0.28, 0.52, 0.22) if not dark_side else Color(0.28, 0.38, 0.3),
-		Color(0.1, 0.32, 0.18) if not dark_side else Color(0.13, 0.24, 0.23),
-	]
-	var offsets := [
-		Vector3(0.0, 0.8, 0.0), Vector3(-0.82, 0.92, 0.12),
-		Vector3(0.82, 0.96, 0.08), Vector3(0.0, 1.05, -0.78),
-		Vector3(0.05, 0.98, 0.78),
-	]
-	for index in offsets.size():
-		var leaf := MeshInstance3D.new()
-		leaf.name = "Foliage_%d" % (index + 1)
-		var mesh := SphereMesh.new()
-		mesh.radius = 0.92 if index == 0 else 0.82
-		mesh.height = 1.65 if index == 0 else 1.45
-		mesh.radial_segments = 7
-		mesh.rings = 4
-		leaf.mesh = mesh
-		leaf.position = offsets[index]
-		leaf.scale = Vector3(1.3, 1.2, 1.2)
-		var material := StandardMaterial3D.new()
-		material.albedo_color = colors[index % colors.size()]
-		material.roughness = 0.95
-		leaf.material_override = material
-		parent.add_child(leaf)
-	for index in 3:
-		var tip := MeshInstance3D.new()
-		tip.name = "LeafTip_%d" % (index + 1)
-		var cone := CylinderMesh.new()
-		cone.top_radius = 0.0
-		cone.bottom_radius = 0.36
-		cone.height = 1.0
-		cone.radial_segments = 5
-		tip.mesh = cone
-		tip.position = Vector3(float(index - 1) * 0.55, 1.65, -0.05)
-		tip.rotation_degrees = Vector3(0.0, float(index) * 120.0, float(index - 1) * 18.0)
-		tip.scale = Vector3(1.15, 1.25, 1.15)
-		var material := StandardMaterial3D.new()
-		material.albedo_color = colors[(index + 1) % colors.size()]
-		material.roughness = 0.95
-		tip.material_override = material
-		parent.add_child(tip)
+static func rebuild_bush_visuals(bushes_root: Node3D) -> void:
+	var old_visuals := bushes_root.get_node_or_null("BushVisuals")
+	if old_visuals != null:
+		bushes_root.remove_child(old_visuals)
+		old_visuals.free()
+	var zones: Array[Area3D] = []
+	for child in bushes_root.get_children():
+		if child is Area3D and child.name.begins_with("BushZone_"):
+			var zone := child as Area3D
+			zones.append(zone)
+			var old_visual := zone.get_node_or_null("BushVisual")
+			if old_visual != null:
+				zone.remove_child(old_visual)
+				old_visual.free()
+	if zones.is_empty():
+		return
+	var source_root := BUSH_SCENE.instantiate() as Node3D
+	if source_root == null:
+		return
+	bushes_root.add_child(source_root)
+	var mesh_specs: Array[Dictionary] = []
+	var model_bounds := AABB()
+	var found_mesh := false
+	var pending: Array[Node] = [source_root]
+	while not pending.is_empty():
+		var current: Node = pending.pop_back()
+		if current is MeshInstance3D:
+			var mesh_instance := current as MeshInstance3D
+			if mesh_instance.mesh != null:
+				var local_transform := source_root.global_transform.affine_inverse() * mesh_instance.global_transform
+				var mesh_bounds := _transform_aabb(mesh_instance.get_aabb(), local_transform)
+				model_bounds = mesh_bounds if not found_mesh else model_bounds.merge(mesh_bounds)
+				found_mesh = true
+				mesh_specs.append({"mesh": mesh_instance.mesh, "transform": local_transform, "name": mesh_instance.name})
+		for child in current.get_children():
+			pending.append(child)
+	bushes_root.remove_child(source_root)
+	source_root.free()
+	if not found_mesh or model_bounds.size.y <= 0.0:
+		return
+	var visual_scale := BUSH_TARGET_HEIGHT / model_bounds.size.y
+	var visual_root := Node3D.new()
+	visual_root.name = "BushVisuals"
+	bushes_root.add_child(visual_root)
+	if bushes_root.owner != null:
+		_assign_owner_recursive(visual_root, bushes_root.owner)
+	var instance_count := zones.size() * 2
+	for mesh_spec in mesh_specs:
+		var multi_mesh := MultiMesh.new()
+		multi_mesh.transform_format = MultiMesh.TRANSFORM_3D
+		multi_mesh.mesh = mesh_spec["mesh"]
+		multi_mesh.instance_count = instance_count
+		var mesh_batch := MultiMeshInstance3D.new()
+		mesh_batch.name = "%sBatch" % mesh_spec["name"]
+		mesh_batch.multimesh = multi_mesh
+		visual_root.add_child(mesh_batch)
+		var instance_index := 0
+		for zone in zones:
+			var radial := Vector3(zone.position.x, 0.0, zone.position.z).normalized()
+			var tangent := Vector3(-radial.z, 0.0, radial.x)
+			var pair_sides: Array[float] = [-1.0, 1.0]
+			for side in pair_sides:
+				var plant_position: Vector3 = zone.position + tangent * BUSH_PAIR_HALF_SPACING * side
+				plant_position.y = -model_bounds.position.y * visual_scale
+				var placement := Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * visual_scale), plant_position)
+				multi_mesh.set_instance_transform(instance_index, placement * mesh_spec["transform"])
+				instance_index += 1
+	if bushes_root.owner != null:
+		_assign_owner_recursive(visual_root, bushes_root.owner)
+
+
+static func _assign_owner_recursive(node: Node, scene_owner: Node) -> void:
+	node.owner = scene_owner
+	for child in node.get_children():
+		_assign_owner_recursive(child, scene_owner)
+
+
+static func _combined_model_aabb(model_root: Node3D) -> AABB:
+	var bounds := AABB()
+	var found_mesh := false
+	var pending: Array[Dictionary] = [{"node": model_root, "transform": Transform3D.IDENTITY}]
+	while not pending.is_empty():
+		var entry: Dictionary = pending.pop_back()
+		var current := entry["node"] as Node3D
+		var current_transform: Transform3D = entry["transform"]
+		if current is MeshInstance3D:
+			var mesh_instance := current as MeshInstance3D
+			if mesh_instance.mesh != null:
+				var mesh_bounds := _transform_aabb(mesh_instance.get_aabb(), current_transform)
+				bounds = mesh_bounds if not found_mesh else bounds.merge(mesh_bounds)
+				found_mesh = true
+		for child in current.get_children():
+			if child is Node3D:
+				pending.append({"node": child, "transform": current_transform * (child as Node3D).transform})
+	return bounds
+
+
+static func _transform_aabb(source: AABB, transform: Transform3D) -> AABB:
+	var result := AABB()
+	var found_point := false
+	for x in [source.position.x, source.end.x]:
+		for y in [source.position.y, source.end.y]:
+			for z in [source.position.z, source.end.z]:
+				var point := transform * Vector3(x, y, z)
+				result = AABB(point, Vector3.ZERO) if not found_point else result.expand(point)
+				found_point = true
+	return result
 
 
 static func _add_braziers(parent: Node3D, mat_gold: StandardMaterial3D, mat_rock: StandardMaterial3D) -> void:
