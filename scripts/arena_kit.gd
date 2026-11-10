@@ -8,6 +8,7 @@ const GLOWING_TREE_SCENE := preload("res://scenes/GlowingFantasyTree.tscn")
 const BUSH_SCENE: PackedScene = preload("res://assets/models/small_stylised_bush.glb")
 const BUSH_TARGET_HEIGHT := 4.3
 const BUSH_PAIR_HALF_SPACING := 1.8
+const NAVIGATION_SOURCE_GROUP := "navigation_mesh_source_group"
 
 const HALF_X := 27.0
 const HALF_Z := 19.5
@@ -203,6 +204,7 @@ static func ensure_arena_features(arena_root: Node3D) -> void:
 		island.add_to_group("navigation_mesh_source_group", true)
 	if ruins != null:
 		_ensure_ruin_columns(ruins)
+	_ensure_decor_collisions(arena_root)
 	_ensure_navigation_region(arena_root)
 
 
@@ -311,29 +313,189 @@ static func _ensure_ruin_columns(ruins: Node3D) -> void:
 			column.owner = ruins.owner
 
 
-static func _ensure_navigation_region(arena_root: Node3D) -> void:
-	if arena_root.get_node_or_null("ArenaNavigation") != null:
+static func _ensure_decor_collisions(arena_root: Node3D) -> void:
+	var ruins := arena_root.get_node_or_null("Ruins") as Node3D
+	if ruins != null:
+		for child in ruins.get_children():
+			if child is MeshInstance3D:
+				_ensure_mesh_collision(child as MeshInstance3D)
+	var decor := arena_root.get_node_or_null("Decor") as Node3D
+	if decor != null:
+		for child in decor.get_children():
+			if child is Node3D and child.name.begins_with("CrystalCluster_"):
+				_ensure_crystal_collision(child as Node3D)
+			elif child is MeshInstance3D and (child as MeshInstance3D).mesh is SphereMesh and not child.has_meta("floating_decor"):
+				_ensure_rock_collision(decor, child as MeshInstance3D)
+	_ensure_shell_navigation_blocker(arena_root)
+	arena_root.add_to_group(NAVIGATION_SOURCE_GROUP, true)
+
+
+static func _ensure_mesh_collision(mesh_node: MeshInstance3D) -> void:
+	for child in mesh_node.get_children():
+		if child is StaticBody3D:
+			return
+	var mesh := mesh_node.mesh
+	if mesh == null:
 		return
-	var navigation_mesh := NavigationMesh.new()
-	navigation_mesh.agent_radius = 0.4
-	navigation_mesh.agent_height = 1.7
-	navigation_mesh.agent_max_climb = 0.2
-	navigation_mesh.agent_max_slope = 35.0
-	navigation_mesh.cell_size = 0.4
-	navigation_mesh.cell_height = 0.1
-	navigation_mesh.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_MESH_INSTANCES
-	navigation_mesh.geometry_source_geometry_mode = NavigationMesh.SOURCE_GEOMETRY_GROUPS_WITH_CHILDREN
-	navigation_mesh.geometry_source_group_name = "navigation_mesh_source_group"
-	navigation_mesh.filter_baking_aabb = AABB(Vector3(-51.0, -0.2, -36.0), Vector3(102.0, 1.0, 72.0))
-	var region := NavigationRegion3D.new()
-	region.name = "ArenaNavigation"
-	region.navigation_mesh = navigation_mesh
-	arena_root.add_child(region)
+	var shape_resource: Shape3D = null
+	if mesh is BoxMesh:
+		var box := BoxShape3D.new()
+		box.size = (mesh as BoxMesh).size
+		shape_resource = box
+	elif mesh is CylinderMesh:
+		var cylinder_mesh := mesh as CylinderMesh
+		var cylinder := CylinderShape3D.new()
+		cylinder.radius = maxf(cylinder_mesh.top_radius, cylinder_mesh.bottom_radius)
+		cylinder.height = cylinder_mesh.height
+		shape_resource = cylinder
+	if shape_resource == null:
+		return
+	var body := StaticBody3D.new()
+	body.name = mesh_node.name + "Collision"
+	body.collision_layer = 1
+	body.collision_mask = 1
+	var collider := CollisionShape3D.new()
+	collider.name = "Shape"
+	collider.shape = shape_resource
+	body.add_child(collider)
+	mesh_node.add_child(body)
+	if mesh_node.owner != null:
+		body.owner = mesh_node.owner
+		collider.owner = mesh_node.owner
+
+
+static func _ensure_crystal_collision(cluster: Node3D) -> void:
+	for child in cluster.get_children():
+		if child is StaticBody3D:
+			return
+	var bounds := AABB()
+	var found_shard := false
+	for child in cluster.get_children():
+		if child is MeshInstance3D and (child as MeshInstance3D).mesh != null:
+			var shard := child as MeshInstance3D
+			var shard_bounds := _transform_aabb(shard.mesh.get_aabb(), shard.transform)
+			bounds = shard_bounds if not found_shard else bounds.merge(shard_bounds)
+			found_shard = true
+	if not found_shard:
+		return
+	var body := StaticBody3D.new()
+	body.name = "CrystalCollision"
+	body.collision_layer = 1
+	body.collision_mask = 1
+	var collider := CollisionShape3D.new()
+	collider.name = "Shape"
+	var crystal := CylinderShape3D.new()
+	crystal.radius = maxf(0.55, maxf(bounds.size.x, bounds.size.z) * 0.46)
+	crystal.height = maxf(0.9, bounds.size.y)
+	collider.shape = crystal
+	collider.position = Vector3(bounds.get_center().x, crystal.height * 0.5, bounds.get_center().z)
+	body.add_child(collider)
+	cluster.add_child(body)
+	if cluster.owner != null:
+		body.owner = cluster.owner
+		collider.owner = cluster.owner
+
+
+static func _ensure_rock_collision(parent: Node3D, rock: MeshInstance3D) -> void:
+	var body_name := String(rock.name) + "Collision"
+	if parent.get_node_or_null(body_name) != null:
+		return
+	var sphere := rock.mesh as SphereMesh
+	if sphere == null:
+		return
+	var body := StaticBody3D.new()
+	body.name = body_name
+	body.collision_layer = 1
+	body.collision_mask = 1
+	body.transform = rock.transform
+	var collider := CollisionShape3D.new()
+	collider.name = "Shape"
+	var rock_shape := SphereShape3D.new()
+	rock_shape.radius = sphere.radius * 0.9
+	collider.shape = rock_shape
+	body.add_child(collider)
+	parent.add_child(body)
+	if parent.owner != null:
+		body.owner = parent.owner
+		collider.owner = parent.owner
+
+
+static func _ensure_shell_navigation_blocker(arena_root: Node3D) -> void:
+	var existing := arena_root.get_node_or_null("ShellNavBlocker") as StaticBody3D
+	if existing != null:
+		existing.collision_layer = 2
+		existing.collision_mask = 0
+		var existing_shape := existing.get_child(0) as CollisionShape3D if existing.get_child_count() > 0 else null
+		if existing_shape != null and existing_shape.shape is CylinderShape3D:
+			var blocker_shape := existing_shape.shape as CylinderShape3D
+			blocker_shape.radius = 1.8
+			blocker_shape.height = 5.0
+			existing_shape.position = Vector3(0.0, 2.5, 0.0)
+		return
+	var body := StaticBody3D.new()
+	body.name = "ShellNavBlocker"
+	body.collision_layer = 2
+	body.collision_mask = 0
+	var collider := CollisionShape3D.new()
+	collider.name = "Shape"
+	var blocker := CylinderShape3D.new()
+	blocker.radius = 1.8
+	blocker.height = 5.0
+	collider.shape = blocker
+	collider.position = Vector3(0.0, 2.5, 0.0)
+	body.add_child(collider)
+	arena_root.add_child(body)
 	if arena_root.owner != null:
-		region.owner = arena_root.owner
+		body.owner = arena_root.owner
+		collider.owner = arena_root.owner
+
+
+static func _ensure_navigation_region(arena_root: Node3D) -> void:
+	var region := arena_root.get_node_or_null("ArenaNavigation") as NavigationRegion3D
+	if region == null:
+		region = NavigationRegion3D.new()
+		region.name = "ArenaNavigation"
+		arena_root.add_child(region)
+		if arena_root.owner != null:
+			region.owner = arena_root.owner
+	var navigation_mesh := region.navigation_mesh
+	if navigation_mesh == null:
+		navigation_mesh = NavigationMesh.new()
+		region.navigation_mesh = navigation_mesh
+	navigation_mesh.agent_radius = 0.75
+	navigation_mesh.agent_height = 1.75
+	navigation_mesh.agent_max_climb = 0.25
+	navigation_mesh.agent_max_slope = 40.0
+	navigation_mesh.cell_size = 0.25
+	navigation_mesh.cell_height = 0.25
+	navigation_mesh.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
+	navigation_mesh.geometry_source_geometry_mode = NavigationMesh.SOURCE_GEOMETRY_GROUPS_WITH_CHILDREN
+	navigation_mesh.geometry_source_group_name = NAVIGATION_SOURCE_GROUP
+	navigation_mesh.geometry_collision_mask = 0xFFFFFFFF
+	navigation_mesh.filter_baking_aabb = AABB(Vector3(-51.0, -0.2, -36.0), Vector3(102.0, 3.2, 72.0))
 	region.bake_navigation_mesh(false)
+	_remove_navmesh_disc(navigation_mesh, Vector3.ZERO, 2.2)
+	region.navigation_mesh = navigation_mesh
 	if navigation_mesh.get_polygon_count() == 0:
 		push_warning("Arena navigation bake produced no walkable polygons")
+
+
+static func _remove_navmesh_disc(navigation_mesh: NavigationMesh, center: Vector3, radius: float) -> void:
+	var vertices := navigation_mesh.get_vertices()
+	var kept: Array[PackedInt32Array] = []
+	var center_2d := Vector2(center.x, center.z)
+	for polygon_index in navigation_mesh.get_polygon_count():
+		var polygon := navigation_mesh.get_polygon(polygon_index)
+		var centroid := Vector2.ZERO
+		for vertex_index in polygon:
+			var vertex := vertices[vertex_index]
+			centroid += Vector2(vertex.x, vertex.z)
+		centroid /= float(polygon.size())
+		if centroid.distance_to(center_2d) > radius:
+			kept.append(polygon)
+	navigation_mesh.clear_polygons()
+	for polygon in kept:
+		navigation_mesh.add_polygon(polygon)
 
 
 static func _place_inside(pos: Vector3) -> Vector3:
@@ -755,6 +917,7 @@ static func _add_rock(parent: Node3D, pos: Vector3, size: float, mat: StandardMa
 	rock.rotation = Vector3(pos.x * 0.3, pos.z * 0.2, pos.y * 0.4)
 	if floating:
 		rock.rotation_degrees = Vector3(20.0 * sin(pos.x), pos.y * 12.0, 15.0 * cos(pos.z))
+		rock.set_meta("floating_decor", true)
 	parent.add_child(rock)
 
 

@@ -71,6 +71,7 @@
 - Team 0's Light base is at Z=28 and team 1's Dark base is at Z=-28 in the current arena. Spawns, bot return targets, base checks, and shard delivery match those altar positions.
 - Respawns use the base center with a small lateral spread on the platform; shard carriers retain their separate, slightly inset approach target.
 - The Sky Shard uses `assets/models/detail-crystal.glb`, scaled to about 1.15 m tall with cyan emission; pickup and carry logic remain attached to the original `Crystal` root node. A neutral colormap fills the GLB's missing external texture URI.
+- Ruin blocks and columns plus all eight crystal clusters now have static collisions. The arena NavMesh is baked from static colliders with a 0.6 m agent radius and a carved center around the Shell spawn; bots approach the Shell on a class-range ring instead of pathing into its center.
 
 Сколько секунд длится респавн по умолчанию?
 Как именно работает эволюция класса на 10 уровне: меняется только визуал и пассивка, или открываются новые ульты?

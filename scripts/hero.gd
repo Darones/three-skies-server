@@ -1109,7 +1109,7 @@ func _ai_pick_goal() -> void:
 		return
 	var shell = game.shell
 	if shell != null and is_instance_valid(shell) and shell.alive:
-		ai_goal = shell.global_position
+		ai_goal = _shell_approach_point(shell)
 		return
 	var enemy_distance := global_position.distance_to(enemy.global_position) if enemy != null else INF
 	if enemy_distance > 16.0:
@@ -1137,6 +1137,27 @@ func _ai_pick_goal() -> void:
 
 func _base_position() -> Vector3:
 	return _base_spawn_position()
+
+
+func _shell_approach_point(shell: SkyShell) -> Vector3:
+	var spread := Vector2(ai_offset.x, ai_offset.z)
+	var angle := atan2(spread.y, spread.x)
+	if spread.length_squared() < 0.01:
+		var from_shell := global_position - shell.global_position
+		from_shell.y = 0.0
+		angle = atan2(from_shell.z, from_shell.x)
+	var approach_radius := maxf(3.0, attack_range * 0.8)
+	var approach := shell.global_position + Vector3(cos(angle), 0.0, sin(angle)) * approach_radius
+	approach.y = global_position.y
+	if game != null and game.has_method("clamp_to_arena"):
+		approach = game.clamp_to_arena(approach)
+	if navigation_agent != null:
+		var nav_map := navigation_agent.get_navigation_map()
+		if nav_map.is_valid():
+			var snapped_point := NavigationServer3D.map_get_closest_point(nav_map, approach)
+			if snapped_point != Vector3.ZERO:
+				approach = Vector3(snapped_point.x, global_position.y, snapped_point.z)
+	return approach
 
 
 func _base_spawn_position() -> Vector3:
