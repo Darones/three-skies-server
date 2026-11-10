@@ -10,7 +10,7 @@
 - Lobby player name/level and shard balance labels match the 27 px central hero-name size.
 - The two arena floor materials use triplanar texture mapping at 0.12 scale to avoid stretching across the expanded floor.
 - The warm-sky/light-fog lighting experiment was rolled back; the arena keeps its prior near-black background and depth fog (10–55), cool blue-white sun (energy 0.95), and blue-gray ambient fill (energy 0.75). The triplanar floor update remains.
-- Runtime class weapons attach to humanoid hand bones: Warrior sword on RightHand at scale 0.72, Mage staff on RightHand at 0.62, and Fairy bow on LeftHand at 0.9. Weapon attack clips are `swing` for Warrior/Mage and `shoot` for Fairy.
+- Runtime class weapons attach to humanoid hand bones: Warrior sword on RightHand at scale 0.72, Mage staff on RightHand at 0.62, and Fairy bow on LeftHand at 0.9. Weapon attack clips are `swing` for Warrior/Mage and `shoot` for Fairy. Weapon effects are additive overlays only: a cyan staff tip orb/halo with 12 CPU sparks and a small no-shadow light; a gold sword tip/hilt glow, two blade strips/sheens, 12 gold sparks and a small light; and a subtle green bow glow with 7 sparks. Effects use 30 Hz CPU particles, fade by 18 m, and do not cast shadows.
 - Soundza SFX are wired with max-polyphony limits: persistent lobby UI clicks use `menu_selection_click`; Warrior uses randomized sword swings and impact sounds plus an explosion for the fear ultimate, Mage uses magic casts, and Fairy uses airy bow whooshes. Fountain coins, successful shop purchases, shard pickup/delivery, and victory/defeat use pickup and jingle stingers.
 
 - Optimized light-side tree assets remain imported, but tree instances and their visibility occluders are no longer placed in the match arena.

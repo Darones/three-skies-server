@@ -24,6 +24,9 @@ const BOT_MOVE_ACCELERATION := 14.0
 const BOT_RETREAT_START_RATIO := 0.22
 const BOT_RETREAT_END_RATIO := 0.4
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
+const WEAPON_MAGE_GLOW := Color(0.35, 0.78, 1.0)
+const WEAPON_WARRIOR_GLOW := Color(1.0, 0.64, 0.24)
+const WEAPON_FAIRY_GLOW := Color(0.55, 1.0, 0.62)
 const WARRIOR_SWING_SOUNDS := [
 	preload("res://assets/audio/Soundza_Game_SFX_Pack/swords_melee/sword_slash.wav"),
 	preload("res://assets/audio/Soundza_Game_SFX_Pack/swords_melee/weapon_swing_1.wav"),
@@ -812,6 +815,201 @@ func _attach_class_weapon(holder: Node3D) -> void:
 	_disable_weapon_collisions(weapon_instance)
 	weapon_attachment.add_child(weapon_instance)
 	weapon_anim_player = _find_animation_player(weapon_instance)
+	_add_weapon_effects(weapon_instance)
+
+
+func _add_weapon_effects(weapon: Node3D) -> void:
+	if weapon.get_node_or_null("WeaponEffects") != null:
+		return
+	var effects := Node3D.new()
+	effects.name = "WeaponEffects"
+	weapon.add_child(effects)
+	match hero_class:
+		Cls.MAGE:
+			var staff_tip := Vector3(0.0, 1.18, 0.0)
+			_add_weapon_glow_orb(effects, "StaffTipGlow", staff_tip, 0.09, WEAPON_MAGE_GLOW, 2.4)
+			_add_weapon_glow_halo(effects, "StaffTipHalo", staff_tip, 0.42, WEAPON_MAGE_GLOW, 0.40)
+			_add_weapon_sparks(effects, "ArcaneSparks", staff_tip, 12, 0.32, Vector3(0.0, 0.18, 0.0), WEAPON_MAGE_GLOW, CPUParticles3D.EMISSION_SHAPE_SPHERE, Vector3(0.04, 0.04, 0.04))
+			_add_weapon_light(effects, staff_tip, WEAPON_MAGE_GLOW, 0.65, 2.4)
+		Cls.WARRIOR:
+			_add_weapon_glow_orb(effects, "SwordTipGlow", Vector3(0.0, 0.93, 0.0), 0.05, WEAPON_WARRIOR_GLOW, 2.2)
+			_add_weapon_glow_halo(effects, "SwordTipHalo", Vector3(0.0, 0.93, 0.0), 0.24, WEAPON_WARRIOR_GLOW, 0.35)
+			_add_weapon_blade_glow(effects, WEAPON_WARRIOR_GLOW)
+			_add_weapon_sparks(effects, "BladeSparks", Vector3(0.0, 0.54, 0.0), 12, 0.38, Vector3(0.0, -0.9, 0.0), WEAPON_WARRIOR_GLOW, CPUParticles3D.EMISSION_SHAPE_BOX, Vector3(0.022, 0.36, 0.07))
+			_add_weapon_glow_orb(effects, "SwordHiltGlow", Vector3(0.0, 0.0, 0.0), 0.022, WEAPON_WARRIOR_GLOW, 1.4)
+			_add_weapon_light(effects, Vector3(0.0, 0.45, 0.0), WEAPON_WARRIOR_GLOW, 0.35, 1.9)
+		Cls.FAIRY:
+			var bow_center := Vector3(0.0, 0.0, -0.02)
+			_add_weapon_glow_orb(effects, "BowGlow", bow_center, 0.028, WEAPON_FAIRY_GLOW, 1.6)
+			_add_weapon_glow_halo(effects, "BowHalo", bow_center, 0.15, WEAPON_FAIRY_GLOW, 0.24)
+			_add_weapon_sparks(effects, "BowSparks", bow_center, 7, 0.24, Vector3(0.0, 0.2, 0.0), WEAPON_FAIRY_GLOW, CPUParticles3D.EMISSION_SHAPE_SPHERE, Vector3(0.035, 0.035, 0.035))
+
+
+func _add_weapon_glow_orb(parent: Node3D, node_name: String, at: Vector3, radius: float, color: Color, energy: float) -> void:
+	var orb := MeshInstance3D.new()
+	orb.name = node_name
+	orb.position = at
+	orb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	orb.visibility_range_end = 18.0
+	var sphere := SphereMesh.new()
+	sphere.radius = radius
+	sphere.height = radius * 2.0
+	sphere.radial_segments = 8
+	sphere.rings = 4
+	orb.mesh = sphere
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color(color.r, color.g, color.b, 0.92)
+	material.emission_enabled = true
+	material.emission = color
+	material.emission_energy_multiplier = energy
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	material.disable_receive_shadows = true
+	orb.material_override = material
+	parent.add_child(orb)
+
+
+func _add_weapon_glow_halo(parent: Node3D, node_name: String, at: Vector3, size: float, color: Color, alpha: float) -> void:
+	var halo := MeshInstance3D.new()
+	halo.name = node_name
+	halo.position = at
+	halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	halo.visibility_range_end = 18.0
+	var quad := QuadMesh.new()
+	quad.size = Vector2(size, size)
+	halo.mesh = quad
+	var material := StandardMaterial3D.new()
+	material.albedo_texture = _weapon_glow_texture()
+	material.albedo_color = Color(color.r, color.g, color.b, alpha)
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.disable_receive_shadows = true
+	halo.material_override = material
+	parent.add_child(halo)
+
+
+func _add_weapon_blade_glow(parent: Node3D, color: Color) -> void:
+	for side in [-1.0, 1.0]:
+		var strip := MeshInstance3D.new()
+		strip.name = "BladeGlow"
+		strip.position = Vector3(0.03 * side, 0.55, 0.0)
+		strip.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		strip.visibility_range_end = 18.0
+		var blade := CylinderMesh.new()
+		blade.top_radius = 0.012
+		blade.bottom_radius = 0.02
+		blade.height = 0.75
+		blade.radial_segments = 4
+		strip.mesh = blade
+		var material := StandardMaterial3D.new()
+		material.albedo_color = Color(color.r, color.g, color.b, 0.55)
+		material.emission_enabled = true
+		material.emission = color
+		material.emission_energy_multiplier = 1.8
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		material.disable_receive_shadows = true
+		strip.material_override = material
+		parent.add_child(strip)
+
+		var sheen := MeshInstance3D.new()
+		sheen.name = "BladeSheen"
+		sheen.position = Vector3(0.028 * side, 0.55, 0.0)
+		sheen.rotation_degrees = Vector3(0.0, 90.0, 0.0)
+		sheen.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		sheen.visibility_range_end = 18.0
+		var sheen_quad := QuadMesh.new()
+		sheen_quad.size = Vector2(0.16, 0.80)
+		sheen.mesh = sheen_quad
+		var sheen_material := StandardMaterial3D.new()
+		sheen_material.albedo_texture = _weapon_glow_texture()
+		sheen_material.albedo_color = Color(color.r, color.g, color.b, 0.18)
+		sheen_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		sheen_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		sheen_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		sheen_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		sheen_material.disable_receive_shadows = true
+		sheen.material_override = sheen_material
+		parent.add_child(sheen)
+
+
+func _add_weapon_sparks(parent: Node3D, node_name: String, at: Vector3, amount: int, speed: float, gravity: Vector3, color: Color, emission_shape: CPUParticles3D.EmissionShape, extents: Vector3) -> void:
+	var particles := CPUParticles3D.new()
+	particles.name = node_name
+	particles.position = at
+	particles.amount = amount
+	particles.lifetime = 0.65
+	particles.fixed_fps = 30
+	particles.local_coords = false
+	particles.preprocess = 0.45
+	particles.visibility_range_end = 18.0
+	particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	particles.direction = Vector3(0.0, 1.0, 0.0)
+	particles.spread = 35.0
+	particles.initial_velocity_min = speed * 0.5
+	particles.initial_velocity_max = speed
+	particles.gravity = gravity
+	particles.scale_amount_min = 0.55
+	particles.scale_amount_max = 1.0
+	particles.color = color
+	particles.color_ramp = _weapon_spark_fade()
+	particles.emission_shape = emission_shape
+	if emission_shape == CPUParticles3D.EMISSION_SHAPE_SPHERE:
+		particles.emission_sphere_radius = maxf(extents.x, 0.01)
+	elif emission_shape == CPUParticles3D.EMISSION_SHAPE_BOX:
+		particles.emission_box_extents = extents
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.055, 0.055)
+	particles.mesh = quad
+	var material := StandardMaterial3D.new()
+	material.albedo_texture = _weapon_glow_texture()
+	material.albedo_color = Color.WHITE
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	material.vertex_color_use_as_albedo = true
+	material.disable_receive_shadows = true
+	particles.material_override = material
+	particles.emitting = true
+	parent.add_child(particles)
+
+
+func _add_weapon_light(parent: Node3D, at: Vector3, color: Color, energy: float, light_range: float) -> void:
+	var light := OmniLight3D.new()
+	light.name = "WeaponLight"
+	light.position = at
+	light.light_color = color
+	light.light_energy = energy
+	light.omni_range = light_range
+	light.shadow_enabled = false
+	light.distance_fade_enabled = true
+	light.distance_fade_begin = 10.0
+	light.distance_fade_length = 6.0
+	parent.add_child(light)
+
+
+func _weapon_spark_fade() -> Gradient:
+	var gradient := Gradient.new()
+	gradient.set_color(0, Color(1.0, 1.0, 1.0, 0.0))
+	gradient.add_point(0.18, Color(1.0, 1.0, 1.0, 0.95))
+	gradient.set_color(gradient.get_point_count() - 1, Color(1.0, 1.0, 1.0, 0.0))
+	return gradient
+
+
+func _weapon_glow_texture() -> Texture2D:
+	var image := Image.create(32, 32, false, Image.FORMAT_RGBA8)
+	for y in 32:
+		for x in 32:
+			var uv := Vector2(float(x), float(y)) / 31.0 * 2.0 - Vector2.ONE
+			var alpha := pow(maxf(1.0 - uv.length_squared(), 0.0), 2.0)
+			image.set_pixel(x, y, Color(1.0, 1.0, 1.0, alpha))
+	return ImageTexture.create_from_image(image)
 
 
 func _disable_weapon_collisions(node: Node) -> void:
