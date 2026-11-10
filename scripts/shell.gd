@@ -195,10 +195,11 @@ func _physics_process(delta: float) -> void:
 	if visual != null:
 		visual.rotation.y += delta * 0.35
 		visual.position.y = sin(bob_time * 1.6) * 0.08
-	attack_timer -= delta
-	if attack_timer <= 0.0:
-		attack_timer = 3.4
-		_strike()
+	if game == null or not bool(game.get("tutorial_mode")):
+		attack_timer -= delta
+		if attack_timer <= 0.0:
+			attack_timer = 3.4
+			_strike()
 	var frac := clampf(health / max_health, 0.0, 1.0)
 	health_fill.scale.x = maxf(0.001, frac)
 	health_fill.position.x = (frac - 1.0) * 0.55

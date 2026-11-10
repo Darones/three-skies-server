@@ -69,6 +69,15 @@ var pause_button: Button
 var pause_overlay: Control
 var pause_menu_panel: Control
 var pause_settings_panel: Control
+var tutorial_overlay: ColorRect
+var tutorial_title: Label
+var tutorial_body: Label
+var tutorial_primary_button: Button
+var tutorial_secondary_button: Button
+var tutorial_hint: Label
+var tutorial_primary_action := Callable()
+var tutorial_secondary_action := Callable()
+var tutorial_ability_index := -1
 
 const GOLD := Color(0.96, 0.82, 0.52)
 const PALE := Color(0.86, 0.9, 1.0)
@@ -96,6 +105,107 @@ func _ready() -> void:
 	_build_end(root)
 	_build_shop(root)
 	_build_pause_menu(root)
+	_build_tutorial_ui(root)
+
+
+func _build_tutorial_ui(root: Control) -> void:
+	tutorial_overlay = ColorRect.new()
+	tutorial_overlay.name = "TutorialDialogOverlay"
+	tutorial_overlay.color = Color(0.015, 0.02, 0.04, 0.78)
+	tutorial_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	tutorial_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	tutorial_overlay.z_index = 100
+	tutorial_overlay.visible = false
+	root.add_child(tutorial_overlay)
+
+	var panel := PanelContainer.new()
+	panel.name = "TutorialDialog"
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.anchor_left = 0.5
+	panel.anchor_top = 0.5
+	panel.anchor_right = 0.5
+	panel.anchor_bottom = 0.5
+	panel.offset_left = -360.0
+	panel.offset_top = -180.0
+	panel.offset_right = 360.0
+	panel.offset_bottom = 180.0
+	panel.add_theme_stylebox_override("panel", _panel_style(Color(0.78, 0.62, 0.32), Color(0.035, 0.045, 0.07, 0.98)))
+	tutorial_overlay.add_child(panel)
+	var layout := VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 14)
+	panel.add_child(layout)
+	tutorial_title = _make_label("", 38, GOLD)
+	layout.add_child(tutorial_title)
+	tutorial_body = _make_label("", 21, PALE)
+	tutorial_body.custom_minimum_size = Vector2(620.0, 150.0)
+	tutorial_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tutorial_body.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	layout.add_child(tutorial_body)
+	var actions := HBoxContainer.new()
+	actions.alignment = BoxContainer.ALIGNMENT_CENTER
+	actions.add_theme_constant_override("separation", 12)
+	layout.add_child(actions)
+	tutorial_primary_button = _pause_action_button("Продолжить", true)
+	tutorial_primary_button.pressed.connect(_on_tutorial_primary_pressed)
+	actions.add_child(tutorial_primary_button)
+	tutorial_secondary_button = _pause_action_button("Пройти ещё раз", false)
+	tutorial_secondary_button.visible = false
+	tutorial_secondary_button.pressed.connect(_on_tutorial_secondary_pressed)
+	actions.add_child(tutorial_secondary_button)
+
+	tutorial_hint = _make_label("", 24, GOLD)
+	tutorial_hint.anchor_left = 0.12
+	tutorial_hint.anchor_right = 0.88
+	tutorial_hint.anchor_top = 0.12
+	tutorial_hint.anchor_bottom = 0.12
+	tutorial_hint.offset_top = 0.0
+	tutorial_hint.offset_bottom = 48.0
+	tutorial_hint.add_theme_stylebox_override("normal", _panel_style(Color(0.78, 0.62, 0.32, 0.9), Color(0.035, 0.045, 0.07, 0.86)))
+	tutorial_hint.visible = false
+	tutorial_hint.z_index = 40
+	tutorial_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(tutorial_hint)
+
+
+func show_tutorial_card(title_text: String, body_text: String, button_text: String, action: Callable) -> void:
+	tutorial_title.text = title_text
+	tutorial_body.text = body_text
+	tutorial_primary_button.text = button_text
+	tutorial_primary_action = action
+	tutorial_secondary_action = Callable()
+	tutorial_secondary_button.visible = false
+	tutorial_overlay.visible = true
+	tutorial_hint.visible = false
+
+
+func show_tutorial_victory(title_text: String, body_text: String, lobby_action: Callable, repeat_action: Callable) -> void:
+	show_tutorial_card(title_text, body_text, "В лобби", lobby_action)
+	tutorial_secondary_action = repeat_action
+	tutorial_secondary_button.text = "Пройти ещё раз"
+	tutorial_secondary_button.visible = true
+
+
+func hide_tutorial_card() -> void:
+	tutorial_overlay.visible = false
+	tutorial_primary_action = Callable()
+	tutorial_secondary_action = Callable()
+
+
+func show_tutorial_hint(text: String) -> void:
+	tutorial_hint.text = text
+	tutorial_hint.visible = not text.is_empty()
+
+
+func _on_tutorial_primary_pressed() -> void:
+	var action := tutorial_primary_action
+	if action.is_valid():
+		action.call()
+
+
+func _on_tutorial_secondary_pressed() -> void:
+	var action := tutorial_secondary_action
+	if action.is_valid():
+		action.call()
 
 
 func _panel_style(border: Color, fill := DARK_BG) -> StyleBoxFlat:
@@ -473,13 +583,31 @@ func _ability_style(is_ready: bool, hovered: bool) -> StyleBoxFlat:
 
 
 func _set_ability_ready(index: int, is_ready: bool) -> void:
-	if ability_ready[index] == is_ready:
-		return
 	ability_ready[index] = is_ready
-	var button := ability_buttons[index]
-	button.add_theme_stylebox_override("normal", _ability_style(is_ready, false))
-	button.add_theme_stylebox_override("hover", _ability_style(is_ready, true))
-	button.add_theme_stylebox_override("pressed", _ability_style(is_ready, true))
+	_refresh_ability_button_style(index)
+
+
+func _refresh_ability_button_style(index: int) -> void:
+	if index < 0 or index >= ability_buttons.size():
+		return
+	for style_name in ["normal", "hover", "pressed"]:
+		var style := _ability_style(ability_ready[index], style_name != "normal")
+		if index == tutorial_ability_index:
+			style.border_color = Color(1.0, 0.9, 0.48, 1.0)
+			style.set_border_width_all(5)
+			if ability_ready[index]:
+				style.bg_color = Color(0.82, 0.57, 0.16, 1.0)
+		ability_buttons[index].add_theme_stylebox_override(style_name, style)
+
+
+func set_tutorial_ability(index: int) -> void:
+	if tutorial_ability_index == index:
+		return
+	var previous := tutorial_ability_index
+	tutorial_ability_index = index
+	_refresh_ability_button_style(previous)
+	_refresh_ability_button_style(tutorial_ability_index)
+
 
 func _build_announcement(root: Control) -> void:
 	announce_label = _make_label("", 18, GOLD)
@@ -828,6 +956,9 @@ func _process(_delta: float) -> void:
 	if game.sudden_death:
 		timer_label.text = "РЕШАЮЩИЙ"
 	score_label.text = "Свет — %d:%d — Тьма" % [game.score[0], game.score[1]]
+	score_label.visible = not game.tutorial_mode
+	timer_label.visible = not game.tutorial_mode
+	shell_timer_label.visible = not game.tutorial_mode
 	var shell_time_left: float = game.shell_window if game.shell_phase == "active" else game.shell_timer
 	shell_time_left = maxf(0.0, shell_time_left)
 	var shell_minutes := floori(shell_time_left / 60.0)

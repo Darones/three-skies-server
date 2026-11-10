@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://6v25a678i7il"]
 
-[ext_resource type="PackedScene" uid="uid://wejswn17tda5" path="res://art/generated/warrior/rig.glb" id="1_rig"]
+[ext_resource type="PackedScene" uid="uid://cfdleq1dhfbqv" path="res://assets/models/wariordarones.glb" id="1_nobrs"]
 
 [node name="Character" type="Node3D" unique_id=872154433]
 
-[node name="Visual" parent="." unique_id=831661777 instance=ExtResource("1_rig")]
+[node name="Visual" parent="." unique_id=1277854589 instance=ExtResource("1_nobrs")]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0)

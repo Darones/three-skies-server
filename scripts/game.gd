@@ -41,6 +41,7 @@ const FOG_OF_WAR_SHADER_PATH := "res://shaders/fog_of_war.gdshader"
 const FOG_VIEW_RADIUS := 10.0
 const SHOP_STALL_SCENE: PackedScene = preload("res://assets/shop_stall/3d_4f92fe433b084100af7a1d7f_1790958942025.glb")
 const GOLD_FOUNTAIN_SCENE: PackedScene = preload("res://assets/gold_fountain/3d_aeb9c9ced6384164aff32ae5_1790300466128.glb")
+const TUTORIAL_CONTROLLER_SCRIPT: Script = preload("res://scripts/tutorial_controller.gd")
 const SHOP_ITEMS := [
 	{"id": "life_amulet", "name": "Амулет Жизни", "effect": "+150 Max HP", "price": 300, "icon": 0},
 	{"id": "revival_talisman", "name": "Талисман Возрождения", "effect": "+10 HP/сек реген", "price": 350, "icon": 1},
@@ -92,6 +93,9 @@ var used_bot_callsigns: Array[String] = []
 var gold_fountain: Node3D = null
 var gold_coin_timer := GOLD_COIN_INTERVAL
 var gold_coins: Array[Node3D] = []
+var tutorial_mode := false
+var tutorial_controller: Node = null
+var tutorial_dummy: HeroUnit = null
 var shell_phase := "idle"
 var shell_cycle_timer := SHELL_SPAWN_INTERVAL
 var shell_timer := SHELL_SPAWN_INTERVAL
@@ -131,6 +135,7 @@ var sfx_index := 0
 
 func _ready() -> void:
 	randomize()
+	tutorial_mode = bool(get_tree().get_meta("tutorial_mode", false))
 	camera = get_node_or_null("Camera3D") as Camera3D
 	if camera == null:
 		camera = Camera3D.new()
@@ -448,7 +453,7 @@ func _add_model_collision(parent: Node3D, model_root: Node3D, collision_name: St
 
 
 
-func _spawn_gold_coin() -> void:
+func _spawn_gold_coin(gold_value: int = 1, tutorial_spawn: bool = false) -> void:
 	if gold_fountain == null or not is_instance_valid(gold_fountain):
 		return
 	if gold_coins.size() >= GOLD_COIN_MAX_COUNT:
@@ -474,21 +479,20 @@ func _spawn_gold_coin() -> void:
 	coin.material_override = coin_material
 	add_child(coin)
 	var coin_angle := randf_range(0.0, TAU)
-	var coin_radius := GOLD_COIN_SPAWN_BASE_RADIUS + randf_range(0.0, GOLD_COIN_SPAWN_EXTRA_RADIUS)
-	var spawn_position := gold_fountain.global_position + Vector3(
-		cos(coin_angle) * coin_radius,
-		0.09,
-		sin(coin_angle) * coin_radius
-	)
+	var coin_radius := randf_range(0.35, 1.0) if tutorial_spawn else GOLD_COIN_SPAWN_BASE_RADIUS + randf_range(0.0, GOLD_COIN_SPAWN_EXTRA_RADIUS)
+	var coin_center: Vector3 = player.global_position if tutorial_spawn and player != null else gold_fountain.global_position
+	var spawn_position := coin_center + Vector3(cos(coin_angle) * coin_radius, 0.09, sin(coin_angle) * coin_radius)
 	coin.global_position = clamp_to_arena(spawn_position)
+	coin.set_meta("gold_value", gold_value)
 	gold_coins.append(coin)
 
 
 func _update_gold_fountain(delta: float) -> void:
-	gold_coin_timer -= delta
-	if gold_coin_timer <= 0.0:
-		_spawn_gold_coin()
-		gold_coin_timer = GOLD_COIN_INTERVAL
+	if not tutorial_mode:
+		gold_coin_timer -= delta
+		if gold_coin_timer <= 0.0:
+			_spawn_gold_coin()
+			gold_coin_timer = GOLD_COIN_INTERVAL
 
 	for index in range(gold_coins.size() - 1, -1, -1):
 		var coin := gold_coins[index]
@@ -514,10 +518,20 @@ func _update_gold_fountain(delta: float) -> void:
 			gold_coins.remove_at(index)
 			collector.match_coins_collected += 1
 			play_sfx("coin_pickup", -12.0)
+			var coin_value := int(coin.get_meta("gold_value", 1))
 			if collector.is_player:
-				award_gold(1)
+				award_gold(coin_value)
+				if tutorial_mode and tutorial_controller != null:
+					tutorial_controller.call("on_coin_collected")
 			else:
-				collector.bot_gold += 1
+				collector.bot_gold += coin_value
+
+
+func spawn_tutorial_coin_batch(count: int, gold_per_coin: int) -> void:
+	if not tutorial_mode or player == null or gold_fountain == null:
+		return
+	for coin_index in range(count):
+		_spawn_gold_coin(gold_per_coin, true)
 
 
 func is_hero_near_shop(hero: HeroUnit) -> bool:
@@ -881,7 +895,7 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	p_crystals = 0
 	p_shells_destroyed = 0
 	gold_earned_this_match = 0
-	gold = TEST_STARTING_GOLD
+	gold = 0 if tutorial_mode else TEST_STARTING_GOLD
 	death_camera_active = false
 	shop_open = false
 	purchased_shop_items.clear()
@@ -901,12 +915,13 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	var enemy_spots: Array[Vector3] = dark_spots if player_team == 0 else light_spots
 	var enemy_team := 1 - player_team
 	player = _spawn_hero(player_class, player_team, true, own_spots[0])
-	var ai_index := 1
-	for c in ally_classes:
-		_spawn_hero(c, player_team, false, own_spots[mini(ai_index, 2)])
-		ai_index += 1
-	for i in classes.size():
-		_spawn_hero(classes[i], enemy_team, false, enemy_spots[mini(i, 2)])
+	if not tutorial_mode:
+		var ai_index := 1
+		for c in ally_classes:
+			_spawn_hero(c, player_team, false, own_spots[mini(ai_index, 2)])
+			ai_index += 1
+		for i in classes.size():
+			_spawn_hero(classes[i], enemy_team, false, enemy_spots[mini(i, 2)])
 	state = "live"
 	match_time = MATCH_LENGTH
 	shell_phase = "idle"
@@ -914,7 +929,14 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	shell_timer = SHELL_SPAWN_INTERVAL
 	if hud != null:
 		hud.hide_class_select()
-		announce("Бой за осколки!", Color(1.0, 0.86, 0.55), 2.6)
+		if tutorial_mode:
+			tutorial_controller = TUTORIAL_CONTROLLER_SCRIPT.new()
+			tutorial_controller.name = "TutorialController"
+			tutorial_controller.set("game", self)
+			add_child(tutorial_controller)
+			tutorial_controller.call("begin")
+		else:
+			announce("Бой за осколки!", Color(1.0, 0.86, 0.55), 2.6)
 
 
 func _spawn_hero(cls: int, team: int, is_player: bool, pos: Vector3) -> HeroUnit:
@@ -1027,6 +1049,8 @@ func set_shop_open(open: bool) -> void:
 func buy_item(item_id: String) -> bool:
 	if not shop_open or player == null or item_id in purchased_shop_items:
 		return false
+	if tutorial_mode and (tutorial_controller == null or not bool(tutorial_controller.call("can_buy_item", item_id))):
+		return false
 	for item in SHOP_ITEMS:
 		if String(item["id"]) != item_id:
 			continue
@@ -1040,6 +1064,8 @@ func buy_item(item_id: String) -> bool:
 			hud.update_gold()
 			hud.update_shop()
 		play_sfx("shop_purchase", -10.0)
+		if tutorial_mode and tutorial_controller != null:
+			tutorial_controller.call("on_shop_item_bought", item_id)
 		return true
 	return false
 
@@ -1058,9 +1084,16 @@ func _process(delta: float) -> void:
 	_update_fog_of_war()
 
 	if state == "live":
-		_update_match(delta)
+		if tutorial_mode:
+			if tutorial_controller != null:
+				tutorial_controller.call("process", delta)
+				if tutorial_controller.get("stage") == "collect_coins":
+					_update_gold_fountain(delta)
+		else:
+			_update_match(delta)
 		if state == "live":
-			_update_gold_fountain(delta)
+			if not tutorial_mode:
+				_update_gold_fountain(delta)
 			visibility_refresh_timer -= delta
 			if visibility_refresh_timer <= 0.0:
 				_update_enemy_visibility()
@@ -1258,6 +1291,8 @@ func _spawn_shell() -> void:
 		add_child(s)
 		s.setup(self)
 		shell_pool = s
+	if tutorial_mode:
+		s.max_health = 1000.0
 	s.activate(self, Vector3(0.0, 0.16, 0.0))
 	shell = s
 	shell_phase = "active"
@@ -1274,11 +1309,11 @@ func _spawn_shell() -> void:
 func on_shell_died(s: SkyShell, source: Node = null) -> void:
 	if s != shell:
 		return
-	if source == player:
+	if source == player and not tutorial_mode:
 		p_shells_destroyed += 1
-	if player != null and source is HeroUnit and (source as HeroUnit).team == player.team:
+	if not tutorial_mode and player != null and source is HeroUnit and (source as HeroUnit).team == player.team:
 		award_gold(100)
-	if source is HeroUnit and not (source as HeroUnit).is_player:
+	if not tutorial_mode and source is HeroUnit and not (source as HeroUnit).is_player:
 		(source as HeroUnit).bot_gold += 100
 	var pos := s.global_position
 	var vfx_host := source as HeroUnit
@@ -1295,6 +1330,8 @@ func on_shell_died(s: SkyShell, source: Node = null) -> void:
 	s.retire(0.5)
 	shell = null
 	shell_phase = "idle"
+	if tutorial_mode and tutorial_controller != null:
+		tutorial_controller.call("on_shell_destroyed")
 
 
 func spawn_crystal(pos: Vector3, spawn_on_pedestal := false) -> void:
@@ -1494,6 +1531,18 @@ func _try_pickup() -> void:
 
 
 func _deliver(h: HeroUnit) -> void:
+	if tutorial_mode:
+		h.carrying = false
+		carrier = null
+		crystal_state = "none"
+		if crystal_node != null and is_instance_valid(crystal_node):
+			burst(crystal_node.global_position, Color(0.7, 0.95, 1.0), 40)
+			crystal_node.queue_free()
+			crystal_node = null
+		play_sfx("shard_delivery", -8.0)
+		if tutorial_controller != null:
+			tutorial_controller.call("on_delivery")
+		return
 	h.carrying = false
 	score[h.team] += 1
 	if player != null and h.team == player.team:
@@ -1674,6 +1723,29 @@ func _on_bush_body_entered(body: Node3D, bush: Area3D) -> void:
 func _on_bush_body_exited(body: Node3D, bush: Area3D) -> void:
 	if body is HeroUnit:
 		(body as HeroUnit).set_bush_presence(bush, false)
+
+
+func spawn_tutorial_dummy() -> void:
+	if tutorial_dummy != null and is_instance_valid(tutorial_dummy):
+		return
+	tutorial_dummy = _spawn_hero(HeroUnit.Cls.WARRIOR, 1 - player.team, false, Vector3(0.0, 0.76, 0.0))
+	tutorial_dummy.name = "TrainingDummy"
+	tutorial_dummy.display_name = "Манекен"
+	tutorial_dummy.tutorial_dummy = true
+	tutorial_dummy.max_health = 1000.0
+	tutorial_dummy.health = 1000.0
+	tutorial_dummy.move_speed = 0.0
+	tutorial_dummy.attack_damage = 0.0
+	tutorial_dummy.set_physics_process(false)
+	tutorial_dummy._update_health_display()
+
+
+func remove_tutorial_dummy() -> void:
+	if tutorial_dummy == null or not is_instance_valid(tutorial_dummy):
+		return
+	heroes.erase(tutorial_dummy)
+	tutorial_dummy.queue_free()
+	tutorial_dummy = null
 
 
 func lowest_ally(from: Vector3, team: int, max_dist: float) -> HeroUnit:

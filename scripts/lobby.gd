@@ -7,6 +7,7 @@ const HERO_ART := [
 ]
 const HERO_NAMES := ["Воин", "Маг", "Фея"]
 const SAVE_PATH := "user://lobby.cfg"
+const TUTORIAL_SAVE_PATH := "user://tutorial.cfg"
 const GOLD := Color(0.95, 0.76, 0.38)
 const PALE := Color(0.9, 0.92, 0.98)
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
@@ -44,6 +45,7 @@ var weapon_buttons: Dictionary = {}
 var weapon_cards: Dictionary = {}
 var weapon_status_labels: Array[Label] = []
 var ui_click_player: AudioStreamPlayer
+var tutorial_button: Button
 
 
 func _notification(what: int) -> void:
@@ -869,6 +871,21 @@ func _build_actions() -> void:
 	play_button.pressed.connect(_start_battle)
 	add_child(play_button)
 
+	tutorial_button = _make_action_button("ОБУЧЕНИЕ", false)
+	tutorial_button.name = "TutorialButton"
+	tutorial_button.anchor_left = 1.0
+	tutorial_button.anchor_top = 1.0
+	tutorial_button.anchor_right = 1.0
+	tutorial_button.anchor_bottom = 1.0
+	tutorial_button.offset_left = -635.0
+	tutorial_button.offset_top = -101.0
+	tutorial_button.offset_right = -355.0
+	tutorial_button.offset_bottom = -45.0
+	tutorial_button.custom_minimum_size = Vector2(280.0, 56.0)
+	tutorial_button.pressed.connect(_start_tutorial)
+	add_child(tutorial_button)
+	_refresh_tutorial_button()
+
 	var settings_button := _make_action_button("", false)
 	settings_button.name = "SettingsButton"
 	settings_button.anchor_left = 0.0
@@ -975,6 +992,8 @@ func _on_side_card_pressed(slot: int) -> void:
 
 func _start_battle() -> void:
 	_save_selection()
+	get_tree().set_meta("tutorial_mode", false)
+	_record_normal_battle_started()
 	get_tree().set_meta("selected_class", selected_class)
 	var selected_team := randi_range(0, 1)
 	get_tree().set_meta("selected_team", selected_team)
@@ -984,6 +1003,55 @@ func _start_battle() -> void:
 	var error := get_tree().change_scene_to_file("res://scenes/LoadingScreen.tscn")
 	if error != OK:
 		push_error("Не удалось открыть экран загрузки: %s" % error_string(error))
+
+
+func _start_tutorial() -> void:
+	if tutorial_button == null or tutorial_button.disabled:
+		return
+	_save_selection()
+	get_tree().set_meta("selected_class", selected_class)
+	get_tree().set_meta("selected_team", 0)
+	get_tree().set_meta("tutorial_mode", true)
+	var error := get_tree().change_scene_to_file("res://scenes/Main.tscn")
+	if error != OK:
+		push_error("Не удалось запустить обучение: %s" % error_string(error))
+
+
+func _tutorial_config() -> ConfigFile:
+	var config := ConfigFile.new()
+	config.load(TUTORIAL_SAVE_PATH)
+	return config
+
+
+func _tutorial_battles_used() -> int:
+	return maxi(0, int(_tutorial_config().get_value("tutorial", "battles_used", 0)))
+
+
+func _tutorial_completed() -> bool:
+	return bool(_tutorial_config().get_value("tutorial", "completed", false))
+
+
+func _record_normal_battle_started() -> void:
+	var config := _tutorial_config()
+	config.set_value("tutorial", "battles_used", _tutorial_battles_used() + 1)
+	var error := config.save(TUTORIAL_SAVE_PATH)
+	if error != OK:
+		push_error("Не удалось сохранить число боёв до обучения: %s" % error_string(error))
+	_refresh_tutorial_button()
+
+
+func _refresh_tutorial_button() -> void:
+	if tutorial_button == null:
+		return
+	if _tutorial_completed():
+		tutorial_button.text = "ОБУЧЕНИЕ · ПРОЙДЕНО"
+		tutorial_button.disabled = true
+	elif _tutorial_battles_used() >= 3:
+		tutorial_button.text = "ОБУЧЕНИЕ"
+		tutorial_button.disabled = true
+	else:
+		tutorial_button.text = "ОБУЧЕНИЕ"
+		tutorial_button.disabled = false
 
 
 func _make_action_button(text: String, primary: bool) -> Button:

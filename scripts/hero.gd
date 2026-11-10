@@ -142,6 +142,7 @@ var ranged := false
 
 var carrying := false
 var dead := false
+var tutorial_dummy := false
 var bot_gold := 0
 var match_coins_collected := 0
 var match_gold_spent := 0
@@ -1079,6 +1080,9 @@ func _build_placeholder() -> void:
 
 func _physics_process(delta: float) -> void:
 	_update_blessing(delta)
+	if game != null and bool(game.get("tutorial_mode")) and String(game.get("state")) == "tutorial_complete":
+		velocity = Vector3.ZERO
+		return
 	if dead:
 		_update_shop_proximity(delta)
 		respawn_timer -= delta
@@ -1135,7 +1139,10 @@ func _physics_process(delta: float) -> void:
 			dir = _player_dir()
 		else:
 			dir = _ai_dir(delta)
-		_try_auto_attack(dir)
+		var tutorial_controller := game.get("tutorial_controller") as Node if game != null else null
+		var training_abilities := game != null and bool(game.get("tutorial_mode")) and tutorial_controller != null and String(tutorial_controller.get("stage")) == "abilities"
+		if not training_abilities:
+			_try_auto_attack(dir)
 
 	var speed := move_speed * (0.5 if carrying else 1.0)
 	var target_v := dir * speed
@@ -1679,6 +1686,13 @@ func _update_health_display() -> void:
 func take_damage(amount: float, source: Node = null, damage_type: String = "physical") -> void:
 	if dead or _is_under_base_shield():
 		return
+	if game != null and bool(game.get("tutorial_mode")) and is_player:
+		return
+	if game != null and bool(game.get("tutorial_mode")) and tutorial_dummy:
+		var dummy_source_multiplier := HERO_OUTGOING_DAMAGE_MULTIPLIER if source is HeroUnit else 1.0
+		health = maxf(1.0, health - maxf(amount, 0.0) * dummy_source_multiplier)
+		_update_health_display()
+		return
 	if amount > 0.0:
 		seconds_since_damage = 0.0
 		if is_player and game != null:
@@ -1813,6 +1827,10 @@ func use_ability(index: int) -> bool:
 		return false
 	if game == null:
 		return false
+	if bool(game.get("tutorial_mode")) and is_player:
+		var tutorial_controller := game.get("tutorial_controller") as Node
+		if tutorial_controller == null or not bool(tutorial_controller.call("can_use_ability", index)):
+			return false
 	var data: Dictionary = CLASS_DATA[hero_class]["abilities"][index]
 	var ability_type := String(data["type"])
 	if _is_offensive_ability(ability_type):
@@ -1890,6 +1908,10 @@ func use_ability(index: int) -> bool:
 		"golden_blessing":
 			game.bless_team(team, float(data["cd"]))
 			game.golden_blessing_fx(origin, team, self)
+	if bool(game.get("tutorial_mode")) and is_player:
+		var tutorial_controller := game.get("tutorial_controller") as Node
+		if tutorial_controller != null:
+			tutorial_controller.call("on_ability_used", index)
 	return true
 
 
