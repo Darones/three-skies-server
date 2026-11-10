@@ -40,6 +40,9 @@ var menu_next_reward_label: Label
 var lobby_logo: TextureRect
 var wing_buttons: Dictionary = {}
 var wing_cards: Array[PanelContainer] = []
+var weapon_buttons: Dictionary = {}
+var weapon_cards: Dictionary = {}
+var weapon_status_labels: Array[Label] = []
 var ui_click_player: AudioStreamPlayer
 
 
@@ -51,6 +54,8 @@ func _notification(what: int) -> void:
 func _ready() -> void:
 	randomize()
 	font = UI_FONT
+	if MetaProgression.player_nickname.is_empty():
+		MetaProgression.player_nickname = _load_player_nickname()
 	selected_class = _load_selection()
 	get_tree().set_meta("selected_class", selected_class)
 	_build_background()
@@ -62,13 +67,20 @@ func _ready() -> void:
 	_build_shard_shop()
 	_build_player_menu()
 	_refresh_wing_shop()
+	_refresh_weapon_shop()
 	_refresh_selection()
-	if not MetaProgression.wing_purchase_updated.is_connected(_on_wing_purchase_updated):
-		MetaProgression.wing_purchase_updated.connect(_on_wing_purchase_updated)
+	if not MetaProgression.purchase_updated.is_connected(_on_purchase_updated):
+		MetaProgression.purchase_updated.connect(_on_purchase_updated)
+	if not MetaProgression.profile_updated.is_connected(_on_profile_updated):
+		MetaProgression.profile_updated.connect(_on_profile_updated)
 	if not NetworkClient.registration_completed.is_connected(_on_registration_completed):
 		NetworkClient.registration_completed.connect(_on_registration_completed)
-	if MetaProgression.player_id <= 0 and not MetaProgression.player_nickname.is_empty():
-		MetaProgression.register_player(MetaProgression.player_nickname)
+	if MetaProgression.player_id <= 0:
+		var saved_player_id := _load_player_id()
+		if saved_player_id > 0:
+			MetaProgression.load_profile(saved_player_id)
+		elif not MetaProgression.player_nickname.is_empty():
+			MetaProgression.register_player(MetaProgression.player_nickname)
 	_setup_ui_click_sound()
 	_wire_ui_click_sounds(self)
 
@@ -304,7 +316,7 @@ func _build_shard_shop() -> void:
 	_build_wing_card(grid, 1, "Белые крылья", "Ур. 1", 50, Color(0.87, 0.91, 1.0))
 	_build_weapon_placeholder(grid, "Посох")
 	_build_weapon_placeholder(grid, "Лук")
-	_build_weapon_placeholder(grid, "Меч")
+	_build_weapon_placeholder(grid, "Меч", 1, 500)
 
 	info_dialog = AcceptDialog.new()
 	info_dialog.title = "Осколки неба"
@@ -350,7 +362,7 @@ func _build_wing_card(grid: GridContainer, wing_id: int, wing_name: String, leve
 	wing_buttons[wing_id] = buy_button
 
 
-func _build_weapon_placeholder(grid: GridContainer, weapon_name: String) -> void:
+func _build_weapon_placeholder(grid: GridContainer, weapon_name: String, weapon_id: int = 0, price: int = 0) -> void:
 	var card := PanelContainer.new()
 	card.name = "WeaponPlaceholder%d" % grid.get_child_count()
 	card.custom_minimum_size = Vector2(0, 190)
@@ -368,7 +380,19 @@ func _build_weapon_placeholder(grid: GridContainer, weapon_name: String) -> void
 	placeholder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	placeholder_frame.add_child(placeholder)
 	content.add_child(_make_label(weapon_name, 18, PALE))
-	content.add_child(_make_label("Иконка и цена позже", 12, Color(0.7, 0.76, 0.86)))
+	if weapon_id > 0:
+		content.add_child(_make_label("Легендарный меч", 12, Color(0.7, 0.76, 0.86)))
+		content.add_child(_make_label("◆ %d осколков" % price, 14, Color(0.76, 0.82, 0.92)))
+		var buy_button := _make_action_button("Купить", false)
+		buy_button.name = "WeaponButton%d" % weapon_id
+		buy_button.custom_minimum_size = Vector2(0, 38)
+		buy_button.add_theme_font_size_override("font_size", 15)
+		buy_button.pressed.connect(_on_weapon_button_pressed.bind(weapon_id, price))
+		content.add_child(buy_button)
+		weapon_buttons[weapon_id] = buy_button
+		weapon_cards[weapon_id] = card
+	else:
+		content.add_child(_make_label("Иконка и цена позже", 12, Color(0.7, 0.76, 0.86)))
 
 
 func _open_shard_shop() -> void:
@@ -394,7 +418,10 @@ func _on_wing_button_pressed(wing_id: int, price: int) -> void:
 	else:
 		if MetaProgression.player_id <= 0:
 			_show_info("Сначала сохраните никнейм и дождитесь регистрации профиля.")
-		elif MetaProgression.pending_wing_id > 0:
+		elif not MetaProgression.profile_loaded:
+			MetaProgression.load_profile(MetaProgression.player_id)
+			_show_info("Загружаем профиль и баланс с сервера.")
+		elif MetaProgression.pending_purchase_type != "":
 			_show_info("Покупка уже обрабатывается.")
 		else:
 			_show_info("Покупку не удалось отправить.")
@@ -409,17 +436,54 @@ func _refresh_wing_shop() -> void:
 		var button := wing_buttons[wing_id] as Button
 		var card := wing_cards[wing_id - 1]
 		var is_unlocked: bool = wing_id in MetaProgression.unlocked_wings
-		var is_pending: bool = MetaProgression.pending_wing_id == wing_id
+		var is_pending: bool = MetaProgression.is_purchase_pending("wing", wing_id)
 		button.text = "Покупка..." if is_pending else ("Куплено" if is_unlocked else "Купить")
 		button.disabled = is_unlocked or is_pending
 		card.add_theme_stylebox_override("panel", _wing_card_style(is_unlocked))
 
 
-func _on_wing_purchase_updated(success: bool, _wing_id: int, _new_shards: int) -> void:
+func _on_weapon_button_pressed(weapon_id: int, price: int) -> void:
+	if weapon_id in MetaProgression.unlocked_weapons:
+		return
+	if MetaProgression.buy_weapon(weapon_id, price):
+		_refresh_weapon_shop()
+	else:
+		if MetaProgression.player_id <= 0:
+			_show_info("Сначала сохраните никнейм и дождитесь регистрации профиля.")
+		elif not MetaProgression.profile_loaded:
+			MetaProgression.load_profile(MetaProgression.player_id)
+			_show_info("Загружаем профиль и баланс с сервера.")
+		elif MetaProgression.pending_purchase_type != "":
+			_show_info("Покупка уже обрабатывается.")
+		else:
+			_show_info("Покупку не удалось отправить.")
+
+
+func _refresh_weapon_shop() -> void:
+	for weapon_id in weapon_buttons.keys():
+		var button := weapon_buttons[weapon_id] as Button
+		var card := weapon_cards[weapon_id] as PanelContainer
+		var is_unlocked: bool = weapon_id in MetaProgression.unlocked_weapons
+		var is_pending: bool = MetaProgression.is_purchase_pending("weapon", weapon_id)
+		button.text = "Покупка..." if is_pending else ("Куплено" if is_unlocked else "Купить")
+		button.disabled = is_unlocked or is_pending
+		card.add_theme_stylebox_override("panel", _wing_card_style(is_unlocked))
+	for index in range(weapon_status_labels.size()):
+		weapon_status_labels[index].text = "Куплено" if index == 0 and 1 in MetaProgression.unlocked_weapons else ("Скоро" if index > 0 else "В магазине")
+
+
+func _on_purchase_updated(success: bool, _purchase_type: String, _item_id: int, _new_shards: int) -> void:
 	_refresh_wing_shop()
+	_refresh_weapon_shop()
 	_refresh_player_menu()
 	if not success:
 		_show_info("Сервер не подтвердил покупку. Проверь баланс и подключение.")
+
+
+func _on_profile_updated() -> void:
+	_refresh_wing_shop()
+	_refresh_weapon_shop()
+	_refresh_player_menu()
 
 
 func _wing_card_style(is_owned: bool) -> StyleBoxFlat:
@@ -617,8 +681,9 @@ func _build_player_menu() -> void:
 		weapon_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		weapon_content.add_child(weapon_icon)
 		weapon_content.add_child(_make_label(weapon_names[weapon_index], 12, PALE))
-		var status := _make_label("Скоро", 12, Color(0.62, 0.65, 0.72))
+		var status := _make_label("В магазине" if weapon_index == 0 else "Скоро", 12, Color(0.62, 0.65, 0.72))
 		weapon_content.add_child(status)
+		weapon_status_labels.append(status)
 	_refresh_player_menu()
 
 
@@ -638,7 +703,6 @@ func _save_player_nickname() -> void:
 		nickname_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
 		return
 	MetaProgression.player_nickname = nickname
-	MetaProgression.save_game()
 	if MetaProgression.player_id <= 0:
 		MetaProgression.register_player(nickname)
 	nickname_line_edit.text = nickname
@@ -646,7 +710,33 @@ func _save_player_nickname() -> void:
 	nickname_status_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
 
 
+func _load_player_id() -> int:
+	var config := ConfigFile.new()
+	if config.load(SAVE_PATH) != OK:
+		return 0
+	return maxi(0, int(config.get_value("profile", "player_id", 0)))
+
+
+func _load_player_nickname() -> String:
+	var config := ConfigFile.new()
+	if config.load(SAVE_PATH) != OK:
+		return ""
+	return String(config.get_value("profile", "nickname", ""))
+
+
+func _save_player_id(player_id: int) -> void:
+	var config := ConfigFile.new()
+	config.load(SAVE_PATH)
+	config.set_value("profile", "player_id", player_id)
+	config.set_value("profile", "nickname", MetaProgression.player_nickname)
+	var error := config.save(SAVE_PATH)
+	if error != OK:
+		push_error("Не удалось сохранить ID профиля: %s" % error_string(error))
+
+
 func _on_registration_completed(success: bool, registered_player_id: int) -> void:
+	if success and registered_player_id > 0:
+		_save_player_id(registered_player_id)
 	if nickname_status_label == null:
 		return
 	if success and registered_player_id > 0:
