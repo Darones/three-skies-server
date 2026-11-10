@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Небесные осколки — подбор звуков</title>
+	<link rel="stylesheet" href="style.css">
+</head>
+<body>
+	<header class="topbar">
+		<div class="brand">
+			<span class="brand-mark" aria-hidden="true">◆</span>
+			<div>
+				<h1>Подбор звуков</h1>
+				<p class="subtitle">Небесные осколки · инструмент продюсера</p>
+			</div>
+		</div>
+		<div class="top-actions">
+			<button id="pick-folder" class="btn btn-primary" type="button">Выбрать папку со звуками</button>
+			<button id="rescan" class="btn" type="button" disabled>Перечитать</button>
+			<input id="fallback-input" type="file" webkitdirectory multiple accept="audio/*" hidden>
+		</div>
+	</header>
+
+	<div id="support-warning" class="notice hidden" role="alert"></div>
+
+	<main class="layout">
+		<section class="panel sounds-panel" aria-labelledby="sounds-heading">
+			<div class="panel-head">
+				<h2 id="sounds-heading">Звуки</h2>
+				<span id="sounds-count" class="badge">0</span>
+			</div>
+			<div class="toolbar">
+				<input id="search" class="search" type="search" placeholder="Поиск по имени или пути…" disabled>
+			</div>
+			<p id="folder-name" class="folder-name">Папка не выбрана</p>
+			<ul id="sound-list" class="sound-list"></ul>
+			<div id="sounds-empty" class="empty">Выберите папку со звуками — файлы появятся здесь.</div>
+		</section>
+
+		<section class="panel slots-panel" aria-labelledby="slots-heading">
+			<div class="panel-head">
+				<h2 id="slots-heading">Слоты</h2>
+				<span id="assigned-count" class="badge">0 / 29</span>
+			</div>
+			<p class="hint">Нажмите «Назначить» у звука слева, затем кликните по нужному слоту. Один звук можно ставить в несколько слотов.</p>
+			<div id="slots" class="slots"></div>
+		</section>
+	</main>
+
+	<footer class="bottombar">
+		<div id="status" class="status">Готово. Выберите папку со звуками.</div>
+		<div class="footer-actions">
+			<button id="save" class="btn" type="button">Сохранить</button>
+			<button id="copy-json" class="btn btn-primary" type="button">Скопировать JSON</button>
+		</div>
+	</footer>
+
+	<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+	<script src="app.js"></script>
+</body>
+</html>
