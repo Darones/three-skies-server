@@ -62,6 +62,9 @@ const MAGE_STORM_DURATION := 5.0
 const MAGE_STORM_RADIUS := 10.0
 const WARRIOR_ULT_RADIUS := 8.0
 const MAGE_STORM_DAMAGE := 100.0
+const FAIRY_CRIT_CAST_TIME := 1.0
+const FAIRY_CRIT_MULTIPLIER := 3.0
+const CRIT_CAST_COLOR := Color(1.0, 0.16, 0.1)
 
 const CLASS_DATA := {
 	Cls.WARRIOR: {
@@ -109,7 +112,7 @@ const CLASS_DATA := {
 		"color": Color(0.72, 0.95, 0.55),
 		"abilities": [
 			{"name": "Оглушающий выстрел", "cd": 12.0, "type": "stun_shot"},
-			{"name": "100% Крит", "cd": 15.0, "type": "crit_buff"},
+			{"name": "100% Крит", "cd": 15.0, "type": "crit_shot"},
 			{"name": "Золотое благословение", "cd": 24.0, "type": "golden_blessing"},
 		],
 	},
@@ -156,6 +159,12 @@ var crit_buff := false
 var crit_buff_timer := 0.0
 var crit_buff_multiplier := 2.0
 var crit_buff_ring: MeshInstance3D = null
+var crit_cast_timer := 0.0
+var crit_cast_target: Node3D = null
+var crit_cast_material_restores: Array = []
+var crit_cast_particle_restores: Array = []
+var crit_cast_particles: CPUParticles3D = null
+var crit_cast_light: OmniLight3D = null
 var blessing_timer := 0.0
 var blessing_ring: MeshInstance3D = null
 
@@ -1099,6 +1108,15 @@ func _physics_process(delta: float) -> void:
 	for i in ability_cds.size():
 		ability_cds[i] = maxf(0.0, ability_cds[i] - delta)
 
+	var channeling_crit := crit_cast_timer > 0.0
+	if channeling_crit:
+		crit_cast_timer = maxf(0.0, crit_cast_timer - delta)
+		_aim_crit_cast(delta)
+		_update_crit_cast_visuals()
+		if crit_cast_timer <= 0.0:
+			_release_crit_shot()
+		elif current_anim != "cast" or (anim_player != null and not anim_player.is_playing()):
+			_play_anim("cast", true)
 	var channeling_storm := lightning_storm_timer > 0.0
 	if channeling_storm:
 		lightning_storm_timer = maxf(0.0, lightning_storm_timer - delta)
@@ -1112,7 +1130,7 @@ func _physics_process(delta: float) -> void:
 			_play_anim("cast", true)
 
 	var dir := Vector3.ZERO
-	if not channeling_storm and stun_timer <= 0.0:
+	if not channeling_storm and not channeling_crit and stun_timer <= 0.0:
 		if is_player:
 			dir = _player_dir()
 		else:
@@ -1121,7 +1139,7 @@ func _physics_process(delta: float) -> void:
 
 	var speed := move_speed * (0.5 if carrying else 1.0)
 	var target_v := dir * speed
-	if channeling_storm:
+	if channeling_storm or channeling_crit:
 		velocity.x = 0.0
 		velocity.z = 0.0
 	else:
@@ -1210,9 +1228,11 @@ func _ai_dir(delta: float) -> Vector3:
 		path_direction.y = 0.0
 		if path_direction.length_squared() > 0.04:
 			to_goal = path_direction
+		else:
+			to_goal = Vector3.ZERO
 	var dist := to_goal.length()
 	var dir := Vector3.ZERO
-	if dist > 0.8:
+	if dist > 0.12:
 		dir = to_goal / dist
 	var enemy := ai_attack_target
 	if not carrying and enemy != null and is_instance_valid(enemy):
@@ -1303,7 +1323,7 @@ func _ai_pick_goal() -> void:
 		return
 	var crystal_node: Node3D = game.crystal_node
 	if game.crystal_state == "ground" and crystal_node != null and is_instance_valid(crystal_node):
-		ai_goal = crystal_node.global_position
+		ai_goal = _crystal_approach_point(crystal_node)
 		return
 	var shell = game.shell
 	if shell != null and is_instance_valid(shell) and shell.alive:
@@ -1354,6 +1374,24 @@ func _shell_approach_point(shell: SkyShell) -> Vector3:
 		if nav_map.is_valid():
 			var snapped_point := NavigationServer3D.map_get_closest_point(nav_map, approach)
 			if snapped_point != Vector3.ZERO:
+				approach = Vector3(snapped_point.x, global_position.y, snapped_point.z)
+	return approach
+
+
+func _crystal_approach_point(crystal: Node3D) -> Vector3:
+	var approach_direction := Vector2(ai_offset.x, ai_offset.z)
+	if approach_direction.length_squared() < 0.01:
+		approach_direction = Vector2(global_position.x - crystal.global_position.x, global_position.z - crystal.global_position.z)
+	if approach_direction.length_squared() < 0.01:
+		approach_direction = Vector2.RIGHT
+	approach_direction = approach_direction.normalized()
+	var approach := crystal.global_position + Vector3(approach_direction.x, 0.0, approach_direction.y) * 2.4
+	approach.y = global_position.y
+	if navigation_agent != null:
+		var nav_map := navigation_agent.get_navigation_map()
+		if nav_map.is_valid():
+			var snapped_point := NavigationServer3D.map_get_closest_point(nav_map, approach)
+			if Vector2(snapped_point.x - crystal.global_position.x, snapped_point.z - crystal.global_position.z).length() <= 3.0:
 				approach = Vector3(snapped_point.x, global_position.y, snapped_point.z)
 	return approach
 
@@ -1475,6 +1513,10 @@ func _update_look(_delta: float) -> void:
 		if current_anim != "cast" or (anim_player != null and not anim_player.is_playing()):
 			_play_anim("cast", true)
 		return
+	if crit_cast_timer > 0.0:
+		if current_anim != "cast" or (anim_player != null and not anim_player.is_playing()):
+			_play_anim("cast", true)
+		return
 	if carry_light != null:
 		carry_light.light_energy = 2.0 if carrying else 0.0
 	if visual != null and visual.visible:
@@ -1507,7 +1549,7 @@ func _break_bush_stealth() -> void:
 
 
 func _is_offensive_ability(ability_type: String) -> bool:
-	return ability_type in ["shadow_assassin", "fear_ult", "root", "ult_lightning_storm", "stun_shot"]
+	return ability_type in ["shadow_assassin", "fear_ult", "root", "ult_lightning_storm", "stun_shot", "crit_shot"]
 
 
 func _is_bush_stealthed() -> bool:
@@ -1714,6 +1756,9 @@ func _die() -> void:
 	lightning_storm_tick_timer = 0.0
 	if lightning_storm_ring != null:
 		lightning_storm_ring.visible = false
+	crit_cast_timer = 0.0
+	crit_cast_target = null
+	_stop_crit_cast_visuals()
 	respawn_timer = game.respawn_delay_for(self) if game != null and game.has_method("respawn_delay_for") else 8.0
 	velocity = Vector3.ZERO
 	carrying = false
@@ -1764,6 +1809,8 @@ func use_ability(index: int) -> bool:
 		return false
 	if ability_cds[index] > 0.0:
 		return false
+	if crit_cast_timer > 0.0:
+		return false
 	if game == null:
 		return false
 	var data: Dictionary = CLASS_DATA[hero_class]["abilities"][index]
@@ -1792,6 +1839,17 @@ func use_ability(index: int) -> bool:
 			target.stun(1.0)
 			spawn_ability_vfx(0, target.global_position)
 			game.dash_fx(origin, hit_position, color)
+		"crit_shot":
+			var crit_target := _crit_shot_target()
+			if crit_target == null:
+				ability_cds[index] = 0.0
+				return false
+			crit_cast_target = crit_target
+			crit_cast_timer = FAIRY_CRIT_CAST_TIME
+			velocity.x = 0.0
+			velocity.z = 0.0
+			_begin_crit_cast_visuals()
+			game.burst(origin + Vector3(0.0, 1.2, 0.0), CRIT_CAST_COLOR, 12)
 		"crit_buff":
 			crit_buff = true
 			crit_buff_timer = 3.0
@@ -1881,6 +1939,193 @@ func _set_crit_buff_ring(active: bool) -> void:
 		crit_buff_ring.position.y = 0.18
 		visual.add_child(crit_buff_ring)
 	crit_buff_ring.visible = active
+
+
+func _crit_shot_target() -> Node3D:
+	if game == null:
+		return null
+	var enemy: HeroUnit = game.nearest_enemy(global_position, team, attack_range, self)
+	if enemy != null:
+		return enemy
+	var shell_target: SkyShell = game.shell
+	if shell_target != null and is_instance_valid(shell_target) and shell_target.alive:
+		if global_position.distance_to(shell_target.global_position) <= attack_range:
+			return shell_target
+	return null
+
+
+func _aim_crit_cast(delta: float) -> void:
+	if crit_cast_target == null or not is_instance_valid(crit_cast_target):
+		crit_cast_target = _crit_shot_target()
+	if crit_cast_target == null:
+		return
+	var aim := crit_cast_target.global_position - global_position
+	aim.y = 0.0
+	if aim.length_squared() > 0.001:
+		_face(aim.normalized(), delta)
+
+
+func _begin_crit_cast_visuals() -> void:
+	_stop_crit_cast_visuals()
+	if weapon_instance == null or not is_instance_valid(weapon_instance):
+		return
+	for child in weapon_instance.find_children("*", "MeshInstance3D", true, false):
+		var mesh_node := child as MeshInstance3D
+		if mesh_node == null or mesh_node.mesh == null:
+			continue
+		if mesh_node.material_override is StandardMaterial3D:
+			var original := mesh_node.material_override as StandardMaterial3D
+			var override_tint := original.duplicate() as StandardMaterial3D
+			_apply_crit_cast_material(override_tint)
+			mesh_node.material_override = override_tint
+			crit_cast_material_restores.append({"node": mesh_node, "surface": -1, "original": original})
+			continue
+		for surface in range(mesh_node.mesh.get_surface_count()):
+			var active := mesh_node.get_active_material(surface)
+			if active is StandardMaterial3D:
+				var tinted := (active as StandardMaterial3D).duplicate() as StandardMaterial3D
+				_apply_crit_cast_material(tinted)
+				mesh_node.set_surface_override_material(surface, tinted)
+				crit_cast_material_restores.append({"node": mesh_node, "surface": surface, "original": null})
+	for child in weapon_instance.find_children("*", "CPUParticles3D", true, false):
+		var existing := child as CPUParticles3D
+		if existing == null:
+			continue
+		crit_cast_particle_restores.append({"node": existing, "emitting": existing.emitting})
+		existing.emitting = false
+	_build_crit_cast_particles()
+	var light := OmniLight3D.new()
+	light.name = "CritCastLight"
+	light.position = Vector3(0.0, 0.0, 0.18)
+	light.light_color = CRIT_CAST_COLOR
+	light.light_energy = 1.7
+	light.omni_range = 3.2
+	light.shadow_enabled = false
+	weapon_instance.add_child(light)
+	crit_cast_light = light
+
+
+func _apply_crit_cast_material(material: StandardMaterial3D) -> void:
+	material.emission_enabled = true
+	material.emission = CRIT_CAST_COLOR
+	material.emission_energy_multiplier = 2.2
+
+
+func _build_crit_cast_particles() -> void:
+	var particles := CPUParticles3D.new()
+	particles.name = "CritCastSparks"
+	particles.position = Vector3(0.0, 0.0, 0.38)
+	particles.amount = 26
+	particles.lifetime = 0.5
+	particles.fixed_fps = 30
+	particles.local_coords = true
+	particles.preprocess = 0.25
+	particles.visibility_range_end = 18.0
+	particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	particles.direction = Vector3(0.0, 0.0, -1.0)
+	particles.spread = 180.0
+	particles.initial_velocity_min = 0.2
+	particles.initial_velocity_max = 0.65
+	particles.radial_accel_min = -2.6
+	particles.radial_accel_max = -1.8
+	particles.damping_min = 0.3
+	particles.damping_max = 0.8
+	particles.gravity = Vector3.ZERO
+	particles.scale_amount_min = 0.6
+	particles.scale_amount_max = 1.2
+	particles.color = CRIT_CAST_COLOR
+	particles.color_ramp = _weapon_spark_fade()
+	particles.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	particles.emission_sphere_radius = 0.16
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.06, 0.06)
+	particles.mesh = quad
+	var material := StandardMaterial3D.new()
+	material.albedo_texture = _weapon_glow_texture()
+	material.albedo_color = Color.WHITE
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	material.vertex_color_use_as_albedo = true
+	material.disable_receive_shadows = true
+	particles.material_override = material
+	particles.emitting = true
+	weapon_instance.add_child(particles)
+	crit_cast_particles = particles
+
+
+func _update_crit_cast_visuals() -> void:
+	var energy := 2.0 + sin(float(Time.get_ticks_msec()) * 0.02) * 0.8
+	for entry in crit_cast_material_restores:
+		var mesh_node := entry["node"] as MeshInstance3D
+		if mesh_node == null or not is_instance_valid(mesh_node):
+			continue
+		var surface := int(entry["surface"])
+		var material: StandardMaterial3D = null
+		if surface < 0:
+			material = mesh_node.material_override as StandardMaterial3D
+		else:
+			material = mesh_node.get_surface_override_material(surface) as StandardMaterial3D
+		if material != null:
+			material.emission_energy_multiplier = energy
+	if crit_cast_light != null and is_instance_valid(crit_cast_light):
+		crit_cast_light.light_energy = 1.1 + energy * 0.5
+
+
+func _stop_crit_cast_visuals() -> void:
+	for entry in crit_cast_material_restores:
+		var mesh_node := entry["node"] as MeshInstance3D
+		if mesh_node == null or not is_instance_valid(mesh_node):
+			continue
+		var surface := int(entry["surface"])
+		if surface < 0:
+			mesh_node.material_override = entry["original"]
+		else:
+			mesh_node.set_surface_override_material(surface, null)
+	crit_cast_material_restores.clear()
+	for entry in crit_cast_particle_restores:
+		var existing := entry["node"] as CPUParticles3D
+		if existing != null and is_instance_valid(existing):
+			existing.emitting = bool(entry["emitting"])
+	crit_cast_particle_restores.clear()
+	if crit_cast_particles != null and is_instance_valid(crit_cast_particles):
+		crit_cast_particles.queue_free()
+		crit_cast_particles = null
+	if crit_cast_light != null and is_instance_valid(crit_cast_light):
+		crit_cast_light.queue_free()
+		crit_cast_light = null
+
+
+func _release_crit_shot() -> void:
+	crit_cast_timer = 0.0
+	var target := crit_cast_target
+	crit_cast_target = null
+	_stop_crit_cast_visuals()
+	if game == null:
+		return
+	if target == null or not is_instance_valid(target) or (target is HeroUnit and (target as HeroUnit).dead):
+		target = _crit_shot_target()
+	if target == null:
+		return
+	var aim := target.global_position - global_position
+	aim.y = 0.0
+	if aim.length_squared() > 0.001:
+		_face(aim.normalized(), 1.0)
+	attack_cd = attack_interval / attack_speed_multiplier
+	attack_anim_time = attack_animation_duration
+	_play_anim("attack", true)
+	_play_weapon_attack_animation()
+	_play_class_attack_sfx()
+	var color: Color = CLASS_DATA[hero_class]["color"]
+	var damage := roll_direct_damage(attack_damage * get_blessing_damage_multiplier(), FAIRY_CRIT_MULTIPLIER)
+	game.spawn_projectile(global_position + Vector3(0.0, 1.2, 0.0), target, damage, color, self)
+	var cast_position := global_position + Vector3(0.0, 0.6, 0.0)
+	if weapon_attachment != null and is_instance_valid(weapon_attachment):
+		cast_position = weapon_attachment.global_position - Vector3(0.0, 0.6, 0.0)
+	cast_position += _facing_direction() * 0.35
+	spawn_vfx_silent(VFX_HIT_02_SCENE, cast_position, 0.5)
+	game.burst(cast_position, CRIT_CAST_COLOR, 10)
 
 
 func roll_direct_damage(amount: float, guaranteed_crit_multiplier: float = 1.0) -> float:

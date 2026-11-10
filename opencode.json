@@ -1,0 +1,15 @@
+﻿{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "blender": {
+      "type": "local",
+      "command": ["npx", "-y", "mcp-for-blender"],
+      "enabled": true
+    },
+    "summer-engine": {
+      "type": "local",
+      "command": ["npx", "-y", "summer-engine@latest", "mcp"],
+      "enabled": true
+    }
+  }
+}

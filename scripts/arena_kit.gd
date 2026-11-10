@@ -31,7 +31,10 @@ static func floor_light_material() -> StandardMaterial3D:
 	if tex != null:
 		mat.albedo_texture = tex
 	mat.albedo_color = Color(0.82, 0.81, 0.76)
-	mat.roughness = 0.9
+	mat.roughness = 0.88
+	mat.emission_enabled = true
+	mat.emission = Color(0.08, 0.075, 0.06)
+	mat.emission_energy_multiplier = 0.35
 	mat.uv1_triplanar = true
 	mat.uv1_scale = Vector3(0.12, 0.12, 0.12)
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -39,18 +42,7 @@ static func floor_light_material() -> StandardMaterial3D:
 	return mat
 
 static func floor_dark_material() -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	var tex := _first_texture(SLATE_DIR, FLOOR_DARK_TEX)
-	if tex != null:
-		mat.albedo_texture = tex
-	mat.albedo_color = Color(0.48, 0.43, 0.68)
-	mat.roughness = 0.7
-	mat.metallic = 0.15
-	mat.uv1_triplanar = true
-	mat.uv1_scale = Vector3(0.12, 0.12, 0.12)
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	return mat
+	return floor_light_material()
 
 static func rock_material() -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
