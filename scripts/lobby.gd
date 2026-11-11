@@ -30,7 +30,7 @@ var shop_panel: PanelContainer
 var topup_panel: PanelContainer
 var info_dialog: AcceptDialog
 var shard_amount_label: Label
-var network_button: Button
+var play_button: Button
 var settings_panel: Control
 var player_menu_overlay: ColorRect
 var nickname_line_edit: LineEdit
@@ -142,12 +142,48 @@ func _save_selection() -> void:
 
 
 func _build_background() -> void:
-	var background := ColorRect.new()
+	var gradient := Gradient.new()
+	gradient.set_color(0, Color(0.035, 0.075, 0.135))
+	gradient.set_color(1, Color(0.006, 0.01, 0.022))
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.width = 8
+	texture.height = 256
+	texture.fill_from = Vector2(0.0, 0.0)
+	texture.fill_to = Vector2(0.0, 1.0)
+	var background := TextureRect.new()
 	background.name = "LobbyBackground"
+	background.texture = texture
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	background.color = Color(0.025, 0.035, 0.06)
+	background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	background.stretch_mode = TextureRect.STRETCH_SCALE
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(background)
+
+	var glow_gradient := Gradient.new()
+	glow_gradient.set_color(0, Color(0.16, 0.36, 0.58, 0.5))
+	glow_gradient.set_color(1, Color(0.16, 0.36, 0.58, 0.0))
+	var glow_texture := GradientTexture2D.new()
+	glow_texture.gradient = glow_gradient
+	glow_texture.width = 512
+	glow_texture.height = 512
+	glow_texture.fill = GradientTexture2D.FILL_RADIAL
+	glow_texture.fill_from = Vector2(0.5, 0.5)
+	glow_texture.fill_to = Vector2(0.5, 0.0)
+	var glow := TextureRect.new()
+	glow.name = "LobbyGlow"
+	glow.texture = glow_texture
+	glow.anchor_left = 0.5
+	glow.anchor_right = 0.5
+	glow.anchor_top = 0.5
+	glow.anchor_bottom = 0.5
+	glow.offset_left = -520.0
+	glow.offset_right = 520.0
+	glow.offset_top = -360.0
+	glow.offset_bottom = 360.0
+	glow.stretch_mode = TextureRect.STRETCH_SCALE
+	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(glow)
 
 func _build_header() -> void:
 	lobby_logo = TextureRect.new()
@@ -168,16 +204,26 @@ func _layout_lobby_logo() -> void:
 	if lobby_logo == null or lobby_logo.texture == null:
 		return
 	var viewport_size := get_viewport_rect().size
-	var card_top := viewport_size.y * 0.5 - 178.0
-	var available_height := maxf(0.0, card_top - 16.0)
+	var card_left := viewport_size.x * 0.5 - 392.0
+	var available_width := maxf(0.0, card_left - 48.0)
 	var aspect_ratio := lobby_logo.texture.get_size().x / maxf(1.0, lobby_logo.texture.get_size().y)
-	var display_height := minf(available_height, minf(200.0, viewport_size.y * 0.44))
-	var display_width := minf(500.0, minf(viewport_size.x * 0.9, display_height * aspect_ratio))
-	display_height = display_width / aspect_ratio
-	lobby_logo.offset_left = -display_width * 0.5
-	lobby_logo.offset_top = 8.0
-	lobby_logo.offset_right = display_width * 0.5
-	lobby_logo.offset_bottom = 8.0 + display_height
+	var display_width := minf(available_width, minf(340.0, viewport_size.x * 0.3))
+	if display_width < 140.0:
+		lobby_logo.visible = false
+		return
+	lobby_logo.visible = true
+	var display_height := display_width / aspect_ratio
+	if display_height > viewport_size.y * 0.42:
+		display_height = viewport_size.y * 0.42
+		display_width = display_height * aspect_ratio
+	lobby_logo.anchor_left = 0.0
+	lobby_logo.anchor_right = 0.0
+	lobby_logo.anchor_top = 0.5
+	lobby_logo.anchor_bottom = 0.5
+	lobby_logo.offset_left = 24.0
+	lobby_logo.offset_right = 24.0 + display_width
+	lobby_logo.offset_top = -display_height * 0.5 - 20.0
+	lobby_logo.offset_bottom = display_height * 0.5 - 20.0
 
 
 func _build_player_profile() -> void:
@@ -831,21 +877,21 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 	card.anchor_top = 0.5
 	card.anchor_right = 0.5
 	card.anchor_bottom = 0.5
-	var card_width := 300.0 if is_center else 192.0
-	var card_height := 400.0 if is_center else 256.0
+	var card_width := 330.0 if is_center else 210.0
+	var card_height := 430.0 if is_center else 280.0
 	card.custom_minimum_size = Vector2(card_width, card_height)
 	if is_center:
-		card.offset_left = -150.0
-		card.offset_top = -154.0
-		card.offset_right = 150.0
-		card.offset_bottom = 246.0
+		card.offset_left = -165.0
+		card.offset_top = -165.0
+		card.offset_right = 165.0
+		card.offset_bottom = 265.0
 		card.z_index = 2
 	else:
-		var side_offset := -352.0 if slot == 0 else 160.0
+		var side_offset := -392.0 if slot == 0 else 182.0
 		card.offset_left = side_offset
-		card.offset_top = -108.0
-		card.offset_right = side_offset + 192.0
-		card.offset_bottom = 148.0
+		card.offset_top = -120.0
+		card.offset_right = side_offset + 210.0
+		card.offset_bottom = 160.0
 		card.z_index = 1
 	if is_center:
 		card.add_theme_stylebox_override("normal", _card_style(true, false))
@@ -871,19 +917,19 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 	title_backing.anchor_right = 1.0
 	title_backing.anchor_bottom = 1.0
 	title_backing.offset_left = 2.0
-	title_backing.offset_top = -46.0 if is_center else -38.0
+	title_backing.offset_top = -50.0 if is_center else -40.0
 	title_backing.offset_right = -2.0
 	title_backing.offset_bottom = -2.0
 	title_backing.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(title_backing)
 
-	var name_label := _make_label("", 27 if is_center else 19, PALE)
+	var name_label := _make_label("", 29 if is_center else 21, PALE)
 	name_label.name = "HeroName%d" % slot
 	name_label.anchor_top = 1.0
 	name_label.anchor_right = 1.0
 	name_label.anchor_bottom = 1.0
 	name_label.offset_left = 8.0
-	name_label.offset_top = -44.0 if is_center else -36.0
+	name_label.offset_top = -48.0 if is_center else -38.0
 	name_label.offset_right = -8.0
 	name_label.offset_bottom = -4.0
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -896,34 +942,20 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 
 
 func _build_actions() -> void:
-	var play_button := _make_action_button("В БОЙ", true)
+	play_button = _make_action_button("В БОЙ", true)
 	play_button.name = "PlayButton"
 	play_button.anchor_left = 1.0
 	play_button.anchor_top = 1.0
 	play_button.anchor_right = 1.0
 	play_button.anchor_bottom = 1.0
-	play_button.offset_left = -325.0
-	play_button.offset_top = -101.0
+	play_button.offset_left = -345.0
+	play_button.offset_top = -180.0
 	play_button.offset_right = -45.0
-	play_button.offset_bottom = -45.0
-	play_button.custom_minimum_size = Vector2(280.0, 56.0)
-	play_button.pressed.connect(_start_battle)
+	play_button.offset_bottom = -108.0
+	play_button.custom_minimum_size = Vector2(300.0, 72.0)
+	play_button.add_theme_font_size_override("font_size", 26)
+	play_button.pressed.connect(_start_network_battle)
 	add_child(play_button)
-
-	network_button = _make_action_button("ПОДКЛЮЧИТЬСЯ К СЕРВЕРУ", false)
-	network_button.name = "NetworkButton"
-	network_button.anchor_left = 1.0
-	network_button.anchor_top = 1.0
-	network_button.anchor_right = 1.0
-	network_button.anchor_bottom = 1.0
-	network_button.offset_left = -325.0
-	network_button.offset_top = -165.0
-	network_button.offset_right = -45.0
-	network_button.offset_bottom = -109.0
-	network_button.custom_minimum_size = Vector2(280.0, 48.0)
-	network_button.add_theme_font_size_override("font_size", 15)
-	network_button.pressed.connect(_start_network_battle)
-	add_child(network_button)
 
 	tutorial_button = _make_action_button("ОБУЧЕНИЕ", false)
 	tutorial_button.name = "TutorialButton"
@@ -931,11 +963,12 @@ func _build_actions() -> void:
 	tutorial_button.anchor_top = 1.0
 	tutorial_button.anchor_right = 1.0
 	tutorial_button.anchor_bottom = 1.0
-	tutorial_button.offset_left = -635.0
-	tutorial_button.offset_top = -101.0
-	tutorial_button.offset_right = -355.0
-	tutorial_button.offset_bottom = -45.0
-	tutorial_button.custom_minimum_size = Vector2(280.0, 56.0)
+	tutorial_button.offset_left = -345.0
+	tutorial_button.offset_top = -100.0
+	tutorial_button.offset_right = -45.0
+	tutorial_button.offset_bottom = -28.0
+	tutorial_button.custom_minimum_size = Vector2(300.0, 72.0)
+	tutorial_button.add_theme_font_size_override("font_size", 22)
 	tutorial_button.pressed.connect(_start_tutorial)
 	add_child(tutorial_button)
 	_refresh_tutorial_button()
@@ -1058,13 +1091,10 @@ func _start_network_battle() -> void:
 				NetworkManager.host_id,
 				NetworkManager.match_players
 			)
-		elif network_button != null:
-			network_button.disabled = true
-			network_button.text = "ПОИСК ИГРЫ..."
+		elif play_button != null:
+			_set_play_status("ПОИСК ИГРЫ...", true)
 		return
-	if network_button != null:
-		network_button.disabled = true
-		network_button.text = "ПОДКЛЮЧЕНИЕ..."
+	_set_play_status("ПОДКЛЮЧЕНИЕ...", true)
 	var error := NetworkManager.connect_to_server(
 		selected_class,
 		0,
@@ -1079,9 +1109,7 @@ func _start_network_battle() -> void:
 func _on_network_connected() -> void:
 	if not is_inside_tree():
 		return
-	if network_button != null:
-		network_button.disabled = true
-		network_button.text = "ПОИСК ИГРЫ..."
+	_set_play_status("ПОИСК ИГРЫ...", true)
 
 
 func _on_network_match_started(room_id: int, _host_id: int, players: Array) -> void:
@@ -1094,9 +1122,8 @@ func _on_network_match_started(room_id: int, _host_id: int, players: Array) -> v
 	get_tree().set_meta("network_host", NetworkManager.is_host)
 	get_tree().set_meta("network_room_id", room_id)
 	get_tree().set_meta("network_match_players", players)
-	if network_button != null:
-		network_button.text = "МАТЧ НАЙДЕН"
-		network_button.disabled = true
+	if play_button != null:
+		_set_play_status("МАТЧ НАЙДЕН", true)
 	var error := get_tree().change_scene_to_file("res://scenes/Main.tscn")
 	if error != OK:
 		get_tree().set_meta("network_play", false)
@@ -1117,10 +1144,14 @@ func _on_network_disconnected() -> void:
 
 
 func _reset_network_button() -> void:
-	if network_button == null or not is_instance_valid(network_button):
+	_set_play_status("В БОЙ", false)
+
+
+func _set_play_status(text: String, disabled: bool) -> void:
+	if play_button == null or not is_instance_valid(play_button):
 		return
-	network_button.text = "ПОДКЛЮЧИТЬСЯ К СЕРВЕРУ"
-	network_button.disabled = false
+	play_button.text = text
+	play_button.disabled = disabled
 
 
 func _start_battle() -> void:
