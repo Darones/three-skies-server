@@ -92,6 +92,7 @@ func TestNormalizeDatabaseURL(t *testing.T) {
 		{"plain url", "postgres://u:p@db:5432/name", "postgres://u:p@db:5432/name?sslmode=disable"},
 		{"existing query", "postgres://u:p@db:5432/name?connect_timeout=5", "postgres://u:p@db:5432/name?connect_timeout=5&sslmode=disable"},
 		{"explicit sslmode", "postgres://u:p@db:5432/name?sslmode=require", "postgres://u:p@db:5432/name?sslmode=require"},
+		{"keyword dsn", "host=db port=5432 user=u dbname=n", "host=db port=5432 user=u dbname=n sslmode=disable"},
 	}
 	for _, testCase := range cases {
 		if got := normalizeDatabaseURL(testCase.in); got != testCase.want {
@@ -103,6 +104,9 @@ func TestNormalizeDatabaseURL(t *testing.T) {
 func TestDatabaseHost(t *testing.T) {
 	if got := databaseHost("postgres://u:p@db-team-example:5432/base?sslmode=disable"); got != "db-team-example" {
 		t.Fatalf("unexpected host: %q", got)
+	}
+	if got := databaseHost("host=localhost port=5432 user=u dbname=n"); got != "localhost" {
+		t.Fatalf("unexpected keyword host: %q", got)
 	}
 	if got := databaseHost(""); got != "" {
 		t.Fatalf("empty url must give empty host, got %q", got)

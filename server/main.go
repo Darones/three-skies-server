@@ -176,29 +176,45 @@ func main() {
 
 // normalizeDatabaseURL makes the managed PostgreSQL connection work with
 // lib/pq, which requires TLS by default. The internal database does not serve
-// TLS, so use plaintext unless the URL already asks for a specific sslmode.
+// TLS, so use plaintext unless the DSN already asks for a specific sslmode.
 func normalizeDatabaseURL(raw string) string {
 	if raw == "" || strings.Contains(raw, "sslmode=") {
 		return raw
 	}
-	separator := "?"
-	if strings.Contains(raw, "?") {
-		separator = "&"
+	if isDatabaseURL(raw) {
+		separator := "?"
+		if strings.Contains(raw, "?") {
+			separator = "&"
+		}
+		return raw + separator + "sslmode=disable"
 	}
-	return raw + separator + "sslmode=disable"
+	return raw + " sslmode=disable"
+}
+
+func isDatabaseURL(raw string) bool {
+	return strings.HasPrefix(raw, "postgres://") || strings.HasPrefix(raw, "postgresql://")
 }
 
 // databaseHost returns only the host from the connection string so the health
-// endpoint can show which database the container actually sees.
+// endpoint can show which database the container actually sees. It supports
+// both URL and keyword/value DSNs.
 func databaseHost(raw string) string {
 	if raw == "" {
 		return ""
 	}
-	parsed, err := url.Parse(raw)
-	if err != nil {
-		return ""
+	if isDatabaseURL(raw) {
+		parsed, err := url.Parse(raw)
+		if err != nil {
+			return ""
+		}
+		return parsed.Hostname()
 	}
-	return parsed.Hostname()
+	for _, field := range strings.Fields(raw) {
+		if value, found := strings.CutPrefix(field, "host="); found {
+			return value
+		}
+	}
+	return ""
 }
 
 func newRouter(service *api, hub *wsHub) http.Handler {
