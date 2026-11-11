@@ -184,12 +184,12 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	return databaseGate(mux, service)
 }
 
-// databaseGate keeps the container alive when the database is down: the health
-// endpoint still answers, and data endpoints fail with a readable 503 instead
-// of the platform reporting a dead backend.
+// databaseGate keeps the container alive when the database is down: health and
+// the realtime match endpoint keep working, while economy endpoints fail with a
+// readable 503 instead of the platform reporting a dead backend.
 func databaseGate(next http.Handler, service *api) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/health" || service.dbReady.Load() {
+		if r.URL.Path == "/health" || r.URL.Path == "/ws" || service.dbReady.Load() {
 			next.ServeHTTP(w, r)
 			return
 		}
