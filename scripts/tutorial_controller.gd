@@ -74,7 +74,9 @@ func process(delta: float) -> void:
 
 
 func can_use_ability(index: int) -> bool:
-	return stage == "abilities" and index == expected_ability
+	if stage == "abilities":
+		return index == expected_ability
+	return true
 
 
 func on_ability_used(index: int) -> void:
