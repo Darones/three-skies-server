@@ -90,7 +90,18 @@ func _draw() -> void:
 	_draw_coin_icon(_world_to_map(fountain_position, map_rect))
 	_draw_shell_marker(map_rect)
 	_draw_ground_crystal(map_rect)
+	_draw_tutorial_objective(map_rect)
 	_draw_heroes(map_rect, player_team)
+
+
+func _draw_tutorial_objective(map_rect: Rect2) -> void:
+	if not game.tutorial_target_active:
+		return
+	var point := _world_to_map(game.tutorial_target_position, map_rect)
+	var target_color: Color = game.tutorial_target_color
+	var pulse := 0.5 + 0.5 * sin(pulse_time * 5.5)
+	draw_circle(point, 8.0 + pulse * 3.5, Color(target_color.r, target_color.g, target_color.b, 0.10 + pulse * 0.12))
+	draw_arc(point, 7.0 + pulse * 3.5, 0.0, TAU, 28, Color(1.0, 0.95, 0.72, 0.9), 1.8, true)
 
 
 func _world_to_map(world_position: Vector3, map_rect: Rect2) -> Vector2:

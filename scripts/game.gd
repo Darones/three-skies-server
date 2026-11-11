@@ -97,6 +97,12 @@ var gold_coins: Array[Node3D] = []
 var tutorial_mode := false
 var tutorial_controller: Node = null
 var tutorial_dummy: HeroUnit = null
+var tutorial_arrow: MeshInstance3D = null
+var tutorial_arrow_material: StandardMaterial3D = null
+var tutorial_target_position := Vector3.ZERO
+var tutorial_target_color := Color(1.0, 0.82, 0.32)
+var tutorial_target_active := false
+var tutorial_pulse_time := 0.0
 var network_play := false
 var network_host := false
 var network_room_id := 0
@@ -1122,6 +1128,7 @@ func buy_item(item_id: String) -> bool:
 
 func _process(delta: float) -> void:
 	_update_effect_pools(delta)
+	_update_tutorial_arrow(delta)
 	if state == "select":
 		select_angle += delta * 0.12
 		var focus := Vector3(0.0, 1.5, 0.0)
@@ -1845,6 +1852,64 @@ func _on_bush_body_entered(body: Node3D, bush: Area3D) -> void:
 func _on_bush_body_exited(body: Node3D, bush: Area3D) -> void:
 	if body is HeroUnit:
 		(body as HeroUnit).set_bush_presence(bush, false)
+
+
+func set_tutorial_target(world_position: Vector3, color: Color) -> void:
+	tutorial_target_position = world_position
+	tutorial_target_color = color
+	tutorial_target_active = true
+	_ensure_tutorial_arrow()
+	if tutorial_arrow_material != null:
+		tutorial_arrow_material.albedo_color = color
+		tutorial_arrow_material.emission = color
+	if tutorial_arrow != null:
+		tutorial_arrow.visible = true
+
+
+func clear_tutorial_target() -> void:
+	tutorial_target_active = false
+	if tutorial_arrow != null and is_instance_valid(tutorial_arrow):
+		tutorial_arrow.visible = false
+
+
+func _ensure_tutorial_arrow() -> void:
+	if tutorial_arrow != null and is_instance_valid(tutorial_arrow):
+		return
+	tutorial_arrow = MeshInstance3D.new()
+	tutorial_arrow.name = "TutorialArrow"
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.0
+	cone.bottom_radius = 0.55
+	cone.height = 1.2
+	cone.radial_segments = 20
+	tutorial_arrow.mesh = cone
+	tutorial_arrow.rotation.x = PI
+	tutorial_arrow_material = StandardMaterial3D.new()
+	tutorial_arrow_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	tutorial_arrow_material.albedo_color = Color(1.0, 0.82, 0.32)
+	tutorial_arrow_material.emission_enabled = true
+	tutorial_arrow_material.emission = Color(1.0, 0.82, 0.32)
+	tutorial_arrow_material.emission_energy_multiplier = 2.2
+	tutorial_arrow_material.no_depth_test = true
+	tutorial_arrow_material.render_priority = 2
+	tutorial_arrow.material_override = tutorial_arrow_material
+	add_child(tutorial_arrow)
+
+
+func _update_tutorial_arrow(delta: float) -> void:
+	if tutorial_arrow == null or not is_instance_valid(tutorial_arrow):
+		return
+	if not tutorial_mode or not tutorial_target_active:
+		tutorial_arrow.visible = false
+		return
+	tutorial_pulse_time += delta
+	var pulse := 0.5 + 0.5 * sin(tutorial_pulse_time * 4.2)
+	tutorial_arrow.visible = true
+	tutorial_arrow.global_position = tutorial_target_position + Vector3(0.0, 3.4 + sin(tutorial_pulse_time * 2.4) * 0.25, 0.0)
+	tutorial_arrow.rotation.y += delta * 1.8
+	tutorial_arrow.scale = Vector3.ONE * (1.0 + pulse * 0.14)
+	if tutorial_arrow_material != null:
+		tutorial_arrow_material.emission_energy_multiplier = 1.4 + pulse * 2.0
 
 
 func spawn_tutorial_dummy() -> void:

@@ -1,9 +1,12 @@
 extends Node
 
 const SAVE_PATH := "user://tutorial.cfg"
-const COINS_TO_COLLECT := 5
+const COINS_TO_COLLECT := 15
 const GOLD_PER_COIN := 100
 const SHOP_ITEM_ID := "wind_boots"
+const OBJECTIVE_GOLD := Color(1.0, 0.82, 0.32)
+const OBJECTIVE_SHELL := Color(0.85, 0.6, 1.0)
+const OBJECTIVE_CRYSTAL := Color(0.45, 0.92, 1.0)
 
 var game: Node
 var stage := "welcome"
@@ -18,6 +21,7 @@ func begin() -> void:
 	coins_collected = 0
 	shell_spawn_countdown = 0.0
 	completed = false
+	_point_to(Vector3.ZERO, OBJECTIVE_GOLD)
 	game.hud.call(
 		"show_tutorial_card",
 		"Добро пожаловать!",
@@ -39,7 +43,7 @@ func process(delta: float) -> void:
 			if distance <= 10.0:
 				stage = "collect_coins"
 				game.call("spawn_tutorial_coin_batch", COINS_TO_COLLECT, GOLD_PER_COIN)
-				game.hud.call("show_tutorial_hint", "Собери монеты у фонтана: 0 / 5")
+				game.hud.call("show_tutorial_hint", "Задание: собери монеты у фонтана — 0 / %d" % COINS_TO_COLLECT)
 	elif stage == "go_shop":
 		if game.is_hero_near_shop(game.player):
 			stage = "buy_item"
@@ -56,6 +60,7 @@ func process(delta: float) -> void:
 	elif stage == "pick_crystal":
 		if game.crystal_state == "carried" and game.carrier == game.player:
 			stage = "deliver_crystal"
+			_point_to(_own_base_position(), OBJECTIVE_CRYSTAL)
 			game.hud.call("show_tutorial_hint", "Неси Осколок на свою базу")
 
 
@@ -76,21 +81,23 @@ func on_ability_used(index: int) -> void:
 	game.call("remove_tutorial_dummy")
 	stage = "go_fountain"
 	game.hud.call("set_tutorial_ability", -1)
-	game.hud.call("show_tutorial_hint", "Сходи к фонтану и собери 500 монет")
+	_point_to(_fountain_position(), OBJECTIVE_GOLD)
+	game.hud.call("show_tutorial_hint", "Сходи к фонтану и собери %d монет" % COINS_TO_COLLECT)
 
 
 func on_coin_collected() -> void:
 	if stage != "collect_coins":
 		return
 	coins_collected += 1
-	game.hud.call("show_tutorial_hint", "Собери монеты у фонтана: %d / %d" % [coins_collected, COINS_TO_COLLECT])
+	game.hud.call("show_tutorial_hint", "Задание: собери монеты — %d / %d" % [coins_collected, COINS_TO_COLLECT])
 	if coins_collected < COINS_TO_COLLECT:
 		return
 	if game.gold < COINS_TO_COLLECT * GOLD_PER_COIN:
 		push_error("Tutorial fountain did not award the expected match gold")
 		return
 	stage = "go_shop"
-	game.hud.call("show_tutorial_hint", "500 монет собраны. Иди в магазин")
+	_point_to(_shop_position(), OBJECTIVE_GOLD)
+	game.hud.call("show_tutorial_hint", "Монеты собраны. Иди в магазин")
 
 
 func can_buy_item(item_id: String) -> bool:
@@ -103,6 +110,7 @@ func on_shop_item_bought(item_id: String) -> void:
 	game.call("set_shop_open", false)
 	stage = "shell_warning"
 	shell_spawn_countdown = 10.0
+	_point_to(Vector3.ZERO, OBJECTIVE_SHELL)
 	game.hud.call("show_tutorial_hint", "Через 10 секунд появится Оболочка")
 	game.call("announce", "Через 10 секунд появится Оболочка", Color(0.78, 0.6, 1.0), 10.0)
 
@@ -111,6 +119,7 @@ func on_shell_destroyed() -> void:
 	if stage != "destroy_shell":
 		return
 	stage = "pick_crystal"
+	_point_to(_crystal_position(), OBJECTIVE_CRYSTAL)
 	game.hud.call("show_tutorial_hint", "Подбери появившийся Осколок")
 
 
@@ -121,6 +130,7 @@ func on_delivery() -> void:
 	stage = "complete"
 	game.state = "tutorial_complete"
 	game.call("set_shop_open", false)
+	_clear_target()
 	_save_completion()
 	game.hud.call("set_tutorial_ability", -1)
 	game.hud.call(
@@ -146,6 +156,8 @@ func _start_ability_training() -> void:
 	game.call("spawn_tutorial_dummy")
 	stage = "abilities"
 	expected_ability = 0
+	if game.tutorial_dummy != null and is_instance_valid(game.tutorial_dummy):
+		_point_to(game.tutorial_dummy.global_position, OBJECTIVE_GOLD)
 	game.hud.call("set_tutorial_ability", expected_ability)
 	game.hud.call("show_tutorial_hint", "Нажми навык 1")
 
@@ -171,3 +183,36 @@ func _save_completion() -> void:
 	var error := config.save(SAVE_PATH)
 	if error != OK:
 		push_error("Не удалось сохранить прохождение обучения: %s" % error_string(error))
+
+
+func _point_to(world_position: Vector3, color: Color) -> void:
+	if game != null and game.has_method("set_tutorial_target"):
+		game.call("set_tutorial_target", world_position, color)
+
+
+func _clear_target() -> void:
+	if game != null and game.has_method("clear_tutorial_target"):
+		game.call("clear_tutorial_target")
+
+
+func _fountain_position() -> Vector3:
+	if game.gold_fountain != null and is_instance_valid(game.gold_fountain):
+		return game.gold_fountain.global_position
+	return Vector3(37.0, 0.0, 0.0)
+
+
+func _shop_position() -> Vector3:
+	return game.SHOP_INTERACTION_POINT
+
+
+func _crystal_position() -> Vector3:
+	if game.crystal_node != null and is_instance_valid(game.crystal_node):
+		return game.crystal_node.global_position
+	return Vector3.ZERO
+
+
+func _own_base_position() -> Vector3:
+	var base_z := float(game.BASE_POSITION_Z)
+	if game.player != null and int(game.player.team) == 1:
+		base_z = -base_z
+	return Vector3(0.0, 0.0, base_z)
