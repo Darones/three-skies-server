@@ -81,3 +81,21 @@ func TestHealthStaysAvailableWithoutDatabase(t *testing.T) {
 		t.Fatalf("health must stay reachable, got %d", recorder.Code)
 	}
 }
+
+func TestNormalizeDatabaseURL(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"empty", "", ""},
+		{"plain url", "postgres://u:p@db:5432/name", "postgres://u:p@db:5432/name?sslmode=disable"},
+		{"existing query", "postgres://u:p@db:5432/name?connect_timeout=5", "postgres://u:p@db:5432/name?connect_timeout=5&sslmode=disable"},
+		{"explicit sslmode", "postgres://u:p@db:5432/name?sslmode=require", "postgres://u:p@db:5432/name?sslmode=require"},
+	}
+	for _, testCase := range cases {
+		if got := normalizeDatabaseURL(testCase.in); got != testCase.want {
+			t.Fatalf("%s: got %q, want %q", testCase.name, got, testCase.want)
+		}
+	}
+}

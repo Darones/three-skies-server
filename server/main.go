@@ -118,7 +118,7 @@ type matchRewardResponse struct {
 }
 
 func main() {
-	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	databaseURL := normalizeDatabaseURL(strings.TrimSpace(os.Getenv("DATABASE_URL")))
 
 	db, err := sql.Open("postgres", databaseURL)
 	if err != nil {
@@ -172,8 +172,21 @@ func main() {
 	log.Fatal(server.ListenAndServe())
 }
 
-func newRouter(service *api, hub *wsHub) http.Handler {
-	mux := http.NewServeMux()
+// normalizeDatabaseURL makes the managed PostgreSQL connection work with
+// lib/pq, which requires TLS by default. The internal database does not serve
+// TLS, so use plaintext unless the URL already asks for a specific sslmode.
+func normalizeDatabaseURL(raw string) string {
+	if raw == "" || strings.Contains(raw, "sslmode=") {
+		return raw
+	}
+	separator := "?"
+	if strings.Contains(raw, "?") {
+		separator = "&"
+	}
+	return raw + separator + "sslmode=disable"
+}
+
+func newRouter(service *api, hub *wsHub) http.Handler {	mux := http.NewServeMux()
 	mux.HandleFunc("/health", service.handleHealth)
 	mux.HandleFunc("/ws", hub.handleWebSocket)
 	mux.HandleFunc("/register", service.handleRegister)
