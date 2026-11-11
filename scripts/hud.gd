@@ -52,6 +52,7 @@ var player_panel_class := -1
 var player_panel_team := -1
 var announce_label: Label
 var ability_buttons: Array[Button] = []
+var icon_class := -1
 var ability_wipes: Array[AbilityCooldownWipe] = []
 var ability_ready: Array[bool] = []
 var ability_name_labels: Array[Label] = []
@@ -82,11 +83,32 @@ var low_health_overlay: ColorRect
 var low_health_material: ShaderMaterial
 var vignette_time := 0.0
 var damage_flash := 0.0
+var heartbeat_players: Array[AudioStreamPlayer] = []
+var heartbeat_timer := 0.0
+var heartbeat_second := -1.0
 
 const GOLD := Color(0.96, 0.82, 0.52)
 const PALE := Color(0.86, 0.9, 1.0)
 const DARK_BG := Color(0.05, 0.05, 0.09, 0.78)
 const SHOP_ICON_SHEET: Texture2D = preload("res://assets/shop_icons/e1689879_126a_4ed4_bbba_c3530a6fb655_asset-e1689879-1790940004841-0_1790940004843_4y4cl4qj.png")
+const HEARTBEAT_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/hits_impacts/deep_sub_impact.wav")
+const ABILITY_ICONS := [
+	[
+		preload("res://assets/ui/icon/128/002.png"),
+		preload("res://assets/ui/icon/128/004.png"),
+		preload("res://assets/ui/icon/128/012.png"),
+	],
+	[
+		preload("res://assets/ui/icon/128/011.png"),
+		preload("res://assets/ui/icon/128/008.png"),
+		preload("res://assets/ui/icon/128/007.png"),
+	],
+	[
+		preload("res://assets/ui/icon/128/001.png"),
+		preload("res://assets/ui/icon/128/010.png"),
+		preload("res://assets/ui/icon/128/005.png"),
+	],
+]
 
 
 func _ready() -> void:
@@ -128,6 +150,14 @@ func _build_low_health_overlay(root: Control) -> void:
 	low_health_material.shader = preload("res://shaders/low_health_vignette.gdshader")
 	low_health_overlay.material = low_health_material
 	root.add_child(low_health_overlay)
+	for index in 2:
+		var heartbeat := AudioStreamPlayer.new()
+		heartbeat.name = "Heartbeat%d" % index
+		heartbeat.stream = HEARTBEAT_SOUND
+		heartbeat.pitch_scale = 0.72
+		heartbeat.volume_db = -20.0
+		add_child(heartbeat)
+		heartbeat_players.append(heartbeat)
 
 
 func flash_damage(amount := 0.3) -> void:
@@ -140,12 +170,41 @@ func _update_low_health_vignette(delta: float) -> void:
 	vignette_time += delta
 	damage_flash = maxf(0.0, damage_flash - delta * 2.6)
 	var intensity := damage_flash
+	var low_health := false
+	var health_fraction := 1.0
 	if game != null and game.state == "live" and game.player != null and is_instance_valid(game.player) and not game.player.dead:
-		var health_fraction: float = float(game.player.health) / maxf(1.0, float(game.player.max_health))
+		health_fraction = float(game.player.health) / maxf(1.0, float(game.player.max_health))
 		if health_fraction < 0.35:
+			low_health = true
 			var pulse := 0.72 + 0.28 * sin(vignette_time * 5.2)
 			intensity = maxf(intensity, clampf((0.35 - health_fraction) / 0.35, 0.0, 1.0) * pulse)
+	if low_health:
+		_update_heartbeat(delta, health_fraction)
+	else:
+		heartbeat_timer = 0.0
+		heartbeat_second = -1.0
 	low_health_material.set_shader_parameter("intensity", clampf(intensity, 0.0, 1.0))
+
+
+func _update_heartbeat(delta: float, health_fraction: float) -> void:
+	if heartbeat_players.size() < 2:
+		return
+	heartbeat_timer -= delta
+	if heartbeat_second > 0.0:
+		heartbeat_second -= delta
+		if heartbeat_second <= 0.0:
+			heartbeat_second = -1.0
+			_play_heartbeat(1, health_fraction)
+	if heartbeat_timer <= 0.0:
+		heartbeat_timer = 1.15
+		heartbeat_second = 0.17
+		_play_heartbeat(0, health_fraction)
+
+
+func _play_heartbeat(index: int, health_fraction: float) -> void:
+	var heartbeat := heartbeat_players[index]
+	heartbeat.volume_db = lerpf(-24.0, -12.0, clampf((0.35 - health_fraction) / 0.35, 0.0, 1.0))
+	heartbeat.play()
 
 
 func _build_tutorial_ui(root: Control) -> void:
@@ -587,12 +646,32 @@ func _build_abilities(root: Control) -> void:
 		wipe.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		wipe.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(wipe)
-		var key_label := _make_label(str(i + 1), 28, Color.WHITE)
+		var icon_rect := TextureRect.new()
+		icon_rect.name = "AbilityIcon"
+		icon_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		icon_rect.offset_left = 5.0
+		icon_rect.offset_top = 5.0
+		icon_rect.offset_right = -5.0
+		icon_rect.offset_bottom = -5.0
+		icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon_rect.texture = ABILITY_ICONS[0][i]
+		icon_rect.z_index = 0
+		button.add_child(icon_rect)
+		var key_label := _make_label(str(i + 1), 14, Color.WHITE)
 		key_label.text = str(ABILITY_SHORT_LABELS[HeroUnit.Cls.WARRIOR][i]) if is_mobile else str(i + 1)
-		key_label.add_theme_font_size_override("font_size", 16 if is_mobile else 28)
-		key_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-		key_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		key_label.z_index = 1
+		key_label.add_theme_font_size_override("font_size", 12 if is_mobile else 14)
+		key_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+		key_label.offset_left = -28.0
+		key_label.offset_top = -24.0
+		key_label.offset_right = -5.0
+		key_label.offset_bottom = -3.0
+		key_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		key_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+		key_label.add_theme_color_override("font_color", Color(0.98, 0.9, 0.7))
+		key_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
+		key_label.z_index = 2
 		key_label.visible = true
 		button.add_child(key_label)
 		var name_label := _make_label("", 13, PALE)
@@ -625,6 +704,15 @@ func _ability_style(is_ready: bool, hovered: bool) -> StyleBoxFlat:
 func _set_ability_ready(index: int, is_ready: bool) -> void:
 	ability_ready[index] = is_ready
 	_refresh_ability_button_style(index)
+
+
+func _refresh_ability_icons(cls: int) -> void:
+	if cls < 0 or cls >= ABILITY_ICONS.size():
+		return
+	for index in ability_buttons.size():
+		var icon_rect := ability_buttons[index].get_node_or_null("AbilityIcon") as TextureRect
+		if icon_rect != null:
+			icon_rect.texture = ABILITY_ICONS[cls][index]
 
 
 func _refresh_ability_button_style(index: int) -> void:
@@ -992,6 +1080,9 @@ func _process(_delta: float) -> void:
 	_update_low_health_vignette(_delta)
 	if game == null:
 		return
+	if game.player != null and is_instance_valid(game.player) and game.player.hero_class != icon_class:
+		icon_class = game.player.hero_class
+		_refresh_ability_icons(icon_class)
 	if pause_button != null:
 		pause_button.visible = game.state == "live"
 	update_gold()

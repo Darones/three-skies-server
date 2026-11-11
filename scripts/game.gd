@@ -63,10 +63,12 @@ const SFX_PATHS := {
 	"hit": "res://audio/sfx/sword_hit.wav",
 	"magic": "res://audio/sfx/magic_burst.wav",
 	"thunder": "res://audio/sfx/shell_thunder.wav",
-	"coin_pickup": "res://assets/audio/Soundza_Game_SFX_Pack/pickups_powerups/bright_coin_pickup.wav",
+	"coin_pickup": "res://assets/audio/Soundza_Game_SFX_Pack/pickups_powerups/coin_drop_metal_box.wav",
 	"shop_purchase": "res://assets/audio/Soundza_Game_SFX_Pack/pickups_powerups/coins_1.wav",
 	"shard_pickup": "res://assets/audio/Soundza_Game_SFX_Pack/pickups_powerups/synth_power_up_ascending.wav",
 	"shard_delivery": "res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/level_clear.wav",
+	"death": "res://assets/audio/Soundza_Game_SFX_Pack/explosions/dark_boom_impact.wav",
+	"respawn": "res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/level_up_chime.wav",
 }
 
 var camera: Camera3D
@@ -339,50 +341,12 @@ func _create_ambient_decor(arena_root: Node3D) -> void:
 	var decor := Node3D.new()
 	decor.name = "AmbientDecor"
 	arena_root.add_child(decor)
-	var gold := Color(1.0, 0.78, 0.32)
-	var light := Color(0.36, 0.76, 1.0)
-	var dark := Color(0.72, 0.43, 1.0)
-	_create_rune_circle(decor, Vector3(0.0, 0.06, 8.5), light)
-	_create_rune_circle(decor, Vector3(0.0, 0.06, -8.5), dark)
-	_create_rune_circle(decor, Vector3(18.0, 0.06, 0.0), gold)
-	_create_rune_circle(decor, Vector3(-18.0, 0.06, 0.0), gold)
 	_create_fireflies(decor, Vector3(37.0, 0.0, 0.0), 5.0, Color(1.0, 0.85, 0.45))
 	_create_fireflies(decor, Vector3(0.0, 0.0, 0.0), 4.5, Color(0.55, 0.85, 1.0))
 	_create_fireflies(decor, Vector3(0.0, 0.0, 10.0), 3.5, Color(0.5, 0.8, 1.0))
 	_create_fireflies(decor, Vector3(0.0, 0.0, -10.0), 3.5, Color(0.75, 0.55, 1.0))
-
-
-func _create_rune_circle(parent: Node3D, position: Vector3, color: Color) -> void:
-	var root := Node3D.new()
-	root.name = "RuneCircle"
-	root.position = position
-	parent.add_child(root)
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(color.r, color.g, color.b, 0.55)
-	material.emission_enabled = true
-	material.emission = color
-	material.emission_energy_multiplier = 0.9
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	var ring_mesh := TorusMesh.new()
-	ring_mesh.inner_radius = 1.4
-	ring_mesh.outer_radius = 1.55
-	ring_mesh.rings = 48
-	ring_mesh.ring_segments = 6
-	var ring := MeshInstance3D.new()
-	ring.mesh = ring_mesh
-	ring.material_override = material
-	root.add_child(ring)
-	for index in 8:
-		var mark := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = Vector3(0.08, 0.01, 0.32)
-		mark.mesh = box
-		mark.material_override = material
-		var angle := TAU * float(index) / 8.0
-		mark.position = Vector3(cos(angle) * 1.95, 0.0, sin(angle) * 1.95)
-		mark.rotation.y = -angle
-		root.add_child(mark)
+	_create_fireflies(decor, Vector3(-24.0, 0.0, 12.0), 3.0, Color(1.0, 0.8, 0.4))
+	_create_fireflies(decor, Vector3(24.0, 0.0, -12.0), 3.0, Color(0.7, 0.6, 1.0))
 
 
 func _create_fireflies(parent: Node3D, position: Vector3, radius: float, color: Color) -> void:
@@ -427,18 +391,18 @@ func _create_arena_props(arena_root: Node3D) -> void:
 	props.name = "ArenaProps"
 	arena_root.add_child(props)
 	var statue_positions: Array[Vector3] = [
-		Vector3(22.0, 0.0, 16.0),
-		Vector3(-22.0, 0.0, 16.0),
-		Vector3(22.0, 0.0, -16.0),
-		Vector3(-22.0, 0.0, -16.0),
+		Vector3(44.0, 0.0, 28.0),
+		Vector3(-44.0, 0.0, 28.0),
+		Vector3(44.0, 0.0, -28.0),
+		Vector3(-44.0, 0.0, -28.0),
 	]
 	for position in statue_positions:
 		_spawn_statue(props, position)
 	var bust_positions: Array[Vector3] = [
-		Vector3(-36.0, 0.0, 5.0),
-		Vector3(-36.0, 0.0, -5.0),
-		Vector3(33.0, 0.0, 5.0),
-		Vector3(33.0, 0.0, -5.0),
+		Vector3(-30.0, 0.0, 24.0),
+		Vector3(30.0, 0.0, 24.0),
+		Vector3(-30.0, 0.0, -24.0),
+		Vector3(30.0, 0.0, -24.0),
 	]
 	for position in bust_positions:
 		_spawn_bust(props, position)
@@ -703,9 +667,9 @@ func _update_gold_fountain(delta: float) -> void:
 			coin.queue_free()
 			gold_coins.remove_at(index)
 			collector.match_coins_collected += 1
-			play_sfx("coin_pickup", -12.0)
 			var coin_value := int(coin.get_meta("gold_value", 1))
 			if collector.is_player:
+				play_sfx("coin_pickup", -18.0)
 				award_gold(coin_value)
 				if tutorial_mode and tutorial_controller != null:
 					tutorial_controller.call("on_coin_collected")
@@ -1836,6 +1800,7 @@ func on_hero_died(h: HeroUnit) -> void:
 	play_sfx("hit", -6.0)
 	if h == player:
 		p_deaths += 1
+		play_sfx("death", -6.0)
 		if network_play:
 			NetworkManager.send_death()
 	if h == carrier or h.carrying:
@@ -1859,6 +1824,7 @@ func record_hero_damage(target: HeroUnit, source: Node, damage: float, killed: b
 func on_hero_respawned(h: HeroUnit) -> void:
 	if h == player:
 		death_camera_active = false
+		play_sfx("respawn", -9.0)
 		if network_play:
 			var visual_rotation := h.global_rotation.y
 			if h.visual != null:

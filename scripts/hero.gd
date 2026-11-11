@@ -61,6 +61,23 @@ const FOOTSTEP_SOUNDS := [
 	preload("res://assets/audio/Soundza_Game_SFX_Pack/footsteps/footstep_on_dirt_and_gravel.wav"),
 	preload("res://assets/audio/Soundza_Game_SFX_Pack/footsteps/soft_footsteps.wav"),
 ]
+const ABILITY_SOUNDS := [
+	[
+		preload("res://assets/audio/Soundza_Game_SFX_Pack/whooshes_swings/fast_air_whoosh.wav"),
+		preload("res://assets/audio/Soundza_Game_SFX_Pack/explosions/dark_boom_impact.wav"),
+		null,
+	],
+	[
+		preload("res://assets/audio/Soundza_Game_SFX_Pack/magic/sparkle_magic_spell.wav"),
+		preload("res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/level_up_chime.wav"),
+		preload("res://audio/sfx/shell_thunder.wav"),
+	],
+	[
+		preload("res://assets/audio/Soundza_Game_SFX_Pack/whooshes_swings/quick_air_whoosh.wav"),
+		preload("res://assets/audio/Soundza_Game_SFX_Pack/whooshes_swings/fast_air_whoosh.wav"),
+		null,
+	],
+]
 const VFX_BIG_IMPACT_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/explosions/fireball_explosion.wav")
 const VFX_LIGHTNING_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/magic/spell_2.wav")
 const VFX_GOLDEN_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/pickups_powerups/synth_power_up_ascending.wav")
@@ -166,6 +183,7 @@ var slow_timer := 0.0
 var slow_factor := 0.0
 var footstep_timer := 0.0
 var footstep_player: AudioStreamPlayer
+var ability_sfx_player: AudioStreamPlayer
 var attack_cd := 0.0
 var attack_anim_time := 0.0
 var respawn_timer := 0.0
@@ -260,6 +278,10 @@ func setup(p_game: Node, p_class: int, p_team: int, p_player: bool) -> void:
 	footstep_player.name = "Footsteps"
 	footstep_player.max_polyphony = 1
 	add_child(footstep_player)
+	ability_sfx_player = AudioStreamPlayer.new()
+	ability_sfx_player.name = "AbilitySfx"
+	ability_sfx_player.max_polyphony = 1
+	add_child(ability_sfx_player)
 	update_wings()
 	_update_health_display()
 
@@ -457,12 +479,27 @@ func _build_combat_audio_players() -> void:
 		combat_audio_players[channel] = player
 
 
-func _play_footstep() -> void:
+func _play_footstep(volume_db := -24.0) -> void:
 	if footstep_player == null or footstep_player.playing:
 		return
 	footstep_player.stream = FOOTSTEP_SOUNDS[randi_range(0, FOOTSTEP_SOUNDS.size() - 1)]
-	footstep_player.volume_db = -24.0
+	footstep_player.volume_db = volume_db
 	footstep_player.play()
+
+
+func _play_ability_sfx(index: int) -> void:
+	if not is_player or ability_sfx_player == null:
+		return
+	if hero_class < 0 or hero_class >= ABILITY_SOUNDS.size():
+		return
+	if index < 0 or index >= ABILITY_SOUNDS[hero_class].size():
+		return
+	var stream: AudioStream = ABILITY_SOUNDS[hero_class][index]
+	if stream == null:
+		return
+	ability_sfx_player.stream = stream
+	ability_sfx_player.volume_db = -7.0
+	ability_sfx_player.play()
 
 
 func _play_combat_sfx(channel: String, sounds: Array, volume_db: float) -> void:
@@ -1192,11 +1229,16 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y = -0.2
 	move_and_slide()
-	if is_player and not dead and is_on_floor() and dir.length_squared() > 0.01:
+	if not dead and is_on_floor() and dir.length_squared() > 0.01:
 		footstep_timer -= delta
 		if footstep_timer <= 0.0:
 			footstep_timer = clampf(2.4 / maxf(move_speed, 1.0), 0.24, 0.5)
-			_play_footstep()
+			if is_player:
+				_play_footstep(-24.0)
+			elif game.player != null and is_instance_valid(game.player) and team != game.player.team:
+				var listener_distance := global_position.distance_to(game.player.global_position)
+				if listener_distance < 14.0:
+					_play_footstep(lerpf(-30.0, -12.0, 1.0 - listener_distance / 14.0))
 	else:
 		footstep_timer = 0.0
 	if game != null and game.has_method("clamp_to_arena"):
@@ -2147,6 +2189,8 @@ func use_ability(index: int, manual := true) -> bool:
 					if remote_enemy.has_method("apply_slow"):
 						remote_enemy.apply_slow(FAIRY_ULT_SLOW, FAIRY_ULT_SLOW_DURATION)
 			game.fairy_ult_burst_fx(origin, FAIRY_ULT_RADIUS, color)
+	if is_player and manual:
+		_play_ability_sfx(index)
 	if is_player and manual and game != null and bool(game.get("network_play")):
 		NetworkManager.send_attack(ability_type)
 	if bool(game.get("tutorial_mode")) and is_player:
