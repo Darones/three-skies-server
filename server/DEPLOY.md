@@ -48,14 +48,14 @@ deployments where migrations are applied separately.
 
 ## Domain and WebSocket
 
-Attach the domain `three-skies.relaxdev.ru` to the service and route it to the
+Attach the domain `three-skies-server.relaxdev.ru` to the service and route it to the
 container port `8080`. The same HTTP listener serves REST and the WebSocket
 endpoint at `/ws`; RelaxDev's proxy must allow WebSocket upgrades.
 
 Client defaults:
 
-- REST: `https://three-skies.relaxdev.ru`
-- WebSocket: `wss://three-skies.relaxdev.ru/ws`
+- REST: `https://three-skies-server.relaxdev.ru`
+- WebSocket: `wss://three-skies-server.relaxdev.ru/ws`
 
 ## Auto-deploy
 

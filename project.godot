@@ -115,8 +115,8 @@ ability_ult={
 
 [network]
 
-api_base_url="https://three-skies.relaxdev.ru"
-ws_url="wss://three-skies.relaxdev.ru/ws"
+api_base_url="https://three-skies-server.relaxdev.ru"
+ws_url="wss://three-skies-server.relaxdev.ru/ws"
 
 [renderer]
 

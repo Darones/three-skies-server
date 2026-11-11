@@ -9,7 +9,7 @@ signal profile_loaded(success: bool, player_id: int, sky_shards: int, unlocked_w
 signal purchase_completed(success: bool, purchase_type: String, item_id: int, new_shards: int)
 signal match_reward_completed(success: bool, amount: int, new_shards: int)
 
-const API_BASE_URL := "https://three-skies.relaxdev.ru"
+const API_BASE_URL := "https://three-skies-server.relaxdev.ru"
 
 var api_base_url := API_BASE_URL
 var peer: WebSocketMultiplayerPeer
@@ -156,7 +156,7 @@ func connect_and_join(hero_class: int) -> Error:
 	players_list_received = false
 	peer = WebSocketMultiplayerPeer.new()
 	print("=== ПОПЫТКА ПОДКЛЮЧЕНИЯ К СЕРВЕРУ ===")
-	var err = peer.create_client("wss://three-skies-server.relaxdev.ru")
+	var err = peer.create_client("wss://three-skies-server.relaxdev.ru/ws")
 	if err != OK:
 		print("=== ОШИБКА СОЗДАНИЯ КЛИЕНТА: ", err, " ===")
 		connection_failed.emit()
