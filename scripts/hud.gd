@@ -645,6 +645,7 @@ func _build_abilities(root: Control) -> void:
 		var wipe := AbilityCooldownWipe.new()
 		wipe.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		wipe.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		wipe.z_index = 1
 		button.add_child(wipe)
 		var icon_rect := TextureRect.new()
 		icon_rect.name = "AbilityIcon"
