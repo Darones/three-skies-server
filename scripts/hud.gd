@@ -161,8 +161,8 @@ func _build_tutorial_ui(root: Control) -> void:
 	tutorial_hint = _make_label("", 24, GOLD)
 	tutorial_hint.anchor_left = 0.12
 	tutorial_hint.anchor_right = 0.88
-	tutorial_hint.anchor_top = 0.12
-	tutorial_hint.anchor_bottom = 0.12
+	tutorial_hint.anchor_top = 0.72
+	tutorial_hint.anchor_bottom = 0.72
 	tutorial_hint.offset_top = 0.0
 	tutorial_hint.offset_bottom = 48.0
 	tutorial_hint.add_theme_stylebox_override("normal", _panel_style(Color(0.78, 0.62, 0.32, 0.9), Color(0.035, 0.045, 0.07, 0.86)))

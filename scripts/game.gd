@@ -1914,7 +1914,15 @@ func _update_tutorial_arrow(delta: float) -> void:
 func spawn_tutorial_dummy() -> void:
 	if tutorial_dummy != null and is_instance_valid(tutorial_dummy):
 		return
-	tutorial_dummy = _spawn_hero(HeroUnit.Cls.WARRIOR, 1 - player.team, false, Vector3(0.0, 0.76, 0.0))
+	var spawn_position := Vector3(0.0, 0.76, -3.0)
+	if player != null and is_instance_valid(player):
+		var direction := Vector2(-player.global_position.x, -player.global_position.z)
+		if direction.length() < 0.5:
+			direction = Vector2(0.0, -1.0)
+		direction = direction.normalized()
+		spawn_position = player.global_position + Vector3(direction.x, 0.0, direction.y) * 3.0
+		spawn_position.y = 0.76
+	tutorial_dummy = _spawn_hero(HeroUnit.Cls.WARRIOR, 1 - player.team, false, spawn_position)
 	tutorial_dummy.name = "TrainingDummy"
 	tutorial_dummy.display_name = "Манекен"
 	tutorial_dummy.tutorial_dummy = true
