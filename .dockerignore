@@ -1,0 +1,4 @@
+# The Docker build only needs the Go server; skip the Godot project and assets.
+*
+!server/
+!server/**
