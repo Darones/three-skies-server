@@ -1828,6 +1828,8 @@ func apply_network_damage(amount: float) -> void:
 	health = clampf(health - maxf(amount, 0.0), 0.0, max_health)
 	seconds_since_damage = 0.0
 	_update_health_display()
+	if is_player and game != null and game.hud != null:
+		game.hud.call("flash_damage", clampf(0.22 + maxf(amount, 0.0) / 260.0, 0.22, 0.6))
 	if game != null and game.has_method("damage_number"):
 		game.call("damage_number", global_position + Vector3(0.0, 2.0, 0.0), amount, team)
 	if health <= 0.0:
@@ -1866,6 +1868,8 @@ func take_damage(amount: float, source: Node = null, damage_type: String = "phys
 	var applied_damage := minf(final_damage, health)
 	health = clampf(health - final_damage, 0.0, max_health)
 	_update_health_display()
+	if is_player and game != null and game.hud != null:
+		game.hud.call("flash_damage", clampf(0.22 + applied_damage / 260.0, 0.22, 0.6))
 	if game != null and game.has_method("record_hero_damage"):
 		game.record_hero_damage(self, source, applied_damage, health <= 0.0)
 	if game != null and game.has_method("damage_number"):

@@ -78,6 +78,10 @@ var tutorial_hint: Label
 var tutorial_primary_action := Callable()
 var tutorial_secondary_action := Callable()
 var tutorial_ability_index := -1
+var low_health_overlay: ColorRect
+var low_health_material: ShaderMaterial
+var vignette_time := 0.0
+var damage_flash := 0.0
 
 const GOLD := Color(0.96, 0.82, 0.52)
 const PALE := Color(0.86, 0.9, 1.0)
@@ -110,7 +114,38 @@ func _ready() -> void:
 	navigator.z_index = 50
 	root.add_child(navigator)
 	navigator.call("configure", game)
+	_build_low_health_overlay(root)
 	_build_tutorial_ui(root)
+
+
+func _build_low_health_overlay(root: Control) -> void:
+	low_health_overlay = ColorRect.new()
+	low_health_overlay.name = "LowHealthVignette"
+	low_health_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	low_health_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	low_health_overlay.z_index = 20
+	low_health_material = ShaderMaterial.new()
+	low_health_material.shader = preload("res://shaders/low_health_vignette.gdshader")
+	low_health_overlay.material = low_health_material
+	root.add_child(low_health_overlay)
+
+
+func flash_damage(amount := 0.3) -> void:
+	damage_flash = clampf(maxf(damage_flash, amount), 0.0, 1.0)
+
+
+func _process(delta: float) -> void:
+	if low_health_material == null:
+		return
+	vignette_time += delta
+	damage_flash = maxf(0.0, damage_flash - delta * 2.6)
+	var intensity := damage_flash
+	if game != null and game.state == "live" and game.player != null and is_instance_valid(game.player) and not game.player.dead:
+		var health_fraction: float = float(game.player.health) / maxf(1.0, float(game.player.max_health))
+		if health_fraction < 0.35:
+			var pulse := 0.72 + 0.28 * sin(vignette_time * 5.2)
+			intensity = maxf(intensity, clampf((0.35 - health_fraction) / 0.35, 0.0, 1.0) * pulse)
+	low_health_material.set_shader_parameter("intensity", clampf(intensity, 0.0, 1.0))
 
 
 func _build_tutorial_ui(root: Control) -> void:
