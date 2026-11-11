@@ -1179,12 +1179,8 @@ func _record_normal_battle_started() -> void:
 func _refresh_tutorial_button() -> void:
 	if tutorial_button == null:
 		return
-	if _tutorial_completed():
-		tutorial_button.text = "ОБУЧЕНИЕ · ПРОЙДЕНО"
-		tutorial_button.disabled = true
-	else:
-		tutorial_button.text = "ОБУЧЕНИЕ"
-		tutorial_button.disabled = false
+	tutorial_button.text = "ОБУЧЕНИЕ"
+	tutorial_button.disabled = false
 
 
 func _make_action_button(text: String, primary: bool) -> Button:
