@@ -2,7 +2,8 @@ extends Control
 
 signal back_requested
 
-const SETTINGS_PATH := "user://game_settings.cfg"
+const SETTINGS_PATH := "user://settings.cfg"
+const LEGACY_SETTINGS_PATH := "user://game_settings.cfg"
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const CONTROL_BINDINGS := [
 	{"action": "move_forward", "label": "Движение вперёд"},
@@ -103,7 +104,8 @@ func _build_panel() -> void:
 	volume_slider.value_changed.connect(_on_volume_changed)
 	volume_row.add_child(volume_slider)
 
-	if mobile_layout:
+	var show_haptics := mobile_layout and not OS.has_feature("web")
+	if show_haptics:
 		vibration_toggle = CheckButton.new()
 		vibration_toggle.name = "VibrationToggle"
 		vibration_toggle.text = "Вибрация"
@@ -111,7 +113,7 @@ func _build_panel() -> void:
 		vibration_toggle.add_theme_font_size_override("font_size", 16)
 		vibration_toggle.toggled.connect(_on_vibration_toggled)
 		layout.add_child(vibration_toggle)
-	else:
+	elif not mobile_layout:
 		layout.add_child(_make_label("УПРАВЛЕНИЕ · нажмите кнопку и задайте новую клавишу", 15, Color(0.9, 0.92, 0.98)))
 		for binding in CONTROL_BINDINGS:
 			_build_binding_row(layout, String(binding["action"]), String(binding["label"]))
@@ -180,14 +182,14 @@ func _button_style(primary: bool, hovered: bool) -> StyleBoxFlat:
 
 
 func _load_settings() -> void:
-	var config := ConfigFile.new()
-	var has_settings := config.load(SETTINGS_PATH) == OK
+	var config := _load_settings_config()
+	var has_settings := not config.get_sections().is_empty()
 	var saved_volume := float(config.get_value("audio", "master_volume", 1.0)) if has_settings else 1.0
 	current_volume = clampf(saved_volume, 0.0, 1.0)
 	volume_slider.set_value_no_signal(clampf(saved_volume, 0.0, 1.0))
 	_apply_volume(saved_volume)
 	if vibration_toggle != null:
-		vibration_toggle.set_pressed_no_signal(bool(config.get_value("mobile", "vibration", true)) if has_settings else true)
+		vibration_toggle.set_pressed_no_signal(Haptics.is_enabled())
 	if not mobile_layout and has_settings:
 		for binding in CONTROL_BINDINGS:
 			var action := String(binding["action"])
@@ -195,6 +197,27 @@ func _load_settings() -> void:
 				_apply_binding(action, int(config.get_value("controls", action)))
 		for binding in CONTROL_BINDINGS:
 			_update_binding_button(String(binding["action"]))
+
+
+func _load_settings_config() -> ConfigFile:
+	var config := ConfigFile.new()
+	var has_settings := config.load(SETTINGS_PATH) == OK
+	var legacy := ConfigFile.new()
+	var has_legacy := legacy.load(LEGACY_SETTINGS_PATH) == OK
+	if not has_settings and has_legacy:
+		for section in legacy.get_sections():
+			for key in legacy.get_section_keys(section):
+				config.set_value(section, key, legacy.get_value(section, key))
+		has_settings = true
+	elif has_settings and has_legacy:
+		for section in legacy.get_sections():
+			for key in legacy.get_section_keys(section):
+				if not config.has_section_key(section, key):
+					config.set_value(section, key, legacy.get_value(section, key))
+					has_settings = true
+	if has_settings:
+		config.save(SETTINGS_PATH)
+	return config
 
 
 func _save_value(section: String, key: String, value: Variant) -> void:
@@ -217,9 +240,9 @@ func _apply_volume(value: float) -> void:
 
 
 func _on_vibration_toggled(enabled: bool) -> void:
-	_save_value("mobile", "vibration", enabled)
+	Haptics.set_enabled(enabled)
 	if enabled:
-		Input.vibrate_handheld(35)
+		Haptics.vibrate(35)
 
 
 func _begin_rebind(action: String) -> void:
@@ -291,17 +314,3 @@ func _on_back_pressed() -> void:
 	listening_action = ""
 	_save_value("audio", "master_volume", current_volume)
 	back_requested.emit()
-
-
-static func vibration_is_enabled() -> bool:
-	if not OS.has_feature("mobile"):
-		return false
-	var config := ConfigFile.new()
-	if config.load(SETTINGS_PATH) != OK:
-		return true
-	return bool(config.get_value("mobile", "vibration", true))
-
-
-static func vibrate_if_enabled(duration_ms: int = 35) -> void:
-	if vibration_is_enabled():
-		Input.vibrate_handheld(duration_ms)

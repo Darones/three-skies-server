@@ -27,6 +27,7 @@ config/icon="res://icon.svg"
 NetworkClient="*res://scripts/network_client.gd"
 NetworkManager="*res://scripts/network_manager.gd"
 MetaProgression="*res://scripts/MetaProgression.gd"
+Haptics="*res://scripts/Haptics.gd"
 AdManager="*res://scripts/AdManager.gd"
 MCPRuntimeServer="*res://addons/godot_mcp_toolkit/runtime/mcp_runtime_server.gd"
 

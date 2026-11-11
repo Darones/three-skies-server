@@ -1809,6 +1809,8 @@ func _update_health_display() -> void:
 func apply_network_damage(amount: float) -> void:
 	if dead:
 		return
+	if is_player and amount > 0.0:
+		Haptics.vibrate(50)
 	health = clampf(health - maxf(amount, 0.0), 0.0, max_health)
 	seconds_since_damage = 0.0
 	_update_health_display()
@@ -1845,6 +1847,8 @@ func take_damage(amount: float, source: Node = null, damage_type: String = "phys
 	var reduction := damage_reduction if damage_type == "physical" else 0.0
 	var source_multiplier := HERO_OUTGOING_DAMAGE_MULTIPLIER if source is HeroUnit else 1.0
 	var final_damage := maxf(amount, 0.0) * source_multiplier * (1.0 - reduction)
+	if is_player and final_damage > 0.0:
+		Haptics.vibrate(50)
 	var applied_damage := minf(final_damage, health)
 	health = clampf(health - final_damage, 0.0, max_health)
 	_update_health_display()
@@ -1914,6 +1918,8 @@ func stun(duration: float) -> void:
 
 func _die() -> void:
 	dead = true
+	if is_player:
+		Haptics.vibrate(200)
 	lightning_storm_timer = 0.0
 	lightning_storm_tick_timer = 0.0
 	if lightning_storm_ring != null:

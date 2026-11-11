@@ -381,7 +381,7 @@ func _open_pause_menu() -> void:
 	pause_menu_panel.visible = true
 	pause_settings_panel.visible = false
 	get_tree().paused = true
-	SETTINGS_PANEL_SCRIPT.vibrate_if_enabled()
+	Haptics.vibrate(35)
 
 
 func _resume_game() -> void:
@@ -912,7 +912,7 @@ func _build_end(root: Control) -> void:
 
 func _on_ability_pressed(index: int) -> void:
 	if game != null and game.player != null:
-		SETTINGS_PANEL_SCRIPT.vibrate_if_enabled(25)
+		Haptics.vibrate(25)
 		game.player.use_ability(index)
 
 
