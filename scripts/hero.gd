@@ -1576,7 +1576,7 @@ func _try_auto_attack(movement_direction: Vector3) -> void:
 		elif hero_class == Cls.MAGE:
 			spawn_vfx_silent(VFX_GOLDEN_SCENE, cast_position, 0.6)
 	else:
-		target.take_damage(damage, self, "physical")
+		target.take_damage(damage, self, "physical", "auto")
 		spawn_attack_impact_vfx(target.global_position + Vector3(0.0, 0.9, 0.0))
 		game.melee_fx(global_position + Vector3(0.0, 1.0, 0.0), target.global_position)
 
@@ -1826,7 +1826,7 @@ func apply_network_heal(amount: float) -> void:
 		game.call("heal_number", global_position + Vector3(0.0, 2.2, 0.0), amount)
 
 
-func take_damage(amount: float, source: Node = null, damage_type: String = "physical") -> void:
+func take_damage(amount: float, source: Node = null, damage_type: String = "physical", _skill: String = "") -> void:
 	if dead or _is_under_base_shield():
 		return
 	if game != null and bool(game.get("tutorial_mode")) and is_player:
@@ -2008,7 +2008,7 @@ func use_ability(index: int, manual := true) -> bool:
 				offset = -_facing_direction()
 			global_position = game.clamp_to_arena(target.global_position + offset.normalized() * 1.2)
 			var hit_position := global_position
-			target.take_damage(roll_direct_damage(attack_damage * get_blessing_damage_multiplier()), self, "physical")
+			target.take_damage(roll_direct_damage(attack_damage * get_blessing_damage_multiplier()), self, "physical", "shadow_assassin")
 			if target.has_method("stun"):
 				target.stun(1.0)
 			spawn_ability_vfx(0, target.global_position)
@@ -2041,7 +2041,7 @@ func use_ability(index: int, manual := true) -> bool:
 				for remote_enemy in game.call("network_enemies_in_radius", origin, WARRIOR_ULT_RADIUS, team):
 					if remote_enemy == null or not is_instance_valid(remote_enemy):
 						continue
-					remote_enemy.take_damage(roll_direct_damage(_outgoing_damage(60.0) * get_blessing_damage_multiplier()), self, "magic")
+					remote_enemy.take_damage(roll_direct_damage(_outgoing_damage(60.0) * get_blessing_damage_multiplier()), self, "magic", "fear_ult")
 					if remote_enemy.has_method("stun"):
 						remote_enemy.stun(1.5)
 			game.fear_pulse_fx(origin, WARRIOR_ULT_RADIUS, color)

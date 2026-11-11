@@ -98,6 +98,10 @@ var tutorial_mode := false
 var tutorial_controller: Node = null
 var tutorial_dummy: HeroUnit = null
 var network_play := false
+var network_host := false
+var network_room_id := 0
+var network_match_players: Array = []
+var network_result_sent := false
 var network_shutting_down := false
 var remote_players: Dictionary = {}
 var remote_root: Node3D = null
@@ -142,6 +146,10 @@ func _ready() -> void:
 	randomize()
 	tutorial_mode = bool(get_tree().get_meta("tutorial_mode", false))
 	network_play = bool(get_tree().get_meta("network_play", false))
+	network_host = bool(get_tree().get_meta("network_host", false))
+	network_room_id = int(get_tree().get_meta("network_room_id", 0))
+	var configured_players: Variant = get_tree().get_meta("network_match_players", [])
+	network_match_players = configured_players if configured_players is Array else []
 	camera = get_node_or_null("Camera3D") as Camera3D
 	if camera == null:
 		camera = Camera3D.new()
@@ -924,12 +932,16 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	var enemy_team := 1 - player_team
 	player = _spawn_hero(player_class, player_team, true, own_spots[0])
 	if not tutorial_mode:
-		var ai_index := 1
-		for c in ally_classes:
-			_spawn_hero(c, player_team, false, own_spots[mini(ai_index, 2)])
-			ai_index += 1
-		for i in classes.size():
-			_spawn_hero(classes[i], enemy_team, false, enemy_spots[mini(i, 2)])
+		if network_play:
+			if network_host:
+				_spawn_network_bots(light_spots, dark_spots)
+		else:
+			var ai_index := 1
+			for c in ally_classes:
+				_spawn_hero(c, player_team, false, own_spots[mini(ai_index, 2)])
+				ai_index += 1
+			for i in classes.size():
+				_spawn_hero(classes[i], enemy_team, false, enemy_spots[mini(i, 2)])
 	state = "live"
 	if network_play:
 		_setup_network_play()
@@ -947,6 +959,19 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 			tutorial_controller.call("begin")
 		else:
 			announce("Бой за осколки!", Color(1.0, 0.86, 0.55), 2.6)
+
+
+func _spawn_network_bots(light_spots: Array[Vector3], dark_spots: Array[Vector3]) -> void:
+	var next_index := [0, 0]
+	for entry in network_match_players:
+		if not entry is Dictionary or not bool(entry.get("bot", false)):
+			continue
+		var bot_team := clampi(int(entry.get("team", 0)), 0, 1)
+		var bot_class := clampi(int(entry.get("class", 0)), 0, 2)
+		var spots: Array[Vector3] = light_spots if bot_team == 0 else dark_spots
+		var spot_index: int = mini(next_index[bot_team], 2)
+		next_index[bot_team] += 1
+		_spawn_hero(bot_class, bot_team, false, spots[spot_index])
 
 
 func _spawn_hero(cls: int, team: int, is_player: bool, pos: Vector3) -> HeroUnit:
@@ -1630,6 +1655,9 @@ func end_match(team_zero_won: bool) -> void:
 	state = "over"
 	if network_play:
 		NetworkManager.unregister_local_player()
+		if not network_result_sent:
+			network_result_sent = true
+			NetworkManager.send_match_result(0 if team_zero_won else 1)
 	set_shop_open(false)
 	var player_team := 0
 	if player != null and is_instance_valid(player):
@@ -1955,7 +1983,7 @@ func _update_projectiles(delta: float) -> void:
 		var dist := to_goal.length()
 		if dist < 0.6:
 			if target.has_method("take_damage"):
-				target.take_damage(p["damage"], p["source"], String(p.get("damage_type", "physical")))
+				target.take_damage(p["damage"], p["source"], String(p.get("damage_type", "physical")), String(p.get("effect_type", "auto")))
 				var attack_source := p.get("source") as HeroUnit
 				if attack_source != null:
 					attack_source.spawn_attack_impact_vfx(target.global_position + Vector3(0.0, 0.9, 0.0), String(p.get("effect_type", "")))
@@ -1994,7 +2022,7 @@ func mage_storm_tick(mage: HeroUnit, radius: float, damage: float) -> void:
 			_activate_shell_beam(remote_enemy.global_position, Color(0.38, 0.82, 1.0, 0.95))
 			mage.spawn_ability_vfx(2, remote_enemy.global_position + Vector3(0.0, 0.1, 0.0))
 			var network_damage := mage.roll_ultimate_damage(damage)
-			remote_enemy.take_damage(mage._outgoing_damage(network_damage) * mage.get_blessing_damage_multiplier(), mage, "magic")
+			remote_enemy.take_damage(mage._outgoing_damage(network_damage) * mage.get_blessing_damage_multiplier(), mage, "magic", "ult_lightning_storm")
 
 
 func shell_bolt(pos: Vector3, radius: float, damage: float) -> void:

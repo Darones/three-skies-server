@@ -110,9 +110,12 @@ func main() {
 	if err := createPlayersTable(startupContext, db); err != nil {
 		log.Fatalf("create players table: %v", err)
 	}
+	if err := createMatchesTable(startupContext, db); err != nil {
+		log.Fatalf("create matches table: %v", err)
+	}
 
 	service := &api{db: db}
-	hub := newWebSocketHub()
+	hub := newWebSocketHub(db)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", hub.handleWebSocket)
 	mux.HandleFunc("/register", service.handleRegister)
@@ -156,6 +159,24 @@ func createPlayersTable(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 	_, err = db.ExecContext(ctx, `ALTER TABLE players ADD COLUMN IF NOT EXISTS unlocked_weapons TEXT DEFAULT ''`)
+	return err
+}
+
+func createMatchesTable(ctx context.Context, db *sql.DB) error {
+	_, err := db.ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS matches (
+			id BIGSERIAL PRIMARY KEY,
+			room_id BIGINT NOT NULL,
+			player_id BIGINT NOT NULL,
+			team INTEGER NOT NULL,
+			won BOOLEAN NOT NULL,
+			played_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)
+	`)
+	if err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS matches_player_id_idx ON matches (player_id)`)
 	return err
 }
 

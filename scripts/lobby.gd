@@ -31,7 +31,6 @@ var topup_panel: PanelContainer
 var info_dialog: AcceptDialog
 var shard_amount_label: Label
 var network_button: Button
-var _network_enter_pending := false
 var settings_panel: Control
 var player_menu_overlay: ColorRect
 var nickname_line_edit: LineEdit
@@ -85,8 +84,8 @@ func _ready() -> void:
 		NetworkManager.connection_succeeded.connect(_on_network_connected)
 	if not NetworkManager.connection_failed.is_connected(_on_network_failed):
 		NetworkManager.connection_failed.connect(_on_network_failed)
-	if not NetworkManager.welcome_received.is_connected(_on_network_welcome):
-		NetworkManager.welcome_received.connect(_on_network_welcome)
+	if not NetworkManager.match_started.is_connected(_on_network_match_started):
+		NetworkManager.match_started.connect(_on_network_match_started)
 	if not NetworkManager.disconnected.is_connected(_on_network_disconnected):
 		NetworkManager.disconnected.connect(_on_network_disconnected)
 	if MetaProgression.player_id <= 0:
@@ -1052,15 +1051,26 @@ func _start_network_battle() -> void:
 	get_tree().set_meta("tutorial_mode", false)
 	get_tree().set_meta("network_play", true)
 	get_tree().set_meta("selected_class", selected_class)
-	var network_team := randi_range(0, 1)
-	get_tree().set_meta("selected_team", network_team)
 	if NetworkManager.is_server_connected():
-		_on_network_connected()
+		if not NetworkManager.match_players.is_empty():
+			_on_network_match_started(
+				NetworkManager.room_id,
+				NetworkManager.host_id,
+				NetworkManager.match_players
+			)
+		elif network_button != null:
+			network_button.disabled = true
+			network_button.text = "ПОИСК ИГРЫ..."
 		return
 	if network_button != null:
 		network_button.disabled = true
 		network_button.text = "ПОДКЛЮЧЕНИЕ..."
-	var error := NetworkManager.connect_to_server(selected_class, network_team, MetaProgression.player_nickname)
+	var error := NetworkManager.connect_to_server(
+		selected_class,
+		0,
+		MetaProgression.player_nickname,
+		MetaProgression.player_id
+	)
 	if error != OK:
 		get_tree().set_meta("network_play", false)
 		_reset_network_button()
@@ -1069,30 +1079,23 @@ func _start_network_battle() -> void:
 func _on_network_connected() -> void:
 	if not is_inside_tree():
 		return
-	if NetworkManager.local_peer_id <= 0:
-		_network_enter_pending = true
-		return
-	_enter_network_match()
+	if network_button != null:
+		network_button.disabled = true
+		network_button.text = "ПОИСК ИГРЫ..."
 
 
-func _on_network_welcome(_player_id: int) -> void:
-	if _network_enter_pending:
-		_enter_network_match()
-
-
-func _enter_network_match() -> void:
+func _on_network_match_started(room_id: int, _host_id: int, players: Array) -> void:
 	if not is_inside_tree():
 		return
-	_network_enter_pending = false
-	var network_team := (NetworkManager.local_peer_id - 1) % 2
-	if network_team < 0:
-		network_team = 0
 	get_tree().set_meta("network_play", true)
 	get_tree().set_meta("tutorial_mode", false)
-	get_tree().set_meta("selected_class", selected_class)
-	get_tree().set_meta("selected_team", network_team)
+	get_tree().set_meta("selected_class", NetworkManager.local_class)
+	get_tree().set_meta("selected_team", NetworkManager.assigned_team)
+	get_tree().set_meta("network_host", NetworkManager.is_host)
+	get_tree().set_meta("network_room_id", room_id)
+	get_tree().set_meta("network_match_players", players)
 	if network_button != null:
-		network_button.text = "ПОДКЛЮЧЕНО"
+		network_button.text = "МАТЧ НАЙДЕН"
 		network_button.disabled = true
 	var error := get_tree().change_scene_to_file("res://scenes/Main.tscn")
 	if error != OK:
@@ -1104,14 +1107,12 @@ func _enter_network_match() -> void:
 func _on_network_failed(reason: String) -> void:
 	if not is_inside_tree():
 		return
-	_network_enter_pending = false
 	get_tree().set_meta("network_play", false)
 	_reset_network_button()
 	_show_info("Не удалось подключиться к серверу: %s" % reason)
 
 
 func _on_network_disconnected() -> void:
-	_network_enter_pending = false
 	_reset_network_button()
 
 

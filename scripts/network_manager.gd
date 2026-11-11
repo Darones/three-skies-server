@@ -14,6 +14,9 @@ signal remote_death_received(player_id: int)
 signal remote_respawn_received(player_id: int, position: Vector3, rotation: float)
 signal remote_heal_received(source_id: int, target_id: int, amount: float)
 signal remote_stats_updated(player_id: int, max_hp: float, hp: float, attack_damage: float)
+signal match_started(room_id: int, host_id: int, players: Array)
+signal match_finished(winning_team: int)
+signal host_changed(new_host_id: int)
 
 enum State { DISCONNECTED, CONNECTING, CONNECTED }
 
@@ -27,10 +30,17 @@ var socket: WebSocketPeer = null
 var local_peer_id := 0
 var local_hero: Node3D = null
 var remote_players: Dictionary = {}
+var room_id := 0
+var host_id := 0
+var assigned_team := 0
+var local_class := 0
+var is_host := false
+var match_players: Array = []
 
 var _pending_class := 0
 var _pending_team := 0
 var _pending_name := ""
+var _pending_player_id := 0
 var _connect_deadline_msec := 0
 var _send_accumulator := 0.0
 
@@ -53,7 +63,7 @@ func is_connecting() -> bool:
 	return state == State.CONNECTING
 
 
-func connect_to_server(hero_class: int = 0, team: int = 0, player_name := "") -> Error:
+func connect_to_server(hero_class: int = 0, team: int = 0, player_name := "", player_id := 0) -> Error:
 	if state == State.CONNECTED:
 		return OK
 	if state == State.CONNECTING:
@@ -62,8 +72,15 @@ func connect_to_server(hero_class: int = 0, team: int = 0, player_name := "") ->
 	_pending_class = clampi(hero_class, 0, 2)
 	_pending_team = clampi(team, 0, 1)
 	_pending_name = String(player_name).strip_edges()
+	_pending_player_id = int(player_id)
 	local_peer_id = 0
 	remote_players.clear()
+	match_players.clear()
+	room_id = 0
+	host_id = 0
+	assigned_team = 0
+	local_class = clampi(hero_class, 0, 2)
+	is_host = false
 
 	socket = WebSocketPeer.new()
 	if "handshake_timeout" in socket:
@@ -93,6 +110,12 @@ func disconnect_from_server(notify := true) -> void:
 	local_peer_id = 0
 	local_hero = null
 	remote_players.clear()
+	match_players.clear()
+	room_id = 0
+	host_id = 0
+	assigned_team = 0
+	local_class = 0
+	is_host = false
 	if was_active:
 		connection_state_changed.emit(state)
 		if notify:
@@ -111,6 +134,25 @@ func get_remote_snapshot() -> Dictionary:
 	return remote_players.duplicate(true)
 
 
+func send_attack_intent(target_id: int, skill: String) -> void:
+	if state != State.CONNECTED or target_id <= 0:
+		return
+	_send_json({
+		"type": "attack_intent",
+		"target_id": target_id,
+		"skill": skill,
+	})
+
+
+func send_match_result(winning_team: int) -> void:
+	if state != State.CONNECTED:
+		return
+	_send_json({
+		"type": "match_result",
+		"winning_team": clampi(winning_team, 0, 1),
+	})
+
+
 func send_attack(attack_type: String, target_id: int = 0) -> void:
 	if state != State.CONNECTED:
 		return
@@ -127,16 +169,6 @@ func send_attack(attack_type: String, target_id: int = 0) -> void:
 		var visual: Variant = local_hero.get("visual")
 		payload["rotation"] = (visual as Node3D).global_rotation.y if visual is Node3D else local_hero.global_rotation.y
 	_send_json(payload)
-
-
-func send_damage(target_id: int, amount: float) -> void:
-	if state != State.CONNECTED or target_id <= 0 or amount <= 0.0:
-		return
-	_send_json({
-		"type": "damage",
-		"target_id": target_id,
-		"amount": amount,
-	})
 
 
 func send_heal(target_id: int, amount: float) -> void:
@@ -225,7 +257,9 @@ func _send_join() -> void:
 		"type": "join",
 		"name": _pending_name if not _pending_name.is_empty() else "Игрок",
 		"class": _pending_class,
+		"class_name": ["warrior", "mage", "fairy"][_pending_class],
 		"team": _pending_team,
+		"player_id": _pending_player_id,
 	})
 
 
@@ -290,6 +324,16 @@ func _handle_message(text: String) -> void:
 			_handle_death(message)
 		"respawn":
 			_handle_respawn(message)
+		"room_joined":
+			_handle_room_joined(message)
+		"match_start":
+			_handle_match_start(message)
+		"match_finished":
+			match_finished.emit(int(message.get("winning_team", 0)))
+		"host_changed":
+			host_id = int(message.get("host_id", message.get("id", 0)))
+			is_host = host_id == local_peer_id
+			host_changed.emit(host_id)
 
 
 func _handle_welcome(message: Dictionary) -> void:
@@ -398,6 +442,37 @@ func _make_remote_info(message: Dictionary) -> Dictionary:
 		"hp": maxf(float(message.get("hp", 0.0)), 0.0),
 		"attack_damage": maxf(float(message.get("attack_damage", 0.0)), 0.0),
 	}
+
+
+func _handle_room_joined(message: Dictionary) -> void:
+	room_id = int(message.get("room_id", 0))
+	host_id = int(message.get("host_id", 0))
+	assigned_team = int(message.get("team", assigned_team))
+	local_class = clampi(int(message.get("class", local_class)), 0, 2)
+	print("[NET] room=", room_id, " team=", assigned_team, " host=", host_id)
+
+
+func _handle_match_start(message: Dictionary) -> void:
+	room_id = int(message.get("room_id", 0))
+	host_id = int(message.get("host_id", 0))
+	var players: Variant = message.get("match_players", [])
+	match_players = players if players is Array else []
+	remote_players.clear()
+	assigned_team = 0
+	for entry in match_players:
+		if not entry is Dictionary:
+			continue
+		var player_id := int(entry.get("id", 0))
+		if player_id == local_peer_id:
+			assigned_team = int(entry.get("team", 0))
+			local_class = clampi(int(entry.get("class", local_class)), 0, 2)
+		elif not bool(entry.get("bot", false)):
+			var info := _make_remote_info(entry)
+			remote_players[player_id] = info
+			remote_player_joined.emit(player_id, info)
+	is_host = host_id == local_peer_id and local_peer_id > 0
+	print("[NET] match_start room=", room_id, " host=", is_host, " team=", assigned_team, " players=", match_players.size())
+	match_started.emit(room_id, host_id, match_players)
 
 
 func _handle_attack(message: Dictionary) -> void:
