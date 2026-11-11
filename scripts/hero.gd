@@ -56,6 +56,11 @@ const VFX_BIG_IMPACT_02_SCENE: PackedScene = preload("res://assets/hit_fx/Binbun
 const VFX_LIGHTNING_SCENE: PackedScene = preload("res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_01.tscn")
 const VFX_GOLDEN_SCENE: PackedScene = preload("res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn")
 const VFX_HIT_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/hits_impacts/deep_punch_impact.wav")
+const FOOTSTEP_SOUNDS := [
+	preload("res://assets/audio/Soundza_Game_SFX_Pack/footsteps/hiking_boot_footsteps_on_stone.wav"),
+	preload("res://assets/audio/Soundza_Game_SFX_Pack/footsteps/footstep_on_dirt_and_gravel.wav"),
+	preload("res://assets/audio/Soundza_Game_SFX_Pack/footsteps/soft_footsteps.wav"),
+]
 const VFX_BIG_IMPACT_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/explosions/fireball_explosion.wav")
 const VFX_LIGHTNING_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/magic/spell_2.wav")
 const VFX_GOLDEN_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/pickups_powerups/synth_power_up_ascending.wav")
@@ -159,6 +164,8 @@ var bot_purchased_shop_items: Array[String] = []
 var stun_timer := 0.0
 var slow_timer := 0.0
 var slow_factor := 0.0
+var footstep_timer := 0.0
+var footstep_player: AudioStreamPlayer
 var attack_cd := 0.0
 var attack_anim_time := 0.0
 var respawn_timer := 0.0
@@ -249,6 +256,10 @@ func setup(p_game: Node, p_class: int, p_team: int, p_player: bool) -> void:
 		add_child(navigation_agent)
 	_build_body()
 	_build_visual()
+	footstep_player = AudioStreamPlayer.new()
+	footstep_player.name = "Footsteps"
+	footstep_player.max_polyphony = 1
+	add_child(footstep_player)
 	update_wings()
 	_update_health_display()
 
@@ -444,6 +455,14 @@ func _build_combat_audio_players() -> void:
 		player.position = Vector3(0.0, 1.0, 0.0)
 		add_child(player)
 		combat_audio_players[channel] = player
+
+
+func _play_footstep() -> void:
+	if footstep_player == null or footstep_player.playing:
+		return
+	footstep_player.stream = FOOTSTEP_SOUNDS[randi_range(0, FOOTSTEP_SOUNDS.size() - 1)]
+	footstep_player.volume_db = -24.0
+	footstep_player.play()
 
 
 func _play_combat_sfx(channel: String, sounds: Array, volume_db: float) -> void:
@@ -1173,6 +1192,13 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y = -0.2
 	move_and_slide()
+	if is_player and not dead and is_on_floor() and dir.length_squared() > 0.01:
+		footstep_timer -= delta
+		if footstep_timer <= 0.0:
+			footstep_timer = clampf(2.4 / maxf(move_speed, 1.0), 0.24, 0.5)
+			_play_footstep()
+	else:
+		footstep_timer = 0.0
 	if game != null and game.has_method("clamp_to_arena"):
 		var bounded_position: Vector3 = game.clamp_to_arena(global_position)
 		if absf(bounded_position.x - global_position.x) > 0.001:

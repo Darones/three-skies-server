@@ -134,7 +134,7 @@ func flash_damage(amount := 0.3) -> void:
 	damage_flash = clampf(maxf(damage_flash, amount), 0.0, 1.0)
 
 
-func _process(delta: float) -> void:
+func _update_low_health_vignette(delta: float) -> void:
 	if low_health_material == null:
 		return
 	vignette_time += delta
@@ -989,6 +989,7 @@ func show_announcement(text: String, color: Color, duration: float) -> void:
 
 
 func _process(_delta: float) -> void:
+	_update_low_health_vignette(_delta)
 	if game == null:
 		return
 	if pause_button != null:
