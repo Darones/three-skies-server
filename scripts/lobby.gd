@@ -1182,9 +1182,6 @@ func _refresh_tutorial_button() -> void:
 	if _tutorial_completed():
 		tutorial_button.text = "ОБУЧЕНИЕ · ПРОЙДЕНО"
 		tutorial_button.disabled = true
-	elif _tutorial_battles_used() >= 3:
-		tutorial_button.text = "ОБУЧЕНИЕ"
-		tutorial_button.disabled = true
 	else:
 		tutorial_button.text = "ОБУЧЕНИЕ"
 		tutorial_button.disabled = false

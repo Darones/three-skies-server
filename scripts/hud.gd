@@ -862,8 +862,14 @@ func update_shop() -> void:
 			continue
 		var purchased: bool = item_id in game.purchased_shop_items
 		var affordable: bool = game.gold >= int(item["price"])
-		button.disabled = purchased or not affordable
-		button.modulate = Color(0.5, 0.5, 0.55, 0.58) if purchased else (Color(0.65, 0.67, 0.72, 0.7) if not affordable else Color.WHITE)
+		var allowed: bool = game.is_shop_item_available(item_id)
+		button.disabled = purchased or not affordable or not allowed
+		if purchased:
+			button.modulate = Color(0.5, 0.5, 0.55, 0.58)
+		elif not affordable or not allowed:
+			button.modulate = Color(0.65, 0.67, 0.72, 0.7)
+		else:
+			button.modulate = Color.WHITE
 
 
 func _on_shop_item_pressed(item_id: String) -> void:

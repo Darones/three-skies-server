@@ -1090,6 +1090,12 @@ func set_shop_open(open: bool) -> void:
 		hud.set_shop_open(shop_open)
 
 
+func is_shop_item_available(item_id: String) -> bool:
+	if not tutorial_mode or tutorial_controller == null:
+		return true
+	return bool(tutorial_controller.call("can_buy_item", item_id))
+
+
 func buy_item(item_id: String) -> bool:
 	if not shop_open or player == null or item_id in purchased_shop_items:
 		return false
