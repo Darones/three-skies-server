@@ -19,6 +19,10 @@ import (
 
 const maxRequestBody = 1 << 20
 
+// maxMatchReward is a sanity limit so a malformed client cannot add an
+// arbitrary amount of shards in one request.
+const maxMatchReward = 100000
+
 var wingPrices = map[int]int{
 	1: 50,
 	2: 500,
@@ -39,18 +43,18 @@ type registerRequest struct {
 }
 
 type registerResponse struct {
-	Success  bool  `json:"success"`
-	PlayerID int64 `json:"player_id,omitempty"`
+	Success  bool   `json:"success"`
+	PlayerID int64  `json:"player_id,omitempty"`
 	Error    string `json:"error,omitempty"`
 }
 
 type playerProfileResponse struct {
-	Success        bool   `json:"success"`
-	PlayerID       int64  `json:"player_id,omitempty"`
-	SkyShards      int    `json:"sky_shards,omitempty"`
-	UnlockedWings  []int  `json:"unlocked_wings,omitempty"`
-	UnlockedWeapons []int `json:"unlocked_weapons,omitempty"`
-	Error          string `json:"error,omitempty"`
+	Success         bool   `json:"success"`
+	PlayerID        int64  `json:"player_id,omitempty"`
+	SkyShards       int    `json:"sky_shards,omitempty"`
+	UnlockedWings   []int  `json:"unlocked_wings,omitempty"`
+	UnlockedWeapons []int  `json:"unlocked_weapons,omitempty"`
+	Error           string `json:"error,omitempty"`
 }
 
 type buyWingRequest struct {
@@ -66,6 +70,18 @@ type buyWingResponse struct {
 }
 
 type buyWeaponResponse struct {
+	Success   bool   `json:"success"`
+	NewShards int    `json:"new_shards,omitempty"`
+	Error     string `json:"error,omitempty"`
+}
+
+type matchRewardRequest struct {
+	PlayerID int64 `json:"player_id"`
+	Amount   int   `json:"amount"`
+	Shards   int   `json:"shards"`
+}
+
+type matchRewardResponse struct {
 	Success   bool   `json:"success"`
 	NewShards int    `json:"new_shards,omitempty"`
 	Error     string `json:"error,omitempty"`
@@ -101,6 +117,7 @@ func main() {
 	mux.HandleFunc("/profile", service.handleProfile)
 	mux.HandleFunc("/buy_wing", service.handleBuyWing)
 	mux.HandleFunc("/buy_weapon", service.handleBuyWeapon)
+	mux.HandleFunc("/match_reward", service.handleMatchReward)
 
 	port := strings.TrimSpace(os.Getenv("PORT"))
 	if port == "" {
@@ -203,10 +220,10 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, playerProfileResponse{
-		Success: true,
-		PlayerID: playerID,
-		SkyShards: shards,
-		UnlockedWings: parseItemIDs(unlockedWings),
+		Success:         true,
+		PlayerID:        playerID,
+		SkyShards:       shards,
+		UnlockedWings:   parseItemIDs(unlockedWings),
 		UnlockedWeapons: parseItemIDs(unlockedWeapons),
 	})
 }
@@ -347,6 +364,49 @@ func (service *api) handleBuyWeapon(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, buyWeaponResponse{Success: true, NewShards: newShards})
+}
+
+func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
+	if !requirePost(w, r) {
+		return
+	}
+	var request matchRewardRequest
+	if err := decodeJSON(w, r, &request); err != nil {
+		writeJSON(w, http.StatusBadRequest, matchRewardResponse{Error: "Invalid JSON"})
+		return
+	}
+
+	// amount is the canonical field; shards is accepted as an alias for
+	// clients that name the currency explicitly.
+	if request.Amount != 0 && request.Shards != 0 && request.Amount != request.Shards {
+		writeJSON(w, http.StatusBadRequest, matchRewardResponse{Error: "Conflicting reward amount"})
+		return
+	}
+	amount := request.Amount
+	if amount == 0 {
+		amount = request.Shards
+	}
+	if request.PlayerID <= 0 || amount <= 0 || amount > maxMatchReward {
+		writeJSON(w, http.StatusBadRequest, matchRewardResponse{Error: "Invalid reward"})
+		return
+	}
+
+	var newShards int
+	err := service.db.QueryRowContext(r.Context(),
+		`UPDATE players SET sky_shards = COALESCE(sky_shards, 0) + $1 WHERE id = $2 RETURNING sky_shards`,
+		amount, request.PlayerID,
+	).Scan(&newShards)
+	if errors.Is(err, sql.ErrNoRows) {
+		writeJSON(w, http.StatusNotFound, matchRewardResponse{Error: "Player not found"})
+		return
+	}
+	if err != nil {
+		log.Printf("grant match reward: %v", err)
+		writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, matchRewardResponse{Success: true, NewShards: newShards})
 }
 
 func containsWing(unlocked string, wingID int) bool {

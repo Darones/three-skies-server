@@ -7,6 +7,7 @@ signal connection_failed
 signal registration_completed(success: bool, player_id: int)
 signal profile_loaded(success: bool, player_id: int, sky_shards: int, unlocked_wings: Array, unlocked_weapons: Array)
 signal purchase_completed(success: bool, purchase_type: String, item_id: int, new_shards: int)
+signal match_reward_completed(success: bool, amount: int, new_shards: int)
 
 const API_BASE_URL := "http://127.0.0.1:8080"
 
@@ -45,6 +46,16 @@ func buy_weapon_server(player_id: int, weapon_id: int, cost: int) -> void:
 		"weapon_id": weapon_id,
 		"cost": cost,
 	}, "purchase", "weapon", weapon_id)
+
+
+func grant_match_reward(player_id: int, amount: int) -> void:
+	if player_id <= 0 or amount <= 0:
+		match_reward_completed.emit(false, amount, 0)
+		return
+	_send_post("/match_reward", {
+		"player_id": player_id,
+		"amount": amount,
+	}, "match_reward")
 
 
 func load_player_profile(player_id: int) -> void:
@@ -114,6 +125,10 @@ func _on_http_request_completed(result: int, response_code: int, _headers: Packe
 	elif request["request_type"] == "purchase":
 		var new_shards := int(response.get("new_shards", 0)) if response is Dictionary else 0
 		purchase_completed.emit(success, String(request["purchase_type"]), int(request["item_id"]), new_shards if success else 0)
+	elif request["request_type"] == "match_reward":
+		var awarded := int(request["payload"].get("amount", 0))
+		var new_shards := int(response.get("new_shards", 0)) if response is Dictionary else 0
+		match_reward_completed.emit(success, awarded, new_shards if success else 0)
 	_start_next_http_request()
 
 
@@ -124,6 +139,8 @@ func _emit_http_failure(request: Dictionary) -> void:
 		profile_loaded.emit(false, int(request["player_id"]), 0, [], [])
 	elif request["request_type"] == "purchase":
 		purchase_completed.emit(false, String(request["purchase_type"]), int(request["item_id"]), 0)
+	elif request["request_type"] == "match_reward":
+		match_reward_completed.emit(false, int(request["payload"].get("amount", 0)), 0)
 
 func connect_and_join(hero_class: int) -> Error:
 	current_class = hero_class

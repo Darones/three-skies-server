@@ -33,6 +33,8 @@ func _ready() -> void:
 		NetworkClient.profile_loaded.connect(_on_profile_loaded)
 	if not NetworkClient.purchase_completed.is_connected(_on_purchase_completed):
 		NetworkClient.purchase_completed.connect(_on_purchase_completed)
+	if not NetworkClient.match_reward_completed.is_connected(_on_match_reward_completed):
+		NetworkClient.match_reward_completed.connect(_on_match_reward_completed)
 
 
 func register_player(nickname: String) -> void:
@@ -52,6 +54,26 @@ func load_profile(saved_player_id: int) -> void:
 
 func add_shards(shards_amount: int) -> void:
 	sky_shards += maxi(0, shards_amount)
+
+
+func grant_match_reward(amount: int) -> bool:
+	if amount <= 0:
+		return false
+	if player_id <= 0:
+		add_shards(amount)
+		return false
+	NetworkClient.grant_match_reward(player_id, amount)
+	return true
+
+
+func _on_match_reward_completed(success: bool, amount: int, new_shards: int) -> void:
+	if success:
+		sky_shards = maxi(0, new_shards)
+	else:
+		# Keep the reward if the server is unreachable so offline play still
+		# progresses.
+		add_shards(amount)
+	profile_updated.emit()
 
 
 func get_xp_for_next_level(char_name: String) -> int:
