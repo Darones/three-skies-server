@@ -9,15 +9,36 @@
 - Dockerfile: `Dockerfile` (relative to the project root `server`)
 - Container port: `8080`
 
+If Root directory is left at the repository root, RelaxDev may pick up the wrong
+context. The Go server lives in `server/`; always build from there.
+
 Local Docker build check:
 
 ```bash
 docker build -t three-skies-server ./server
 ```
 
-If the platform uses Go auto-detection instead of Docker, set the project root to
-`server` as well. The Go server reads the port from `PORT` and listens on all
-interfaces.
+The Go server reads the port from `PORT`, listens on all interfaces
+(`0.0.0.0`), and defaults to `8080` when `PORT` is empty.
+
+## Health endpoint
+
+`GET https://three-skies-server.relaxdev.ru/health`
+
+```json
+{"success":true,"status":"ok","database":"ok","uptime_seconds":42}
+```
+
+The server no longer exits when the database is missing or unreachable. It keeps
+running and reports the problem:
+
+```json
+{"success":true,"status":"degraded","database":"down","database_error":"..."}
+```
+
+While the database is down, `/health` answers `200` and every data endpoint
+answers `503` with `{"success":false,"error":"Database unavailable"}`. The server
+re-checks the database every 15 seconds and recovers on its own.
 
 ## Environment variables
 
@@ -62,6 +83,17 @@ Client defaults:
 RelaxDev supports GitHub push auto-deploy through its own repository webhook.
 Enable **Auto-deploy** in the project after connecting the GitHub repository.
 A GitHub Actions deploy workflow is not required.
+
+## When the domain returns 502
+
+1. Check `/health` first. JSON means the container and the port are fine and the
+   message points at the database (`database_error`).
+2. A 502 from nginx means nothing answers on the routed port. Check the last
+   build log in RelaxDev:
+   - `DATABASE_URL is required` is no longer fatal, so it will not cause 502;
+   - `server listening on :8080` must appear in the runtime log;
+   - a build error means the build context is wrong.
+3. Confirm Build context = `server`, Dockerfile = `Dockerfile`, port = `8080`.
 
 ## Local testing
 

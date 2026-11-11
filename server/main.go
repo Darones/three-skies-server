@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -18,6 +19,10 @@ import (
 )
 
 const maxRequestBody = 1 << 20
+
+// dbMonitorInterval is how often the server checks a database that was
+// unavailable at startup, and how often it re-checks a live connection.
+const dbMonitorInterval = 15 * time.Second
 
 // maxMatchReward is a sanity limit so a malformed client cannot add an
 // arbitrary amount of shards in one request.
@@ -34,8 +39,33 @@ var weaponPrices = map[int]int{
 	1: 500,
 }
 
+var startedAt = time.Now()
+
 type api struct {
-	db *sql.DB
+	db      *sql.DB
+	dbReady atomic.Bool
+	dbError atomic.Value
+}
+
+func (service *api) setDatabaseReady() {
+	service.dbError.Store("")
+	service.dbReady.Store(true)
+}
+
+func (service *api) setDatabaseError(err error) {
+	service.dbReady.Store(false)
+	if err != nil {
+		service.dbError.Store(err.Error())
+	}
+}
+
+func (service *api) lastDatabaseError() string {
+	value := service.dbError.Load()
+	if value == nil {
+		return ""
+	}
+	message, _ := value.(string)
+	return message
 }
 
 type registerRequest struct {
@@ -89,9 +119,6 @@ type matchRewardResponse struct {
 
 func main() {
 	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
-	if databaseURL == "" {
-		log.Fatal("DATABASE_URL is required")
-	}
 
 	db, err := sql.Open("postgres", databaseURL)
 	if err != nil {
@@ -102,27 +129,27 @@ func main() {
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(30 * time.Minute)
 
-	startupContext, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	if err := db.PingContext(startupContext); err != nil {
-		log.Fatalf("connect to database: %v", err)
-	}
-	if err := createPlayersTable(startupContext, db); err != nil {
-		log.Fatalf("create players table: %v", err)
-	}
-	if err := createMatchesTable(startupContext, db); err != nil {
-		log.Fatalf("create matches table: %v", err)
-	}
-
 	service := &api{db: db}
 	hub := newWebSocketHub(db)
-	mux := http.NewServeMux()
-	mux.HandleFunc("/ws", hub.handleWebSocket)
-	mux.HandleFunc("/register", service.handleRegister)
-	mux.HandleFunc("/profile", service.handleProfile)
-	mux.HandleFunc("/buy_wing", service.handleBuyWing)
-	mux.HandleFunc("/buy_weapon", service.handleBuyWeapon)
-	mux.HandleFunc("/match_reward", service.handleMatchReward)
+	router := newRouter(service, hub)
+
+	startupContext, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	if databaseURL == "" {
+		log.Print("WARNING: DATABASE_URL is not set; serving /health only")
+		service.setDatabaseError(errors.New("DATABASE_URL is required"))
+	} else if err := db.PingContext(startupContext); err != nil {
+		log.Printf("WARNING: database unavailable at startup: %v", err)
+		service.setDatabaseError(err)
+	} else if err := createSchema(startupContext, db); err != nil {
+		log.Printf("WARNING: database schema setup failed: %v", err)
+		service.setDatabaseError(err)
+	} else {
+		log.Print("database ready")
+		service.setDatabaseReady()
+	}
+	cancel()
+
+	go service.monitorDatabase(db)
 
 	port := strings.TrimSpace(os.Getenv("PORT"))
 	if port == "" {
@@ -135,14 +162,100 @@ func main() {
 
 	server := &http.Server{
 		Addr:              ":" + port,
-		Handler:           mux,
+		Handler:           router,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
-	log.Printf("server listening on :%s", port)
+	log.Printf("server listening on :%s (health: /health)", port)
 	log.Fatal(server.ListenAndServe())
+}
+
+func newRouter(service *api, hub *wsHub) http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", service.handleHealth)
+	mux.HandleFunc("/ws", hub.handleWebSocket)
+	mux.HandleFunc("/register", service.handleRegister)
+	mux.HandleFunc("/profile", service.handleProfile)
+	mux.HandleFunc("/buy_wing", service.handleBuyWing)
+	mux.HandleFunc("/buy_weapon", service.handleBuyWeapon)
+	mux.HandleFunc("/match_reward", service.handleMatchReward)
+	return databaseGate(mux, service)
+}
+
+// databaseGate keeps the container alive when the database is down: the health
+// endpoint still answers, and data endpoints fail with a readable 503 instead
+// of the platform reporting a dead backend.
+func databaseGate(next http.Handler, service *api) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" || service.dbReady.Load() {
+			next.ServeHTTP(w, r)
+			return
+		}
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   "Database unavailable",
+		})
+	})
+}
+
+func (service *api) handleHealth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "Method not allowed",
+		})
+		return
+	}
+
+	response := map[string]any{
+		"success":        true,
+		"status":         "ok",
+		"database":       "ok",
+		"uptime_seconds": int(time.Since(startedAt).Seconds()),
+	}
+	if !service.dbReady.Load() {
+		response["status"] = "degraded"
+		response["database"] = "down"
+		if message := service.lastDatabaseError(); message != "" {
+			response["database_error"] = message
+		}
+	}
+	writeJSON(w, http.StatusOK, response)
+}
+
+func (service *api) monitorDatabase(db *sql.DB) {
+	ticker := time.NewTicker(dbMonitorInterval)
+	defer ticker.Stop()
+	for range ticker.C {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		err := db.PingContext(ctx)
+		if err == nil && !service.dbReady.Load() {
+			err = createSchema(ctx, db)
+		}
+		cancel()
+
+		if err != nil {
+			if service.dbReady.Load() {
+				log.Printf("database connection lost: %v", err)
+			}
+			service.setDatabaseError(err)
+			continue
+		}
+		if !service.dbReady.Load() {
+			log.Print("database connection ready")
+		}
+		service.setDatabaseReady()
+	}
+}
+
+func createSchema(ctx context.Context, db *sql.DB) error {
+	if err := createPlayersTable(ctx, db); err != nil {
+		return err
+	}
+	return createMatchesTable(ctx, db)
 }
 
 func createPlayersTable(ctx context.Context, db *sql.DB) error {
