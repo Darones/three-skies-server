@@ -7,11 +7,18 @@ const SHOP_ITEM_ID := "wind_boots"
 const OBJECTIVE_GOLD := Color(1.0, 0.82, 0.32)
 const OBJECTIVE_SHELL := Color(0.85, 0.6, 1.0)
 const OBJECTIVE_CRYSTAL := Color(0.45, 0.92, 1.0)
+const COIN_SPAWN_DELAY := 0.6
+const FOUNTAIN_TITLE := "Фонтан Осколков"
+const FOUNTAIN_TEXT := "Фонтан щедро рассыпает золото: новые монеты появляются сами, одна за другой. Подойди ближе — они потянутся к тебе.\n\nЭто золото боя. Оно не переносится в следующий поединок, зато здесь превращается в снаряжение.\n\nТвоё задание: собери %d монет."
+const SHOP_TITLE := "Лавка снаряжения"
+const SHOP_TEXT := "Здесь золото становится силой. Каждый предмет меняет характеристики героя: запас здоровья, урон, скорость или лечение.\n\nСнаряжение действует до конца поединка. Один удачный предмет может решить исход боя.\n\nВозьми «Крылатые ботинки»: они добавят 15% к скорости бега. Быстрее доберёшься до Оболочки — быстрее унесёшь Осколок."
 
 var game: Node
 var stage := "welcome"
 var expected_ability := 0
 var coins_collected := 0
+var coins_spawned := 0
+var coin_spawn_timer := 0.0
 var shell_spawn_countdown := 0.0
 var completed := false
 
@@ -19,6 +26,8 @@ var completed := false
 func begin() -> void:
 	stage = "welcome"
 	coins_collected = 0
+	coins_spawned = 0
+	coin_spawn_timer = 0.0
 	shell_spawn_countdown = 0.0
 	completed = false
 	_point_to(Vector3.ZERO, OBJECTIVE_GOLD)
@@ -41,16 +50,16 @@ func process(delta: float) -> void:
 		if game.gold_fountain != null and is_instance_valid(game.gold_fountain):
 			var distance := Vector2(game.player.global_position.x - game.gold_fountain.global_position.x, game.player.global_position.z - game.gold_fountain.global_position.z).length()
 			if distance <= 10.0:
-				stage = "collect_coins"
-				game.call("spawn_tutorial_coin_batch", COINS_TO_COLLECT, GOLD_PER_COIN)
-				game.hud.call("show_tutorial_hint", "Задание: собери монеты у фонтана — 0 / %d" % COINS_TO_COLLECT)
+				_show_fountain_card()
+	elif stage == "collect_coins":
+		coin_spawn_timer = maxf(0.0, coin_spawn_timer - delta)
+		if coin_spawn_timer <= 0.0 and coins_spawned < COINS_TO_COLLECT:
+			game.call("spawn_tutorial_coin", GOLD_PER_COIN)
+			coins_spawned += 1
+			coin_spawn_timer = COIN_SPAWN_DELAY
 	elif stage == "go_shop":
 		if game.is_hero_near_shop(game.player):
-			stage = "buy_item"
-			game.player.seconds_since_damage = 5.0
-			game.player.shop_manual_dismissed = false
-			game.player._update_shop_proximity(0.0)
-			game.hud.call("show_tutorial_hint", "Купи учебный товар в магазине")
+			_show_shop_card()
 	elif stage == "shell_warning":
 		shell_spawn_countdown = maxf(0.0, shell_spawn_countdown - delta)
 		if shell_spawn_countdown <= 0.0:
@@ -148,6 +157,54 @@ func _continue_intro() -> void:
 	stage = "reach_center"
 	game.hud.call("hide_tutorial_card")
 	game.hud.call("show_tutorial_hint", "Беги вперёд — к центру арены")
+
+
+func _show_fountain_card() -> void:
+	if stage != "go_fountain":
+		return
+	stage = "fountain_intro"
+	game.hud.call(
+		"show_tutorial_card",
+		FOUNTAIN_TITLE,
+		FOUNTAIN_TEXT % COINS_TO_COLLECT,
+		"Собрать монеты",
+		Callable(self, "_start_coin_collection")
+	)
+
+
+func _start_coin_collection() -> void:
+	if stage != "fountain_intro":
+		return
+	game.hud.call("hide_tutorial_card")
+	stage = "collect_coins"
+	coins_spawned = 0
+	coin_spawn_timer = 0.0
+	game.hud.call("show_tutorial_hint", "Задание: собери монеты у фонтана — 0 / %d" % COINS_TO_COLLECT)
+
+
+func _show_shop_card() -> void:
+	if stage != "go_shop":
+		return
+	stage = "shop_intro"
+	game.hud.call(
+		"show_tutorial_card",
+		SHOP_TITLE,
+		SHOP_TEXT,
+		"Открыть лавку",
+		Callable(self, "_open_shop_for_tutorial")
+	)
+
+
+func _open_shop_for_tutorial() -> void:
+	if stage != "shop_intro":
+		return
+	game.hud.call("hide_tutorial_card")
+	stage = "buy_item"
+	if game.player != null and is_instance_valid(game.player):
+		game.player.seconds_since_damage = 5.0
+		game.player.shop_manual_dismissed = false
+		game.player._update_shop_proximity(0.0)
+	game.hud.call("show_tutorial_hint", "Купи учебный товар в магазине")
 
 
 func _start_ability_training() -> void:

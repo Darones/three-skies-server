@@ -549,11 +549,10 @@ func _update_gold_fountain(delta: float) -> void:
 				collector.bot_gold += coin_value
 
 
-func spawn_tutorial_coin_batch(count: int, gold_per_coin: int) -> void:
-	if not tutorial_mode or player == null or gold_fountain == null:
+func spawn_tutorial_coin(gold_value: int) -> void:
+	if not tutorial_mode or gold_fountain == null or not is_instance_valid(gold_fountain):
 		return
-	for coin_index in range(count):
-		_spawn_gold_coin(gold_per_coin, true)
+	_spawn_gold_coin(gold_value, false)
 
 
 func is_hero_near_shop(hero: HeroUnit) -> bool:

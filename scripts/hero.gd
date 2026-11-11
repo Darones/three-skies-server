@@ -1708,6 +1708,11 @@ func _update_shop_proximity(_delta: float) -> void:
 	if not in_shop_zone:
 		game.set_shop_open(false)
 		return
+	if bool(game.get("tutorial_mode")):
+		var tutorial_controller := game.get("tutorial_controller") as Node
+		if tutorial_controller == null or String(tutorial_controller.get("stage")) != "buy_item":
+			game.set_shop_open(false)
+			return
 	if shop_manual_dismissed:
 		game.set_shop_open(false)
 		return
