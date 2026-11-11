@@ -13,7 +13,7 @@ const PALE := Color(0.9, 0.92, 0.98)
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const LOBBY_LOGO: Texture2D = preload("res://ui/logo.png")
 const UI_CLICK_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/ui_menu/menu_selection_click.wav")
-const SHARD_TOPUP_PANEL := preload("res://scripts/shard_topup_panel.gd")
+const SHARD_TOPUP_SCENE := preload("res://scenes/ShardTopupPanel.tscn")
 
 var selected_class := 0
 var slot_classes: Array[int] = [HeroUnit.Cls.MAGE, HeroUnit.Cls.WARRIOR, HeroUnit.Cls.FAIRY]
@@ -403,7 +403,7 @@ func _build_weapon_placeholder(grid: GridContainer, weapon_name: String, weapon_
 
 
 func _build_topup_panel() -> void:
-	topup_panel = SHARD_TOPUP_PANEL.new()
+	topup_panel = SHARD_TOPUP_SCENE.instantiate() as PanelContainer
 	topup_panel.name = "ShardTopupPanel"
 	topup_panel.visible = false
 	topup_panel.z_index = 2
