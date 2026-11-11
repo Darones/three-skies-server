@@ -9,13 +9,17 @@ signal remote_player_joined(player_id: int, info: Dictionary)
 signal remote_player_state(player_id: int, position: Vector3, rotation: float)
 signal remote_player_left(player_id: int)
 signal remote_attack_received(player_id: int, attack_type: String, target_id: int)
-signal remote_damage_received(source_id: int, target_id: int, amount: float)
+signal remote_damage_received(source_id: int, target_id: int, amount: float, skill: String)
 signal remote_death_received(player_id: int)
 signal remote_respawn_received(player_id: int, position: Vector3, rotation: float)
 signal remote_heal_received(source_id: int, target_id: int, amount: float)
 signal remote_stats_updated(player_id: int, max_hp: float, hp: float, attack_damage: float)
+signal bot_state_updated(bot_id: int, info: Dictionary)
+signal attack_denied(target_id: int, skill: String, reason: String)
 signal match_started(room_id: int, host_id: int, players: Array)
 signal match_finished(winning_team: int)
+signal match_score_updated(score_0: int, score_1: int, sudden_death: bool)
+signal match_event_received(event: String, team: int)
 signal host_changed(new_host_id: int)
 
 enum State { DISCONNECTED, CONNECTING, CONNECTED }
@@ -29,6 +33,7 @@ var ws_url := DEFAULT_WS_URL
 var socket: WebSocketPeer = null
 var local_peer_id := 0
 var local_hero: Node3D = null
+var local_bots: Array[Node3D] = []
 var remote_players: Dictionary = {}
 var room_id := 0
 var host_id := 0
@@ -43,6 +48,7 @@ var _pending_name := ""
 var _pending_player_id := 0
 var _connect_deadline_msec := 0
 var _send_accumulator := 0.0
+var _bot_send_accumulator := 0.0
 
 
 func _ready() -> void:
@@ -74,6 +80,7 @@ func connect_to_server(hero_class: int = 0, team: int = 0, player_name := "", pl
 	_pending_name = String(player_name).strip_edges()
 	_pending_player_id = int(player_id)
 	local_peer_id = 0
+	local_bots.clear()
 	remote_players.clear()
 	match_players.clear()
 	room_id = 0
@@ -96,6 +103,7 @@ func connect_to_server(hero_class: int = 0, team: int = 0, player_name := "", pl
 	state = State.CONNECTING
 	_connect_deadline_msec = Time.get_ticks_msec() + int(CONNECT_TIMEOUT * 1000.0)
 	_send_accumulator = 0.0
+	_bot_send_accumulator = 0.0
 	connection_state_changed.emit(state)
 	print("[NET] Подключение к ", ws_url)
 	return OK
@@ -109,6 +117,7 @@ func disconnect_from_server(notify := true) -> void:
 	state = State.DISCONNECTED
 	local_peer_id = 0
 	local_hero = null
+	local_bots.clear()
 	remote_players.clear()
 	match_players.clear()
 	room_id = 0
@@ -130,26 +139,41 @@ func unregister_local_player() -> void:
 	local_hero = null
 
 
+func register_bot(bot: Node3D) -> void:
+	if bot == null or not is_instance_valid(bot):
+		return
+	if not local_bots.has(bot):
+		local_bots.append(bot)
+
+
+func clear_bots() -> void:
+	local_bots.clear()
+
+
 func get_remote_snapshot() -> Dictionary:
 	return remote_players.duplicate(true)
 
 
-func send_attack_intent(target_id: int, skill: String) -> void:
-	if state != State.CONNECTED or target_id <= 0:
+func send_attack_intent(target_id: int, skill: String, source_id: int = 0) -> void:
+	if state != State.CONNECTED or target_id == 0:
 		return
-	_send_json({
+	var payload := {
 		"type": "attack_intent",
 		"target_id": target_id,
 		"skill": skill,
-	})
+	}
+	if source_id != 0:
+		payload["source_id"] = source_id
+	_send_json(payload)
 
 
-func send_match_result(winning_team: int) -> void:
-	if state != State.CONNECTED:
+func send_match_event(event: String, team: int) -> void:
+	if state != State.CONNECTED or event.is_empty():
 		return
 	_send_json({
-		"type": "match_result",
-		"winning_team": clampi(winning_team, 0, 1),
+		"type": "match_event",
+		"event": event,
+		"team": clampi(team, 0, 1),
 	})
 
 
@@ -225,6 +249,7 @@ func _process(delta: float) -> void:
 			print("[NET] Подключено")
 		_drain_packets()
 		_send_local_state(delta)
+		_send_bot_states(delta)
 		return
 
 	if ready_state == WebSocketPeer.STATE_CLOSED:
@@ -236,6 +261,7 @@ func _process(delta: float) -> void:
 		socket = null
 		state = State.DISCONNECTED
 		local_peer_id = 0
+		local_bots.clear()
 		remote_players.clear()
 		connection_state_changed.emit(state)
 		if was_connected:
@@ -286,6 +312,45 @@ func _send_local_state(delta: float) -> void:
 	})
 
 
+func _send_bot_states(delta: float) -> void:
+	if not is_host or local_bots.is_empty():
+		return
+	_bot_send_accumulator += delta
+	if _bot_send_accumulator < SEND_INTERVAL:
+		return
+	_bot_send_accumulator = 0.0
+	var bots: Array = []
+	for bot in local_bots:
+		if bot == null or not is_instance_valid(bot):
+			continue
+		var bot_id := int(bot.get("network_id"))
+		if bot_id == 0:
+			continue
+		var position: Vector3 = bot.global_position
+		var rotation_y: float = bot.global_rotation.y
+		var visual: Variant = bot.get("visual")
+		if visual is Node3D:
+			rotation_y = (visual as Node3D).global_rotation.y
+		bots.append({
+			"id": bot_id,
+			"x": snappedf(position.x, 0.01),
+			"y": snappedf(position.y, 0.01),
+			"z": snappedf(position.z, 0.01),
+			"rotation": snappedf(rotation_y, 0.01),
+			"max_hp": maxf(float(bot.get("max_health")), 0.0),
+			"hp": maxf(float(bot.get("health")), 0.0),
+			"attack_damage": maxf(float(bot.get("attack_damage")), 0.0),
+			"alive": not bool(bot.get("dead")),
+			"animation": String(bot.get("current_anim")),
+		})
+	if bots.is_empty():
+		return
+	_send_json({
+		"type": "bot_states",
+		"bots": bots,
+	})
+
+
 func _send_json(message: Dictionary) -> void:
 	if socket == null or socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		return
@@ -328,8 +393,33 @@ func _handle_message(text: String) -> void:
 			_handle_room_joined(message)
 		"match_start":
 			_handle_match_start(message)
+		"match_score":
+			match_score_updated.emit(
+				int(message.get("score_0", 0)),
+				int(message.get("score_1", 0)),
+				bool(message.get("sudden_death", false))
+			)
+		"match_event":
+			match_event_received.emit(
+				String(message.get("event", "")),
+				int(message.get("team", 0))
+			)
 		"match_finished":
+			if message.has("score_0") or message.has("score_1"):
+				match_score_updated.emit(
+					int(message.get("score_0", 0)),
+					int(message.get("score_1", 0)),
+					bool(message.get("sudden_death", false))
+				)
 			match_finished.emit(int(message.get("winning_team", 0)))
+		"bot_states":
+			_handle_bot_states(message)
+		"attack_denied":
+			attack_denied.emit(
+				int(message.get("target_id", 0)),
+				String(message.get("skill", "")),
+				String(message.get("reason", "denied"))
+			)
 		"host_changed":
 			host_id = int(message.get("host_id", message.get("id", 0)))
 			is_host = host_id == local_peer_id
@@ -434,6 +524,7 @@ func _make_remote_info(message: Dictionary) -> Dictionary:
 		"name": remote_name,
 		"class": clampi(int(message.get("class", 0)), 0, 2),
 		"team": clampi(int(message.get("team", 0)), 0, 1),
+		"bot": bool(message.get("bot", false)),
 		"position": Vector3.ZERO,
 		"rotation": 0.0,
 		"has_state": false,
@@ -441,6 +532,7 @@ func _make_remote_info(message: Dictionary) -> Dictionary:
 		"max_hp": maxf(float(message.get("max_hp", 0.0)), 0.0),
 		"hp": maxf(float(message.get("hp", 0.0)), 0.0),
 		"attack_damage": maxf(float(message.get("attack_damage", 0.0)), 0.0),
+		"animation": "",
 	}
 
 
@@ -459,6 +551,7 @@ func _handle_match_start(message: Dictionary) -> void:
 	match_players = players if players is Array else []
 	remote_players.clear()
 	assigned_team = 0
+	is_host = host_id == local_peer_id and local_peer_id > 0
 	for entry in match_players:
 		if not entry is Dictionary:
 			continue
@@ -466,13 +559,57 @@ func _handle_match_start(message: Dictionary) -> void:
 		if player_id == local_peer_id:
 			assigned_team = int(entry.get("team", 0))
 			local_class = clampi(int(entry.get("class", local_class)), 0, 2)
-		elif not bool(entry.get("bot", false)):
+		elif not bool(entry.get("bot", false)) or not is_host:
 			var info := _make_remote_info(entry)
+			if bool(entry.get("bot", false)):
+				info["position"] = Vector3(0.0, 0.76, 27.5 if int(info["team"]) == 0 else -27.5)
+				info["rotation"] = 0.0 if int(info["team"]) == 0 else PI
+				info["has_state"] = true
 			remote_players[player_id] = info
 			remote_player_joined.emit(player_id, info)
-	is_host = host_id == local_peer_id and local_peer_id > 0
 	print("[NET] match_start room=", room_id, " host=", is_host, " team=", assigned_team, " players=", match_players.size())
 	match_started.emit(room_id, host_id, match_players)
+
+
+func _handle_bot_states(message: Dictionary) -> void:
+	if is_host:
+		return
+	var bots: Variant = message.get("bots", [])
+	if not bots is Array:
+		return
+	for entry in bots:
+		if not entry is Dictionary:
+			continue
+		var bot_id := int(entry.get("id", 0))
+		if bot_id >= 0:
+			continue
+		var info: Dictionary = remote_players.get(bot_id, _make_remote_info(entry))
+		info["bot"] = true
+		if entry.has("name"):
+			var bot_name := String(entry.get("name", "")).strip_edges()
+			if not bot_name.is_empty():
+				info["name"] = bot_name
+		if entry.has("class"):
+			info["class"] = clampi(int(entry.get("class", 0)), 0, 2)
+		if entry.has("team"):
+			info["team"] = clampi(int(entry.get("team", 0)), 0, 1)
+		info["position"] = Vector3(
+			float(entry.get("x", 0.0)),
+			float(entry.get("y", 0.0)),
+			float(entry.get("z", 0.0))
+		)
+		info["rotation"] = float(entry.get("rotation", 0.0))
+		info["has_state"] = true
+		info["alive"] = bool(entry.get("alive", true))
+		info["max_hp"] = maxf(float(entry.get("max_hp", 0.0)), 0.0)
+		info["hp"] = maxf(float(entry.get("hp", 0.0)), 0.0)
+		info["attack_damage"] = maxf(float(entry.get("attack_damage", 0.0)), 0.0)
+		info["animation"] = String(entry.get("animation", ""))
+		var is_new := not remote_players.has(bot_id)
+		remote_players[bot_id] = info
+		if is_new:
+			remote_player_joined.emit(bot_id, info)
+		bot_state_updated.emit(bot_id, info.duplicate(true))
 
 
 func _handle_attack(message: Dictionary) -> void:
@@ -490,9 +627,9 @@ func _handle_damage(message: Dictionary) -> void:
 	var source_id := int(message.get("source_id", message.get("id", 0)))
 	var target_id := int(message.get("target_id", 0))
 	var amount := float(message.get("amount", 0.0))
-	if target_id <= 0 or amount <= 0.0:
+	if target_id == 0 or amount <= 0.0:
 		return
-	remote_damage_received.emit(source_id, target_id, amount)
+	remote_damage_received.emit(source_id, target_id, amount, String(message.get("skill", "auto")))
 
 
 func _handle_heal(message: Dictionary) -> void:
@@ -526,7 +663,7 @@ func _handle_stats(message: Dictionary) -> void:
 
 func _handle_death(message: Dictionary) -> void:
 	var player_id := int(message.get("id", message.get("player_id", 0)))
-	if player_id <= 0 or player_id == local_peer_id:
+	if player_id == 0 or player_id == local_peer_id:
 		return
 	if remote_players.has(player_id):
 		var info: Dictionary = remote_players[player_id]

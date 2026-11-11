@@ -101,8 +101,8 @@ var network_play := false
 var network_host := false
 var network_room_id := 0
 var network_match_players: Array = []
-var network_result_sent := false
 var network_shutting_down := false
+var network_bots: Dictionary = {}
 var remote_players: Dictionary = {}
 var remote_root: Node3D = null
 var shell_phase := "idle"
@@ -916,6 +916,9 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	shop_open = false
 	purchased_shop_items.clear()
 	used_bot_callsigns.clear()
+	network_bots.clear()
+	if network_play:
+		NetworkManager.clear_bots()
 	var player_team := requested_team
 	if player_team < 0:
 		player_team = int(get_tree().get_meta("selected_team", get_meta("selected_team", 0)))
@@ -971,7 +974,13 @@ func _spawn_network_bots(light_spots: Array[Vector3], dark_spots: Array[Vector3]
 		var spots: Array[Vector3] = light_spots if bot_team == 0 else dark_spots
 		var spot_index: int = mini(next_index[bot_team], 2)
 		next_index[bot_team] += 1
-		_spawn_hero(bot_class, bot_team, false, spots[spot_index])
+		var bot := _spawn_hero(bot_class, bot_team, false, spots[spot_index])
+		bot.network_id = int(entry.get("id", 0))
+		var bot_name := String(entry.get("name", "")).strip_edges()
+		if not bot_name.is_empty():
+			bot.display_name = bot_name
+		network_bots[bot.network_id] = bot
+		NetworkManager.register_bot(bot)
 
 
 func _spawn_hero(cls: int, team: int, is_player: bool, pos: Vector3) -> HeroUnit:
@@ -1293,7 +1302,7 @@ func _update_match(delta: float) -> void:
 		match_time = 0.0
 	else:
 		match_time = maxf(0.0, match_time - delta)
-		if match_time <= 0.0:
+		if match_time <= 0.0 and not network_play:
 			if score[0] == score[1]:
 				sudden_death = true
 				announce("Решающий осколок!", Color(1.0, 0.75, 0.35), 3.0)
@@ -1365,6 +1374,13 @@ func on_shell_died(s: SkyShell, source: Node = null) -> void:
 	s.retire(0.5)
 	shell = null
 	shell_phase = "idle"
+	if network_play:
+		var event_team := 0
+		if source is HeroUnit:
+			event_team = (source as HeroUnit).team
+		elif player != null and is_instance_valid(player):
+			event_team = player.team
+		NetworkManager.send_match_event("shell_destroyed", event_team)
 	if tutorial_mode and tutorial_controller != null:
 		tutorial_controller.call("on_shell_destroyed")
 
@@ -1595,7 +1611,10 @@ func _deliver(h: HeroUnit) -> void:
 	play_sfx("shard_delivery", -8.0)
 	var team_name := "Свет" if h.team == 0 else "Тьма"
 	announce("Осколок на базе: %s  %d : %d" % [team_name, score[0], score[1]], Color(1.0, 0.9, 0.6), 2.6)
-	if sudden_death or score[h.team] >= CRYSTALS_TO_WIN:
+	if network_play:
+		NetworkManager.send_match_event("shard_delivered", h.team)
+		shell_phase = "idle"
+	elif sudden_death or score[h.team] >= CRYSTALS_TO_WIN:
 		end_match(h.team == 0)
 	else:
 		shell_phase = "idle"
@@ -1655,9 +1674,6 @@ func end_match(team_zero_won: bool) -> void:
 	state = "over"
 	if network_play:
 		NetworkManager.unregister_local_player()
-		if not network_result_sent:
-			network_result_sent = true
-			NetworkManager.send_match_result(0 if team_zero_won else 1)
 	set_shop_open(false)
 	var player_team := 0
 	if player != null and is_instance_valid(player):
@@ -2244,6 +2260,16 @@ func _setup_network_play() -> void:
 		NetworkManager.remote_heal_received.connect(_on_remote_heal_received)
 	if not NetworkManager.remote_stats_updated.is_connected(_on_remote_stats_updated):
 		NetworkManager.remote_stats_updated.connect(_on_remote_stats_updated)
+	if not NetworkManager.bot_state_updated.is_connected(_on_bot_state_updated):
+		NetworkManager.bot_state_updated.connect(_on_bot_state_updated)
+	if not NetworkManager.attack_denied.is_connected(_on_attack_denied):
+		NetworkManager.attack_denied.connect(_on_attack_denied)
+	if not NetworkManager.match_score_updated.is_connected(_on_match_score_updated):
+		NetworkManager.match_score_updated.connect(_on_match_score_updated)
+	if not NetworkManager.match_event_received.is_connected(_on_match_event_received):
+		NetworkManager.match_event_received.connect(_on_match_event_received)
+	if not NetworkManager.match_finished.is_connected(_on_network_match_finished):
+		NetworkManager.match_finished.connect(_on_network_match_finished)
 	if not NetworkManager.disconnected.is_connected(_on_network_disconnected):
 		NetworkManager.disconnected.connect(_on_network_disconnected)
 	if player != null and is_instance_valid(player):
@@ -2312,7 +2338,15 @@ func _on_remote_attack_received(player_id: int, attack_type: String, _target_id:
 		remote.play_attack(attack_type)
 
 
-func _on_remote_damage_received(_source_id: int, target_id: int, amount: float) -> void:
+func _on_remote_damage_received(source_id: int, target_id: int, amount: float, skill: String) -> void:
+	if source_id < 0:
+		var source_bot = remote_players.get(source_id)
+		if source_bot != null and is_instance_valid(source_bot):
+			source_bot.play_attack(skill)
+	var target_bot = network_bots.get(target_id)
+	if target_bot != null and is_instance_valid(target_bot):
+		target_bot.apply_network_damage(amount)
+		return
 	if target_id == NetworkManager.local_peer_id:
 		if player != null and is_instance_valid(player):
 			player.apply_network_damage(amount)
@@ -2324,6 +2358,10 @@ func _on_remote_damage_received(_source_id: int, target_id: int, amount: float) 
 
 func _on_remote_death_received(player_id: int) -> void:
 	if player_id == NetworkManager.local_peer_id:
+		return
+	var bot = network_bots.get(player_id)
+	if bot != null and is_instance_valid(bot):
+		bot.apply_network_damage(bot.health)
 		return
 	var remote = remote_players.get(player_id)
 	if remote != null and is_instance_valid(remote):
@@ -2355,6 +2393,45 @@ func _on_remote_stats_updated(player_id: int, max_hp: float, hp: float, attack_d
 		remote.apply_stats(max_hp, hp, attack_damage)
 
 
+func _on_bot_state_updated(bot_id: int, info: Dictionary) -> void:
+	if not network_play or network_host:
+		return
+	var remote = remote_players.get(bot_id)
+	if remote == null or not is_instance_valid(remote):
+		_on_remote_player_joined(bot_id, info)
+		remote = remote_players.get(bot_id)
+	if remote != null and is_instance_valid(remote):
+		remote.apply_bot_state(info)
+
+
+func _on_attack_denied(target_id: int, skill: String, reason: String) -> void:
+	print("[NET] attack_denied target=", target_id, " skill=", skill, " reason=", reason)
+
+
+func _on_match_score_updated(score_0: int, score_1: int, server_sudden_death: bool) -> void:
+	if not network_play:
+		return
+	score[0] = score_0
+	score[1] = score_1
+	if server_sudden_death and not sudden_death:
+		sudden_death = true
+		announce("Решающий осколок!", Color(1.0, 0.75, 0.35), 3.0)
+
+
+func _on_match_event_received(event: String, _team: int) -> void:
+	if not network_play:
+		return
+	if event == "sudden_death" and not sudden_death:
+		sudden_death = true
+		announce("Решающий осколок!", Color(1.0, 0.75, 0.35), 3.0)
+
+
+func _on_network_match_finished(winning_team: int) -> void:
+	if not network_play or state != "live":
+		return
+	end_match(winning_team == 0)
+
+
 func _on_network_disconnected() -> void:
 	if network_shutting_down or not network_play:
 		return
@@ -2369,6 +2446,7 @@ func _exit_tree() -> void:
 	if network_play:
 		network_shutting_down = true
 		NetworkManager.unregister_local_player()
+		NetworkManager.clear_bots()
 		NetworkManager.disconnect_from_server(false)
 		var tree := get_tree()
 		if tree != null:

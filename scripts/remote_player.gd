@@ -22,10 +22,12 @@ var health := 0.0
 var max_health := 0.0
 var attack_damage := 0.0
 var dead := false
+var is_bot := false
 var game: Node = null
 var target_position := Vector3.ZERO
 var target_rotation := 0.0
 var _has_target := false
+var _last_bot_animation := ""
 var _name_label: Label3D = null
 var _health_back: MeshInstance3D = null
 var _health_fill: MeshInstance3D = null
@@ -38,6 +40,8 @@ func setup(player_id: int, info: Dictionary) -> void:
 	display_name = String(info.get("name", "Игрок %d" % player_id))
 	hero_class = clampi(int(info.get("class", 0)), 0, 2)
 	team = clampi(int(info.get("team", 0)), 0, 1)
+	is_bot = bool(info.get("bot", false))
+	_last_bot_animation = String(info.get("animation", ""))
 	var synced_max_hp := float(info.get("max_hp", 0.0))
 	max_health = synced_max_hp if synced_max_hp > 0.0 else CLASS_MAX_HP[hero_class]
 	var synced_hp := float(info.get("hp", 0.0))
@@ -84,6 +88,59 @@ func apply_state(position: Vector3, rotation_y: float) -> void:
 		global_position = position
 		rotation.y = rotation_y
 		_has_target = true
+
+
+func apply_bot_state(info: Dictionary) -> void:
+	var synced_max := maxf(float(info.get("max_hp", 0.0)), 0.0)
+	if synced_max > 0.0:
+		max_health = synced_max
+	var synced_hp := maxf(float(info.get("hp", 0.0)), 0.0)
+	if max_health > 0.0:
+		synced_hp = clampf(synced_hp, 0.0, max_health)
+	attack_damage = maxf(float(info.get("attack_damage", attack_damage)), 0.0)
+	var alive := bool(info.get("alive", synced_hp > 0.0))
+	var position: Vector3 = info.get("position", target_position)
+	var rotation_y := float(info.get("rotation", target_rotation))
+	if not alive:
+		health = 0.0
+		if not dead:
+			apply_network_death()
+		_update_health_bar()
+		return
+	if dead:
+		apply_network_respawn(position, rotation_y)
+	health = synced_hp if synced_hp > 0.0 else max_health
+	target_position = position
+	target_rotation = rotation_y
+	if not _has_target:
+		global_position = position
+		rotation.y = rotation_y
+		_has_target = true
+	_update_health_bar()
+	var animation := String(info.get("animation", ""))
+	if animation != _last_bot_animation:
+		_last_bot_animation = animation
+		_play_bot_animation(animation)
+
+
+func _play_bot_animation(anim_name: String) -> void:
+	if anim_name.is_empty() or dead:
+		return
+	if anim_name == "attack" or anim_name == "cast":
+		play_attack(anim_name)
+		return
+	if _animation_player == null:
+		return
+	var wanted := anim_name.to_lower()
+	for animation_name in _animation_player.get_animation_list():
+		var lower := String(animation_name).to_lower()
+		if lower == wanted or lower.contains(wanted):
+			_animation_player.play(animation_name)
+			return
+	for animation_name in _animation_player.get_animation_list():
+		if String(animation_name).to_lower().contains("idle"):
+			_animation_player.play(animation_name)
+			return
 
 
 func _process(delta: float) -> void:
@@ -250,7 +307,8 @@ func take_damage(amount: float, source: Node = null, _damage_type := "physical",
 	if dead:
 		return
 	if source is HeroUnit and game != null and bool(game.get("network_play")):
-		NetworkManager.send_attack_intent(peer_id, skill)
+		var source_id := int(source.get("network_id"))
+		NetworkManager.send_attack_intent(peer_id, skill, source_id)
 		return
 	var applied := minf(maxf(amount, 0.0), health)
 	health = maxf(0.0, health - maxf(amount, 0.0))

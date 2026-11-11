@@ -19,16 +19,22 @@ const (
 	wsWriteWait      = 10 * time.Second
 	wsPongWait       = 60 * time.Second
 	wsPingPeriod     = (wsPongWait * 9) / 10
-	wsMaxMessageSize = 4096
+	wsMaxMessageSize = 16384
 	wsSendBuffer     = 64
 
 	roomSlots        = 6
 	roomBotFillDelay = 8 * time.Second
+
+	matchLength      = 10 * time.Minute
+	crystalsToWin    = 3
+	deliveryLockout  = 2 * time.Second
+	botStateBotLimit = roomSlots
 )
 
 var classNames = []string{"warrior", "mage", "fairy"}
 var classBaseHP = []float64{550.0, 500.0, 450.0}
 var classBaseDamage = []float64{44.0, 26.0, 30.0}
+var classAttackRange = []float64{3.5, 9.0, 11.0}
 
 var wsUpgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -46,14 +52,38 @@ type wsHub struct {
 }
 
 type wsRoom struct {
-	id          int64
-	players     [roomSlots]*wsClient
-	bots        [roomSlots]bool
-	humanCount  int
-	hostID      int64
-	state       string
-	fillTimer   *time.Timer
-	resultSaved bool
+	id           int64
+	players      [roomSlots]*wsClient
+	bots         [roomSlots]*wsBot
+	humanCount   int
+	hostID       int64
+	state        string
+	fillTimer    *time.Timer
+	finishTimer  *time.Timer
+	resultSaved  bool
+	score        [2]int
+	suddenDeath  bool
+	lastDelivery time.Time
+}
+
+type wsBot struct {
+	id           int64
+	name         string
+	class        int
+	team         int
+	x            float64
+	y            float64
+	z            float64
+	rotation     float64
+	maxHP        float64
+	hp           float64
+	attackDamage float64
+	alive        bool
+	animation    string
+	hasState     bool
+	lastDamaged  time.Time
+	deadSince    time.Time
+	lastAttacks  map[string]time.Time
 }
 
 type wsClient struct {
@@ -79,28 +109,47 @@ type wsClient struct {
 	maxHP        float64
 	hp           float64
 	attackDamage float64
+	lastAttacks  map[string]time.Time
 }
 
 type wsIncoming struct {
-	Type         string  `json:"type"`
-	PlayerID     int64   `json:"player_id"`
-	Name         string  `json:"name"`
+	Type         string          `json:"type"`
+	PlayerID     int64           `json:"player_id"`
+	Name         string          `json:"name"`
+	Class        int             `json:"class"`
+	ClassName    string          `json:"class_name"`
+	Team         int             `json:"team"`
+	X            float64         `json:"x"`
+	Y            float64         `json:"y"`
+	Z            float64         `json:"z"`
+	Rotation     float64         `json:"rotation"`
+	TargetID     int64           `json:"target_id"`
+	SourceID     int64           `json:"source_id"`
+	AttackType   string          `json:"attack_type"`
+	Skill        string          `json:"skill"`
+	Amount       float64         `json:"amount"`
+	MaxHP        float64         `json:"max_hp"`
+	HP           float64         `json:"hp"`
+	AttackDamage float64         `json:"attack_damage"`
+	WinningTeam  int             `json:"winning_team"`
+	Event        string          `json:"event"`
+	Bots         []wsBotSnapshot `json:"bots"`
+}
+
+type wsBotSnapshot struct {
+	ID           int64   `json:"id"`
+	Name         string  `json:"name,omitempty"`
 	Class        int     `json:"class"`
-	ClassName    string  `json:"class_name"`
 	Team         int     `json:"team"`
 	X            float64 `json:"x"`
 	Y            float64 `json:"y"`
 	Z            float64 `json:"z"`
 	Rotation     float64 `json:"rotation"`
-	TargetID     int64   `json:"target_id"`
-	SourceID     int64   `json:"source_id"`
-	AttackType   string  `json:"attack_type"`
-	Skill        string  `json:"skill"`
-	Amount       float64 `json:"amount"`
-	MaxHP        float64 `json:"max_hp"`
-	HP           float64 `json:"hp"`
-	AttackDamage float64 `json:"attack_damage"`
-	WinningTeam  int     `json:"winning_team"`
+	MaxHP        float64 `json:"max_hp,omitempty"`
+	HP           float64 `json:"hp,omitempty"`
+	AttackDamage float64 `json:"attack_damage,omitempty"`
+	Alive        bool    `json:"alive"`
+	Animation    string  `json:"animation,omitempty"`
 }
 
 type matchResultPlayer struct {
@@ -143,6 +192,12 @@ type wsOutgoing struct {
 	AttackDamage float64         `json:"attack_damage,omitempty"`
 	WinningTeam  int             `json:"winning_team,omitempty"`
 	MatchPlayers []wsMatchPlayer `json:"match_players,omitempty"`
+	Bots         []wsBotSnapshot `json:"bots,omitempty"`
+	Score0       int             `json:"score_0,omitempty"`
+	Score1       int             `json:"score_1,omitempty"`
+	SuddenDeath  bool            `json:"sudden_death,omitempty"`
+	Event        string          `json:"event,omitempty"`
+	Reason       string          `json:"reason,omitempty"`
 	Error        string          `json:"error,omitempty"`
 }
 
@@ -164,11 +219,12 @@ func (h *wsHub) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	_ = conn.SetWriteDeadline(time.Time{})
 
 	client := &wsClient{
-		conn:  conn,
-		hub:   h,
-		send:  make(chan []byte, wsSendBuffer),
-		done:  make(chan struct{}),
-		alive: true,
+		conn:        conn,
+		hub:         h,
+		send:        make(chan []byte, wsSendBuffer),
+		done:        make(chan struct{}),
+		alive:       true,
+		lastAttacks: make(map[string]time.Time),
 	}
 	h.mu.Lock()
 	h.nextClientID++
@@ -210,6 +266,9 @@ func (h *wsHub) removeClient(client *wsClient) {
 		if room.humanCount <= 0 {
 			if room.fillTimer != nil {
 				room.fillTimer.Stop()
+			}
+			if room.finishTimer != nil {
+				room.finishTimer.Stop()
 			}
 			delete(h.rooms, room.id)
 		} else {
@@ -302,7 +361,7 @@ func (h *wsHub) findRoomLocked(class int) (*wsRoom, int) {
 		}
 		hasSlot := false
 		for _, slot := range []int{class, class + 3} {
-			if room.players[slot] == nil && !room.bots[slot] {
+			if room.players[slot] == nil && room.bots[slot] == nil {
 				hasSlot = true
 				break
 			}
@@ -319,13 +378,13 @@ func (h *wsHub) findRoomLocked(class int) (*wsRoom, int) {
 	}
 	slotA := class
 	slotB := class + 3
-	if best.players[slotA] == nil && !best.bots[slotA] && best.players[slotB] == nil && !best.bots[slotB] {
+	if best.players[slotA] == nil && best.bots[slotA] == nil && best.players[slotB] == nil && best.bots[slotB] == nil {
 		if teamHumanCount(best, 0) <= teamHumanCount(best, 1) {
 			return best, slotA
 		}
 		return best, slotB
 	}
-	if best.players[slotA] == nil && !best.bots[slotA] {
+	if best.players[slotA] == nil && best.bots[slotA] == nil {
 		return best, slotA
 	}
 	return best, slotB
@@ -349,6 +408,10 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 		room.fillTimer = nil
 	}
 	room.state = "live"
+	room.score = [2]int{}
+	room.suddenDeath = false
+	room.resultSaved = false
+	room.lastDelivery = time.Time{}
 	if room.hostID == 0 {
 		for index := 0; index < roomSlots; index++ {
 			if player := room.players[index]; player != nil {
@@ -375,6 +438,17 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 			if player.attackDamage <= 0 {
 				player.attackDamage = classBaseDamage[class]
 			}
+			if !player.hasState {
+				player.x = float64((slot%3)-1) * 2.0
+				player.y = 0.76
+				player.z = 27.5
+				player.rotation = 0.0
+				if team == 1 {
+					player.z = -27.5
+					player.rotation = math.Pi
+				}
+				player.hasState = true
+			}
 			players = append(players, wsMatchPlayer{
 				ID:           player.id,
 				Bot:          false,
@@ -389,11 +463,34 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 			clients = append(clients, player)
 			continue
 		}
-		room.bots[slot] = true
+		botID := -int64(slot + 1)
+		botName := fmt.Sprintf("Бот-%s-%d", classNames[class], slot+1)
+		botZ := 27.5
+		botRotation := 0.0
+		if team == 1 {
+			botZ = -27.5
+			botRotation = math.Pi
+		}
+		room.bots[slot] = &wsBot{
+			id:           botID,
+			name:         botName,
+			class:        class,
+			team:         team,
+			x:            float64((slot%3)-1) * 2.0,
+			y:            0.76,
+			z:            botZ,
+			rotation:     botRotation,
+			maxHP:        classBaseHP[class],
+			hp:           classBaseHP[class],
+			attackDamage: classBaseDamage[class],
+			alive:        true,
+			hasState:     true,
+			lastAttacks:  make(map[string]time.Time),
+		}
 		players = append(players, wsMatchPlayer{
-			ID:           -int64(slot + 1),
+			ID:           botID,
 			Bot:          true,
-			Name:         fmt.Sprintf("Бот-%s-%d", classNames[class], slot+1),
+			Name:         botName,
 			Class:        class,
 			Team:         team,
 			Slot:         slot,
@@ -402,6 +499,11 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 			AttackDamage: classBaseDamage[class],
 		})
 	}
+	if room.finishTimer != nil {
+		room.finishTimer.Stop()
+	}
+	roomID := room.id
+	room.finishTimer = time.AfterFunc(matchLength, func() { h.finishMatchByTimeout(roomID) })
 	return wsOutgoing{
 		Type:         "match_start",
 		RoomID:       room.id,
@@ -577,32 +679,143 @@ func (h *wsHub) relayRespawn(client *wsClient, message wsIncoming) {
 	})
 }
 
-func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
-	skill := strings.TrimSpace(message.Skill)
-	if skill == "" {
-		skill = "auto"
-	}
-	if len([]rune(skill)) > 32 {
-		skill = string([]rune(skill)[:32])
+type wsCombatant struct {
+	id           int64
+	class        int
+	team         int
+	alive        bool
+	hp           float64
+	maxHP        float64
+	attackDamage float64
+	x            float64
+	y            float64
+	z            float64
+	rotation     float64
+	hasState     bool
+	lastAttacks  map[string]time.Time
+	client       *wsClient
+	bot          *wsBot
+}
+
+func (h *wsHub) relayBotStates(client *wsClient, message wsIncoming) {
+	if len(message.Bots) == 0 || len(message.Bots) > botStateBotLimit {
+		return
 	}
 	h.mu.Lock()
 	room := h.rooms[client.roomID]
-	if room == nil || room.state != "live" || !client.alive {
+	if room == nil || room.state != "live" || room.hostID != client.id {
 		h.mu.Unlock()
 		return
 	}
-	target := findRoomPlayerLocked(room, message.TargetID)
-	if target == nil || target.id == client.id || !target.alive || target.team == client.team {
+	changed := false
+	now := time.Now()
+	for _, state := range message.Bots {
+		bot := findRoomBotLocked(room, state.ID)
+		if bot == nil {
+			continue
+		}
+		if !finite(state.X) || !finite(state.Y) || !finite(state.Z) || !finite(state.Rotation) || !finite(state.HP) || !finite(state.MaxHP) {
+			continue
+		}
+		if math.Abs(state.X) > 1000 || math.Abs(state.Z) > 1000 {
+			continue
+		}
+		if state.MaxHP > 0 && state.MaxHP <= 100000 {
+			bot.maxHP = state.MaxHP
+		}
+		bot.x = state.X
+		bot.y = state.Y
+		bot.z = state.Z
+		bot.rotation = state.Rotation
+		bot.animation = truncateText(state.Animation, 24)
+		if state.AttackDamage >= 0 && state.AttackDamage <= 100000 {
+			bot.attackDamage = state.AttackDamage
+		}
+		hp := math.Max(0, math.Min(state.HP, bot.maxHP))
+		switch {
+		case !state.Alive:
+			bot.hp = 0
+			bot.alive = false
+			if bot.deadSince.IsZero() {
+				bot.deadSince = now
+			}
+		case !bot.alive && hp > 0:
+			// A host packet sent before it applied a server kill must not
+			// resurrect the bot. Real respawns wait for the respawn timer.
+			if !bot.deadSince.IsZero() && now.Sub(bot.deadSince) >= 1500*time.Millisecond {
+				bot.hp = hp
+				bot.alive = true
+				bot.deadSince = time.Time{}
+			}
+		case hp < bot.hp:
+			bot.hp = hp
+			if hp <= 0 {
+				bot.alive = false
+				if bot.deadSince.IsZero() {
+					bot.deadSince = now
+				}
+			}
+		case hp > bot.hp && now.Sub(bot.lastDamaged) >= 500*time.Millisecond:
+			bot.hp = hp
+		}
+		changed = true
+	}
+	if !changed {
 		h.mu.Unlock()
 		return
 	}
-	damage := calculateDamage(client, skill)
-	target.hp = math.Max(0, target.hp-damage)
-	died := target.hp <= 0
-	if died {
-		target.alive = false
+	roomID := room.id
+	snapshots := botSnapshotsLocked(room)
+	targets := roomClientsLocked(room, client.id)
+	h.mu.Unlock()
+	h.sendToClients(targets, wsOutgoing{
+		Type:   "bot_states",
+		RoomID: roomID,
+		Bots:   snapshots,
+	})
+}
+
+func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
+	skill := normalizeSkill(message.Skill)
+	h.mu.Lock()
+	room := h.rooms[client.roomID]
+	if room == nil || room.state != "live" {
+		h.mu.Unlock()
+		return
 	}
-	sourceID := client.id
+	var source *wsCombatant
+	switch {
+	case message.SourceID == 0 || message.SourceID == client.id:
+		source = combatantFromClient(client)
+	case message.SourceID < 0 && room.hostID == client.id:
+		if bot := findRoomBotLocked(room, message.SourceID); bot != nil {
+			source = combatantFromBot(bot)
+		}
+	}
+	if source == nil || !source.alive {
+		h.mu.Unlock()
+		denyAttack(client, message.TargetID, skill, "invalid_source")
+		return
+	}
+	target := findCombatantLocked(room, message.TargetID)
+	if target == nil || target.id == source.id || target.team == source.team || !target.alive {
+		h.mu.Unlock()
+		denyAttack(client, message.TargetID, skill, "invalid_target")
+		return
+	}
+	if !inAttackRange(source, target, skill) {
+		h.mu.Unlock()
+		denyAttack(client, message.TargetID, skill, "out_of_range")
+		return
+	}
+	if !source.cooldownReady(skill) {
+		h.mu.Unlock()
+		denyAttack(client, message.TargetID, skill, "cooldown")
+		return
+	}
+	damage := calculateDamageFor(source.attackDamage, source.class, skill)
+	died := target.applyDamage(damage)
+	sourceID := source.id
 	targetID := target.id
 	roomID := room.id
 	h.mu.Unlock()
@@ -621,8 +834,9 @@ func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
 	}
 }
 
-func (h *wsHub) handleMatchResult(client *wsClient, message wsIncoming) {
-	if message.WinningTeam < 0 || message.WinningTeam > 1 {
+func (h *wsHub) handleMatchEvent(client *wsClient, message wsIncoming) {
+	event := strings.ToLower(strings.TrimSpace(message.Event))
+	if event == "" || len([]rune(event)) > 32 {
 		return
 	}
 	h.mu.Lock()
@@ -631,9 +845,128 @@ func (h *wsHub) handleMatchResult(client *wsClient, message wsIncoming) {
 		h.mu.Unlock()
 		return
 	}
+	roomID := room.id
+	switch event {
+	case "shard_delivered":
+		team := message.Team
+		if team < 0 || team > 1 {
+			h.mu.Unlock()
+			return
+		}
+		if client.id != room.hostID && team != client.team {
+			h.mu.Unlock()
+			return
+		}
+		if !room.lastDelivery.IsZero() && time.Since(room.lastDelivery) < deliveryLockout {
+			score0, score1, sudden := room.score[0], room.score[1], room.suddenDeath
+			h.mu.Unlock()
+			client.sendJSON(wsOutgoing{Type: "match_score", Score0: score0, Score1: score1, SuddenDeath: sudden})
+			return
+		}
+		room.lastDelivery = time.Now()
+		room.score[team]++
+		score0, score1, sudden := room.score[0], room.score[1], room.suddenDeath
+		winner := -1
+		if sudden || room.score[team] >= crystalsToWin {
+			winner = team
+		}
+		var players []matchResultPlayer
+		if winner >= 0 {
+			players = h.finishMatchLocked(room)
+		}
+		h.mu.Unlock()
+
+		h.broadcastRoom(roomID, 0, wsOutgoing{
+			Type:        "match_score",
+			RoomID:      roomID,
+			Score0:      score0,
+			Score1:      score1,
+			SuddenDeath: sudden,
+		})
+		if winner >= 0 {
+			h.saveMatch(roomID, players, winner)
+			h.broadcastRoom(roomID, 0, wsOutgoing{
+				Type:        "match_finished",
+				RoomID:      roomID,
+				WinningTeam: winner,
+				Score0:      score0,
+				Score1:      score1,
+			})
+		}
+	case "shell_destroyed":
+		team := message.Team
+		if team < 0 || team > 1 || (client.id != room.hostID && team != client.team) {
+			h.mu.Unlock()
+			return
+		}
+		h.mu.Unlock()
+		h.broadcastRoom(roomID, 0, wsOutgoing{
+			Type:   "match_event",
+			RoomID: roomID,
+			Event:  "shell_destroyed",
+			Team:   team,
+		})
+	default:
+		h.mu.Unlock()
+	}
+}
+
+func (h *wsHub) finishMatchByTimeout(roomID int64) {
+	h.mu.Lock()
+	room := h.rooms[roomID]
+	if room == nil || room.state != "live" || room.resultSaved {
+		h.mu.Unlock()
+		return
+	}
+	score0, score1 := room.score[0], room.score[1]
+	if score0 == score1 {
+		room.suddenDeath = true
+		h.mu.Unlock()
+		h.broadcastRoom(roomID, 0, wsOutgoing{
+			Type:        "match_score",
+			RoomID:      roomID,
+			Score0:      score0,
+			Score1:      score1,
+			SuddenDeath: true,
+		})
+		h.broadcastRoom(roomID, 0, wsOutgoing{
+			Type:   "match_event",
+			RoomID: roomID,
+			Event:  "sudden_death",
+		})
+		return
+	}
+	winner := 0
+	if score1 > score0 {
+		winner = 1
+	}
+	players := h.finishMatchLocked(room)
+	h.mu.Unlock()
+
+	h.saveMatch(roomID, players, winner)
+	h.broadcastRoom(roomID, 0, wsOutgoing{
+		Type:        "match_score",
+		RoomID:      roomID,
+		Score0:      score0,
+		Score1:      score1,
+		SuddenDeath: false,
+	})
+	h.broadcastRoom(roomID, 0, wsOutgoing{
+		Type:        "match_finished",
+		RoomID:      roomID,
+		WinningTeam: winner,
+		Score0:      score0,
+		Score1:      score1,
+	})
+}
+
+func (h *wsHub) finishMatchLocked(room *wsRoom) []matchResultPlayer {
 	room.resultSaved = true
 	room.state = "finished"
-	roomID := room.id
+	if room.finishTimer != nil {
+		room.finishTimer.Stop()
+		room.finishTimer = nil
+	}
 	players := make([]matchResultPlayer, 0, room.humanCount)
 	for index := 0; index < roomSlots; index++ {
 		player := room.players[index]
@@ -646,14 +979,203 @@ func (h *wsHub) handleMatchResult(client *wsClient, message wsIncoming) {
 		}
 		players = append(players, matchResultPlayer{playerID: playerID, team: player.team})
 	}
-	h.mu.Unlock()
+	return players
+}
 
-	h.saveMatch(roomID, players, message.WinningTeam)
-	h.broadcastRoom(roomID, 0, wsOutgoing{
-		Type:        "match_finished",
-		RoomID:      roomID,
-		WinningTeam: message.WinningTeam,
+func denyAttack(client *wsClient, targetID int64, skill string, reason string) {
+	client.sendJSON(wsOutgoing{
+		Type:     "attack_denied",
+		ID:       client.id,
+		TargetID: targetID,
+		Skill:    skill,
+		Reason:   reason,
 	})
+}
+
+func combatantFromClient(client *wsClient) *wsCombatant {
+	return &wsCombatant{
+		id:           client.id,
+		class:        client.class,
+		team:         client.team,
+		alive:        client.alive,
+		hp:           client.hp,
+		maxHP:        client.maxHP,
+		attackDamage: client.attackDamage,
+		x:            client.x,
+		y:            client.y,
+		z:            client.z,
+		rotation:     client.rotation,
+		hasState:     client.hasState,
+		lastAttacks:  client.lastAttacks,
+		client:       client,
+	}
+}
+
+func combatantFromBot(bot *wsBot) *wsCombatant {
+	return &wsCombatant{
+		id:           bot.id,
+		class:        bot.class,
+		team:         bot.team,
+		alive:        bot.alive,
+		hp:           bot.hp,
+		maxHP:        bot.maxHP,
+		attackDamage: bot.attackDamage,
+		x:            bot.x,
+		y:            bot.y,
+		z:            bot.z,
+		rotation:     bot.rotation,
+		hasState:     bot.hasState,
+		lastAttacks:  bot.lastAttacks,
+		bot:          bot,
+	}
+}
+
+func findCombatantLocked(room *wsRoom, id int64) *wsCombatant {
+	if client := findRoomPlayerLocked(room, id); client != nil {
+		return combatantFromClient(client)
+	}
+	if bot := findRoomBotLocked(room, id); bot != nil {
+		return combatantFromBot(bot)
+	}
+	return nil
+}
+
+func findRoomBotLocked(room *wsRoom, id int64) *wsBot {
+	for index := 0; index < roomSlots; index++ {
+		bot := room.bots[index]
+		if bot != nil && bot.id == id {
+			return bot
+		}
+	}
+	return nil
+}
+
+func botSnapshotsLocked(room *wsRoom) []wsBotSnapshot {
+	snapshots := make([]wsBotSnapshot, 0, roomSlots)
+	for index := 0; index < roomSlots; index++ {
+		bot := room.bots[index]
+		if bot == nil {
+			continue
+		}
+		snapshots = append(snapshots, wsBotSnapshot{
+			ID:           bot.id,
+			Name:         bot.name,
+			Class:        bot.class,
+			Team:         bot.team,
+			X:            bot.x,
+			Y:            bot.y,
+			Z:            bot.z,
+			Rotation:     bot.rotation,
+			MaxHP:        bot.maxHP,
+			HP:           bot.hp,
+			AttackDamage: bot.attackDamage,
+			Alive:        bot.alive,
+			Animation:    bot.animation,
+		})
+	}
+	return snapshots
+}
+
+func (combatant *wsCombatant) applyDamage(amount float64) bool {
+	combatant.hp = math.Max(0, combatant.hp-amount)
+	if combatant.hp <= 0 {
+		combatant.alive = false
+	}
+	if combatant.client != nil {
+		combatant.client.hp = combatant.hp
+		combatant.client.alive = combatant.alive
+	}
+	if combatant.bot != nil {
+		combatant.bot.hp = combatant.hp
+		combatant.bot.alive = combatant.alive
+		combatant.bot.lastDamaged = time.Now()
+		if !combatant.bot.alive && combatant.bot.deadSince.IsZero() {
+			combatant.bot.deadSince = time.Now()
+		}
+	}
+	return !combatant.alive
+}
+
+func (combatant *wsCombatant) cooldownReady(skill string) bool {
+	if combatant.lastAttacks == nil {
+		combatant.lastAttacks = make(map[string]time.Time)
+		if combatant.client != nil {
+			combatant.client.lastAttacks = combatant.lastAttacks
+		}
+		if combatant.bot != nil {
+			combatant.bot.lastAttacks = combatant.lastAttacks
+		}
+	}
+	now := time.Now()
+	if last, ok := combatant.lastAttacks[skill]; ok && now.Sub(last) < attackCooldownFor(combatant.class, skill) {
+		return false
+	}
+	combatant.lastAttacks[skill] = now
+	return true
+}
+
+func normalizeSkill(skill string) string {
+	skill = strings.TrimSpace(skill)
+	if skill == "" {
+		return "auto"
+	}
+	return truncateText(skill, 32)
+}
+
+func truncateText(value string, limit int) string {
+	runes := []rune(value)
+	if len(runes) <= limit {
+		return value
+	}
+	return string(runes[:limit])
+}
+
+func attackCooldownFor(class int, skill string) time.Duration {
+	switch strings.ToLower(skill) {
+	case "auto":
+		return 250 * time.Millisecond
+	case "shadow_assassin":
+		return 5 * time.Second
+	case "fear_ult":
+		return 15 * time.Second
+	case "root":
+		return 5500 * time.Millisecond
+	case "stun", "stun_shot":
+		return 7 * time.Second
+	case "ult_lightning_storm":
+		return 700 * time.Millisecond
+	default:
+		return 500 * time.Millisecond
+	}
+}
+
+func inAttackRange(source *wsCombatant, target *wsCombatant, skill string) bool {
+	if !source.hasState || !target.hasState {
+		return false
+	}
+	distance := math.Hypot(source.x-target.x, source.z-target.z)
+	return distance <= maxAttackRange(source.class, skill)
+}
+
+func maxAttackRange(class int, skill string) float64 {
+	base := 6.0
+	if class >= 0 && class < len(classAttackRange) {
+		base = classAttackRange[class]
+	}
+	switch strings.ToLower(skill) {
+	case "shadow_assassin":
+		return 12.0
+	case "fear_ult":
+		return 10.0
+	case "root":
+		return 14.0
+	case "stun", "stun_shot":
+		return 18.0
+	case "ult_lightning_storm":
+		return 13.0
+	default:
+		return base + 3.0
+	}
 }
 
 func (h *wsHub) saveMatch(roomID int64, players []matchResultPlayer, winningTeam int) {
@@ -766,10 +1288,9 @@ func resolveClass(message wsIncoming) int {
 	return -1
 }
 
-func calculateDamage(client *wsClient, skill string) float64 {
-	base := client.attackDamage
+func calculateDamageFor(attackDamage float64, class int, skill string) float64 {
+	base := attackDamage
 	if base <= 0 {
-		class := client.class
 		if class < 0 || class >= len(classBaseDamage) {
 			class = 0
 		}
@@ -836,8 +1357,10 @@ func (c *wsClient) readPump() {
 			c.hub.relayDeath(c)
 		case "respawn":
 			c.hub.relayRespawn(c, message)
-		case "match_result":
-			c.hub.handleMatchResult(c, message)
+		case "bot_states":
+			c.hub.relayBotStates(c, message)
+		case "match_event":
+			c.hub.handleMatchEvent(c, message)
 		}
 	}
 }

@@ -123,6 +123,7 @@ var game: Node = null
 var team := 0
 var hero_class: int = Cls.WARRIOR
 var is_player := false
+var network_id := 0
 var afk_active := false
 var afk_idle_time := 0.0
 var afk_label: Label3D = null
