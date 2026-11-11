@@ -13,6 +13,7 @@ const PALE := Color(0.9, 0.92, 0.98)
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const LOBBY_LOGO: Texture2D = preload("res://ui/logo.png")
 const UI_CLICK_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/ui_menu/menu_selection_click.wav")
+const SHARD_TOPUP_PANEL := preload("res://scripts/shard_topup_panel.gd")
 
 var selected_class := 0
 var slot_classes: Array[int] = [HeroUnit.Cls.MAGE, HeroUnit.Cls.WARRIOR, HeroUnit.Cls.FAIRY]
@@ -26,6 +27,7 @@ var experience_bar: ProgressBar
 var font: FontFile
 var shard_shop_overlay: ColorRect
 var shop_panel: PanelContainer
+var topup_panel: PanelContainer
 var info_dialog: AcceptDialog
 var shard_amount_label: Label
 var settings_panel: Control
@@ -296,9 +298,10 @@ func _build_shard_shop() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	header.add_child(title)
 	var shard_button := _make_action_button("Купить осколки небес", false)
+	shard_button.name = "TopupButton"
 	shard_button.custom_minimum_size = Vector2(250, 44)
 	shard_button.add_theme_font_size_override("font_size", 16)
-	shard_button.pressed.connect(_show_info.bind("Покупка осколков будет доступна позже."))
+	shard_button.pressed.connect(_open_topup_panel)
 	header.add_child(shard_button)
 	var close_button := _make_action_button("×", false)
 	close_button.custom_minimum_size = Vector2(44, 44)
@@ -319,6 +322,8 @@ func _build_shard_shop() -> void:
 	_build_weapon_placeholder(grid, "Посох")
 	_build_weapon_placeholder(grid, "Лук")
 	_build_weapon_placeholder(grid, "Меч", 1, 500)
+
+	_build_topup_panel()
 
 	info_dialog = AcceptDialog.new()
 	info_dialog.title = "Осколки неба"
@@ -397,11 +402,36 @@ func _build_weapon_placeholder(grid: GridContainer, weapon_name: String, weapon_
 		content.add_child(_make_label("Иконка и цена позже", 12, Color(0.7, 0.76, 0.86)))
 
 
+func _build_topup_panel() -> void:
+	topup_panel = SHARD_TOPUP_PANEL.new()
+	topup_panel.name = "ShardTopupPanel"
+	topup_panel.visible = false
+	topup_panel.z_index = 2
+	topup_panel.set_anchors_preset(Control.PRESET_CENTER)
+	topup_panel.offset_left = -250.0
+	topup_panel.offset_right = 250.0
+	topup_panel.offset_top = -180.0
+	topup_panel.offset_bottom = 180.0
+	shard_shop_overlay.add_child(topup_panel)
+
+
+func _open_topup_panel() -> void:
+	if topup_panel != null:
+		topup_panel.visible = true
+
+
+func _close_topup_panel() -> void:
+	if topup_panel != null:
+		topup_panel.visible = false
+
+
 func _open_shard_shop() -> void:
 	shard_shop_overlay.visible = true
+	_close_topup_panel()
 
 
 func _close_shard_shop() -> void:
+	_close_topup_panel()
 	shard_shop_overlay.visible = false
 
 
