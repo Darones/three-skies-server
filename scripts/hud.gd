@@ -492,7 +492,7 @@ func _build_player_panel(root: Control) -> void:
 	player_hp_bar.add_theme_stylebox_override("fill", hp_fill)
 	hp_container.add_child(player_hp_bar)
 
-	player_hp_label = _make_label("550 / 550", 12, Color.WHITE)
+	player_hp_label = _make_label("1050 / 1050", 12, Color.WHITE)
 	player_hp_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	player_hp_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	hp_container.add_child(player_hp_label)

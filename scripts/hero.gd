@@ -71,7 +71,7 @@ const CLASS_DATA := {
 	Cls.WARRIOR: {
 		"name": "Воин",
 		"title": "Воин Света",
-		"hp": 550.0,
+		"hp": 1050.0,
 		"speed": 6.4,
 		"range": 3.5,
 		"damage": 44.0,
@@ -88,7 +88,7 @@ const CLASS_DATA := {
 	Cls.MAGE: {
 		"name": "Маг",
 		"title": "Маг-целитель",
-		"hp": 500.0,
+		"hp": 1000.0,
 		"speed": 5.9,
 		"range": 9.0,
 		"damage": 26.0,
@@ -104,10 +104,10 @@ const CLASS_DATA := {
 	Cls.FAIRY: {
 		"name": "Фея",
 		"title": "Фея-лучница",
-		"hp": 450.0,
+		"hp": 950.0,
 		"speed": 4.5,
 		"range": 11.0,
-		"damage": 30.0,
+		"damage": 60.0,
 		"interval": 0.75,
 		"ranged": true,
 		"color": Color(0.72, 0.95, 0.55),

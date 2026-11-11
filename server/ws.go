@@ -32,8 +32,8 @@ const (
 )
 
 var classNames = []string{"warrior", "mage", "fairy"}
-var classBaseHP = []float64{550.0, 500.0, 450.0}
-var classBaseDamage = []float64{44.0, 26.0, 30.0}
+var classBaseHP = []float64{1050.0, 1000.0, 950.0}
+var classBaseDamage = []float64{44.0, 26.0, 60.0}
 var classAttackRange = []float64{3.5, 9.0, 11.0}
 
 var wsUpgrader = websocket.Upgrader{

@@ -11,7 +11,7 @@ const CLASS_COLORS := [
 	Color(0.6, 0.95, 1.0),
 	Color(0.72, 0.95, 0.55),
 ]
-const CLASS_MAX_HP := [550.0, 500.0, 450.0]
+const CLASS_MAX_HP := [1050.0, 1000.0, 950.0]
 const HEALTH_BAR_WIDTH := 1.3
 
 var peer_id := 0
