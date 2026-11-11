@@ -1592,6 +1592,8 @@ func on_hero_died(h: HeroUnit) -> void:
 	play_sfx("hit", -6.0)
 	if h == player:
 		p_deaths += 1
+		if network_play:
+			NetworkManager.send_death()
 	if h == carrier or h.carrying:
 		drop_crystal(h.global_position)
 		announce("Осколок выбит!", Color(1.0, 0.7, 0.4), 1.8)
@@ -1613,6 +1615,11 @@ func record_hero_damage(target: HeroUnit, source: Node, damage: float, killed: b
 func on_hero_respawned(h: HeroUnit) -> void:
 	if h == player:
 		death_camera_active = false
+		if network_play:
+			var visual_rotation := h.global_rotation.y
+			if h.visual != null:
+				visual_rotation = h.visual.global_rotation.y
+			NetworkManager.send_respawn(h.global_position, visual_rotation)
 	burst(h.global_position + Vector3(0.0, 0.6, 0.0), Color(0.6, 0.9, 1.0), 18)
 
 
@@ -1691,6 +1698,48 @@ func announce(text: String, color: Color, duration := 2.0) -> void:
 	last_announce = text
 	if hud != null:
 		hud.show_announcement(text, color, duration)
+
+
+func network_attack_target(from_position: Vector3, team: int, max_dist: float, facing: Vector3) -> Node3D:
+	var best: Node3D = null
+	var best_distance := max_dist
+	for remote in remote_players.values():
+		if remote == null or not is_instance_valid(remote) or remote.dead or remote.team == team:
+			continue
+		var offset: Vector3 = remote.global_position - from_position
+		offset.y = 0.0
+		var distance := offset.length()
+		if distance <= 0.01 or distance > max_dist:
+			continue
+		if facing.length_squared() > 0.01 and facing.normalized().dot(offset.normalized()) < 0.0:
+			continue
+		if distance < best_distance:
+			best_distance = distance
+			best = remote
+	return best
+
+
+func network_nearest_enemy(from_position: Vector3, team: int, max_dist: float) -> Node3D:
+	var best: Node3D = null
+	var best_distance := max_dist
+	for remote in remote_players.values():
+		if remote == null or not is_instance_valid(remote) or remote.dead or remote.team == team:
+			continue
+		var distance := from_position.distance_to(remote.global_position)
+		if distance < best_distance:
+			best_distance = distance
+			best = remote
+	return best
+
+
+func network_enemies_in_radius(center: Vector3, radius: float, team: int) -> Array[Node3D]:
+	var result: Array[Node3D] = []
+	for remote in remote_players.values():
+		if remote == null or not is_instance_valid(remote) or remote.dead or remote.team == team:
+			continue
+		if center.distance_to(remote.global_position) <= radius:
+			result.append(remote)
+	return result
 
 
 func enemies_of(team: int, observer: HeroUnit = null) -> Array[HeroUnit]:
@@ -1920,6 +1969,12 @@ func mage_storm_tick(mage: HeroUnit, radius: float, damage: float) -> void:
 		mage.spawn_ability_vfx(2, enemy.global_position + Vector3(0.0, 0.1, 0.0))
 		var rolled_damage := mage.roll_ultimate_damage(damage)
 		enemy.take_damage(mage._outgoing_damage(rolled_damage) * mage.get_blessing_damage_multiplier(), mage, "magic")
+	if mage.is_player:
+		for remote_enemy in network_enemies_in_radius(mage.global_position, radius, mage.team):
+			_activate_shell_beam(remote_enemy.global_position, Color(0.38, 0.82, 1.0, 0.95))
+			mage.spawn_ability_vfx(2, remote_enemy.global_position + Vector3(0.0, 0.1, 0.0))
+			var network_damage := mage.roll_ultimate_damage(damage)
+			remote_enemy.take_damage(mage._outgoing_damage(network_damage) * mage.get_blessing_damage_multiplier(), mage, "magic")
 
 
 func shell_bolt(pos: Vector3, radius: float, damage: float) -> void:
@@ -2129,6 +2184,14 @@ func _setup_network_play() -> void:
 		NetworkManager.remote_player_state.connect(_on_remote_player_state)
 	if not NetworkManager.remote_player_left.is_connected(_on_remote_player_left):
 		NetworkManager.remote_player_left.connect(_on_remote_player_left)
+	if not NetworkManager.remote_attack_received.is_connected(_on_remote_attack_received):
+		NetworkManager.remote_attack_received.connect(_on_remote_attack_received)
+	if not NetworkManager.remote_damage_received.is_connected(_on_remote_damage_received):
+		NetworkManager.remote_damage_received.connect(_on_remote_damage_received)
+	if not NetworkManager.remote_death_received.is_connected(_on_remote_death_received):
+		NetworkManager.remote_death_received.connect(_on_remote_death_received)
+	if not NetworkManager.remote_respawn_received.is_connected(_on_remote_respawn_received):
+		NetworkManager.remote_respawn_received.connect(_on_remote_respawn_received)
 	if not NetworkManager.disconnected.is_connected(_on_network_disconnected):
 		NetworkManager.disconnected.connect(_on_network_disconnected)
 	if player != null and is_instance_valid(player):
@@ -2149,6 +2212,8 @@ func _on_remote_player_joined(player_id: int, info: Dictionary) -> void:
 		var existing = remote_players[player_id]
 		if existing != null and is_instance_valid(existing):
 			existing.update_info(info)
+			if info.has("alive") and not bool(info.get("alive", true)):
+				existing.apply_network_death()
 			if bool(info.get("has_state", false)):
 				var existing_position: Vector3 = info.get("position", existing.global_position)
 				existing.apply_state(existing_position, float(info.get("rotation", 0.0)))
@@ -2158,6 +2223,7 @@ func _on_remote_player_joined(player_id: int, info: Dictionary) -> void:
 		return
 	remote.name = "RemotePlayer_%d" % player_id
 	remote_root.add_child(remote)
+	remote.game = self
 	remote.setup(player_id, info)
 	remote_players[player_id] = remote
 
@@ -2185,6 +2251,38 @@ func _on_remote_player_left(player_id: int) -> void:
 	if remote != null and is_instance_valid(remote):
 		remote.queue_free()
 	remote_players.erase(player_id)
+
+
+func _on_remote_attack_received(player_id: int, attack_type: String, _target_id: int) -> void:
+	var remote = remote_players.get(player_id)
+	if remote != null and is_instance_valid(remote):
+		remote.play_attack(attack_type)
+
+
+func _on_remote_damage_received(_source_id: int, target_id: int, amount: float) -> void:
+	if target_id == NetworkManager.local_peer_id:
+		if player != null and is_instance_valid(player):
+			player.apply_network_damage(amount)
+		return
+	var remote = remote_players.get(target_id)
+	if remote != null and is_instance_valid(remote):
+		remote.apply_network_damage(amount)
+
+
+func _on_remote_death_received(player_id: int) -> void:
+	if player_id == NetworkManager.local_peer_id:
+		return
+	var remote = remote_players.get(player_id)
+	if remote != null and is_instance_valid(remote):
+		remote.apply_network_death()
+
+
+func _on_remote_respawn_received(player_id: int, position: Vector3, rotation_y: float) -> void:
+	if player_id == NetworkManager.local_peer_id:
+		return
+	var remote = remote_players.get(player_id)
+	if remote != null and is_instance_valid(remote):
+		remote.apply_network_respawn(position, rotation_y)
 
 
 func _on_network_disconnected() -> void:

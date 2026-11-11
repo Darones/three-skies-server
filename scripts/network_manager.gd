@@ -8,6 +8,10 @@ signal welcome_received(player_id: int)
 signal remote_player_joined(player_id: int, info: Dictionary)
 signal remote_player_state(player_id: int, position: Vector3, rotation: float)
 signal remote_player_left(player_id: int)
+signal remote_attack_received(player_id: int, attack_type: String, target_id: int)
+signal remote_damage_received(source_id: int, target_id: int, amount: float)
+signal remote_death_received(player_id: int)
+signal remote_respawn_received(player_id: int, position: Vector3, rotation: float)
 
 enum State { DISCONNECTED, CONNECTING, CONNECTED }
 
@@ -105,6 +109,52 @@ func get_remote_snapshot() -> Dictionary:
 	return remote_players.duplicate(true)
 
 
+func send_attack(attack_type: String, target_id: int = 0) -> void:
+	if state != State.CONNECTED:
+		return
+	var payload := {
+		"type": "attack",
+		"attack_type": attack_type,
+		"target_id": target_id,
+	}
+	if local_hero != null and is_instance_valid(local_hero):
+		var position := local_hero.global_position
+		payload["x"] = position.x
+		payload["y"] = position.y
+		payload["z"] = position.z
+		var visual: Variant = local_hero.get("visual")
+		payload["rotation"] = (visual as Node3D).global_rotation.y if visual is Node3D else local_hero.global_rotation.y
+	_send_json(payload)
+
+
+func send_damage(target_id: int, amount: float) -> void:
+	if state != State.CONNECTED or target_id <= 0 or amount <= 0.0:
+		return
+	_send_json({
+		"type": "damage",
+		"target_id": target_id,
+		"amount": amount,
+	})
+
+
+func send_death() -> void:
+	if state != State.CONNECTED:
+		return
+	_send_json({"type": "death"})
+
+
+func send_respawn(position: Vector3, rotation_y: float) -> void:
+	if state != State.CONNECTED:
+		return
+	_send_json({
+		"type": "respawn",
+		"x": position.x,
+		"y": position.y,
+		"z": position.z,
+		"rotation": rotation_y,
+	})
+
+
 func _process(delta: float) -> void:
 	if socket == null:
 		return
@@ -159,6 +209,8 @@ func _send_join() -> void:
 func _send_local_state(delta: float) -> void:
 	if local_hero == null or not is_instance_valid(local_hero):
 		return
+	if local_hero.get("dead") == true:
+		return
 	_send_accumulator += delta
 	if _send_accumulator < SEND_INTERVAL:
 		return
@@ -203,6 +255,14 @@ func _handle_message(text: String) -> void:
 			_handle_state(message)
 		"player_left":
 			_handle_player_left(message)
+		"attack":
+			_handle_attack(message)
+		"damage":
+			_handle_damage(message)
+		"death":
+			_handle_death(message)
+		"respawn":
+			_handle_respawn(message)
 
 
 func _handle_welcome(message: Dictionary) -> void:
@@ -263,6 +323,8 @@ func _upsert_remote(message: Dictionary, emit_join: bool) -> void:
 			info["class"] = clampi(int(message.get("class", 0)), 0, 2)
 		if message.has("team"):
 			info["team"] = clampi(int(message.get("team", 0)), 0, 1)
+		if message.has("alive"):
+			info["alive"] = bool(message.get("alive", true))
 	if emit_join and is_new:
 		remote_player_joined.emit(player_id, info)
 	if bool(message.get("has_state", false)):
@@ -291,7 +353,57 @@ func _make_remote_info(message: Dictionary) -> Dictionary:
 		"position": Vector3.ZERO,
 		"rotation": 0.0,
 		"has_state": false,
+		"alive": bool(message.get("alive", true)),
 	}
+
+
+func _handle_attack(message: Dictionary) -> void:
+	var source_id := int(message.get("source_id", message.get("id", 0)))
+	if source_id <= 0 or source_id == local_peer_id:
+		return
+	remote_attack_received.emit(
+		source_id,
+		String(message.get("attack_type", "auto")),
+		int(message.get("target_id", 0))
+	)
+
+
+func _handle_damage(message: Dictionary) -> void:
+	var source_id := int(message.get("source_id", message.get("id", 0)))
+	var target_id := int(message.get("target_id", 0))
+	var amount := float(message.get("amount", 0.0))
+	if target_id <= 0 or amount <= 0.0:
+		return
+	remote_damage_received.emit(source_id, target_id, amount)
+
+
+func _handle_death(message: Dictionary) -> void:
+	var player_id := int(message.get("id", message.get("player_id", 0)))
+	if player_id <= 0 or player_id == local_peer_id:
+		return
+	if remote_players.has(player_id):
+		var info: Dictionary = remote_players[player_id]
+		info["alive"] = false
+	remote_death_received.emit(player_id)
+
+
+func _handle_respawn(message: Dictionary) -> void:
+	var player_id := int(message.get("id", message.get("player_id", 0)))
+	if player_id <= 0 or player_id == local_peer_id:
+		return
+	var position := Vector3(
+		float(message.get("x", 0.0)),
+		float(message.get("y", 0.0)),
+		float(message.get("z", 0.0))
+	)
+	var rotation_y := float(message.get("rotation", 0.0))
+	if remote_players.has(player_id):
+		var info: Dictionary = remote_players[player_id]
+		info["alive"] = true
+		info["position"] = position
+		info["rotation"] = rotation_y
+		info["has_state"] = true
+	remote_respawn_received.emit(player_id, position, rotation_y)
 
 
 func _handle_player_left(message: Dictionary) -> void:

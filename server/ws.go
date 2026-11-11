@@ -52,17 +52,22 @@ type wsClient struct {
 	rotation float64
 	hasState bool
 	joined   bool
+	alive    bool
 }
 
 type wsIncoming struct {
-	Type     string  `json:"type"`
-	Name     string  `json:"name"`
-	Class    int     `json:"class"`
-	Team     int     `json:"team"`
-	X        float64 `json:"x"`
-	Y        float64 `json:"y"`
-	Z        float64 `json:"z"`
-	Rotation float64 `json:"rotation"`
+	Type       string  `json:"type"`
+	Name       string  `json:"name"`
+	Class      int     `json:"class"`
+	Team       int     `json:"team"`
+	X          float64 `json:"x"`
+	Y          float64 `json:"y"`
+	Z          float64 `json:"z"`
+	Rotation   float64 `json:"rotation"`
+	TargetID   int64   `json:"target_id"`
+	SourceID   int64   `json:"source_id"`
+	AttackType string  `json:"attack_type"`
+	Amount     float64 `json:"amount"`
 }
 
 type wsPlayerSnapshot struct {
@@ -75,20 +80,25 @@ type wsPlayerSnapshot struct {
 	Z        float64 `json:"z"`
 	Rotation float64 `json:"rotation"`
 	HasState bool    `json:"has_state"`
+	Alive    bool    `json:"alive"`
 }
 
 type wsOutgoing struct {
-	Type     string             `json:"type"`
-	ID       int64              `json:"id"`
-	Name     string             `json:"name,omitempty"`
-	Class    int                `json:"class"`
-	Team     int                `json:"team"`
-	X        float64            `json:"x"`
-	Y        float64            `json:"y"`
-	Z        float64            `json:"z"`
-	Rotation float64            `json:"rotation"`
-	Players  []wsPlayerSnapshot `json:"players,omitempty"`
-	Error    string             `json:"error,omitempty"`
+	Type       string             `json:"type"`
+	ID         int64              `json:"id"`
+	Name       string             `json:"name,omitempty"`
+	Class      int                `json:"class"`
+	Team       int                `json:"team"`
+	X          float64            `json:"x"`
+	Y          float64            `json:"y"`
+	Z          float64            `json:"z"`
+	Rotation   float64            `json:"rotation"`
+	TargetID   int64              `json:"target_id,omitempty"`
+	SourceID   int64              `json:"source_id,omitempty"`
+	AttackType string             `json:"attack_type,omitempty"`
+	Amount     float64            `json:"amount,omitempty"`
+	Players    []wsPlayerSnapshot `json:"players,omitempty"`
+	Error      string             `json:"error,omitempty"`
 }
 
 func newWebSocketHub() *wsHub {
@@ -107,10 +117,11 @@ func (h *wsHub) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	_ = conn.SetWriteDeadline(time.Time{})
 
 	client := &wsClient{
-		conn: conn,
-		hub:  h,
-		send: make(chan []byte, wsSendBuffer),
-		done: make(chan struct{}),
+		conn:  conn,
+		hub:   h,
+		send:  make(chan []byte, wsSendBuffer),
+		done:  make(chan struct{}),
+		alive: true,
 	}
 	h.addClient(client)
 	log.Printf("ws client %d connected", client.id)
@@ -164,10 +175,9 @@ func (h *wsHub) updateJoin(client *wsClient, message wsIncoming) {
 	if class < 0 || class > 2 {
 		class = 0
 	}
-	team := message.Team
-	if team < 0 || team > 1 {
-		team = 0
-	}
+	// The relay assigns teams deterministically so two clients always start
+	// on opposite sides, regardless of which value the client proposed.
+	team := int((client.id - 1) % 2)
 
 	h.mu.Lock()
 	if _, exists := h.clients[client.id]; !exists {
@@ -241,6 +251,81 @@ func (h *wsHub) updateState(client *wsClient, message wsIncoming) {
 	})
 }
 
+func (h *wsHub) relayAttack(client *wsClient, message wsIncoming) {
+	attackType := strings.TrimSpace(message.AttackType)
+	if attackType == "" {
+		attackType = "auto"
+	}
+	runes := []rune(attackType)
+	if len(runes) > 32 {
+		attackType = string(runes[:32])
+	}
+	h.broadcastExcept(client.id, wsOutgoing{
+		Type:       "attack",
+		ID:         client.id,
+		SourceID:   client.id,
+		TargetID:   message.TargetID,
+		AttackType: attackType,
+		X:          message.X,
+		Y:          message.Y,
+		Z:          message.Z,
+		Rotation:   message.Rotation,
+	})
+}
+
+func (h *wsHub) relayDamage(client *wsClient, message wsIncoming) {
+	if message.TargetID <= 0 || message.TargetID == client.id {
+		return
+	}
+	if !finite(message.Amount) || message.Amount <= 0.0 || message.Amount > 100000.0 {
+		return
+	}
+	h.broadcastExcept(client.id, wsOutgoing{
+		Type:     "damage",
+		ID:       client.id,
+		SourceID: client.id,
+		TargetID: message.TargetID,
+		Amount:   message.Amount,
+	})
+}
+
+func (h *wsHub) relayDeath(client *wsClient) {
+	h.mu.Lock()
+	if _, exists := h.clients[client.id]; !exists {
+		h.mu.Unlock()
+		return
+	}
+	client.alive = false
+	h.mu.Unlock()
+	h.broadcastExcept(client.id, wsOutgoing{Type: "death", ID: client.id})
+}
+
+func (h *wsHub) relayRespawn(client *wsClient, message wsIncoming) {
+	if !finite(message.X) || !finite(message.Y) || !finite(message.Z) || !finite(message.Rotation) {
+		return
+	}
+	h.mu.Lock()
+	if _, exists := h.clients[client.id]; !exists {
+		h.mu.Unlock()
+		return
+	}
+	client.alive = true
+	client.x = message.X
+	client.y = message.Y
+	client.z = message.Z
+	client.rotation = message.Rotation
+	client.hasState = true
+	h.mu.Unlock()
+	h.broadcastExcept(client.id, wsOutgoing{
+		Type:     "respawn",
+		ID:       client.id,
+		X:        message.X,
+		Y:        message.Y,
+		Z:        message.Z,
+		Rotation: message.Rotation,
+	})
+}
+
 func (h *wsHub) broadcast(message wsOutgoing) {
 	h.broadcastExcept(0, message)
 }
@@ -279,6 +364,7 @@ func (c *wsClient) snapshot() wsPlayerSnapshot {
 		Z:        c.z,
 		Rotation: c.rotation,
 		HasState: c.hasState,
+		Alive:    c.alive,
 	}
 }
 
@@ -307,6 +393,14 @@ func (c *wsClient) readPump() {
 			c.hub.updateJoin(c, message)
 		case "state":
 			c.hub.updateState(c, message)
+		case "attack":
+			c.hub.relayAttack(c, message)
+		case "damage":
+			c.hub.relayDamage(c, message)
+		case "death":
+			c.hub.relayDeath(c)
+		case "respawn":
+			c.hub.relayRespawn(c, message)
 		}
 	}
 }

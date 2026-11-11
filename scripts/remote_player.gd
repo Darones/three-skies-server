@@ -11,15 +11,25 @@ const CLASS_COLORS := [
 	Color(0.6, 0.95, 1.0),
 	Color(0.72, 0.95, 0.55),
 ]
+const CLASS_MAX_HP := [550.0, 500.0, 450.0]
+const HEALTH_BAR_WIDTH := 1.3
 
 var peer_id := 0
 var display_name := ""
 var hero_class := 0
 var team := 0
+var health := 0.0
+var max_health := 0.0
+var dead := false
+var game: Node = null
 var target_position := Vector3.ZERO
 var target_rotation := 0.0
 var _has_target := false
 var _name_label: Label3D = null
+var _health_back: MeshInstance3D = null
+var _health_fill: MeshInstance3D = null
+var _model_root: Node3D = null
+var _animation_player: AnimationPlayer = null
 
 
 func setup(player_id: int, info: Dictionary) -> void:
@@ -27,6 +37,8 @@ func setup(player_id: int, info: Dictionary) -> void:
 	display_name = String(info.get("name", "Игрок %d" % player_id))
 	hero_class = clampi(int(info.get("class", 0)), 0, 2)
 	team = clampi(int(info.get("team", 0)), 0, 1)
+	max_health = CLASS_MAX_HP[hero_class]
+	health = max_health
 
 	var spawn := Vector3(0.0, 0.76, 28.0 if team == 0 else -28.0)
 	if bool(info.get("has_state", false)) and info.get("position") is Vector3:
@@ -39,6 +51,9 @@ func setup(player_id: int, info: Dictionary) -> void:
 
 	_build_visual()
 	_build_name_label()
+	_build_health_bar()
+	if not bool(info.get("alive", true)):
+		apply_network_death()
 
 
 func update_info(info: Dictionary) -> void:
@@ -59,7 +74,7 @@ func apply_state(position: Vector3, rotation_y: float) -> void:
 
 
 func _process(delta: float) -> void:
-	if not _has_target:
+	if dead or not _has_target:
 		return
 	var weight := 1.0 - exp(-14.0 * delta)
 	global_position = global_position.lerp(target_position, weight)
@@ -75,6 +90,7 @@ func _build_visual() -> void:
 	holder.name = "Model"
 	add_child(holder)
 	holder.add_child(model)
+	_model_root = holder
 	_fit_model(holder)
 	_play_idle(holder)
 
@@ -129,16 +145,16 @@ func _model_aabb(root: Node3D) -> AABB:
 
 
 func _play_idle(holder: Node3D) -> void:
-	var animation_player := _find_animation_player(holder)
-	if animation_player == null:
+	_animation_player = _find_animation_player(holder)
+	if _animation_player == null:
 		return
-	var animations := animation_player.get_animation_list()
+	var animations := _animation_player.get_animation_list()
 	for animation_name in animations:
 		if String(animation_name).to_lower().contains("idle"):
-			animation_player.play(animation_name)
+			_animation_player.play(animation_name)
 			return
 	if not animations.is_empty():
-		animation_player.play(animations[0])
+		_animation_player.play(animations[0])
 
 
 func _find_animation_player(node: Node) -> AnimationPlayer:
@@ -177,5 +193,107 @@ func _build_name_label() -> void:
 	_name_label.modulate = Color(0.55, 0.85, 1.0) if team == 0 else Color(0.86, 0.62, 1.0)
 	_name_label.outline_size = 6
 	_name_label.outline_modulate = Color(0.02, 0.03, 0.06, 0.95)
-	_name_label.position = Vector3(0.0, 2.65, 0.0)
+	_name_label.position = Vector3(0.0, 2.9, 0.0)
 	add_child(_name_label)
+
+
+func _build_health_bar() -> void:
+	_health_back = _make_bar_quad("HealthBarBack", Vector2(HEALTH_BAR_WIDTH, 0.18), Color(0.02, 0.03, 0.05, 0.9), 2.48, 0.0)
+	_health_fill = _make_bar_quad("HealthBarFill", Vector2(HEALTH_BAR_WIDTH - 0.06, 0.1), Color(0.35, 0.95, 0.48, 1.0), 2.48, 0.01)
+	_update_health_bar()
+
+
+func _make_bar_quad(node_name: String, size: Vector2, color: Color, y: float, z: float) -> MeshInstance3D:
+	var bar := MeshInstance3D.new()
+	bar.name = node_name
+	var quad := QuadMesh.new()
+	quad.size = size
+	bar.mesh = quad
+	bar.position = Vector3(0.0, y, z)
+	bar.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	material.no_depth_test = true
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.disable_receive_shadows = true
+	bar.material_override = material
+	add_child(bar)
+	return bar
+
+
+func _update_health_bar() -> void:
+	if _health_fill == null or _health_back == null:
+		return
+	var ratio := clampf(health / max_health, 0.0, 1.0) if max_health > 0.0 else 0.0
+	_health_fill.scale.x = ratio
+	_health_fill.position.x = -(HEALTH_BAR_WIDTH - 0.06) * (1.0 - ratio) * 0.5
+	_health_back.visible = not dead
+	_health_fill.visible = not dead
+
+
+func take_damage(amount: float, source: Node = null, _damage_type := "physical") -> void:
+	if dead:
+		return
+	var applied := minf(maxf(amount, 0.0), health)
+	health = maxf(0.0, health - maxf(amount, 0.0))
+	_update_health_bar()
+	if game != null and game.has_method("damage_number"):
+		game.call("damage_number", global_position + Vector3(0.0, 2.0, 0.0), applied, team)
+	if applied > 0.0 and source != null and game != null and source == game.player:
+		NetworkManager.send_damage(peer_id, applied)
+
+
+func apply_network_damage(amount: float) -> void:
+	if dead:
+		return
+	health = maxf(0.0, health - maxf(amount, 0.0))
+	_update_health_bar()
+	if game != null and game.has_method("damage_number"):
+		game.call("damage_number", global_position + Vector3(0.0, 2.0, 0.0), amount, team)
+
+
+func apply_network_death() -> void:
+	if dead:
+		return
+	dead = true
+	health = 0.0
+	_update_health_bar()
+	if game != null and game.has_method("burst"):
+		game.call("burst", global_position + Vector3(0.0, 1.0, 0.0), Color(1.0, 0.45, 0.4), 20)
+	visible = false
+
+
+func apply_network_respawn(position: Vector3, rotation_y: float) -> void:
+	dead = false
+	health = max_health
+	global_position = position
+	target_position = position
+	rotation.y = rotation_y
+	target_rotation = rotation_y
+	_has_target = true
+	visible = true
+	_update_health_bar()
+	if _model_root != null:
+		_play_idle(_model_root)
+
+
+func play_attack(_attack_type: String) -> void:
+	if dead:
+		return
+	if _animation_player != null:
+		for animation_name in _animation_player.get_animation_list():
+			var lower := String(animation_name).to_lower()
+			if lower.contains("attack") or lower.contains("cast"):
+				_animation_player.play(animation_name)
+				return
+	if _model_root != null:
+		var base_scale := _model_root.scale
+		var tween := create_tween()
+		tween.tween_property(_model_root, "scale", base_scale * 1.06, 0.08)
+		tween.tween_property(_model_root, "scale", base_scale, 0.12)
+
+
+func stun(_duration: float) -> void:
+	pass

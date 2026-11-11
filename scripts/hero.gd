@@ -1544,6 +1544,9 @@ func _try_auto_attack(movement_direction: Vector3) -> void:
 	_break_bush_stealth()
 	attack_cd = attack_interval / attack_speed_multiplier
 	attack_anim_time = attack_animation_duration
+	if is_player and game != null and bool(game.get("network_play")):
+		var network_target_id := int(target.peer_id) if "peer_id" in target else 0
+		NetworkManager.send_attack("auto", network_target_id)
 	_play_anim("attack", true)
 	_play_weapon_attack_animation()
 	_play_class_attack_sfx()
@@ -1596,6 +1599,10 @@ func _attack_target() -> Node3D:
 			best_distance = distance
 	if best_enemy != null:
 		return best_enemy
+	if is_player and game.has_method("network_attack_target"):
+		var network_target: Node3D = game.call("network_attack_target", global_position, team, attack_range, _facing_direction())
+		if network_target != null:
+			return network_target
 	var shell_target: SkyShell = game.shell
 	if shell_target != null and is_instance_valid(shell_target) and shell_target.alive:
 		var direction_to_shell := shell_target.global_position - global_position
@@ -1792,6 +1799,18 @@ func _update_health_display() -> void:
 
 
 
+func apply_network_damage(amount: float) -> void:
+	if dead:
+		return
+	health = clampf(health - maxf(amount, 0.0), 0.0, max_health)
+	seconds_since_damage = 0.0
+	_update_health_display()
+	if game != null and game.has_method("damage_number"):
+		game.call("damage_number", global_position + Vector3(0.0, 2.0, 0.0), amount, team)
+	if health <= 0.0:
+		_die()
+
+
 func take_damage(amount: float, source: Node = null, damage_type: String = "physical") -> void:
 	if dead or _is_under_base_shield():
 		return
@@ -1958,7 +1977,9 @@ func use_ability(index: int, manual := true) -> bool:
 	var origin := global_position
 	match ability_type:
 		"shadow_assassin":
-			var target: HeroUnit = game.nearest_enemy(origin, team, 8.0, self)
+			var target: Node3D = game.nearest_enemy(origin, team, 8.0, self)
+			if target == null and game.has_method("network_nearest_enemy"):
+				target = game.call("network_nearest_enemy", origin, team, 8.0)
 			if target == null:
 				ability_cds[index] = 0.0
 				return false
@@ -1969,7 +1990,8 @@ func use_ability(index: int, manual := true) -> bool:
 			global_position = game.clamp_to_arena(target.global_position + offset.normalized() * 1.2)
 			var hit_position := global_position
 			target.take_damage(roll_direct_damage(attack_damage * get_blessing_damage_multiplier()), self, "physical")
-			target.stun(1.0)
+			if target.has_method("stun"):
+				target.stun(1.0)
 			spawn_ability_vfx(0, target.global_position)
 			game.dash_fx(origin, hit_position, color)
 		"crit_shot":
@@ -1996,12 +2018,21 @@ func use_ability(index: int, manual := true) -> bool:
 			for enemy in game.enemies_in_radius(origin, WARRIOR_ULT_RADIUS, team, self):
 				enemy.take_damage(roll_direct_damage(_outgoing_damage(60.0) * get_blessing_damage_multiplier()), self, "magic")
 				enemy.stun(1.5)
+			if is_player and game.has_method("network_enemies_in_radius"):
+				for remote_enemy in game.call("network_enemies_in_radius", origin, WARRIOR_ULT_RADIUS, team):
+					if remote_enemy == null or not is_instance_valid(remote_enemy):
+						continue
+					remote_enemy.take_damage(roll_direct_damage(_outgoing_damage(60.0) * get_blessing_damage_multiplier()), self, "magic")
+					if remote_enemy.has_method("stun"):
+						remote_enemy.stun(1.5)
 			game.fear_pulse_fx(origin, WARRIOR_ULT_RADIUS, color)
 			game.earthquake_fx(origin, WARRIOR_ULT_RADIUS, 1.5)
 		"root":
 			var fwd: Vector3 = _facing_direction()
 			var proj_pos := origin + Vector3(0.0, 1.2, 0.0)
-			var root_target: HeroUnit = game.nearest_enemy(proj_pos, team, 10.0, self)
+			var root_target: Node3D = game.nearest_enemy(proj_pos, team, 10.0, self)
+			if root_target == null and game.has_method("network_nearest_enemy"):
+				root_target = game.call("network_nearest_enemy", proj_pos, team, 10.0)
 			if root_target != null:
 				game.spawn_projectile(proj_pos, root_target, roll_direct_damage(_outgoing_damage(20.0) * get_blessing_damage_multiplier()), color, self, 2.0, "magic", "root")
 			game.burst(proj_pos, color, 14)
@@ -2016,13 +2047,17 @@ func use_ability(index: int, manual := true) -> bool:
 			_set_lightning_storm_ring(true)
 			game.burst(origin, Color(0.35, 0.78, 1.0), 28)
 		"stun_shot":
-			var target2: HeroUnit = game.nearest_enemy(origin, team, 14.0, self)
+			var target2: Node3D = game.nearest_enemy(origin, team, 14.0, self)
+			if target2 == null and game.has_method("network_nearest_enemy"):
+				target2 = game.call("network_nearest_enemy", origin, team, 14.0)
 			if target2 != null:
 				game.spawn_projectile(origin + Vector3(0.0, 1.3, 0.0), target2, roll_direct_damage(_outgoing_damage(40.0) * get_blessing_damage_multiplier()), color, self, 1.5, "physical", "stun")
 			game.burst(origin, color, 10)
 		"golden_blessing":
 			game.bless_team(team, float(data["cd"]))
 			game.golden_blessing_fx(origin, team, self)
+	if is_player and manual and game != null and bool(game.get("network_play")):
+		NetworkManager.send_attack(ability_type)
 	if bool(game.get("tutorial_mode")) and is_player:
 		var tutorial_controller := game.get("tutorial_controller") as Node
 		if tutorial_controller != null:
@@ -2084,6 +2119,10 @@ func _crit_shot_target() -> Node3D:
 	var enemy: HeroUnit = game.nearest_enemy(global_position, team, attack_range, self)
 	if enemy != null:
 		return enemy
+	if is_player and game.has_method("network_nearest_enemy"):
+		var network_enemy: Node3D = game.call("network_nearest_enemy", global_position, team, attack_range)
+		if network_enemy != null:
+			return network_enemy
 	var shell_target: SkyShell = game.shell
 	if shell_target != null and is_instance_valid(shell_target) and shell_target.alive:
 		if global_position.distance_to(shell_target.global_position) <= attack_range:

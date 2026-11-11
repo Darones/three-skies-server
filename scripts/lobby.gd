@@ -31,6 +31,7 @@ var topup_panel: PanelContainer
 var info_dialog: AcceptDialog
 var shard_amount_label: Label
 var network_button: Button
+var _network_enter_pending := false
 var settings_panel: Control
 var player_menu_overlay: ColorRect
 var nickname_line_edit: LineEdit
@@ -84,6 +85,8 @@ func _ready() -> void:
 		NetworkManager.connection_succeeded.connect(_on_network_connected)
 	if not NetworkManager.connection_failed.is_connected(_on_network_failed):
 		NetworkManager.connection_failed.connect(_on_network_failed)
+	if not NetworkManager.welcome_received.is_connected(_on_network_welcome):
+		NetworkManager.welcome_received.connect(_on_network_welcome)
 	if not NetworkManager.disconnected.is_connected(_on_network_disconnected):
 		NetworkManager.disconnected.connect(_on_network_disconnected)
 	if MetaProgression.player_id <= 0:
@@ -1066,11 +1069,28 @@ func _start_network_battle() -> void:
 func _on_network_connected() -> void:
 	if not is_inside_tree():
 		return
+	if NetworkManager.local_peer_id <= 0:
+		_network_enter_pending = true
+		return
+	_enter_network_match()
+
+
+func _on_network_welcome(_player_id: int) -> void:
+	if _network_enter_pending:
+		_enter_network_match()
+
+
+func _enter_network_match() -> void:
+	if not is_inside_tree():
+		return
+	_network_enter_pending = false
+	var network_team := (NetworkManager.local_peer_id - 1) % 2
+	if network_team < 0:
+		network_team = 0
 	get_tree().set_meta("network_play", true)
 	get_tree().set_meta("tutorial_mode", false)
 	get_tree().set_meta("selected_class", selected_class)
-	if not get_tree().has_meta("selected_team"):
-		get_tree().set_meta("selected_team", randi_range(0, 1))
+	get_tree().set_meta("selected_team", network_team)
 	if network_button != null:
 		network_button.text = "ПОДКЛЮЧЕНО"
 		network_button.disabled = true
@@ -1084,12 +1104,14 @@ func _on_network_connected() -> void:
 func _on_network_failed(reason: String) -> void:
 	if not is_inside_tree():
 		return
+	_network_enter_pending = false
 	get_tree().set_meta("network_play", false)
 	_reset_network_button()
 	_show_info("Не удалось подключиться к серверу: %s" % reason)
 
 
 func _on_network_disconnected() -> void:
+	_network_enter_pending = false
 	_reset_network_button()
 
 
