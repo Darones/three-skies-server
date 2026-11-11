@@ -176,6 +176,8 @@ func _ready() -> void:
 	_create_fog_of_war()
 	_create_shop_stall()
 	_create_gold_fountain()
+	if arena_root != null:
+		_create_ambient_decor(arena_root)
 	_setup_audio()
 	_prepare_effect_pools()
 	hud = preload("res://scripts/hud.gd").new()
@@ -326,6 +328,93 @@ func _add_shop_collision(parent: Node3D) -> void:
 	collision_shape.position = Vector3(0.0, 0.45, 0.0)
 	body.add_child(collision_shape)
 	parent.add_child(body)
+
+
+func _create_ambient_decor(arena_root: Node3D) -> void:
+	if arena_root.get_node_or_null("AmbientDecor") != null:
+		return
+	var decor := Node3D.new()
+	decor.name = "AmbientDecor"
+	arena_root.add_child(decor)
+	var gold := Color(1.0, 0.78, 0.32)
+	var light := Color(0.36, 0.76, 1.0)
+	var dark := Color(0.72, 0.43, 1.0)
+	_create_rune_circle(decor, Vector3(0.0, 0.06, 8.5), light)
+	_create_rune_circle(decor, Vector3(0.0, 0.06, -8.5), dark)
+	_create_rune_circle(decor, Vector3(18.0, 0.06, 0.0), gold)
+	_create_rune_circle(decor, Vector3(-18.0, 0.06, 0.0), gold)
+	_create_fireflies(decor, Vector3(37.0, 0.0, 0.0), 5.0, Color(1.0, 0.85, 0.45))
+	_create_fireflies(decor, Vector3(0.0, 0.0, 0.0), 4.5, Color(0.55, 0.85, 1.0))
+	_create_fireflies(decor, Vector3(0.0, 0.0, 10.0), 3.5, Color(0.5, 0.8, 1.0))
+	_create_fireflies(decor, Vector3(0.0, 0.0, -10.0), 3.5, Color(0.75, 0.55, 1.0))
+
+
+func _create_rune_circle(parent: Node3D, position: Vector3, color: Color) -> void:
+	var root := Node3D.new()
+	root.name = "RuneCircle"
+	root.position = position
+	parent.add_child(root)
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color(color.r, color.g, color.b, 0.55)
+	material.emission_enabled = true
+	material.emission = color
+	material.emission_energy_multiplier = 0.9
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var ring_mesh := TorusMesh.new()
+	ring_mesh.inner_radius = 1.4
+	ring_mesh.outer_radius = 1.55
+	ring_mesh.rings = 48
+	ring_mesh.ring_segments = 6
+	var ring := MeshInstance3D.new()
+	ring.mesh = ring_mesh
+	ring.material_override = material
+	root.add_child(ring)
+	for index in 8:
+		var mark := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(0.08, 0.01, 0.32)
+		mark.mesh = box
+		mark.material_override = material
+		var angle := TAU * float(index) / 8.0
+		mark.position = Vector3(cos(angle) * 1.95, 0.0, sin(angle) * 1.95)
+		mark.rotation.y = -angle
+		root.add_child(mark)
+
+
+func _create_fireflies(parent: Node3D, position: Vector3, radius: float, color: Color) -> void:
+	var particles := GPUParticles3D.new()
+	particles.name = "Fireflies"
+	particles.amount = 20
+	particles.lifetime = 6.0
+	particles.preprocess = 4.0
+	particles.position = position + Vector3(0.0, 1.6, 0.0)
+	particles.visibility_aabb = AABB(Vector3(-radius, -2.0, -radius), Vector3(radius * 2.0, 4.0, radius * 2.0))
+	var process := ParticleProcessMaterial.new()
+	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	process.emission_sphere_radius = radius
+	process.direction = Vector3.UP
+	process.spread = 180.0
+	process.initial_velocity_min = 0.05
+	process.initial_velocity_max = 0.25
+	process.gravity = Vector3(0.0, 0.02, 0.0)
+	process.scale_min = 0.6
+	process.scale_max = 1.3
+	particles.process_material = process
+	var dot := SphereMesh.new()
+	dot.radius = 0.05
+	dot.height = 0.1
+	dot.radial_segments = 6
+	dot.rings = 3
+	dot.material = StandardMaterial3D.new()
+	var dot_material := dot.material as StandardMaterial3D
+	dot_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dot_material.albedo_color = color
+	dot_material.emission_enabled = true
+	dot_material.emission = color
+	dot_material.emission_energy_multiplier = 2.0
+	particles.draw_pass_1 = dot
+	parent.add_child(particles)
 
 
 func _create_gold_fountain() -> void:
