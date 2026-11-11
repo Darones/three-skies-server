@@ -1417,6 +1417,7 @@ func spawn_crystal(pos: Vector3, spawn_on_pedestal := false) -> void:
 	light.omni_range = 9.0
 	c.add_child(light)
 	var ring := MeshInstance3D.new()
+	ring.name = "CrystalRing"
 	var torus := TorusMesh.new()
 	torus.inner_radius = 0.9
 	torus.outer_radius = 1.05
@@ -1560,6 +1561,10 @@ func _update_crystal(delta: float) -> void:
 			_try_pickup()
 	elif crystal_state == "carried" and carrier != null and is_instance_valid(carrier):
 		crystal_node.global_position = carrier.global_position + Vector3(0.0, 2.9, 0.0)
+		var carry_ring := crystal_node.get_node_or_null("CrystalRing") as MeshInstance3D
+		if carry_ring != null:
+			carry_ring.global_position = Vector3(carrier.global_position.x, 0.08, carrier.global_position.z)
+			carry_ring.scale = Vector3(1.7, 1.0, 1.7)
 		if not is_instance_valid(crystal_node):
 			crystal_state = "none"
 			carrier.carrying = false
@@ -1640,6 +1645,10 @@ func drop_crystal(pos: Vector3) -> void:
 	pickup_delay = 0.5
 	carrier = null
 	crystal_node.global_position = Vector3(pos.x, 0.5, pos.z)
+	var ring := crystal_node.get_node_or_null("CrystalRing") as MeshInstance3D
+	if ring != null:
+		ring.position = Vector3(0.0, -0.6, 0.0)
+		ring.scale = Vector3.ONE
 
 
 func on_hero_died(h: HeroUnit) -> void:
@@ -2226,6 +2235,14 @@ func golden_blessing_fx(center: Vector3, team: int, caster: HeroUnit) -> void:
 		_activate_ring(Vector3(hero_position.x, 0.24, hero_position.z), gold, 0.8, Vector3.ONE * 0.35, Vector3(2.8, 1.0, 2.8), true, 0.85)
 		if caster != null and is_instance_valid(caster):
 			caster.spawn_ability_vfx(2, hero_position)
+
+
+func fairy_ult_burst_fx(center: Vector3, radius: float, color: Color) -> void:
+	var gold := Color(1.0, 0.82, 0.32)
+	burst(center + Vector3(0.0, 1.0, 0.0), gold, 36)
+	_activate_ring(Vector3(center.x, 0.22, center.z), color, 0.7, Vector3.ONE * 0.4, Vector3(radius * 0.9, 1.0, radius * 0.9), true, 0.95)
+	_activate_ring(Vector3(center.x, 0.28, center.z), gold, 0.55, Vector3.ONE * 0.3, Vector3(radius * 0.6, 1.0, radius * 0.6), true, 0.8)
+	shake(0.35)
 
 
 func fear_pulse_fx(center: Vector3, radius: float, color: Color) -> void:

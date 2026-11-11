@@ -62,6 +62,10 @@ const VFX_GOLDEN_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_S
 const MAGE_STORM_DURATION := 5.0
 const MAGE_STORM_RADIUS := 10.0
 const WARRIOR_ULT_RADIUS := 8.0
+const FAIRY_ULT_RADIUS := 5.0
+const FAIRY_ULT_DAMAGE := 75.0
+const FAIRY_ULT_SLOW := 0.3
+const FAIRY_ULT_SLOW_DURATION := 2.0
 const MAGE_STORM_DAMAGE := 100.0
 const FAIRY_CRIT_CAST_TIME := 1.0
 const FAIRY_CRIT_MULTIPLIER := 3.0
@@ -153,6 +157,8 @@ var match_coins_collected := 0
 var match_gold_spent := 0
 var bot_purchased_shop_items: Array[String] = []
 var stun_timer := 0.0
+var slow_timer := 0.0
+var slow_factor := 0.0
 var attack_cd := 0.0
 var attack_anim_time := 0.0
 var respawn_timer := 0.0
@@ -1107,6 +1113,9 @@ func _physics_process(delta: float) -> void:
 		health = minf(max_health, health + (HEALTH_REGEN_PER_SECOND + bonus_regen_per_second) * regen_multiplier * delta)
 
 	stun_timer = maxf(0.0, stun_timer - delta)
+	slow_timer = maxf(0.0, slow_timer - delta)
+	if slow_timer <= 0.0:
+		slow_factor = 0.0
 	attack_cd = maxf(0.0, attack_cd - delta)
 	cast_flash = maxf(0.0, cast_flash - delta)
 	attack_anim_time = maxf(0.0, attack_anim_time - delta)
@@ -1150,7 +1159,7 @@ func _physics_process(delta: float) -> void:
 		if not training_abilities:
 			_try_auto_attack(dir)
 
-	var speed := move_speed * (0.5 if carrying else 1.0)
+	var speed := move_speed * (0.5 if carrying else 1.0) * (1.0 - (slow_factor if slow_timer > 0.0 else 0.0))
 	var target_v := dir * speed
 	if channeling_storm or channeling_crit:
 		velocity.x = 0.0
@@ -1921,6 +1930,14 @@ func stun(duration: float) -> void:
 	stun_timer = maxf(stun_timer, maxf(0.0, duration) * (1.0 - stun_duration_reduction))
 
 
+func apply_slow(factor: float, duration: float) -> void:
+	if dead or duration <= 0.0:
+		return
+	if slow_timer <= 0.0 or factor >= slow_factor:
+		slow_factor = clampf(factor, 0.0, 0.8)
+	slow_timer = maxf(slow_timer, duration)
+
+
 func _die() -> void:
 	dead = true
 	if is_player:
@@ -1936,6 +1953,8 @@ func _die() -> void:
 	velocity = Vector3.ZERO
 	carrying = false
 	stun_timer = 0.0
+	slow_timer = 0.0
+	slow_factor = 0.0
 	set_collision_layer_value(1, false)
 	set_collision_mask_value(1, false)
 	visual.visible = false
@@ -2087,6 +2106,17 @@ func use_ability(index: int, manual := true) -> bool:
 		"golden_blessing":
 			game.bless_team(team, float(data["cd"]))
 			game.golden_blessing_fx(origin, team, self)
+			for enemy in game.enemies_in_radius(origin, FAIRY_ULT_RADIUS, team, self):
+				enemy.take_damage(roll_direct_damage(_outgoing_damage(FAIRY_ULT_DAMAGE) * get_blessing_damage_multiplier()), self, "magic", "fairy_ult")
+				enemy.apply_slow(FAIRY_ULT_SLOW, FAIRY_ULT_SLOW_DURATION)
+			if is_player and game.has_method("network_enemies_in_radius"):
+				for remote_enemy in game.call("network_enemies_in_radius", origin, FAIRY_ULT_RADIUS, team):
+					if remote_enemy == null or not is_instance_valid(remote_enemy):
+						continue
+					remote_enemy.take_damage(roll_direct_damage(_outgoing_damage(FAIRY_ULT_DAMAGE) * get_blessing_damage_multiplier()), self, "magic", "fairy_ult")
+					if remote_enemy.has_method("apply_slow"):
+						remote_enemy.apply_slow(FAIRY_ULT_SLOW, FAIRY_ULT_SLOW_DURATION)
+			game.fairy_ult_burst_fx(origin, FAIRY_ULT_RADIUS, color)
 	if is_player and manual and game != null and bool(game.get("network_play")):
 		NetworkManager.send_attack(ability_type)
 	if bool(game.get("tutorial_mode")) and is_player:
