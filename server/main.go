@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -43,6 +44,7 @@ var startedAt = time.Now()
 
 type api struct {
 	db      *sql.DB
+	dbHost  string
 	dbReady atomic.Bool
 	dbError atomic.Value
 }
@@ -129,7 +131,7 @@ func main() {
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(30 * time.Minute)
 
-	service := &api{db: db}
+	service := &api{db: db, dbHost: databaseHost(databaseURL)}
 	hub := newWebSocketHub(db)
 	router := newRouter(service, hub)
 
@@ -186,7 +188,21 @@ func normalizeDatabaseURL(raw string) string {
 	return raw + separator + "sslmode=disable"
 }
 
-func newRouter(service *api, hub *wsHub) http.Handler {	mux := http.NewServeMux()
+// databaseHost returns only the host from the connection string so the health
+// endpoint can show which database the container actually sees.
+func databaseHost(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	return parsed.Hostname()
+}
+
+func newRouter(service *api, hub *wsHub) http.Handler {
+	mux := http.NewServeMux()
 	mux.HandleFunc("/health", service.handleHealth)
 	mux.HandleFunc("/ws", hub.handleWebSocket)
 	mux.HandleFunc("/register", service.handleRegister)
@@ -228,6 +244,9 @@ func (service *api) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"status":         "ok",
 		"database":       "ok",
 		"uptime_seconds": int(time.Since(startedAt).Seconds()),
+	}
+	if service.dbHost != "" {
+		response["database_host"] = service.dbHost
 	}
 	if !service.dbReady.Load() {
 		response["status"] = "degraded"

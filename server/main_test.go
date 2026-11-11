@@ -99,3 +99,28 @@ func TestNormalizeDatabaseURL(t *testing.T) {
 		}
 	}
 }
+
+func TestDatabaseHost(t *testing.T) {
+	if got := databaseHost("postgres://u:p@db-team-example:5432/base?sslmode=disable"); got != "db-team-example" {
+		t.Fatalf("unexpected host: %q", got)
+	}
+	if got := databaseHost(""); got != "" {
+		t.Fatalf("empty url must give empty host, got %q", got)
+	}
+}
+
+func TestHealthShowsDatabaseHost(t *testing.T) {
+	service := &api{dbHost: "localhost"}
+	service.setDatabaseError(errors.New("connection refused"))
+
+	recorder := httptest.NewRecorder()
+	service.handleHealth(recorder, httptest.NewRequest(http.MethodGet, "/health", nil))
+
+	var body map[string]any
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode health body: %v", err)
+	}
+	if body["database_host"] != "localhost" {
+		t.Fatalf("expected database_host in health, got %v", body["database_host"])
+	}
+}
