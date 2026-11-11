@@ -2107,6 +2107,13 @@ func shake(amount: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if state == "live" and player != null:
+		if event is InputEventKey:
+			if event.pressed and not event.echo:
+				player.notify_player_input()
+		elif event is InputEventMouseButton and event.pressed:
+			player.notify_player_input()
+
 	if event is InputEventMouseButton and event.pressed and (state == "live" or death_camera_active):
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			camera_distance = clampf(camera_distance - zoom_speed * 2.0, min_zoom_distance, max_zoom_distance)

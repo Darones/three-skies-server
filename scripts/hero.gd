@@ -23,6 +23,7 @@ const BOT_ABILITY_COOLDOWN_MULTIPLIER := 1.2
 const BOT_MOVE_ACCELERATION := 14.0
 const BOT_RETREAT_START_RATIO := 0.22
 const BOT_RETREAT_END_RATIO := 0.4
+const AFK_TIMEOUT := 60.0
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const WEAPON_MAGE_GLOW := Color(0.35, 0.78, 1.0)
 const WEAPON_WARRIOR_GLOW := Color(1.0, 0.64, 0.24)
@@ -122,6 +123,9 @@ var game: Node = null
 var team := 0
 var hero_class: int = Cls.WARRIOR
 var is_player := false
+var afk_active := false
+var afk_idle_time := 0.0
+var afk_label: Label3D = null
 var display_name := ""
 
 var max_health := 200.0
@@ -1091,6 +1095,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	seconds_since_damage = minf(5.0, seconds_since_damage + delta)
+	_update_afk(delta)
 	_update_shop_proximity(delta)
 	bush_reveal_timer = maxf(0.0, bush_reveal_timer - delta)
 	_refresh_bush_visibility()
@@ -1135,7 +1140,7 @@ func _physics_process(delta: float) -> void:
 
 	var dir := Vector3.ZERO
 	if not channeling_storm and not channeling_crit and stun_timer <= 0.0:
-		if is_player:
+		if is_player and not afk_active:
 			dir = _player_dir()
 		else:
 			dir = _ai_dir(delta)
@@ -1150,7 +1155,7 @@ func _physics_process(delta: float) -> void:
 		velocity.x = 0.0
 		velocity.z = 0.0
 	else:
-		var movement_acceleration := BOT_MOVE_ACCELERATION if not is_player else 40.0
+		var movement_acceleration := BOT_MOVE_ACCELERATION if (not is_player or afk_active) else 40.0
 		velocity.x = move_toward(velocity.x, target_v.x, movement_acceleration * delta)
 		velocity.z = move_toward(velocity.z, target_v.z, movement_acceleration * delta)
 	if not is_on_floor():
@@ -1201,6 +1206,110 @@ func _player_dir() -> Vector3:
 	right = right.normalized()
 	var dir := right * input.x + fwd * input.y
 	return dir.normalized()
+
+
+func _has_movement_input() -> bool:
+	return (
+		Input.is_action_pressed("move_left")
+		or Input.is_action_pressed("move_left_2")
+		or Input.is_key_pressed(KEY_LEFT)
+		or Input.is_action_pressed("move_right")
+		or Input.is_action_pressed("move_right_2")
+		or Input.is_key_pressed(KEY_RIGHT)
+		or Input.is_action_pressed("move_forward")
+		or Input.is_action_pressed("move_forward_2")
+		or Input.is_key_pressed(KEY_UP)
+		or Input.is_action_pressed("move_back")
+		or Input.is_action_pressed("move_back_2")
+		or Input.is_key_pressed(KEY_DOWN)
+	)
+
+
+func notify_player_input() -> void:
+	if not is_player or dead:
+		return
+	afk_idle_time = 0.0
+	if afk_active:
+		_set_afk(false)
+
+
+func _update_afk(delta: float) -> void:
+	if not is_player or dead:
+		return
+	if game == null or String(game.get("state")) != "live" or bool(game.get("tutorial_mode")):
+		return
+	if afk_active:
+		if _has_movement_input():
+			notify_player_input()
+		return
+	if _has_movement_input():
+		afk_idle_time = 0.0
+		return
+	afk_idle_time += delta
+	if afk_idle_time >= AFK_TIMEOUT:
+		_set_afk(true)
+
+
+func _set_afk(enabled: bool) -> void:
+	if afk_active == enabled:
+		return
+	afk_active = enabled
+	ai_attack_target = null
+	ai_retreating = false
+	ai_kiting = false
+	navigation_target_set = false
+	if enabled:
+		afk_idle_time = AFK_TIMEOUT
+		ai_think = 0.0
+		ai_strafe_timer = 0.0
+		_ensure_navigation_agent()
+		_ensure_afk_label()
+		if afk_label != null:
+			afk_label.visible = not dead
+		if game != null:
+			if game.has_method("set_shop_open"):
+				game.call("set_shop_open", false)
+			if game.has_method("announce"):
+				game.call("announce", "AFK: управление передано ИИ", Color(1.0, 0.76, 0.32), 3.0)
+		print("[AFK] Игрок неактивен %d секунд — управление передано ИИ." % int(AFK_TIMEOUT))
+	else:
+		afk_idle_time = 0.0
+		velocity.x = 0.0
+		velocity.z = 0.0
+		if afk_label != null:
+			afk_label.visible = false
+		if game != null and game.has_method("announce"):
+			game.call("announce", "С возвращением! Управление снова у тебя", Color(0.74, 1.0, 0.78), 2.8)
+		print("[AFK] Игрок снова активен — управление возвращено.")
+
+
+func _ensure_navigation_agent() -> void:
+	if navigation_agent != null:
+		return
+	navigation_agent = NavigationAgent3D.new()
+	navigation_agent.name = "AfkNavigationAgent"
+	navigation_agent.path_desired_distance = 0.55
+	navigation_agent.target_desired_distance = 0.8
+	add_child(navigation_agent)
+
+
+func _ensure_afk_label() -> void:
+	if afk_label != null:
+		return
+	afk_label = Label3D.new()
+	afk_label.name = "AfkLabel"
+	afk_label.text = "AFK · ИИ"
+	afk_label.font = UI_FONT
+	afk_label.font_size = 34
+	afk_label.pixel_size = 0.0048
+	afk_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	afk_label.no_depth_test = true
+	afk_label.modulate = Color(1.0, 0.74, 0.3, 1.0)
+	afk_label.outline_size = 7
+	afk_label.outline_modulate = Color(0.06, 0.03, 0.01, 0.95)
+	afk_label.position = Vector3(0.0, 3.05, 0.0)
+	afk_label.visible = false
+	add_child(afk_label)
 
 
 func _ai_dir(delta: float) -> Vector3:
@@ -1284,26 +1393,26 @@ func _ai_abilities() -> void:
 	match hero_class:
 		Cls.WARRIOR:
 			if enemy != null and dist < 3.2 and ability_ready(1):
-				use_ability(1)
+				use_ability(1, false)
 			elif enemy != null and dist > 2.5 and ability_ready(0):
-				use_ability(0)
+				use_ability(0, false)
 			elif near_shell and ability_ready(2) and game.shell != null and game.shell.health < game.shell.max_health * 0.5:
-				use_ability(2)
+				use_ability(2, false)
 		Cls.MAGE:
 			var ally: HeroUnit = game.lowest_ally(global_position, team, 12.0)
 			if ally != null and ally.health < ally.max_health * 0.62 and ability_ready(1):
-				use_ability(1)
+				use_ability(1, false)
 			elif enemy != null and dist < 7.0 and ability_ready(0):
-				use_ability(0)
+				use_ability(0, false)
 			elif near_shell and ability_ready(2) and game.shell != null and game.shell.health < game.shell.max_health * 0.4:
-				use_ability(2)
+				use_ability(2, false)
 		Cls.FAIRY:
 			if enemy != null and dist < 14.0 and ability_ready(0):
-				use_ability(0)
+				use_ability(0, false)
 			elif enemy != null and dist < 10.0 and ability_ready(1):
-				use_ability(1)
+				use_ability(1, false)
 			elif near_shell and ability_ready(2) and game.shell != null and game.shell.health < game.shell.max_health * 0.45:
-				use_ability(2)
+				use_ability(2, false)
 
 
 func _ai_pick_goal() -> void:
@@ -1574,7 +1683,7 @@ func _is_under_base_shield() -> bool:
 
 
 func _update_shop_proximity(_delta: float) -> void:
-	if not is_player or game == null:
+	if not is_player or afk_active or game == null:
 		return
 	if dead or game.state != "live":
 		game.set_shop_open(false)
@@ -1782,6 +1891,8 @@ func _die() -> void:
 	visual.visible = false
 	if health_label != null:
 		health_label.visible = false
+	if afk_label != null:
+		afk_label.visible = false
 	bush_zones.clear()
 	in_bush = false
 	set_shop_zone_presence(false)
@@ -1812,11 +1923,15 @@ func _respawn() -> void:
 		health_fill.visible = _health_bar_visible()
 	if health_label != null:
 		health_label.visible = _health_bar_visible()
+	if afk_label != null:
+		afk_label.visible = afk_active
 	if game != null:
 		game.on_hero_respawned(self)
 
 
-func use_ability(index: int) -> bool:
+func use_ability(index: int, manual := true) -> bool:
+	if is_player and manual:
+		notify_player_input()
 	if dead or stun_timer > 0.0 or lightning_storm_timer > 0.0:
 		return false
 	if index < 0 or index >= 3:
