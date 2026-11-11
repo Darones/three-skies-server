@@ -1620,6 +1620,7 @@ func on_hero_respawned(h: HeroUnit) -> void:
 			if h.visual != null:
 				visual_rotation = h.visual.global_rotation.y
 			NetworkManager.send_respawn(h.global_position, visual_rotation)
+			NetworkManager.send_stats(h.max_health, h.health, h.attack_damage)
 	burst(h.global_position + Vector3(0.0, 0.6, 0.0), Color(0.6, 0.9, 1.0), 18)
 
 
@@ -1742,6 +1743,16 @@ func network_enemies_in_radius(center: Vector3, radius: float, team: int) -> Arr
 	return result
 
 
+func network_allies_in_radius(center: Vector3, radius: float, team: int) -> Array[Node3D]:
+	var result: Array[Node3D] = []
+	for remote in remote_players.values():
+		if remote == null or not is_instance_valid(remote) or remote.dead or remote.team != team:
+			continue
+		if center.distance_to(remote.global_position) <= radius:
+			result.append(remote)
+	return result
+
+
 func enemies_of(team: int, observer: HeroUnit = null) -> Array[HeroUnit]:
 	var out: Array[HeroUnit] = []
 	for h in heroes:
@@ -1858,7 +1869,7 @@ func aoe(center: Vector3, radius: float, amount: float, source_team: int, stun_t
 			shell.take_damage(shell_damage, source)
 
 
-func heal_area(center: Vector3, radius: float, amount: float, team: int, max_targets: int) -> void:
+func heal_area(center: Vector3, radius: float, amount: float, team: int, max_targets: int, source: HeroUnit = null) -> void:
 	var targets: Array[HeroUnit] = []
 	for h in heroes:
 		if h.team != team or h.dead:
@@ -1873,6 +1884,15 @@ func heal_area(center: Vector3, radius: float, amount: float, team: int, max_tar
 		h.heal(amount)
 		ring_fx(Vector3(h.global_position.x, 0.3, h.global_position.z), Color(0.58, 1.0, 0.7), 1.25)
 		count += 1
+	if source != null and source.is_player:
+		for remote in network_allies_in_radius(center, radius, team):
+			if count >= max_targets:
+				break
+			if remote.dead or remote.health >= remote.max_health:
+				continue
+			remote.receive_heal(amount, source)
+			ring_fx(Vector3(remote.global_position.x, 0.3, remote.global_position.z), Color(0.58, 1.0, 0.7), 1.25)
+			count += 1
 
 
 func bless_team(team: int, duration: float) -> void:
@@ -2192,10 +2212,15 @@ func _setup_network_play() -> void:
 		NetworkManager.remote_death_received.connect(_on_remote_death_received)
 	if not NetworkManager.remote_respawn_received.is_connected(_on_remote_respawn_received):
 		NetworkManager.remote_respawn_received.connect(_on_remote_respawn_received)
+	if not NetworkManager.remote_heal_received.is_connected(_on_remote_heal_received):
+		NetworkManager.remote_heal_received.connect(_on_remote_heal_received)
+	if not NetworkManager.remote_stats_updated.is_connected(_on_remote_stats_updated):
+		NetworkManager.remote_stats_updated.connect(_on_remote_stats_updated)
 	if not NetworkManager.disconnected.is_connected(_on_network_disconnected):
 		NetworkManager.disconnected.connect(_on_network_disconnected)
 	if player != null and is_instance_valid(player):
 		NetworkManager.register_local_player(player)
+		NetworkManager.send_stats(player.max_health, player.health, player.attack_damage)
 	var snapshot := NetworkManager.get_remote_snapshot()
 	for player_id in snapshot.keys():
 		_on_remote_player_joined(int(player_id), snapshot[player_id])
@@ -2283,6 +2308,23 @@ func _on_remote_respawn_received(player_id: int, position: Vector3, rotation_y: 
 	var remote = remote_players.get(player_id)
 	if remote != null and is_instance_valid(remote):
 		remote.apply_network_respawn(position, rotation_y)
+
+
+func _on_remote_heal_received(_source_id: int, target_id: int, amount: float) -> void:
+	if target_id == NetworkManager.local_peer_id:
+		if player != null and is_instance_valid(player):
+			player.apply_network_heal(amount)
+			NetworkManager.send_stats(player.max_health, player.health, player.attack_damage)
+		return
+	var remote = remote_players.get(target_id)
+	if remote != null and is_instance_valid(remote):
+		remote.apply_network_heal(amount)
+
+
+func _on_remote_stats_updated(player_id: int, max_hp: float, hp: float, attack_damage: float) -> void:
+	var remote = remote_players.get(player_id)
+	if remote != null and is_instance_valid(remote):
+		remote.apply_stats(max_hp, hp, attack_damage)
 
 
 func _on_network_disconnected() -> void:

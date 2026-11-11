@@ -12,6 +12,8 @@ signal remote_attack_received(player_id: int, attack_type: String, target_id: in
 signal remote_damage_received(source_id: int, target_id: int, amount: float)
 signal remote_death_received(player_id: int)
 signal remote_respawn_received(player_id: int, position: Vector3, rotation: float)
+signal remote_heal_received(source_id: int, target_id: int, amount: float)
+signal remote_stats_updated(player_id: int, max_hp: float, hp: float, attack_damage: float)
 
 enum State { DISCONNECTED, CONNECTING, CONNECTED }
 
@@ -137,6 +139,27 @@ func send_damage(target_id: int, amount: float) -> void:
 	})
 
 
+func send_heal(target_id: int, amount: float) -> void:
+	if state != State.CONNECTED or target_id <= 0 or amount <= 0.0:
+		return
+	_send_json({
+		"type": "heal",
+		"target_id": target_id,
+		"amount": amount,
+	})
+
+
+func send_stats(max_hp: float, hp: float, attack_damage: float) -> void:
+	if state != State.CONNECTED or max_hp <= 0.0:
+		return
+	_send_json({
+		"type": "stats",
+		"max_hp": max_hp,
+		"hp": clampf(hp, 0.0, max_hp),
+		"attack_damage": maxf(attack_damage, 0.0),
+	})
+
+
 func send_death() -> void:
 	if state != State.CONNECTED:
 		return
@@ -259,6 +282,10 @@ func _handle_message(text: String) -> void:
 			_handle_attack(message)
 		"damage":
 			_handle_damage(message)
+		"heal":
+			_handle_heal(message)
+		"stats":
+			_handle_stats(message)
 		"death":
 			_handle_death(message)
 		"respawn":
@@ -325,6 +352,19 @@ func _upsert_remote(message: Dictionary, emit_join: bool) -> void:
 			info["team"] = clampi(int(message.get("team", 0)), 0, 1)
 		if message.has("alive"):
 			info["alive"] = bool(message.get("alive", true))
+		if message.has("max_hp"):
+			info["max_hp"] = maxf(float(message.get("max_hp", 0.0)), 0.0)
+		if message.has("hp"):
+			info["hp"] = maxf(float(message.get("hp", 0.0)), 0.0)
+		if message.has("attack_damage"):
+			info["attack_damage"] = maxf(float(message.get("attack_damage", 0.0)), 0.0)
+		if message.has("max_hp") or message.has("hp") or message.has("attack_damage"):
+			remote_stats_updated.emit(
+				player_id,
+				float(info.get("max_hp", 0.0)),
+				float(info.get("hp", 0.0)),
+				float(info.get("attack_damage", 0.0))
+			)
 	if emit_join and is_new:
 		remote_player_joined.emit(player_id, info)
 	if bool(message.get("has_state", false)):
@@ -354,6 +394,9 @@ func _make_remote_info(message: Dictionary) -> Dictionary:
 		"rotation": 0.0,
 		"has_state": false,
 		"alive": bool(message.get("alive", true)),
+		"max_hp": maxf(float(message.get("max_hp", 0.0)), 0.0),
+		"hp": maxf(float(message.get("hp", 0.0)), 0.0),
+		"attack_damage": maxf(float(message.get("attack_damage", 0.0)), 0.0),
 	}
 
 
@@ -375,6 +418,35 @@ func _handle_damage(message: Dictionary) -> void:
 	if target_id <= 0 or amount <= 0.0:
 		return
 	remote_damage_received.emit(source_id, target_id, amount)
+
+
+func _handle_heal(message: Dictionary) -> void:
+	var source_id := int(message.get("source_id", message.get("id", 0)))
+	var target_id := int(message.get("target_id", 0))
+	var amount := float(message.get("amount", 0.0))
+	if target_id <= 0 or amount <= 0.0:
+		return
+	remote_heal_received.emit(source_id, target_id, amount)
+
+
+func _handle_stats(message: Dictionary) -> void:
+	var player_id := int(message.get("id", 0))
+	if player_id <= 0 or player_id == local_peer_id:
+		return
+	if not remote_players.has(player_id):
+		var info := _make_remote_info(message)
+		remote_players[player_id] = info
+		remote_player_joined.emit(player_id, info)
+	var info: Dictionary = remote_players[player_id]
+	info["max_hp"] = maxf(float(message.get("max_hp", 0.0)), 0.0)
+	info["hp"] = maxf(float(message.get("hp", 0.0)), 0.0)
+	info["attack_damage"] = maxf(float(message.get("attack_damage", 0.0)), 0.0)
+	remote_stats_updated.emit(
+		player_id,
+		float(info["max_hp"]),
+		float(info["hp"]),
+		float(info["attack_damage"])
+	)
 
 
 func _handle_death(message: Dictionary) -> void:

@@ -1423,14 +1423,20 @@ func _ai_pick_goal() -> void:
 		ai_retreating = true
 	elif ai_retreating and health >= max_health * BOT_RETREAT_END_RATIO:
 		ai_retreating = false
-	var enemy: HeroUnit = game.nearest_enemy(global_position, team, 30.0, self)
-	var previous_target := ai_attack_target as HeroUnit
+	var local_enemy: HeroUnit = game.nearest_enemy(global_position, team, 30.0, self)
+	var network_enemy: Node3D = null
+	if game.has_method("network_nearest_enemy"):
+		network_enemy = game.call("network_nearest_enemy", global_position, team, 30.0)
+	var target = local_enemy
+	if target == null and network_enemy != null:
+		target = network_enemy
+	var previous_target = ai_attack_target
 	if previous_target != null and is_instance_valid(previous_target) and not previous_target.dead and previous_target.team != team:
 		var previous_distance := global_position.distance_to(previous_target.global_position)
-		var new_distance := global_position.distance_to(enemy.global_position) if enemy != null else INF
+		var new_distance := global_position.distance_to(target.global_position) if target != null else INF
 		if previous_distance < 30.0 and previous_distance <= new_distance * 1.18:
-			enemy = previous_target
-	ai_attack_target = enemy
+			target = previous_target
+	ai_attack_target = target
 	if carrying:
 		ai_goal = _base_position()
 		return
@@ -1445,7 +1451,7 @@ func _ai_pick_goal() -> void:
 	if shell != null and is_instance_valid(shell) and shell.alive:
 		ai_goal = _shell_approach_point(shell)
 		return
-	var enemy_distance := global_position.distance_to(enemy.global_position) if enemy != null else INF
+	var enemy_distance := global_position.distance_to(target.global_position) if target != null else INF
 	if enemy_distance > 16.0:
 		if game.bot_has_affordable_shop_item(self):
 			if game.is_hero_near_shop(self):
@@ -1457,9 +1463,9 @@ func _ai_pick_goal() -> void:
 		if coin != null:
 			ai_goal = coin.global_position
 			return
-	if enemy != null:
+	if target != null:
 		var enemy_base := Vector3(0.0, 0.0, -BASE_POSITION_Z if team == 0 else BASE_POSITION_Z)
-		var goal := enemy.global_position
+		var goal: Vector3 = target.global_position
 		var from_base := goal - enemy_base
 		from_base.y = 0.0
 		if from_base.length() < 9.0:
@@ -1599,7 +1605,7 @@ func _attack_target() -> Node3D:
 			best_distance = distance
 	if best_enemy != null:
 		return best_enemy
-	if is_player and game.has_method("network_attack_target"):
+	if game.has_method("network_attack_target"):
 		var network_target: Node3D = game.call("network_attack_target", global_position, team, attack_range, _facing_direction())
 		if network_target != null:
 			return network_target
@@ -1811,6 +1817,15 @@ func apply_network_damage(amount: float) -> void:
 		_die()
 
 
+func apply_network_heal(amount: float) -> void:
+	if dead:
+		return
+	health = clampf(health + maxf(amount, 0.0), 0.0, max_health)
+	_update_health_display()
+	if game != null and game.has_method("heal_number"):
+		game.call("heal_number", global_position + Vector3(0.0, 2.2, 0.0), amount)
+
+
 func take_damage(amount: float, source: Node = null, damage_type: String = "physical") -> void:
 	if dead or _is_under_base_shield():
 		return
@@ -1852,6 +1867,8 @@ func heal(amount: float) -> void:
 	_update_health_display()
 	if game != null and game.has_method("heal_number"):
 		game.heal_number(global_position + Vector3(0.0, 2.2, 0.0), amount)
+	if is_player and game != null and bool(game.get("network_play")):
+		NetworkManager.send_stats(max_health, health, attack_damage)
 
 
 func on_damage_dealt(amount: float) -> void:
@@ -1883,6 +1900,8 @@ func apply_shop_item(item_id: String) -> bool:
 		_:
 			return false
 	_update_health_display()
+	if is_player and game != null and bool(game.get("network_play")):
+		NetworkManager.send_stats(max_health, health, attack_damage)
 	return true
 
 
@@ -2038,7 +2057,7 @@ func use_ability(index: int, manual := true) -> bool:
 			game.burst(proj_pos, color, 14)
 		"heal":
 			spawn_ability_vfx(1, origin)
-			game.heal_area(origin, 10.0, float(randi_range(100, 300)), team, 6)
+			game.heal_area(origin, 10.0, float(randi_range(100, 300)), team, 6, self)
 			game.burst(origin, Color(0.65, 1.0, 0.75), 18)
 		"ult_lightning_storm":
 			lightning_storm_timer = MAGE_STORM_DURATION

@@ -20,6 +20,7 @@ var hero_class := 0
 var team := 0
 var health := 0.0
 var max_health := 0.0
+var attack_damage := 0.0
 var dead := false
 var game: Node = null
 var target_position := Vector3.ZERO
@@ -37,8 +38,11 @@ func setup(player_id: int, info: Dictionary) -> void:
 	display_name = String(info.get("name", "Игрок %d" % player_id))
 	hero_class = clampi(int(info.get("class", 0)), 0, 2)
 	team = clampi(int(info.get("team", 0)), 0, 1)
-	max_health = CLASS_MAX_HP[hero_class]
-	health = max_health
+	var synced_max_hp := float(info.get("max_hp", 0.0))
+	max_health = synced_max_hp if synced_max_hp > 0.0 else CLASS_MAX_HP[hero_class]
+	var synced_hp := float(info.get("hp", 0.0))
+	health = clampf(synced_hp if synced_hp > 0.0 else max_health, 0.0, max_health)
+	attack_damage = maxf(float(info.get("attack_damage", 0.0)), 0.0)
 
 	var spawn := Vector3(0.0, 0.76, 28.0 if team == 0 else -28.0)
 	if bool(info.get("has_state", false)) and info.get("position") is Vector3:
@@ -62,6 +66,15 @@ func update_info(info: Dictionary) -> void:
 		display_name = updated_name
 		if _name_label != null and is_instance_valid(_name_label):
 			_name_label.text = display_name
+
+
+func apply_stats(stats_max_hp: float, stats_hp: float, stats_attack_damage: float) -> void:
+	if stats_max_hp > 0.0:
+		max_health = stats_max_hp
+	if not dead and stats_hp > 0.0:
+		health = clampf(stats_hp, 0.0, max_health)
+	attack_damage = maxf(stats_attack_damage, 0.0)
+	_update_health_bar()
 
 
 func apply_state(position: Vector3, rotation_y: float) -> void:
@@ -241,7 +254,7 @@ func take_damage(amount: float, source: Node = null, _damage_type := "physical")
 	_update_health_bar()
 	if game != null and game.has_method("damage_number"):
 		game.call("damage_number", global_position + Vector3(0.0, 2.0, 0.0), applied, team)
-	if applied > 0.0 and source != null and game != null and source == game.player:
+	if applied > 0.0 and source is HeroUnit and game != null and bool(game.get("network_play")):
 		NetworkManager.send_damage(peer_id, applied)
 
 
@@ -252,6 +265,32 @@ func apply_network_damage(amount: float) -> void:
 	_update_health_bar()
 	if game != null and game.has_method("damage_number"):
 		game.call("damage_number", global_position + Vector3(0.0, 2.0, 0.0), amount, team)
+
+
+func receive_heal(amount: float, source: Node = null) -> void:
+	if dead:
+		return
+	var applied := minf(maxf(amount, 0.0), max_health - health)
+	if applied <= 0.0:
+		return
+	health = minf(max_health, health + applied)
+	_update_health_bar()
+	if game != null and game.has_method("heal_number"):
+		game.call("heal_number", global_position + Vector3(0.0, 2.0, 0.0), applied)
+	if source is HeroUnit and game != null and bool(game.get("network_play")):
+		NetworkManager.send_heal(peer_id, applied)
+
+
+func apply_network_heal(amount: float) -> void:
+	if dead:
+		return
+	var applied := minf(maxf(amount, 0.0), max_health - health)
+	if applied <= 0.0:
+		return
+	health = minf(max_health, health + applied)
+	_update_health_bar()
+	if game != null and game.has_method("heal_number"):
+		game.call("heal_number", global_position + Vector3(0.0, 2.0, 0.0), applied)
 
 
 func apply_network_death() -> void:
