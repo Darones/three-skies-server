@@ -9,8 +9,9 @@ signal profile_loaded(success: bool, player_id: int, sky_shards: int, unlocked_w
 signal purchase_completed(success: bool, purchase_type: String, item_id: int, new_shards: int)
 signal match_reward_completed(success: bool, amount: int, new_shards: int)
 
-const API_BASE_URL := "http://127.0.0.1:8080"
+const API_BASE_URL := "https://three-skies.relaxdev.ru"
 
+var api_base_url := API_BASE_URL
 var peer: WebSocketMultiplayerPeer
 var current_class: int = 1
 var http_request: HTTPRequest
@@ -21,6 +22,14 @@ var players_list_received := false
 
 
 func _ready() -> void:
+	var env_url := OS.get_environment("THREE_SKIES_API_BASE_URL").strip_edges()
+	if not env_url.is_empty():
+		api_base_url = env_url
+	else:
+		var setting_url := String(ProjectSettings.get_setting("network/api_base_url", API_BASE_URL)).strip_edges()
+		api_base_url = setting_url if not setting_url.is_empty() else API_BASE_URL
+	api_base_url = api_base_url.trim_suffix("/")
+	print("[NET] REST URL: ", api_base_url)
 	http_request = HTTPRequest.new()
 	http_request.name = "NetworkHTTPRequest"
 	http_request.timeout = 10.0
@@ -95,7 +104,7 @@ func _start_next_http_request() -> void:
 	var headers := PackedStringArray(["Content-Type: application/json"])
 	var request_method := int(current_http_request["method"])
 	var request_body := "" if request_method == HTTPClient.METHOD_GET else JSON.stringify(current_http_request["payload"])
-	var error := http_request.request(API_BASE_URL + String(current_http_request["path"]), headers, request_method, request_body)
+	var error := http_request.request(api_base_url + String(current_http_request["path"]), headers, request_method, request_body)
 	if error != OK:
 		http_request_busy = false
 		_emit_http_failure(current_http_request)

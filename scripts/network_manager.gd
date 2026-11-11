@@ -24,7 +24,7 @@ signal host_changed(new_host_id: int)
 
 enum State { DISCONNECTED, CONNECTING, CONNECTED }
 
-const DEFAULT_WS_URL := "ws://127.0.0.1:8080/ws"
+const DEFAULT_WS_URL := "wss://three-skies.relaxdev.ru/ws"
 const CONNECT_TIMEOUT := 6.0
 const SEND_INTERVAL := 1.0 / 12.0
 
