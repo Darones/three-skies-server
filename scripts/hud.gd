@@ -105,6 +105,11 @@ func _ready() -> void:
 	_build_end(root)
 	_build_shop(root)
 	_build_pause_menu(root)
+	var navigator := preload("res://scripts/tutorial_navigator.gd").new() as Control
+	navigator.name = "TutorialNavigator"
+	navigator.z_index = 50
+	root.add_child(navigator)
+	navigator.call("configure", game)
 	_build_tutorial_ui(root)
 
 

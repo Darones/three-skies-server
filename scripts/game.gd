@@ -1878,9 +1878,9 @@ func _ensure_tutorial_arrow() -> void:
 	tutorial_arrow.name = "TutorialArrow"
 	var cone := CylinderMesh.new()
 	cone.top_radius = 0.0
-	cone.bottom_radius = 0.55
-	cone.height = 1.2
-	cone.radial_segments = 20
+	cone.bottom_radius = 0.22
+	cone.height = 0.55
+	cone.radial_segments = 16
 	tutorial_arrow.mesh = cone
 	tutorial_arrow.rotation.x = PI
 	tutorial_arrow_material = StandardMaterial3D.new()
@@ -1904,7 +1904,7 @@ func _update_tutorial_arrow(delta: float) -> void:
 	tutorial_pulse_time += delta
 	var pulse := 0.5 + 0.5 * sin(tutorial_pulse_time * 4.2)
 	tutorial_arrow.visible = true
-	tutorial_arrow.global_position = tutorial_target_position + Vector3(0.0, 3.4 + sin(tutorial_pulse_time * 2.4) * 0.25, 0.0)
+	tutorial_arrow.global_position = tutorial_target_position + Vector3(0.0, 2.6 + sin(tutorial_pulse_time * 2.4) * 0.18, 0.0)
 	tutorial_arrow.rotation.y += delta * 1.8
 	tutorial_arrow.scale = Vector3.ONE * (1.0 + pulse * 0.14)
 	if tutorial_arrow_material != null:

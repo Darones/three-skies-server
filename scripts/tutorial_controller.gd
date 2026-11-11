@@ -65,7 +65,7 @@ func process(delta: float) -> void:
 		if shell_spawn_countdown <= 0.0:
 			stage = "destroy_shell"
 			game.call("_spawn_shell")
-			game.hud.call("show_tutorial_hint", "Уничтожь Оболочку")
+			game.hud.call("show_tutorial_hint", "Уничтожь Оболочку — внутри неё Небесный Осколок")
 	elif stage == "pick_crystal":
 		if game.crystal_state == "carried" and game.carrier == game.player:
 			stage = "deliver_crystal"

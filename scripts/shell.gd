@@ -219,7 +219,7 @@ func _strike() -> void:
 	game.shell_bolt(pos, 2.7, 44.0)
 
 
-func take_damage(amount: float, source: Node = null, _damage_type: String = "physical") -> void:
+func take_damage(amount: float, source: Node = null, _damage_type: String = "physical", _skill: String = "") -> void:
 	if not alive:
 		return
 	var source_multiplier := HeroUnit.HERO_OUTGOING_DAMAGE_MULTIPLIER if source is HeroUnit else 1.0
