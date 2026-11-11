@@ -1286,18 +1286,33 @@ func _update_enemy_visibility() -> void:
 		for ally in vision_allies:
 			if not hero.is_within_view_distance(ally, FOG_VIEW_RADIUS) or hero.is_hidden_from(ally):
 				continue
-			var ray := PhysicsRayQueryParameters3D.create(
-				ally.global_position + Vector3(0.0, 1.15, 0.0),
-				target_position,
-				VISIBILITY_COLLISION_MASK,
-				excluded_rids
-			)
-			ray.collide_with_areas = false
-			ray.collide_with_bodies = true
-			if space_state.intersect_ray(ray).is_empty():
+			if _has_clear_vision(space_state, ally.global_position + Vector3(0.0, 1.15, 0.0), target_position, excluded_rids):
 				seen_by_team = true
 				break
 		hero.set_occluded_from_player(not seen_by_team)
+
+
+func _has_clear_vision(space_state: PhysicsDirectSpaceState3D, from: Vector3, to: Vector3, excluded_rids: Array[RID]) -> bool:
+	var ignore: Array[RID] = excluded_rids.duplicate()
+	for _attempt in 4:
+		var ray := PhysicsRayQueryParameters3D.create(from, to, VISIBILITY_COLLISION_MASK, ignore)
+		ray.collide_with_areas = false
+		ray.collide_with_bodies = true
+		var hit := space_state.intersect_ray(ray)
+		if hit.is_empty():
+			return true
+		var collider := hit.get("collider") as Node
+		if collider == null or not _is_small_vision_blocker(collider):
+			return false
+		ignore.append(collider.get_rid())
+	return false
+
+
+func _is_small_vision_blocker(node: Node) -> bool:
+	if String(node.name) == "CrystalCollision":
+		return true
+	var parent := node.get_parent()
+	return parent != null and String(parent.name) == "Decor"
 
 func _update_shake(delta: float) -> void:
 	shake_amount = maxf(0.0, shake_amount - delta * 2.2)
