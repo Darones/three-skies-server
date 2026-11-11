@@ -34,15 +34,7 @@ func _ready() -> void:
 	randomize()
 	_build_screen()
 	_start_match_scene_loading()
-	no_network = bool(get_tree().get_meta('matchmaking_no_network', false))
-	if no_network:
-		_on_connection_failed()
-	if not NetworkClient.match_started.is_connected(_on_match_started):
-		NetworkClient.match_started.connect(_on_match_started)
-	if not NetworkClient.players_list.is_connected(_on_players_list):
-		NetworkClient.players_list.connect(_on_players_list)
-	if not NetworkClient.connection_failed.is_connected(_on_connection_failed):
-		NetworkClient.connection_failed.connect(_on_connection_failed)
+	_use_bot_fallback()
 	search_label.text = '\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432...'
 	tip_label.text = TIPS[0]
 
@@ -82,23 +74,11 @@ func _poll_match_scene_load() -> void:
 	elif status == ResourceLoader.THREAD_LOAD_FAILED or status == ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
 		load_failed = true
 
-func _on_match_started() -> void:
-	is_1v1 = players.size() == 2
-	fill_with_bots = not is_1v1
-	_complete_match_search()
-
-func _on_players_list(found_players: Array) -> void:
-	players = found_players.duplicate()
-	if players.size() == 2:
-		is_1v1 = true
-		fill_with_bots = false
-		_complete_match_search()
-
-func _on_connection_failed() -> void:
+func _use_bot_fallback() -> void:
 	no_network = true
 	fill_with_bots = true
 	if connection_hint != null:
-		connection_hint.text = '\u0421\u0435\u0440\u0432\u0435\u0440 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d - \u0441\u0432\u043e\u0431\u043e\u0434\u043d\u044b\u0435 \u043c\u0435\u0441\u0442\u0430 \u0437\u0430\u0439\u043c\u0443\u0442 \u0431\u043e\u0442\u044b'
+		connection_hint.text = '\u0421\u0435\u0440\u0432\u0435\u0440 \u043d\u0435 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442\u0441\u044f - \u0438\u0433\u0440\u0430 \u0441 \u0431\u043e\u0442\u0430\u043c\u0438'
 
 func _add_simulated_player() -> void:
 	var counts := [_team_player_count(0), _team_player_count(1)]

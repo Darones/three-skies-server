@@ -1133,9 +1133,6 @@ func _start_battle() -> void:
 	get_tree().set_meta("selected_class", selected_class)
 	var selected_team := randi_range(0, 1)
 	get_tree().set_meta("selected_team", selected_team)
-	var connection_error: Error = NetworkClient.connect_and_join(selected_class)
-	get_tree().set_meta("matchmaking_no_network", connection_error != OK)
-	get_tree().set_meta("matchmaking_message", "Сервер недоступен, игра с ботами" if connection_error != OK else "")
 	var error := get_tree().change_scene_to_file("res://scenes/LoadingScreen.tscn")
 	if error != OK:
 		push_error("Не удалось открыть экран загрузки: %s" % error_string(error))

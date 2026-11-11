@@ -1,9 +1,8 @@
 extends Node
 
-signal match_started
-signal connected
-signal players_list(players: Array)
-signal connection_failed
+# REST-клиент профиля, покупок и наград. Игровой мультиплеер идёт только
+# через NetworkManager (WebSocket); старый протокол матчмейкинга удалён.
+
 signal registration_completed(success: bool, player_id: int)
 signal profile_loaded(success: bool, player_id: int, sky_shards: int, unlocked_wings: Array, unlocked_weapons: Array)
 signal purchase_completed(success: bool, purchase_type: String, item_id: int, new_shards: int)
@@ -12,13 +11,10 @@ signal match_reward_completed(success: bool, amount: int, new_shards: int)
 const API_BASE_URL := "https://three-skies-server.relaxdev.ru"
 
 var api_base_url := API_BASE_URL
-var peer: WebSocketMultiplayerPeer
-var current_class: int = 1
 var http_request: HTTPRequest
 var http_request_busy := false
 var current_http_request: Dictionary = {}
 var http_request_queue: Array[Dictionary] = []
-var players_list_received := false
 
 
 func _ready() -> void:
@@ -150,60 +146,3 @@ func _emit_http_failure(request: Dictionary) -> void:
 		purchase_completed.emit(false, String(request["purchase_type"]), int(request["item_id"]), 0)
 	elif request["request_type"] == "match_reward":
 		match_reward_completed.emit(false, int(request["payload"].get("amount", 0)), 0)
-
-func connect_and_join(hero_class: int) -> Error:
-	current_class = hero_class
-	players_list_received = false
-	peer = WebSocketMultiplayerPeer.new()
-	print("=== ПОПЫТКА ПОДКЛЮЧЕНИЯ К СЕРВЕРУ ===")
-	var err = peer.create_client("wss://three-skies-server.relaxdev.ru/ws")
-	if err != OK:
-		print("=== ОШИБКА СОЗДАНИЯ КЛИЕНТА: ", err, " ===")
-		connection_failed.emit()
-		return err
-	
-	multiplayer.multiplayer_peer = peer
-	if not multiplayer.connected_to_server.is_connected(_on_connected):
-		multiplayer.connected_to_server.connect(_on_connected)
-	if not multiplayer.connection_failed.is_connected(_on_connection_failed):
-		multiplayer.connection_failed.connect(_on_connection_failed)
-	if not multiplayer.server_disconnected.is_connected(_on_server_disconnected):
-		multiplayer.server_disconnected.connect(_on_server_disconnected)
-	return OK
-
-func _on_connected() -> void:
-	print("=== ПОДКЛЮЧЕНО К СЕРВЕРУ ===")
-	rpc_id(1, "join_queue", current_class)
-	connected.emit()
-	get_tree().create_timer(1.0).timeout.connect(_emit_empty_players_list_if_missing)
-
-
-func _emit_empty_players_list_if_missing() -> void:
-	if not players_list_received:
-		players_list_received = true
-		players_list.emit([])
-
-
-@rpc("authority")
-func receive_players_list(players: Array) -> void:
-	players_list_received = true
-	players_list.emit(players)
-
-func _on_connection_failed() -> void:
-	print("=== ОШИБКА ПОДКЛЮЧЕНИЯ К СЕРВЕРУ ===")
-	connection_failed.emit()
-
-func _on_server_disconnected() -> void:
-	print("=== СЕРВЕР ОТКЛЮЧЕН ===")
-	connection_failed.emit()
-
-@rpc("authority")
-func start_match() -> void:
-	print("=== МАТЧ НАЙДЕН! СЕРВЕР ДАЛ КОМАНДУ НА СТАРТ ===")
-	match_started.emit()
-
-@rpc("any_peer")
-func join_queue(hero_class: int) -> void:
-	# Эта функция нужна только для того, чтобы Godot разрешил клиенту отправить RPC на сервер.
-	# Клиент сам её не вызывает.
-	pass
