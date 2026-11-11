@@ -30,6 +30,7 @@ var shop_panel: PanelContainer
 var topup_panel: PanelContainer
 var info_dialog: AcceptDialog
 var shard_amount_label: Label
+var network_button: Button
 var settings_panel: Control
 var player_menu_overlay: ColorRect
 var nickname_line_edit: LineEdit
@@ -79,6 +80,12 @@ func _ready() -> void:
 		MetaProgression.profile_updated.connect(_on_profile_updated)
 	if not NetworkClient.registration_completed.is_connected(_on_registration_completed):
 		NetworkClient.registration_completed.connect(_on_registration_completed)
+	if not NetworkManager.connection_succeeded.is_connected(_on_network_connected):
+		NetworkManager.connection_succeeded.connect(_on_network_connected)
+	if not NetworkManager.connection_failed.is_connected(_on_network_failed):
+		NetworkManager.connection_failed.connect(_on_network_failed)
+	if not NetworkManager.disconnected.is_connected(_on_network_disconnected):
+		NetworkManager.disconnected.connect(_on_network_disconnected)
 	if MetaProgression.player_id <= 0:
 		var saved_player_id := _load_player_id()
 		if saved_player_id > 0:
@@ -901,6 +908,21 @@ func _build_actions() -> void:
 	play_button.pressed.connect(_start_battle)
 	add_child(play_button)
 
+	network_button = _make_action_button("ПОДКЛЮЧИТЬСЯ К СЕРВЕРУ", false)
+	network_button.name = "NetworkButton"
+	network_button.anchor_left = 1.0
+	network_button.anchor_top = 1.0
+	network_button.anchor_right = 1.0
+	network_button.anchor_bottom = 1.0
+	network_button.offset_left = -325.0
+	network_button.offset_top = -165.0
+	network_button.offset_right = -45.0
+	network_button.offset_bottom = -109.0
+	network_button.custom_minimum_size = Vector2(280.0, 48.0)
+	network_button.add_theme_font_size_override("font_size", 15)
+	network_button.pressed.connect(_start_network_battle)
+	add_child(network_button)
+
 	tutorial_button = _make_action_button("ОБУЧЕНИЕ", false)
 	tutorial_button.name = "TutorialButton"
 	tutorial_button.anchor_left = 1.0
@@ -1020,9 +1042,70 @@ func _on_side_card_pressed(slot: int) -> void:
 	_refresh_selection()
 
 
-func _start_battle() -> void:
+func _start_network_battle() -> void:
+	if NetworkManager.is_connecting():
+		return
 	_save_selection()
 	get_tree().set_meta("tutorial_mode", false)
+	get_tree().set_meta("network_play", true)
+	get_tree().set_meta("selected_class", selected_class)
+	var network_team := randi_range(0, 1)
+	get_tree().set_meta("selected_team", network_team)
+	if NetworkManager.is_server_connected():
+		_on_network_connected()
+		return
+	if network_button != null:
+		network_button.disabled = true
+		network_button.text = "ПОДКЛЮЧЕНИЕ..."
+	var error := NetworkManager.connect_to_server(selected_class, network_team, MetaProgression.player_nickname)
+	if error != OK:
+		get_tree().set_meta("network_play", false)
+		_reset_network_button()
+
+
+func _on_network_connected() -> void:
+	if not is_inside_tree():
+		return
+	get_tree().set_meta("network_play", true)
+	get_tree().set_meta("tutorial_mode", false)
+	get_tree().set_meta("selected_class", selected_class)
+	if not get_tree().has_meta("selected_team"):
+		get_tree().set_meta("selected_team", randi_range(0, 1))
+	if network_button != null:
+		network_button.text = "ПОДКЛЮЧЕНО"
+		network_button.disabled = true
+	var error := get_tree().change_scene_to_file("res://scenes/Main.tscn")
+	if error != OK:
+		get_tree().set_meta("network_play", false)
+		_reset_network_button()
+		_show_info("Не удалось открыть арену.")
+
+
+func _on_network_failed(reason: String) -> void:
+	if not is_inside_tree():
+		return
+	get_tree().set_meta("network_play", false)
+	_reset_network_button()
+	_show_info("Не удалось подключиться к серверу: %s" % reason)
+
+
+func _on_network_disconnected() -> void:
+	_reset_network_button()
+
+
+func _reset_network_button() -> void:
+	if network_button == null or not is_instance_valid(network_button):
+		return
+	network_button.text = "ПОДКЛЮЧИТЬСЯ К СЕРВЕРУ"
+	network_button.disabled = false
+
+
+func _start_battle() -> void:
+	_save_selection()
+	if NetworkManager.is_connecting() or NetworkManager.is_server_connected():
+		NetworkManager.disconnect_from_server(false)
+	get_tree().set_meta("tutorial_mode", false)
+	get_tree().set_meta("network_play", false)
 	_record_normal_battle_started()
 	get_tree().set_meta("selected_class", selected_class)
 	var selected_team := randi_range(0, 1)
@@ -1039,9 +1122,12 @@ func _start_tutorial() -> void:
 	if tutorial_button == null or tutorial_button.disabled:
 		return
 	_save_selection()
+	if NetworkManager.is_connecting() or NetworkManager.is_server_connected():
+		NetworkManager.disconnect_from_server(false)
 	get_tree().set_meta("selected_class", selected_class)
 	get_tree().set_meta("selected_team", 0)
 	get_tree().set_meta("tutorial_mode", true)
+	get_tree().set_meta("network_play", false)
 	var error := get_tree().change_scene_to_file("res://scenes/Main.tscn")
 	if error != OK:
 		push_error("Не удалось запустить обучение: %s" % error_string(error))

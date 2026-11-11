@@ -25,6 +25,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 NetworkClient="*res://scripts/network_client.gd"
+NetworkManager="*res://scripts/network_manager.gd"
 MetaProgression="*res://scripts/MetaProgression.gd"
 AdManager="*res://scripts/AdManager.gd"
 MCPRuntimeServer="*res://addons/godot_mcp_toolkit/runtime/mcp_runtime_server.gd"
@@ -126,6 +127,10 @@ anti_aliasing/quality/screen_space_aa=1.0
 [rendering_2d]
 
 light_2d_texture_filter=1
+
+[network]
+
+ws_url="ws://127.0.0.1:8080/ws"
 
 [summer]
 

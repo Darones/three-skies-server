@@ -42,6 +42,7 @@ const FOG_VIEW_RADIUS := 10.0
 const SHOP_STALL_SCENE: PackedScene = preload("res://assets/shop_stall/3d_4f92fe433b084100af7a1d7f_1790958942025.glb")
 const GOLD_FOUNTAIN_SCENE: PackedScene = preload("res://assets/gold_fountain/3d_aeb9c9ced6384164aff32ae5_1790300466128.glb")
 const TUTORIAL_CONTROLLER_SCRIPT: Script = preload("res://scripts/tutorial_controller.gd")
+const REMOTE_PLAYER_SCRIPT: Script = preload("res://scripts/remote_player.gd")
 const SHOP_ITEMS := [
 	{"id": "life_amulet", "name": "Амулет Жизни", "effect": "+150 Max HP", "price": 300, "icon": 0},
 	{"id": "revival_talisman", "name": "Талисман Возрождения", "effect": "+10 HP/сек реген", "price": 350, "icon": 1},
@@ -96,6 +97,10 @@ var gold_coins: Array[Node3D] = []
 var tutorial_mode := false
 var tutorial_controller: Node = null
 var tutorial_dummy: HeroUnit = null
+var network_play := false
+var network_shutting_down := false
+var remote_players: Dictionary = {}
+var remote_root: Node3D = null
 var shell_phase := "idle"
 var shell_cycle_timer := SHELL_SPAWN_INTERVAL
 var shell_timer := SHELL_SPAWN_INTERVAL
@@ -136,6 +141,7 @@ var sfx_index := 0
 func _ready() -> void:
 	randomize()
 	tutorial_mode = bool(get_tree().get_meta("tutorial_mode", false))
+	network_play = bool(get_tree().get_meta("network_play", false))
 	camera = get_node_or_null("Camera3D") as Camera3D
 	if camera == null:
 		camera = Camera3D.new()
@@ -175,6 +181,8 @@ func _ready() -> void:
 		if selected_class >= 0 and selected_class <= 2:
 			var selected_team := clampi(int(get_tree().get_meta("selected_team", get_meta("selected_team", 0))), 0, 1)
 			call_deferred("start_match", selected_class, selected_team)
+	if network_play:
+		_setup_network_play()
 
 
 func _create_base_shield_domes() -> void:
@@ -923,6 +931,8 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 		for i in classes.size():
 			_spawn_hero(classes[i], enemy_team, false, enemy_spots[mini(i, 2)])
 	state = "live"
+	if network_play:
+		_setup_network_play()
 	match_time = MATCH_LENGTH
 	shell_phase = "idle"
 	shell_cycle_timer = SHELL_SPAWN_INTERVAL
@@ -1610,6 +1620,8 @@ func end_match(team_zero_won: bool) -> void:
 	if state != "live":
 		return
 	state = "over"
+	if network_play:
+		NetworkManager.unregister_local_player()
 	set_shop_open(false)
 	var player_team := 0
 	if player != null and is_instance_valid(player):
@@ -2104,6 +2116,95 @@ func heal_number(pos: Vector3, amount: float) -> void:
 
 func shake(amount: float) -> void:
 	shake_amount = maxf(shake_amount, amount)
+
+
+func _setup_network_play() -> void:
+	if remote_root == null:
+		remote_root = Node3D.new()
+		remote_root.name = "RemotePlayers"
+		add_child(remote_root)
+	if not NetworkManager.remote_player_joined.is_connected(_on_remote_player_joined):
+		NetworkManager.remote_player_joined.connect(_on_remote_player_joined)
+	if not NetworkManager.remote_player_state.is_connected(_on_remote_player_state):
+		NetworkManager.remote_player_state.connect(_on_remote_player_state)
+	if not NetworkManager.remote_player_left.is_connected(_on_remote_player_left):
+		NetworkManager.remote_player_left.connect(_on_remote_player_left)
+	if not NetworkManager.disconnected.is_connected(_on_network_disconnected):
+		NetworkManager.disconnected.connect(_on_network_disconnected)
+	if player != null and is_instance_valid(player):
+		NetworkManager.register_local_player(player)
+	var snapshot := NetworkManager.get_remote_snapshot()
+	for player_id in snapshot.keys():
+		_on_remote_player_joined(int(player_id), snapshot[player_id])
+	if not NetworkManager.is_server_connected() and not NetworkManager.is_connecting():
+		announce("Сетевой сервер недоступен — игра с ботами", Color(1.0, 0.72, 0.4), 3.0)
+
+
+func _on_remote_player_joined(player_id: int, info: Dictionary) -> void:
+	if not network_play or remote_root == null:
+		return
+	if player_id == NetworkManager.local_peer_id:
+		return
+	if remote_players.has(player_id):
+		var existing = remote_players[player_id]
+		if existing != null and is_instance_valid(existing):
+			existing.update_info(info)
+			if bool(info.get("has_state", false)):
+				var existing_position: Vector3 = info.get("position", existing.global_position)
+				existing.apply_state(existing_position, float(info.get("rotation", 0.0)))
+		return
+	var remote = REMOTE_PLAYER_SCRIPT.new()
+	if remote == null:
+		return
+	remote.name = "RemotePlayer_%d" % player_id
+	remote_root.add_child(remote)
+	remote.setup(player_id, info)
+	remote_players[player_id] = remote
+
+
+func _on_remote_player_state(player_id: int, position: Vector3, rotation_y: float) -> void:
+	if not network_play:
+		return
+	var remote = remote_players.get(player_id)
+	if remote == null or not is_instance_valid(remote):
+		_on_remote_player_joined(player_id, {
+			"id": player_id,
+			"name": "Игрок %d" % player_id,
+			"class": 0,
+			"team": 0,
+			"has_state": true,
+			"position": position,
+			"rotation": rotation_y,
+		})
+	else:
+		remote.apply_state(position, rotation_y)
+
+
+func _on_remote_player_left(player_id: int) -> void:
+	var remote = remote_players.get(player_id)
+	if remote != null and is_instance_valid(remote):
+		remote.queue_free()
+	remote_players.erase(player_id)
+
+
+func _on_network_disconnected() -> void:
+	if network_shutting_down or not network_play:
+		return
+	for remote in remote_players.values():
+		if remote != null and is_instance_valid(remote):
+			remote.queue_free()
+	remote_players.clear()
+	announce("Соединение с сервером потеряно", Color(1.0, 0.55, 0.4), 3.0)
+
+
+func _exit_tree() -> void:
+	if network_play:
+		network_shutting_down = true
+		NetworkManager.unregister_local_player()
+		NetworkManager.disconnect_from_server(false)
+		var tree := get_tree()
+		if tree != null:
+			tree.set_meta("network_play", false)
 
 
 func _unhandled_input(event: InputEvent) -> void:

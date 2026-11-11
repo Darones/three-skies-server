@@ -112,7 +112,9 @@ func main() {
 	}
 
 	service := &api{db: db}
+	hub := newWebSocketHub()
 	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", hub.handleWebSocket)
 	mux.HandleFunc("/register", service.handleRegister)
 	mux.HandleFunc("/profile", service.handleProfile)
 	mux.HandleFunc("/buy_wing", service.handleBuyWing)
