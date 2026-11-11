@@ -57,22 +57,16 @@ func add_shards(shards_amount: int) -> void:
 
 
 func grant_match_reward(amount: int) -> bool:
-	if amount <= 0:
-		return false
-	if player_id <= 0:
-		add_shards(amount)
+	if amount <= 0 or player_id <= 0:
 		return false
 	NetworkClient.grant_match_reward(player_id, amount)
 	return true
 
 
-func _on_match_reward_completed(success: bool, amount: int, new_shards: int) -> void:
+func _on_match_reward_completed(success: bool, _amount: int, new_shards: int) -> void:
+	# The server owns the balance: a failed request must not create shards.
 	if success:
 		sky_shards = maxi(0, new_shards)
-	else:
-		# Keep the reward if the server is unreachable so offline play still
-		# progresses.
-		add_shards(amount)
 	profile_updated.emit()
 
 
