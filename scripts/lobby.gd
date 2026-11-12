@@ -83,6 +83,7 @@ var menu_shard_label: Label
 var rename_confirm_overlay: ColorRect
 var rename_confirm_label: Label
 var pending_rename_nickname := ""
+var nickname_input_synced := ""
 var menu_hero_portrait: TextureRect
 var menu_hero_name_label: Label
 var menu_level_label: Label
@@ -624,6 +625,8 @@ func _on_purchase_updated(success: bool, _purchase_type: String, _item_id: int, 
 
 
 func _on_profile_updated() -> void:
+	if MetaProgression.player_id > 0 and not MetaProgression.player_nickname.is_empty():
+		_save_player_id(MetaProgression.player_id)
 	_refresh_wing_shop()
 	_refresh_weapon_shop()
 	_refresh_player_profile()
@@ -706,6 +709,7 @@ func _build_player_menu() -> void:
 	nickname_line_edit.placeholder_text = "Никнейм (3–12 символов)"
 	nickname_line_edit.max_length = 12
 	nickname_line_edit.text = MetaProgression.player_nickname
+	nickname_input_synced = MetaProgression.player_nickname
 	nickname_line_edit.custom_minimum_size = Vector2(0, 42)
 	nickname_line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	nickname_line_edit.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -731,13 +735,9 @@ func _build_player_menu() -> void:
 	nickname_cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	nickname_cost_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	nickname_cost_row.add_child(nickname_cost_label)
-	var balance_row := HBoxContainer.new()
-	balance_row.add_theme_constant_override("separation", 6)
-	profile_content.add_child(balance_row)
-	balance_row.add_child(_shard_icon(20))
 	menu_shard_label = _make_label("Баланс: 0", 14, Color(0.43, 0.84, 1.0))
-	menu_shard_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	balance_row.add_child(menu_shard_label)
+	menu_shard_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	nickname_cost_row.add_child(menu_shard_label)
 	var profile_divider := ColorRect.new()
 	profile_divider.custom_minimum_size = Vector2(0, 1)
 	profile_divider.color = Color(GOLD.r, GOLD.g, GOLD.b, 0.32)
@@ -954,6 +954,7 @@ func _on_rename_completed(success: bool, nickname: String, error: String, charge
 			MetaProgression.sky_shards = maxi(0, new_shards)
 		_save_player_id(MetaProgression.player_id)
 		nickname_line_edit.text = nickname
+		nickname_input_synced = nickname
 		if charged:
 			nickname_status_label.text = "Ник изменён. Списано %d." % cost
 		else:
@@ -1119,8 +1120,11 @@ func _confirm_rename() -> void:
 func _refresh_player_menu() -> void:
 	if menu_hero_portrait == null:
 		return
-	if nickname_line_edit != null and not nickname_line_edit.has_focus():
-		nickname_line_edit.text = MetaProgression.player_nickname
+	if nickname_line_edit != null:
+		var current_input := nickname_line_edit.text.strip_edges()
+		if not nickname_line_edit.has_focus() or current_input == nickname_input_synced:
+			nickname_line_edit.text = MetaProgression.player_nickname
+		nickname_input_synced = MetaProgression.player_nickname
 	if nickname_cost_label != null:
 		if MetaProgression.nickname_custom:
 			nickname_cost_label.text = "Смена ника — %d" % NICKNAME_CHANGE_COST
