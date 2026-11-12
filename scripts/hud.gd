@@ -101,7 +101,7 @@ const ABILITY_ICONS := [
 	],
 	[
 		preload("res://assets/ui/icon/128/001.png"),
-		preload("res://assets/ui/icon/128/010.png"),
+		preload("res://assets/ui/icon/128/crit_red.png"),
 		preload("res://assets/ui/icon/128/005.png"),
 	],
 ]
