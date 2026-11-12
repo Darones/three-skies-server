@@ -197,8 +197,11 @@ func _load_selection() -> int:
 
 func _save_selection() -> void:
 	var config := ConfigFile.new()
+	config.load(SAVE_PATH)
 	config.set_value("profile", "selected_class", selected_class)
-	config.save(SAVE_PATH)
+	var error := config.save(SAVE_PATH)
+	if error != OK:
+		push_error("Не удалось сохранить выбор героя: %s" % error_string(error))
 	get_tree().set_meta("selected_class", selected_class)
 
 
