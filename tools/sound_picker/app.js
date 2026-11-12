@@ -661,10 +661,28 @@ async function loadCandidates() {
 		state.folderLabel = "кандидаты";
 		state.selectedSoundId = null;
 		const loaded = normalizeAssignments(data.assignments || {});
+		const oldDefaultNames = new Set([
+			"misc_victory_epic.wav",
+			"misc_victory_fanfare.wav",
+			"misc_defeat_dark.wav",
+			"misc_match_start.wav",
+			"misc_coin_pickup.wav",
+			"mage_root_vines.wav",
+			"warrior_death_scream.wav",
+			"fairy_death_scream.wav",
+			"mage_death_scream.wav",
+			"death_soft_aaa.wav",
+			"mage_attack_fire.wav",
+			"mage_attack_arcane.wav",
+			"warrior_fear_roar.wav",
+			"mage_lightning.wav",
+		]);
 		let merged = false;
 		for (const group of SLOT_GROUPS) {
 			for (const [key] of group.slots) {
-				if (!state.assignments[group.id][key] && loaded[group.id][key]) {
+				const current = state.assignments[group.id][key];
+				const shouldReplace = !current || oldDefaultNames.has(current.name);
+				if (shouldReplace && loaded[group.id][key]) {
 					state.assignments[group.id][key] = loaded[group.id][key];
 					merged = true;
 				}

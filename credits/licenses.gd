@@ -17,10 +17,12 @@ Stylized Hit FX (Binbun VFX Vol.2)
 Автор: Binbun3D (bun3d.com)
 Лицензия: CC0 1.0
 
-Kenney RPG Audio
+Kenney Audio (RPG Audio, Music Jingles, Voiceover Pack Fighter)
 Автор: Kenney
 Лицензия: CC0 1.0
 https://kenney.nl/assets/rpg-audio
+https://kenney.nl/assets/music-jingles
+https://kenney.nl/assets/voiceover-pack-fighter
 
 Soundza Game SFX Pack
 Автор: Soundza

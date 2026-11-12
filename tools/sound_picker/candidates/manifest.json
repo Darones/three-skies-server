@@ -9,6 +9,10 @@
       "path": "candidates/death_soft_aaa.wav"
     },
     {
+      "name": "death_soft_thud.wav",
+      "path": "candidates/death_soft_thud.wav"
+    },
+    {
       "name": "fairy_blessing.wav",
       "path": "candidates/fairy_blessing.wav"
     },
@@ -73,6 +77,10 @@
       "path": "candidates/mage_root_vines.wav"
     },
     {
+      "name": "mage_root_vines_short.wav",
+      "path": "candidates/mage_root_vines_short.wav"
+    },
+    {
       "name": "mage_storm_ult.wav",
       "path": "candidates/mage_storm_ult.wav"
     },
@@ -81,12 +89,36 @@
       "path": "candidates/misc_coin_pickup.wav"
     },
     {
+      "name": "misc_coin_wallet.wav",
+      "path": "candidates/misc_coin_wallet.wav"
+    },
+    {
       "name": "misc_defeat_dark.wav",
       "path": "candidates/misc_defeat_dark.wav"
     },
     {
+      "name": "misc_defeat_kenney_sax_03.ogg",
+      "path": "candidates/misc_defeat_kenney_sax_03.ogg"
+    },
+    {
+      "name": "misc_defeat_kenney_steel_03.ogg",
+      "path": "candidates/misc_defeat_kenney_steel_03.ogg"
+    },
+    {
+      "name": "misc_defeat_kenney_steel_06.ogg",
+      "path": "candidates/misc_defeat_kenney_steel_06.ogg"
+    },
+    {
+      "name": "misc_defeat_voice_you_lose.ogg",
+      "path": "candidates/misc_defeat_voice_you_lose.ogg"
+    },
+    {
       "name": "misc_match_start.wav",
       "path": "candidates/misc_match_start.wav"
+    },
+    {
+      "name": "misc_match_start_swords.wav",
+      "path": "candidates/misc_match_start_swords.wav"
     },
     {
       "name": "misc_shard_delivery.wav",
@@ -105,6 +137,18 @@
       "path": "candidates/misc_shell_hit.wav"
     },
     {
+      "name": "misc_start_kenney_hit_11.ogg",
+      "path": "candidates/misc_start_kenney_hit_11.ogg"
+    },
+    {
+      "name": "misc_start_kenney_hit_15.ogg",
+      "path": "candidates/misc_start_kenney_hit_15.ogg"
+    },
+    {
+      "name": "misc_start_voice_fight.ogg",
+      "path": "candidates/misc_start_voice_fight.ogg"
+    },
+    {
       "name": "misc_victory_chime.wav",
       "path": "candidates/misc_victory_chime.wav"
     },
@@ -115,6 +159,26 @@
     {
       "name": "misc_victory_fanfare.wav",
       "path": "candidates/misc_victory_fanfare.wav"
+    },
+    {
+      "name": "misc_victory_kenney_pizzicato_03.ogg",
+      "path": "candidates/misc_victory_kenney_pizzicato_03.ogg"
+    },
+    {
+      "name": "misc_victory_kenney_sax_01.ogg",
+      "path": "candidates/misc_victory_kenney_sax_01.ogg"
+    },
+    {
+      "name": "misc_victory_kenney_steel_01.ogg",
+      "path": "candidates/misc_victory_kenney_steel_01.ogg"
+    },
+    {
+      "name": "misc_victory_kenney_steel_02.ogg",
+      "path": "candidates/misc_victory_kenney_steel_02.ogg"
+    },
+    {
+      "name": "misc_victory_voice_you_win.ogg",
+      "path": "candidates/misc_victory_voice_you_win.ogg"
     },
     {
       "name": "warrior_attack_sword_01.wav",
@@ -168,7 +232,7 @@
       "skill2": "warrior_bloodthirst.wav",
       "ult": "warrior_quake_ult.wav",
       "hit": "warrior_hit.wav",
-      "death": "death_soft_aaa.wav"
+      "death": "death_soft_thud.wav"
     },
     "fairy": {
       "attack": "fairy_bow_release_01.wav",
@@ -176,25 +240,25 @@
       "skill2": "fairy_crit_draw_release.wav",
       "ult": "fairy_blessing.wav",
       "hit": "fairy_hit.wav",
-      "death": "death_soft_aaa.wav"
+      "death": "death_soft_thud.wav"
     },
     "mage": {
       "attack": "mage_ice_ball.wav",
-      "skill1": "mage_root_vines.wav",
+      "skill1": "mage_root_vines_short.wav",
       "skill2": "mage_heal_chime.wav",
       "ult": "mage_storm_ult.wav",
       "hit": "mage_hit.wav",
-      "death": "death_soft_aaa.wav"
+      "death": "death_soft_thud.wav"
     },
     "misc": {
       "shard_delivered": "misc_shard_delivery.wav",
       "shard_picked": "misc_shard_pickup.wav",
-      "coin_pickup": "misc_coin_pickup.wav",
+      "coin_pickup": "misc_coin_wallet.wav",
       "shell_hit": "misc_shell_hit.wav",
       "shell_destroyed": "misc_shell_destroyed.wav",
-      "victory": "misc_victory_fanfare.wav",
-      "defeat": "misc_defeat_dark.wav",
-      "match_start": "misc_match_start.wav"
+      "victory": "misc_victory_kenney_steel_01.ogg",
+      "defeat": "misc_defeat_kenney_steel_03.ogg",
+      "match_start": "misc_match_start_swords.wav"
     }
   }
 }

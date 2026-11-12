@@ -21,11 +21,15 @@
 - Лицензия: **CC0 1.0**
 - Полный текст: `binbun_vfx_LICENSE.txt`
 
-### Kenney RPG Audio
+### Kenney Audio
 - Автор: Kenney
 - Лицензия: **CC0 1.0**
-- Источник: https://kenney.nl/assets/rpg-audio
-- Текст: `kenney_rpg_LICENSE.txt`
+- Пакеты: RPG Audio, Music Jingles, Voiceover Pack (Fighter)
+- Источники:
+  - https://kenney.nl/assets/rpg-audio
+  - https://kenney.nl/assets/music-jingles
+  - https://kenney.nl/assets/voiceover-pack-fighter
+- Тексты: `kenney_rpg_LICENSE.txt`, `kenney_music_jingles_LICENSE.txt`, `kenney_voice_fighter_LICENSE.txt`
 
 ### Soundza Game SFX Pack
 - Автор: Soundza
