@@ -1677,7 +1677,7 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 
 
 func _build_actions() -> void:
-	play_button = _make_action_button("В БОЙ", true)
+	play_button = _make_action_button("ИГРАТЬ", true)
 	play_button.name = "PlayButton"
 	play_button.anchor_left = 1.0
 	play_button.anchor_top = 1.0
@@ -1689,6 +1689,14 @@ func _build_actions() -> void:
 	play_button.offset_bottom = -108.0
 	play_button.custom_minimum_size = Vector2(300.0, 72.0)
 	play_button.add_theme_font_size_override("font_size", 26)
+	play_button.add_theme_color_override("font_color", Color(0.16, 0.1, 0.02))
+	play_button.add_theme_color_override("font_hover_color", Color(0.1, 0.06, 0.01))
+	play_button.add_theme_color_override("font_pressed_color", Color(0.1, 0.06, 0.01))
+	play_button.add_theme_color_override("font_disabled_color", Color(0.2, 0.13, 0.03))
+	play_button.add_theme_stylebox_override("normal", _play_button_style(false, false))
+	play_button.add_theme_stylebox_override("hover", _play_button_style(true, false))
+	play_button.add_theme_stylebox_override("pressed", _play_button_style(true, false))
+	play_button.add_theme_stylebox_override("disabled", _play_button_style(false, true))
 	play_button.pressed.connect(_start_network_battle)
 	add_child(play_button)
 
@@ -1882,7 +1890,7 @@ func _on_network_disconnected() -> void:
 
 
 func _reset_network_button() -> void:
-	_set_play_status("В БОЙ", false)
+	_set_play_status("ИГРАТЬ", false)
 
 
 func _set_play_status(text: String, disabled: bool) -> void:
@@ -1980,6 +1988,27 @@ func _action_style(primary: bool, hovered: bool) -> StyleBoxFlat:
 	style.content_margin_right = 12.0
 	style.content_margin_top = 8.0
 	style.content_margin_bottom = 8.0
+	return style
+
+
+func _play_button_style(hovered: bool, disabled: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	if disabled:
+		style.bg_color = Color(0.55, 0.45, 0.2, 0.85)
+		style.border_color = Color(0.76, 0.65, 0.35, 0.9)
+	else:
+		style.bg_color = Color(1.0, 0.8, 0.22) if not hovered else Color(1.0, 0.9, 0.42)
+		style.border_color = Color(1.0, 0.94, 0.62)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(12)
+	style.content_margin_left = 12.0
+	style.content_margin_right = 12.0
+	style.content_margin_top = 8.0
+	style.content_margin_bottom = 8.0
+	if not disabled:
+		style.shadow_color = Color(1.0, 0.65, 0.08, 0.35)
+		style.shadow_size = 10
+		style.shadow_offset = Vector2(0.0, 4.0)
 	return style
 
 
