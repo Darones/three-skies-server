@@ -661,8 +661,17 @@ async function loadCandidates() {
 		state.sounds = found.sort(compareSounds);
 		state.folderLabel = "кандидаты";
 		state.selectedSoundId = null;
-		state.assignments = normalizeAssignments(data.assignments || {});
-		state.dirty = false;
+		const loaded = normalizeAssignments(data.assignments || {});
+		let merged = false;
+		for (const group of SLOT_GROUPS) {
+			for (const [key] of group.slots) {
+				if (!state.assignments[group.id][key] && loaded[group.id][key]) {
+					state.assignments[group.id][key] = loaded[group.id][key];
+					merged = true;
+				}
+			}
+		}
+		state.dirty = merged;
 		els.search.disabled = false;
 		els.rescan.disabled = true;
 		els.folderName.textContent = `Папка: кандидаты · файлов: ${found.length}`;
