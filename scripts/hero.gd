@@ -2492,14 +2492,14 @@ func apply_blessing(duration: float) -> void:
 	var glow := OmniLight3D.new()
 	glow.name = "Glow"
 	glow.light_color = Color(1.0, 0.72, 0.2)
-	glow.light_energy = 2.6
-	glow.omni_range = 6.0
+	glow.light_energy = 2.2
+	glow.omni_range = 4.0
 	glow.position = Vector3(0.0, 0.6, 0.0)
 	root.add_child(glow)
 	var rune := MeshInstance3D.new()
 	rune.name = "BlessingRune"
 	var rune_mesh := QuadMesh.new()
-	rune_mesh.size = Vector2(5.6, 5.6)
+	rune_mesh.size = Vector2(2.8, 2.8)
 	rune.mesh = rune_mesh
 	var rune_material := StandardMaterial3D.new()
 	rune_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -2509,10 +2509,10 @@ func apply_blessing(duration: float) -> void:
 	rune_material.no_depth_test = true
 	rune_material.render_priority = 2
 	rune_material.albedo_texture = preload("res://ui/fx/blessing_rune.png")
-	rune_material.albedo_color = Color(1.0, 0.88, 0.48, 1.0)
+	rune_material.albedo_color = Color(1.0, 0.88, 0.48, 0.9)
 	rune_material.emission_enabled = true
 	rune_material.emission = Color(1.0, 0.68, 0.18)
-	rune_material.emission_energy_multiplier = 1.8
+	rune_material.emission_energy_multiplier = 1.5
 	rune_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	rune.material_override = rune_material
 	rune.rotation_degrees.x = -90.0
@@ -2535,10 +2535,9 @@ func _update_blessing(delta: float) -> void:
 		if blessing_ground_timer <= 0.0:
 			blessing_ground_timer = 0.25
 			_snap_blessing_to_ground()
-		var pulse := 1.0 + sin(float(Time.get_ticks_msec()) * 0.008) * 0.06
-		blessing_ring.scale = Vector3.ONE * pulse
+		blessing_ring.scale = Vector3.ONE
 	if blessing_rune != null and is_instance_valid(blessing_rune):
-		blessing_rune.rotation.y += delta * 0.55
+		blessing_rune.rotation.y += delta * 0.35
 	if blessing_timer == 0.0 and blessing_ring != null:
 		blessing_ring.queue_free()
 		blessing_ring = null
