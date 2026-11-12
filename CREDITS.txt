@@ -1,1 +1,7 @@
+Авторы и лицензии проекта «Небесные осколки»
+
+Полный список и тексты лицензий: credits/LICENSES.md
+Экран в игре: Настройки → Авторы и лицензии.
+
+Обязательное указание:
 Low Poly RPG Items Free by heyheythere - https://heyheythere.itch.io/low-poly-rpg-items-free - CC BY 4.0
