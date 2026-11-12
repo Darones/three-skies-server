@@ -128,3 +128,65 @@ func TestHealthShowsDatabaseHost(t *testing.T) {
 		t.Fatalf("expected database_host in health, got %v", body["database_host"])
 	}
 }
+
+func TestValidNickname(t *testing.T) {
+	cases := []struct {
+		nickname string
+		want     bool
+	}{
+		{"", false},
+		{"ab", false},
+		{"abc", true},
+		{"Игрок 1234", true},
+		{"abcdefghijkl", true},
+		{"abcdefghijklm", false},
+	}
+	for _, testCase := range cases {
+		if got := validNickname(testCase.nickname); got != testCase.want {
+			t.Fatalf("validNickname(%q) = %v, want %v", testCase.nickname, got, testCase.want)
+		}
+	}
+}
+
+func TestBalanceHumansLockedSplitsClassesEvenly(t *testing.T) {
+	room := &wsRoom{}
+	classes := []int{0, 0, 0, 0, 2, 1}
+	for index, class := range classes {
+		room.players[index] = &wsClient{id: int64(index + 1), class: class}
+	}
+
+	balanceHumansLocked(room)
+
+	teamSizes := [2]int{}
+	warriors := [2]int{}
+	fairies := [2]int{}
+	mages := [2]int{}
+	for index := 0; index < roomSlots; index++ {
+		player := room.players[index]
+		if player == nil {
+			t.Fatalf("slot %d is empty after balancing", index)
+		}
+		team := index / 3
+		teamSizes[team]++
+		switch player.class {
+		case 0:
+			warriors[team]++
+		case 1:
+			mages[team]++
+		case 2:
+			fairies[team]++
+		}
+	}
+	if teamSizes[0] != 3 || teamSizes[1] != 3 {
+		t.Fatalf("teams must be 3v3, got %v", teamSizes)
+	}
+	if warriors[0] != 2 || warriors[1] != 2 {
+		t.Fatalf("warriors must be split 2/2, got %v", warriors)
+	}
+	if fairies[0]+fairies[1] != 1 || mages[0]+mages[1] != 1 {
+		t.Fatalf("expected one fairy and one mage, got fairies=%v mages=%v", fairies, mages)
+	}
+	if fairies[0]+mages[0] != 1 || fairies[1]+mages[1] != 1 {
+		t.Fatalf("fairy and mage must be split between teams, got fairies=%v mages=%v", fairies, mages)
+	}
+}

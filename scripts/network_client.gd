@@ -7,6 +7,7 @@ signal registration_completed(success: bool, player_id: int)
 signal profile_loaded(success: bool, player_id: int, sky_shards: int, unlocked_wings: Array, unlocked_weapons: Array)
 signal purchase_completed(success: bool, purchase_type: String, item_id: int, new_shards: int)
 signal match_reward_completed(success: bool, amount: int, new_shards: int)
+signal rename_completed(success: bool, nickname: String, error: String)
 
 const API_BASE_URL := "https://three-skies-server.relaxdev.ru"
 
@@ -61,6 +62,17 @@ func grant_match_reward(player_id: int, amount: int) -> void:
 		"player_id": player_id,
 		"amount": amount,
 	}, "match_reward")
+
+
+func rename_player(player_id: int, nickname: String) -> void:
+	var clean_nickname := nickname.strip_edges()
+	if player_id <= 0 or clean_nickname.is_empty():
+		rename_completed.emit(false, clean_nickname, "Некорректный ник")
+		return
+	_send_post("/rename", {
+		"player_id": player_id,
+		"nickname": clean_nickname,
+	}, "rename")
 
 
 func load_player_profile(player_id: int) -> void:
@@ -134,6 +146,10 @@ func _on_http_request_completed(result: int, response_code: int, _headers: Packe
 		var awarded := int(request["payload"].get("amount", 0))
 		var new_shards := int(response.get("new_shards", 0)) if response is Dictionary else 0
 		match_reward_completed.emit(success, awarded, new_shards if success else 0)
+	elif request["request_type"] == "rename":
+		var nickname := String(request["payload"].get("nickname", ""))
+		var error_text := String(response.get("error", "")) if response is Dictionary else "Нет связи с сервером"
+		rename_completed.emit(success, nickname, "" if success else error_text)
 	_start_next_http_request()
 
 
@@ -146,3 +162,5 @@ func _emit_http_failure(request: Dictionary) -> void:
 		purchase_completed.emit(false, String(request["purchase_type"]), int(request["item_id"]), 0)
 	elif request["request_type"] == "match_reward":
 		match_reward_completed.emit(false, int(request["payload"].get("amount", 0)), 0)
+	elif request["request_type"] == "rename":
+		rename_completed.emit(false, String(request["payload"].get("nickname", "")), "Нет связи с сервером")

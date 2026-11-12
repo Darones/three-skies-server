@@ -796,8 +796,13 @@ func _build_select(root: Control) -> void:
 		button.pressed.connect(_on_class_pressed.bind(i))
 		box.add_child(button)
 
-	var hint := _make_label("WASD — движение · 1 2 3 — способности · цель: 3 осколка", 17, Color(0.75, 0.8, 0.9))
+	var controls_text := "Джойстик — движение · кнопки справа — способности · цель: 3 осколка" if _uses_touch_controls() else "WASD — движение · 1 2 3 — способности · цель: 3 осколка"
+	var hint := _make_label(controls_text, 17, Color(0.75, 0.8, 0.9))
 	box.add_child(hint)
+
+
+func _uses_touch_controls() -> bool:
+	return OS.has_feature("mobile") or (OS.has_feature("web") and DisplayServer.is_touchscreen_available())
 
 
 func _build_shop(root: Control) -> void:

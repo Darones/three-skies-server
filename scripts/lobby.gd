@@ -24,7 +24,6 @@ var selected_class := 0
 var slot_classes: Array[int] = [HeroUnit.Cls.MAGE, HeroUnit.Cls.WARRIOR, HeroUnit.Cls.FAIRY]
 var card_images: Array[TextureRect] = []
 var card_names: Array[Label] = []
-var card_class_labels: Array[Label] = []
 var card_footers: Array[Panel] = []
 var card_portrait_materials: Array[ShaderMaterial] = []
 var cards: Array[Control] = []
@@ -57,6 +56,8 @@ var weapon_cards: Dictionary = {}
 var weapon_status_labels: Array[Label] = []
 var ui_click_player: AudioStreamPlayer
 var tutorial_button: Button
+var pending_nickname := ""
+var guest_attempts := 0
 
 
 func _notification(what: int) -> void:
@@ -96,11 +97,16 @@ func _ready() -> void:
 		NetworkManager.match_started.connect(_on_network_match_started)
 	if not NetworkManager.disconnected.is_connected(_on_network_disconnected):
 		NetworkManager.disconnected.connect(_on_network_disconnected)
+	if not NetworkClient.rename_completed.is_connected(_on_rename_completed):
+		NetworkClient.rename_completed.connect(_on_rename_completed)
 	if MetaProgression.player_id <= 0:
 		var saved_player_id := _load_player_id()
 		if saved_player_id > 0:
 			MetaProgression.load_profile(saved_player_id)
 		elif not MetaProgression.player_nickname.is_empty():
+			MetaProgression.register_player(MetaProgression.player_nickname)
+		else:
+			MetaProgression.player_nickname = _generate_guest_nickname()
 			MetaProgression.register_player(MetaProgression.player_nickname)
 	_setup_ui_click_sound()
 	_wire_ui_click_sounds(self)
@@ -644,18 +650,25 @@ func _build_player_menu() -> void:
 	var profile_title := _make_label("ПРОФИЛЬ", 19, GOLD)
 	profile_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_content.add_child(profile_title)
+	var nickname_row := HBoxContainer.new()
+	nickname_row.add_theme_constant_override("separation", 6)
+	profile_content.add_child(nickname_row)
 	nickname_line_edit = LineEdit.new()
 	nickname_line_edit.name = "NicknameInput"
 	nickname_line_edit.placeholder_text = "Никнейм (3–12 символов)"
 	nickname_line_edit.max_length = 12
 	nickname_line_edit.text = MetaProgression.player_nickname
 	nickname_line_edit.custom_minimum_size = Vector2(0, 42)
+	nickname_line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	nickname_line_edit.add_theme_font_override("font", font)
-	profile_content.add_child(nickname_line_edit)
-	var save_nickname_button := _make_action_button("Сохранить", true)
-	save_nickname_button.custom_minimum_size = Vector2(0, 42)
+	nickname_row.add_child(nickname_line_edit)
+	var save_nickname_button := _make_action_button("✓", true)
+	save_nickname_button.name = "NicknameCheck"
+	save_nickname_button.custom_minimum_size = Vector2(42, 42)
+	save_nickname_button.add_theme_font_size_override("font_size", 22)
+	save_nickname_button.tooltip_text = "Сохранить ник"
 	save_nickname_button.pressed.connect(_save_player_nickname)
-	profile_content.add_child(save_nickname_button)
+	nickname_row.add_child(save_nickname_button)
 	nickname_status_label = _make_label("", 13, Color(0.58, 0.9, 0.64))
 	nickname_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_content.add_child(nickname_status_label)
@@ -780,6 +793,22 @@ func _build_player_menu() -> void:
 func _open_player_menu() -> void:
 	_refresh_player_menu()
 	player_menu_overlay.visible = true
+	nickname_line_edit.editable = true
+	nickname_line_edit.call_deferred("grab_focus")
+	if MetaProgression.player_id <= 0:
+		_retry_registration()
+
+
+func _retry_registration() -> void:
+	if MetaProgression.player_id > 0:
+		return
+	if MetaProgression.player_nickname.is_empty():
+		MetaProgression.player_nickname = _generate_guest_nickname()
+	MetaProgression.register_player(MetaProgression.player_nickname)
+
+
+func _generate_guest_nickname() -> String:
+	return "Игрок %04d" % randi_range(1000, 9999)
 
 
 func _close_player_menu() -> void:
@@ -792,12 +821,34 @@ func _save_player_nickname() -> void:
 		nickname_status_label.text = "Введите от 3 до 12 символов."
 		nickname_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
 		return
-	MetaProgression.player_nickname = nickname
 	if MetaProgression.player_id <= 0:
+		pending_nickname = nickname
 		MetaProgression.register_player(nickname)
-	nickname_line_edit.text = nickname
-	nickname_status_label.text = "Сохраняем профиль на сервере..." if MetaProgression.player_id <= 0 else "Никнейм сохранен."
+		nickname_status_label.text = "Регистрируем профиль на сервере..."
+		nickname_status_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
+		return
+	if nickname == MetaProgression.player_nickname:
+		nickname_status_label.text = "Ник не изменился."
+		nickname_status_label.add_theme_color_override("font_color", Color(0.76, 0.8, 0.89))
+		return
+	NetworkClient.rename_player(MetaProgression.player_id, nickname)
+	nickname_status_label.text = "Сохраняем ник на сервере..."
 	nickname_status_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
+
+
+func _on_rename_completed(success: bool, nickname: String, error: String) -> void:
+	if not is_inside_tree():
+		return
+	if success:
+		MetaProgression.player_nickname = nickname
+		_save_player_id(MetaProgression.player_id)
+		nickname_line_edit.text = nickname
+		nickname_status_label.text = "Ник сохранён."
+		nickname_status_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
+		_refresh_player_profile()
+	else:
+		nickname_status_label.text = "Не удалось: %s" % error
+		nickname_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
 
 
 func _load_player_id() -> int:
@@ -826,15 +877,27 @@ func _save_player_id(player_id: int) -> void:
 
 func _on_registration_completed(success: bool, registered_player_id: int) -> void:
 	if success and registered_player_id > 0:
+		if not pending_nickname.is_empty():
+			MetaProgression.player_nickname = pending_nickname
+			pending_nickname = ""
 		_save_player_id(registered_player_id)
+		if nickname_line_edit != null:
+			nickname_line_edit.text = MetaProgression.player_nickname
+		if nickname_status_label != null:
+			nickname_status_label.text = "Профиль подключён."
+			nickname_status_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
+		return
 	if nickname_status_label == null:
 		return
-	if success and registered_player_id > 0:
-		nickname_status_label.text = "Профиль подключен."
-		nickname_status_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
-	else:
-		nickname_status_label.text = "Регистрация не удалась: сервер недоступен или ник занят."
-		nickname_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
+	if pending_nickname.is_empty() and MetaProgression.player_nickname.begins_with("Игрок ") and guest_attempts < 3:
+		guest_attempts += 1
+		MetaProgression.player_nickname = _generate_guest_nickname()
+		MetaProgression.register_player(MetaProgression.player_nickname)
+		nickname_status_label.text = "Пробуем другой временный ник..."
+		nickname_status_label.add_theme_color_override("font_color", Color(0.76, 0.8, 0.89))
+		return
+	nickname_status_label.text = "Регистрация не удалась: сервер недоступен или ник занят."
+	nickname_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
 
 
 func _refresh_player_menu() -> void:
@@ -912,12 +975,11 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 	image.offset_right = -inset
 	image.offset_bottom = -(inset + footer_height)
 	image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	image.stretch_mode = TextureRect.STRETCH_SCALE
+	image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	image.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var portrait_material := ShaderMaterial.new()
 	portrait_material.shader = preload("res://shaders/card_portrait.gdshader")
-	portrait_material.set_shader_parameter("rect_size", Vector2(card_width - inset * 2.0, card_height - inset * 2.0 - footer_height))
-	portrait_material.set_shader_parameter("corner_px", 14.0 if is_center else 11.0)
+	portrait_material.set_shader_parameter("corner_radius", 0.06)
 	image.material = portrait_material
 	card.add_child(image)
 
@@ -940,33 +1002,19 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 	name_label.anchor_left = 0.0
 	name_label.anchor_top = 0.0
 	name_label.anchor_right = 1.0
-	name_label.anchor_bottom = 0.62
+	name_label.anchor_bottom = 1.0
 	name_label.offset_left = 4.0
 	name_label.offset_right = -4.0
 	name_label.offset_top = 2.0
+	name_label.offset_bottom = -2.0
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	footer.add_child(name_label)
 
-	var class_label := _make_label("", 11 if is_center else 9, frame_color)
-	class_label.name = "HeroClass%d" % slot
-	class_label.anchor_left = 0.0
-	class_label.anchor_top = 0.62
-	class_label.anchor_right = 1.0
-	class_label.anchor_bottom = 1.0
-	class_label.offset_left = 4.0
-	class_label.offset_right = -4.0
-	class_label.offset_bottom = -2.0
-	class_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	class_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	class_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	footer.add_child(class_label)
-
 	cards.append(card)
 	card_images.append(image)
 	card_names.append(name_label)
-	card_class_labels.append(class_label)
 	card_footers.append(footer)
 	card_portrait_materials.append(portrait_material)
 
@@ -1068,10 +1116,6 @@ func _refresh_selection() -> void:
 		var texture := load(HERO_ART[hero_class]) as Texture2D
 		card_images[slot].texture = texture
 		card_names[slot].text = HERO_NAMES[hero_class]
-		card_class_labels[slot].text = String(HERO_NAMES[hero_class]).to_upper()
-		card_class_labels[slot].add_theme_color_override("font_color", frame_color)
-		if texture != null:
-			card_portrait_materials[slot].set_shader_parameter("texture_size", texture.get_size())
 		for style_name in ["normal", "hover", "pressed"]:
 			cards[slot].add_theme_stylebox_override(style_name, _card_style(slot == 1, style_name != "normal", frame_color))
 		card_footers[slot].add_theme_stylebox_override("panel", _card_footer_style(frame_color))
@@ -1123,26 +1167,11 @@ func _start_network_battle() -> void:
 	get_tree().set_meta("tutorial_mode", false)
 	get_tree().set_meta("network_play", true)
 	get_tree().set_meta("selected_class", selected_class)
-	if NetworkManager.is_server_connected():
-		if not NetworkManager.match_players.is_empty():
-			_on_network_match_started(
-				NetworkManager.room_id,
-				NetworkManager.host_id,
-				NetworkManager.match_players
-			)
-		elif play_button != null:
-			_set_play_status("ПОИСК ИГРЫ...", true)
-		return
-	_set_play_status("ПОДКЛЮЧЕНИЕ...", true)
-	var error := NetworkManager.connect_to_server(
-		selected_class,
-		0,
-		MetaProgression.player_nickname,
-		MetaProgression.player_id
-	)
+	get_tree().set_meta("selected_team", 0)
+	var error := get_tree().change_scene_to_file("res://scenes/LoadingScreen.tscn")
 	if error != OK:
 		get_tree().set_meta("network_play", false)
-		_reset_network_button()
+		_show_info("Не удалось открыть экран поиска.")
 
 
 func _on_network_connected() -> void:

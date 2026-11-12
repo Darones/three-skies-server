@@ -29,19 +29,151 @@ var no_network := false
 var transition_started := false
 var match_scene: PackedScene
 var load_failed := false
+var network_flow := false
+var network_player_slots: Dictionary = {}
+var back_button: Button
 
 func _ready() -> void:
 	randomize()
+	network_flow = bool(get_tree().get_meta('network_play', false))
 	_build_screen()
 	_start_match_scene_loading()
-	_use_bot_fallback()
+	if network_flow:
+		_start_network_flow()
+	else:
+		_use_bot_fallback()
 	search_label.text = '\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432...'
 	tip_label.text = TIPS[0]
+
+
+func _start_network_flow() -> void:
+	no_network = false
+	fill_with_bots = true
+	connection_hint.text = '\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0430\u0435\u043c\u0441\u044f \u043a \u0441\u0435\u0440\u0432\u0435\u0440\u0443...'
+	if not NetworkManager.connection_succeeded.is_connected(_on_network_connected):
+		NetworkManager.connection_succeeded.connect(_on_network_connected)
+	if not NetworkManager.connection_failed.is_connected(_on_network_failed):
+		NetworkManager.connection_failed.connect(_on_network_failed)
+	if not NetworkManager.remote_player_joined.is_connected(_on_network_player_joined):
+		NetworkManager.remote_player_joined.connect(_on_network_player_joined)
+	if not NetworkManager.match_started.is_connected(_on_network_match_started):
+		NetworkManager.match_started.connect(_on_network_match_started)
+	var hero_class := clampi(int(get_tree().get_meta('selected_class', 0)), 0, 2)
+	var error := NetworkManager.connect_to_server(
+		hero_class,
+		0,
+		MetaProgression.player_nickname,
+		MetaProgression.player_id
+	)
+	if error != OK:
+		_on_network_failed('Не удалось начать подключение')
+
+
+func _on_network_connected() -> void:
+	if transition_started:
+		return
+	connection_hint.text = '\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432...'
+
+
+func _on_network_player_joined(player_id: int, info: Dictionary) -> void:
+	if transition_started or network_player_slots.has(player_id):
+		return
+	var team := clampi(int(info.get('team', 0)), 0, 1)
+	var slot_index := -1
+	for index in range(SLOTS_PER_TEAM):
+		if team_slots[team][index]['state'] == 'searching':
+			slot_index = index
+			break
+	if slot_index < 0:
+		for other_team in range(2):
+			for index in range(SLOTS_PER_TEAM):
+				if team_slots[other_team][index]['state'] == 'searching':
+					team = other_team
+					slot_index = index
+					break
+			if slot_index >= 0:
+				break
+	if slot_index < 0:
+		return
+	var class_index := clampi(int(info.get('class', 0)), 0, 2)
+	var player_name := String(info.get('name', 'Игрок'))
+	_set_slot_entry(team, slot_index, player_name, class_index, false)
+	network_player_slots[player_id] = true
+
+
+func _on_network_match_started(room_id: int, _host_id: int, players: Array) -> void:
+	if transition_started:
+		return
+	transition_started = true
+	network_player_slots.clear()
+	for team_index in range(2):
+		for slot_index in range(SLOTS_PER_TEAM):
+			var slot: Dictionary = team_slots[team_index][slot_index]
+			slot['state'] = 'searching'
+			slot['name'].text = ''
+			slot['portrait'].visible = false
+			slot['spinner'].visible = true
+	var team_counts := [0, 0]
+	for entry in players:
+		if not entry is Dictionary:
+			continue
+		var team := clampi(int(entry.get('team', 0)), 0, 1)
+		if team_counts[team] >= SLOTS_PER_TEAM:
+			continue
+		var slot_index: int = team_counts[team]
+		team_counts[team] += 1
+		var class_index := clampi(int(entry.get('class', 0)), 0, 2)
+		var entry_name := String(entry.get('name', 'Игрок'))
+		_set_slot_entry(team, slot_index, entry_name, class_index, bool(entry.get('bot', false)))
+	_fill_open_slots_with_bots()
+	progress_bar.value = 100.0
+	found_count_label.text = '\u0421\u043e\u0441\u0442\u0430\u0432 \u0441\u043e\u0431\u0440\u0430\u043d: 6 / 6'
+	search_label.text = '\u041c\u0430\u0442\u0447 \u043d\u0430\u0439\u0434\u0435\u043d!'
+	connection_hint.text = '\u041a\u043e\u043c\u0430\u043d\u0434\u044b \u0433\u043e\u0442\u043e\u0432\u044b \u043a \u0431\u043e\u044e'
+	get_tree().set_meta('network_play', true)
+	get_tree().set_meta('tutorial_mode', false)
+	get_tree().set_meta('selected_class', NetworkManager.local_class)
+	get_tree().set_meta('selected_team', NetworkManager.assigned_team)
+	get_tree().set_meta('network_host', NetworkManager.is_host)
+	get_tree().set_meta('network_room_id', room_id)
+	get_tree().set_meta('network_match_players', players)
+	_transition_when_ready()
+
+
+func _on_network_failed(reason: String) -> void:
+	if transition_started:
+		return
+	transition_started = true
+	search_label.text = '\u0421\u0435\u0440\u0432\u0435\u0440 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d'
+	connection_hint.text = '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u044c\u0441\u044f: %s' % reason
+	for spinner in searching_spinners:
+		if is_instance_valid(spinner):
+			spinner.visible = false
+	_add_back_button()
+
+
+func _add_back_button() -> void:
+	if back_button != null:
+		return
+	back_button = Button.new()
+	back_button.text = '\u0412 \u041b\u041e\u0411\u0411\u0418'
+	back_button.custom_minimum_size = Vector2(220, 56)
+	back_button.anchor_left = 0.5
+	back_button.anchor_right = 0.5
+	back_button.anchor_top = 0.9
+	back_button.anchor_bottom = 0.9
+	back_button.offset_left = -110.0
+	back_button.offset_right = 110.0
+	back_button.offset_top = -28.0
+	back_button.offset_bottom = 28.0
+	back_button.add_theme_font_override('font', FONT)
+	back_button.add_theme_font_size_override('font_size', 20)
+	back_button.pressed.connect(func() -> void: get_tree().change_scene_to_file('res://scenes/Lobby.tscn'))
+	add_child(back_button)
 
 func _process(delta: float) -> void:
 	if transition_started:
 		return
-	elapsed = minf(elapsed + delta, SEARCH_SECONDS)
 	tip_timer += delta
 	if tip_timer >= 3.0:
 		tip_timer = 0.0
@@ -49,12 +181,14 @@ func _process(delta: float) -> void:
 	for spinner in searching_spinners:
 		if is_instance_valid(spinner) and spinner.visible:
 			spinner.rotation += delta * 4.5
-	if elapsed >= next_player_time and simulated_players_added < SIMULATED_TARGET:
-		_add_simulated_player()
-		next_player_time = elapsed + randf_range(1.0, 2.0)
+	if not network_flow:
+		elapsed = minf(elapsed + delta, SEARCH_SECONDS)
+		if elapsed >= next_player_time and simulated_players_added < SIMULATED_TARGET:
+			_add_simulated_player()
+			next_player_time = elapsed + randf_range(1.0, 2.0)
+		if elapsed >= SEARCH_SECONDS:
+			_complete_match_search()
 	_update_search_progress()
-	if elapsed >= SEARCH_SECONDS:
-		_complete_match_search()
 	_poll_match_scene_load()
 
 func _start_match_scene_loading() -> void:
@@ -116,6 +250,16 @@ func _set_slot_player(team_index: int, slot_index: int, player_number: int, clas
 	slot['spinner'].visible = false
 	slot['panel'].add_theme_stylebox_override('panel', _slot_style(team_index, true))
 
+func _set_slot_entry(team_index: int, slot_index: int, player_name: String, class_index: int, is_bot: bool) -> void:
+	var slot: Dictionary = team_slots[team_index][slot_index]
+	slot['state'] = 'bot' if is_bot else 'player'
+	slot['name'].text = ('Бот - %s' % _class_name(class_index)) if is_bot else player_name
+	slot['portrait'].texture = _class_portrait(class_index)
+	slot['portrait'].visible = true
+	slot['spinner'].visible = false
+	slot['panel'].add_theme_stylebox_override('panel', _slot_style(team_index, not is_bot))
+
+
 func _class_portrait(index: int) -> Texture2D:
 	match index:
 		0: return WARRIOR
@@ -166,7 +310,7 @@ func _complete_match_search() -> void:
 	_transition_when_ready()
 
 func _transition_when_ready() -> void:
-	await get_tree().create_timer(0.45).timeout
+	await get_tree().create_timer(1.1).timeout
 	if not is_inside_tree():
 		return
 	while not load_failed and match_scene == null:

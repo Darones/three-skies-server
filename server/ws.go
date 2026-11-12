@@ -310,7 +310,7 @@ func (h *wsHub) joinMatchmaking(client *wsClient, message wsIncoming) {
 		h.nextRoomID++
 		room = &wsRoom{id: h.nextRoomID, state: "waiting"}
 		h.rooms[room.id] = room
-		slot = class
+		slot = 0
 	}
 	client.roomID = room.id
 	client.playerID = message.PlayerID
@@ -353,20 +353,13 @@ func (h *wsHub) joinMatchmaking(client *wsClient, message wsIncoming) {
 	})
 }
 
-func (h *wsHub) findRoomLocked(class int) (*wsRoom, int) {
+func (h *wsHub) findRoomLocked(_ int) (*wsRoom, int) {
 	var best *wsRoom
 	for _, room := range h.rooms {
 		if room.state != "waiting" || room.humanCount >= roomSlots {
 			continue
 		}
-		hasSlot := false
-		for _, slot := range []int{class, class + 3} {
-			if room.players[slot] == nil && room.bots[slot] == nil {
-				hasSlot = true
-				break
-			}
-		}
-		if !hasSlot {
+		if !hasFreeSlot(room) {
 			continue
 		}
 		if best == nil || room.humanCount > best.humanCount || (room.humanCount == best.humanCount && room.id < best.id) {
@@ -376,18 +369,87 @@ func (h *wsHub) findRoomLocked(class int) (*wsRoom, int) {
 	if best == nil {
 		return nil, -1
 	}
-	slotA := class
-	slotB := class + 3
-	if best.players[slotA] == nil && best.bots[slotA] == nil && best.players[slotB] == nil && best.bots[slotB] == nil {
-		if teamHumanCount(best, 0) <= teamHumanCount(best, 1) {
-			return best, slotA
+	for index := 0; index < roomSlots; index++ {
+		if best.players[index] == nil && best.bots[index] == nil {
+			return best, index
 		}
-		return best, slotB
 	}
-	if best.players[slotA] == nil && best.bots[slotA] == nil {
-		return best, slotA
+	return best, -1
+}
+
+func hasFreeSlot(room *wsRoom) bool {
+	for index := 0; index < roomSlots; index++ {
+		if room.players[index] == nil && room.bots[index] == nil {
+			return true
+		}
 	}
-	return best, slotB
+	return false
+}
+
+func clampClass(value int) int {
+	if value < 0 {
+		return 0
+	}
+	if value > 2 {
+		return 2
+	}
+	return value
+}
+
+func balanceHumansLocked(room *wsRoom) {
+	humans := make([]*wsClient, 0, roomSlots)
+	for index := 0; index < roomSlots; index++ {
+		if player := room.players[index]; player != nil {
+			humans = append(humans, player)
+		}
+	}
+	if len(humans) == 0 {
+		return
+	}
+	byClass := [3][]*wsClient{}
+	for _, player := range humans {
+		class := clampClass(player.class)
+		player.class = class
+		byClass[class] = append(byClass[class], player)
+	}
+	teams := make(map[*wsClient]int, len(humans))
+	teamCounts := [2]int{}
+	classCounts := [2][3]int{}
+	for class := 0; class < 3; class++ {
+		for _, player := range byClass[class] {
+			team := 0
+			if classCounts[0][class] > classCounts[1][class] {
+				team = 1
+			} else if classCounts[0][class] == classCounts[1][class] && teamCounts[0] > teamCounts[1] {
+				team = 1
+			}
+			teams[player] = team
+			teamCounts[team]++
+			classCounts[team][class]++
+		}
+	}
+	for index := 0; index < roomSlots; index++ {
+		room.players[index] = nil
+	}
+	for _, player := range humans {
+		team := teams[player]
+		placed := false
+		for slot := team * 3; slot < team*3+3; slot++ {
+			if room.players[slot] == nil {
+				room.players[slot] = player
+				placed = true
+				break
+			}
+		}
+		if !placed {
+			for slot := 0; slot < roomSlots; slot++ {
+				if room.players[slot] == nil {
+					room.players[slot] = player
+					break
+				}
+			}
+		}
+	}
 }
 
 func (h *wsHub) startRoom(roomID int64) {
@@ -420,13 +482,15 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 			}
 		}
 	}
+	balanceHumansLocked(room)
 	players := make([]wsMatchPlayer, 0, roomSlots)
 	clients := make([]*wsClient, 0, room.humanCount)
 	for slot := 0; slot < roomSlots; slot++ {
 		class := slot % 3
 		team := slot / 3
 		if player := room.players[slot]; player != nil {
-			player.class = class
+			class = clampClass(player.class)
+			team = slot / 3
 			player.team = team
 			player.alive = true
 			if player.maxHP <= 0 {

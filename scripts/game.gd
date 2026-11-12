@@ -1355,7 +1355,8 @@ func _update_camera(delta: float) -> void:
 			death_camera_active = true
 			camera_pos = camera.global_position
 			death_camera_last_distance = camera_distance
-			announce("Наблюдение: WASD — камера, колесико — зум", Color(0.82, 0.9, 1.0), 4.0)
+			var camera_hint := "Наблюдение: свайп — камера" if _uses_touch_controls() else "Наблюдение: WASD — камера, колесико — зум"
+			announce(camera_hint, Color(0.82, 0.9, 1.0), 4.0)
 
 		if not is_equal_approx(camera_distance, death_camera_last_distance):
 			var zoom_delta := camera_distance - death_camera_last_distance
@@ -1510,6 +1511,8 @@ func on_shell_died(s: SkyShell, source: Node = null) -> void:
 		return
 	if source == player and not tutorial_mode:
 		p_shells_destroyed += 1
+	if not tutorial_mode and source is HeroUnit:
+		(source as HeroUnit).match_shells += 1
 	if not tutorial_mode and player != null and source is HeroUnit and (source as HeroUnit).team == player.team:
 		award_gold(100)
 	if not tutorial_mode and source is HeroUnit and not (source as HeroUnit).is_player:
@@ -1755,6 +1758,7 @@ func _deliver(h: HeroUnit) -> void:
 			tutorial_controller.call("on_delivery")
 		return
 	h.carrying = false
+	h.match_crystals += 1
 	score[h.team] += 1
 	if player != null and h.team == player.team:
 		award_gold(100)
@@ -1811,6 +1815,11 @@ func on_hero_died(h: HeroUnit) -> void:
 
 
 func record_hero_damage(target: HeroUnit, source: Node, damage: float, killed: bool) -> void:
+	if source is HeroUnit:
+		var source_hero := source as HeroUnit
+		source_hero.match_damage_dealt += maxf(damage, 0.0)
+		if killed and target.team != source_hero.team:
+			source_hero.match_kills += 1
 	if source is HeroUnit and killed and target.team != (source as HeroUnit).team and not (source as HeroUnit).is_player:
 		(source as HeroUnit).bot_gold += 50
 	if player == null or source != player or target == player or target.team == player.team or damage <= 0.0:
@@ -1819,6 +1828,7 @@ func record_hero_damage(target: HeroUnit, source: Node, damage: float, killed: b
 	if killed:
 		p_kills += 1
 		award_gold(50)
+		announce("Ты убил %s  +50 золота" % target.display_name, Color(1.0, 0.85, 0.35), 1.8)
 
 
 func on_hero_respawned(h: HeroUnit) -> void:
@@ -1871,16 +1881,24 @@ func end_match(team_zero_won: bool) -> void:
 	transition_timer.timeout.connect(_open_results_screen)
 
 
+func _hero_performance_score(hero: HeroUnit) -> float:
+	return float(hero.match_kills) * 3.0 \
+		+ hero.match_damage_dealt / 100.0 \
+		+ float(hero.match_shells) * 2.0 \
+		+ float(hero.match_crystals) * 3.0 \
+		+ float(hero.match_coins_collected) * 0.1 \
+		+ float(hero.match_gold_spent) * 0.02
+
+
 func _get_player_place() -> int:
 	if player == null or not is_instance_valid(player):
 		return 4
 	var place := 1
-	var player_coin_score := player.match_coins_collected + player.match_gold_spent
+	var player_score := _hero_performance_score(player)
 	for hero in heroes:
 		if hero == null or not is_instance_valid(hero) or hero == player:
 			continue
-		var hero_coin_score := hero.match_coins_collected + hero.match_gold_spent
-		if hero_coin_score > player_coin_score:
+		if _hero_performance_score(hero) > player_score:
 			place += 1
 	return place
 
@@ -1888,11 +1906,11 @@ func _get_player_place() -> int:
 func _is_player_mvp() -> bool:
 	if player == null or not is_instance_valid(player):
 		return false
-	var player_coin_score := player.match_coins_collected + player.match_gold_spent
+	var player_score := _hero_performance_score(player)
 	for hero in heroes:
 		if hero == null or not is_instance_valid(hero) or hero == player:
 			continue
-		if hero.match_coins_collected + hero.match_gold_spent >= player_coin_score:
+		if _hero_performance_score(hero) >= player_score:
 			return false
 	return true
 
@@ -1903,6 +1921,10 @@ func _open_results_screen() -> void:
 	var error := get_tree().change_scene_to_file("res://scenes/ResultsScreen.tscn")
 	if error != OK:
 		push_error("Failed to open ResultsScreen: %s" % error_string(error))
+
+
+func _uses_touch_controls() -> bool:
+	return OS.has_feature("mobile") or (OS.has_feature("web") and DisplayServer.is_touchscreen_available())
 
 
 func announce(text: String, color: Color, duration := 2.0) -> void:

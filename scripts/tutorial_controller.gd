@@ -31,10 +31,11 @@ func begin() -> void:
 	shell_spawn_countdown = 0.0
 	completed = false
 	_point_to(Vector3.ZERO, OBJECTIVE_GOLD)
+	var controls_hint := "Двигайся джойстиком слева, навыки — кнопки справа." if _uses_touch_controls() else "Двигайся клавишами WASD, навыки — 1, 2 и 3."
 	game.hud.call(
 		"show_tutorial_card",
 		"Добро пожаловать!",
-		"Цель игры — разбить Оболочку, подобрать Осколок и донести его до базы.\n\nДвигайся клавишами WASD, навыки — 1, 2 и 3. В этом обучении ты не можешь погибнуть.",
+		"Цель игры — разбить Оболочку, подобрать Осколок и донести его до базы.\n\n%s В этом обучении ты не можешь погибнуть." % controls_hint,
 		"Продолжить",
 		Callable(self, "_continue_intro")
 	)
@@ -87,7 +88,7 @@ func on_ability_used(index: int) -> void:
 	expected_ability += 1
 	if expected_ability < 3:
 		game.hud.call("set_tutorial_ability", expected_ability)
-		game.hud.call("show_tutorial_hint", "Нажми навык %d" % (expected_ability + 1))
+		game.hud.call("show_tutorial_hint", "Нажми «%s»" % _ability_name(expected_ability))
 		return
 	game.call("remove_tutorial_dummy")
 	stage = "go_fountain"
@@ -218,7 +219,7 @@ func _start_ability_training() -> void:
 	if game.tutorial_dummy != null and is_instance_valid(game.tutorial_dummy):
 		_point_to(game.tutorial_dummy.global_position, OBJECTIVE_GOLD)
 	game.hud.call("set_tutorial_ability", expected_ability)
-	game.hud.call("show_tutorial_hint", "Нажми навык 1")
+	game.hud.call("show_tutorial_hint", "Нажми «%s»" % _ability_name(0))
 
 
 func return_to_lobby() -> void:
@@ -242,6 +243,16 @@ func _save_completion() -> void:
 	var error := config.save(SAVE_PATH)
 	if error != OK:
 		push_error("Не удалось сохранить прохождение обучения: %s" % error_string(error))
+
+
+func _uses_touch_controls() -> bool:
+	return OS.has_feature("mobile") or (OS.has_feature("web") and DisplayServer.is_touchscreen_available())
+
+
+func _ability_name(index: int) -> String:
+	if game == null or game.player == null or not is_instance_valid(game.player):
+		return "навык %d" % (index + 1)
+	return String(HeroUnit.CLASS_DATA[int(game.player.hero_class)]["abilities"][index]["name"])
 
 
 func _point_to(world_position: Vector3, color: Color) -> void:

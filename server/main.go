@@ -107,6 +107,16 @@ type buyWeaponResponse struct {
 	Error     string `json:"error,omitempty"`
 }
 
+type renameRequest struct {
+	PlayerID int64  `json:"player_id"`
+	Nickname string `json:"nickname"`
+}
+
+type renameResponse struct {
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
+
 type matchRewardRequest struct {
 	PlayerID int64 `json:"player_id"`
 	Amount   int   `json:"amount"`
@@ -223,6 +233,7 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	mux.HandleFunc("/ws", hub.handleWebSocket)
 	mux.HandleFunc("/register", service.handleRegister)
 	mux.HandleFunc("/profile", service.handleProfile)
+	mux.HandleFunc("/rename", service.handleRename)
 	mux.HandleFunc("/buy_wing", service.handleBuyWing)
 	mux.HandleFunc("/buy_weapon", service.handleBuyWeapon)
 	mux.HandleFunc("/match_reward", service.handleMatchReward)
@@ -352,7 +363,7 @@ func (service *api) handleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nickname := strings.TrimSpace(request.Nickname)
-	if nickname == "" || utf8.RuneCountInString(nickname) < 3 || utf8.RuneCountInString(nickname) > 12 {
+	if !validNickname(nickname) {
 		writeJSON(w, http.StatusBadRequest, registerResponse{Error: "Nickname must be 3 to 12 characters"})
 		return
 	}
@@ -410,6 +421,53 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 		UnlockedWings:   parseItemIDs(unlockedWings),
 		UnlockedWeapons: parseItemIDs(unlockedWeapons),
 	})
+}
+
+func (service *api) handleRename(w http.ResponseWriter, r *http.Request) {
+	if !requirePost(w, r) {
+		return
+	}
+	var request renameRequest
+	if err := decodeJSON(w, r, &request); err != nil {
+		writeJSON(w, http.StatusBadRequest, renameResponse{Error: "Invalid JSON"})
+		return
+	}
+	nickname := strings.TrimSpace(request.Nickname)
+	if request.PlayerID <= 0 || !validNickname(nickname) {
+		writeJSON(w, http.StatusBadRequest, renameResponse{Error: "Nickname must be 3 to 12 characters"})
+		return
+	}
+
+	result, err := service.db.ExecContext(r.Context(),
+		`UPDATE players SET nickname = $1 WHERE id = $2`, nickname, request.PlayerID,
+	)
+	if err != nil {
+		var postgresError *pq.Error
+		if errors.As(err, &postgresError) && postgresError.Code == "23505" {
+			writeJSON(w, http.StatusConflict, renameResponse{Error: "Nickname already taken"})
+			return
+		}
+		log.Printf("rename player: %v", err)
+		writeJSON(w, http.StatusInternalServerError, renameResponse{Error: "Internal server error"})
+		return
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		log.Printf("rename rows affected: %v", err)
+		writeJSON(w, http.StatusInternalServerError, renameResponse{Error: "Internal server error"})
+		return
+	}
+	if affected == 0 {
+		writeJSON(w, http.StatusNotFound, renameResponse{Error: "Player not found"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, renameResponse{Success: true})
+}
+
+func validNickname(nickname string) bool {
+	length := utf8.RuneCountInString(nickname)
+	return length >= 3 && length <= 12
 }
 
 func (service *api) handleBuyWing(w http.ResponseWriter, r *http.Request) {

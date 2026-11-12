@@ -55,6 +55,9 @@ func _ready() -> void:
 	final_shards = 5 if player_won and player_is_mvp else 3 if player_won or player_is_mvp else 1
 	final_xp = kills * 10 + shells_destroyed * 25 + crystals_delivered * 25 + (50 if player_won else 20)
 	_grant_match_reward_to_server(final_shards)
+	if not rewards_committed:
+		MetaProgression.add_character_xp(CHARACTER_KEYS[selected_class], final_xp)
+		rewards_committed = true
 	_build_screen()
 	if player_won:
 		_play_victory_celebration()
@@ -338,9 +341,6 @@ func _open_replay() -> void:
 
 
 func _open_menu() -> void:
-	if not rewards_committed:
-		MetaProgression.add_character_xp(CHARACTER_KEYS[selected_class], final_xp)
-		rewards_committed = true
 	_change_scene(MENU_SCENE)
 
 
@@ -364,8 +364,10 @@ func _on_rewarded_ad_completed() -> void:
 		return
 	ad_in_progress = false
 	var previous_shards := final_shards
-	final_shards *= 2
+	var previous_xp := final_xp
 	final_xp *= 2
+	final_shards *= 2
+	MetaProgression.add_character_xp(CHARACTER_KEYS[selected_class], final_xp - previous_xp)
 	_grant_match_reward_to_server(final_shards - previous_shards)
 	rewards_doubled = true
 	_refresh_reward_ui()

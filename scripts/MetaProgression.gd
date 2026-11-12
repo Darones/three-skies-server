@@ -24,6 +24,7 @@ var unlocked_wings: Array[int] = []
 var unlocked_weapons: Array[int] = []
 var pending_purchase_type := ""
 var pending_purchase_id := 0
+var pending_level_shards := 0
 
 
 func _ready() -> void:
@@ -89,12 +90,16 @@ func add_character_xp(char_name: String, amount: int) -> void:
 		char_xps[char_name] = 0
 		return
 	char_xps[char_name] = int(char_xps[char_name]) + amount
+	var level_reward := 0
 	while int(char_levels[char_name]) < MAX_CHARACTER_LEVEL and int(char_xps[char_name]) >= get_xp_for_next_level(char_name):
 		char_xps[char_name] = int(char_xps[char_name]) - get_xp_for_next_level(char_name)
 		char_levels[char_name] = int(char_levels[char_name]) + 1
-		sky_shards += int(LEVEL_UP_SHARD_REWARDS.get(int(char_levels[char_name]), 0))
+		level_reward += int(LEVEL_UP_SHARD_REWARDS.get(int(char_levels[char_name]), 0))
 		just_leveled_up = true
 		just_leveled_up_character = char_name
+	if level_reward > 0:
+		if not grant_match_reward(level_reward):
+			pending_level_shards += level_reward
 	if int(char_levels[char_name]) >= MAX_CHARACTER_LEVEL:
 		char_xps[char_name] = 0
 
@@ -169,6 +174,10 @@ func _on_profile_loaded(success: bool, loaded_player_id: int, server_shards: int
 		var parsed_weapon_id := int(weapon_id)
 		if parsed_weapon_id == 1 and parsed_weapon_id not in unlocked_weapons:
 			unlocked_weapons.append(parsed_weapon_id)
+	if pending_level_shards > 0:
+		var pending := pending_level_shards
+		pending_level_shards = 0
+		grant_match_reward(pending)
 	profile_updated.emit()
 
 
