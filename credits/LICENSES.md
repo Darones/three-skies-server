@@ -38,6 +38,13 @@
 - Источник: https://soundza.com/license
 - Полный текст: `soundza_LICENSE.txt`
 
+### Meshy AI
+- Сервис: **Meshy AI**
+- Сайт: https://www.meshy.ai
+- Условия использования: https://www.meshy.ai/terms
+- 3D-модель легендарного лука сгенерирована в Meshy AI.
+- Текст-указание: `meshy_LICENSE.txt`
+
 ### Шрифт Philosopher
 - Автор: Jovanny Lemonad
 - Лицензия: **SIL Open Font License 1.1**

@@ -6,8 +6,8 @@ const FLOOR_DARK_TEX := "res://art/textures/obsidian_rock/img-6adcd384-a1c6-4d03
 const SLATE_DIR := "res://art/textures/slate_floor"
 const GLOWING_TREE_SCENE := preload("res://scenes/GlowingFantasyTree.tscn")
 const BUSH_SCENE: PackedScene = preload("res://assets/models/small_stylised_bush.glb")
-const BUSH_TARGET_HEIGHT := 4.3
-const BUSH_PAIR_HALF_SPACING := 1.8
+const BUSH_TARGET_HEIGHT := 3.6
+const BUSH_PAIR_HALF_SPACING := 1.5
 const NAVIGATION_SOURCE_GROUP := "navigation_mesh_source_group"
 
 const HALF_X := 27.0
@@ -786,7 +786,7 @@ static func _add_decor(decor: Node3D, mat_rock: StandardMaterial3D) -> void:
 
 	for i in 8:
 		var ang := TAU * float(i) / 8.0 + 0.22
-		var p := _shape_point(ang, 1.045)
+		var p := _shape_point(ang, 1.35)
 		var scale_factor := 0.95 + 0.25 * sin(float(i) * 1.7)
 		if p.y > 0.0:
 			_add_glowing_tree(decor, Vector3(p.x, -0.9, p.y), scale_factor, i)
@@ -795,21 +795,17 @@ static func _add_decor(decor: Node3D, mat_rock: StandardMaterial3D) -> void:
 
 
 	var rock_spots := [
-		[Vector3(-25.0, 0.3, 0.0), 1.7],
-		[Vector3(25.0, 0.3, 2.0), 1.5],
-		[Vector3(-6.0, 0.25, 18.0), 1.3],
-		[Vector3(7.0, 0.25, -18.0), 1.2],
-		[Vector3(-13.0, 0.25, 3.0), 0.9],
-		[Vector3(13.5, 0.25, -3.0), 0.85],
+		[Vector3(-34.0, 0.3, -22.0), 1.7],
+		[Vector3(34.0, 0.3, 22.0), 1.5],
+		[Vector3(-18.0, 0.25, 30.0), 1.3],
+		[Vector3(18.0, 0.25, -30.0), 1.2],
 	]
 	for spot in rock_spots:
 		_add_rock(decor, _place_inside(spot[0]), spot[1], mat_rock)
 
 	var crystal_spots := [
-		[Vector3(-18.0, 0.0, 13.0), Color(0.68, 0.34, 1.0), 2.2],
-		[Vector3(18.5, 0.0, 14.5), Color(0.68, 0.34, 1.0), 1.8],
-		[Vector3(-12.0, 0.0, -13.0), Color(0.5, 0.3, 1.0), 1.4],
-		[Vector3(12.0, 0.0, -13.0), Color(0.4, 0.75, 1.0), 1.2],
+		[Vector3(-36.0, 0.0, 0.0), Color(0.68, 0.34, 1.0), 2.0],
+		[Vector3(36.0, 0.0, 0.0), Color(0.4, 0.75, 1.0), 1.8],
 	]
 	for spot in crystal_spots:
 		_add_crystal_cluster(decor, _place_inside(spot[0]), spot[1], spot[2])
@@ -937,14 +933,10 @@ static func add_crystal_scatter(parent: Node3D) -> void:
 	if parent == null or parent.get_node_or_null("CrystalCluster_01") != null:
 		return
 	var spots := [
-		[Vector3(-18.0, 0.0, 13.0), Color(0.68, 0.34, 1.0), 2.0],
-		[Vector3(18.5, 0.0, 14.5), Color(0.68, 0.34, 1.0), 1.8],
-		[Vector3(-12.0, 0.0, -13.0), Color(0.5, 0.3, 1.0), 1.6],
-		[Vector3(12.0, 0.0, -13.0), Color(0.4, 0.75, 1.0), 1.4],
-		[Vector3(-8.0, 0.0, 0.0), Color(0.43, 0.72, 1.0), 1.7],
-		[Vector3(8.0, 0.0, 0.0), Color(0.75, 0.48, 1.0), 1.5],
-		[Vector3(0.0, 0.0, 15.0), Color(0.55, 0.35, 1.0), 1.6],
-		[Vector3(0.0, 0.0, -15.0), Color(0.48, 0.82, 1.0), 1.8],
+		[Vector3(-34.0, 0.0, 20.0), Color(0.68, 0.34, 1.0), 2.0],
+		[Vector3(34.0, 0.0, 20.0), Color(0.68, 0.34, 1.0), 1.8],
+		[Vector3(-34.0, 0.0, -20.0), Color(0.5, 0.3, 1.0), 1.6],
+		[Vector3(34.0, 0.0, -20.0), Color(0.4, 0.75, 1.0), 1.4],
 	]
 	for index in spots.size():
 		var spot: Array = spots[index]
@@ -958,10 +950,9 @@ static func add_bushes(arena: Node3D) -> void:
 	bushes.name = "Bushes"
 	arena.add_child(bushes)
 	var spots := [
-		Vector3(-21.0, 0.0, -5.0), Vector3(21.0, 0.0, -5.0),
-		Vector3(-21.0, 0.0, 5.0), Vector3(21.0, 0.0, 5.0),
-		Vector3(-10.0, 0.0, -17.0), Vector3(10.0, 0.0, -17.0),
-		Vector3(-10.0, 0.0, 17.0), Vector3(10.0, 0.0, 17.0),
+		Vector3(-30.0, 0.0, -10.0), Vector3(30.0, 0.0, -10.0),
+		Vector3(-30.0, 0.0, 10.0), Vector3(30.0, 0.0, 10.0),
+		Vector3(-12.0, 0.0, -28.0), Vector3(12.0, 0.0, 28.0),
 	]
 	for index in spots.size():
 		var zone := Area3D.new()
@@ -1091,9 +1082,8 @@ static func _transform_aabb(source: AABB, transform: Transform3D) -> AABB:
 
 static func _add_braziers(parent: Node3D, mat_gold: StandardMaterial3D, mat_rock: StandardMaterial3D) -> void:
 	var spots := [
-		Vector3(-7.0, 0.0, -13.0), Vector3(7.0, 0.0, -13.0),
-		Vector3(-7.0, 0.0, 13.0), Vector3(7.0, 0.0, 13.0),
-		Vector3(-15.0, 0.0, -4.0),
+		Vector3(-24.0, 0.0, -16.0), Vector3(24.0, 0.0, -16.0),
+		Vector3(-24.0, 0.0, 16.0), Vector3(24.0, 0.0, 16.0),
 	]
 	var flame_mat := glow_material(Color(1.0, 0.62, 0.24), 3.4)
 	for spot in spots:

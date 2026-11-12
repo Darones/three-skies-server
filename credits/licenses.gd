@@ -30,6 +30,11 @@ Soundza Game SFX Pack
 Коммерческое использование разрешено, указание автора не требуется.
 https://soundza.com/license
 
+Meshy AI
+3D-модель лука создана в Meshy AI
+https://www.meshy.ai
+Условия: https://www.meshy.ai/terms
+
 Шрифт Philosopher
 Автор: Jovanny Lemonad
 Лицензия: SIL Open Font License 1.1

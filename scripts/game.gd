@@ -32,8 +32,6 @@ const BASE_POSITION_Z := 28.0
 const BASE_DELIVERY_RADIUS := 6.0
 const SHOP_INTERACTION_RADIUS := 4.0
 const CRYSTAL_SCENE: PackedScene = preload("res://assets/models/detail-crystal.glb")
-const STATUE_SCENE: PackedScene = preload("res://assets/props/gothic_statue.glb")
-const BUST_SCENE: PackedScene = preload("res://assets/props/marble_bust_01.glb")
 const CRYSTAL_MODEL_SCALE := 2.7
 const CRYSTAL_EMISSION_COLOR := Color(0.16, 0.68, 1.0)
 const BOT_CALLSIGNS := ["ЛунныйЛис", "СеверныйВетер", "ТихийШторм", "Искра", "КаменныйПуть", "ЗвёздныйСлед", "СумрачныйКлинок", "БелыйВорон"]
@@ -191,7 +189,6 @@ func _ready() -> void:
 	_create_gold_fountain()
 	if arena_root != null:
 		_create_ambient_decor(arena_root)
-		_create_arena_props(arena_root)
 	_setup_audio()
 	_prepare_effect_pools()
 	hud = preload("res://scripts/hud.gd").new()
@@ -424,78 +421,6 @@ func _create_fireflies(parent: Node3D, position: Vector3, radius: float, color: 
 	dot_material.emission_energy_multiplier = 2.0
 	particles.draw_pass_1 = dot
 	parent.add_child(particles)
-
-
-func _create_arena_props(arena_root: Node3D) -> void:
-	if arena_root.get_node_or_null("ArenaProps") != null:
-		return
-	var props := Node3D.new()
-	props.name = "ArenaProps"
-	arena_root.add_child(props)
-	var statue_positions: Array[Vector3] = [
-		Vector3(44.0, 0.0, 28.0),
-		Vector3(-44.0, 0.0, 28.0),
-		Vector3(44.0, 0.0, -28.0),
-		Vector3(-44.0, 0.0, -28.0),
-	]
-	for position in statue_positions:
-		_spawn_statue(props, position)
-	var bust_positions: Array[Vector3] = [
-		Vector3(-30.0, 0.0, 24.0),
-		Vector3(30.0, 0.0, 24.0),
-		Vector3(-30.0, 0.0, -24.0),
-		Vector3(30.0, 0.0, -24.0),
-	]
-	for position in bust_positions:
-		_spawn_bust(props, position)
-
-
-func _spawn_statue(parent: Node3D, position: Vector3) -> void:
-	var model := STATUE_SCENE.instantiate() as Node3D
-	model.name = "GothicStatue"
-	var scale_factor := 3.4 / 1.74
-	model.scale = Vector3.ONE * scale_factor
-	model.position = position
-	model.rotation.y = atan2(-position.x, -position.z)
-	parent.add_child(model)
-	_add_prop_collision(parent, position, 0.75 * scale_factor, 2.6)
-
-
-func _spawn_bust(parent: Node3D, position: Vector3) -> void:
-	var pedestal_height := 1.15
-	var pedestal := MeshInstance3D.new()
-	pedestal.name = "BustPedestal"
-	var pedestal_mesh := CylinderMesh.new()
-	pedestal_mesh.top_radius = 0.46
-	pedestal_mesh.bottom_radius = 0.58
-	pedestal_mesh.height = pedestal_height
-	pedestal.mesh = pedestal_mesh
-	pedestal.material_override = ArenaKit.marble_material()
-	pedestal.position = position + Vector3(0.0, pedestal_height * 0.5, 0.0)
-	parent.add_child(pedestal)
-	var model := BUST_SCENE.instantiate() as Node3D
-	model.name = "MarbleBust"
-	var scale_factor := 1.2 / 0.515
-	model.scale = Vector3.ONE * scale_factor
-	model.position = position + Vector3(0.0, pedestal_height, 0.0)
-	model.rotation.y = atan2(-position.x, -position.z)
-	parent.add_child(model)
-	_add_prop_collision(parent, position, 0.62, pedestal_height + 1.0)
-
-
-func _add_prop_collision(parent: Node3D, position: Vector3, radius: float, height: float) -> void:
-	var body := StaticBody3D.new()
-	body.name = "PropCollision"
-	body.collision_layer = 1
-	body.collision_mask = 1
-	body.position = position + Vector3(0.0, height * 0.5, 0.0)
-	var shape := CollisionShape3D.new()
-	var cylinder := CylinderShape3D.new()
-	cylinder.radius = radius
-	cylinder.height = height
-	shape.shape = cylinder
-	body.add_child(shape)
-	parent.add_child(body)
 
 
 func _create_gold_fountain() -> void:
