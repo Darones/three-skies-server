@@ -743,15 +743,9 @@ static func _add_base(bases: Node3D, z: float, color: Color, mat_rock: StandardM
 	platform.position = Vector3(0.0, 0.09, 0.0)
 	base.add_child(platform)
 
-	var ring := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = 3.9
-	torus.outer_radius = 4.2
-	torus.rings = 48
-	torus.ring_segments = 10
-	ring.mesh = torus
-	ring.material_override = glow_material(color, 2.6)
-	ring.position = Vector3(0.0, 0.22, 0.0)
+	var ring := FxUtils.soft_ground_glow(8.4, Color(color.r, color.g, color.b, 0.5), 0.9, 0.34, 0.5)
+	ring.name = "BaseGlow"
+	ring.position = Vector3(0.0, 0.2, 0.0)
 	base.add_child(ring)
 
 

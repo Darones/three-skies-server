@@ -181,6 +181,7 @@ func _ready() -> void:
 	if arena_root != null:
 		ArenaKit.ensure_perimeter_ridge(arena_root)
 		ArenaKit.ensure_arena_features(arena_root)
+		_soften_baked_base_rings()
 	_create_base_shield_domes()
 	_create_fog_of_war()
 	_create_shop_stall()
@@ -209,6 +210,29 @@ func _ready() -> void:
 			call_deferred("start_match", selected_class, selected_team)
 	if network_play:
 		_setup_network_play()
+
+
+func _soften_baked_base_rings() -> void:
+	var base_configs := [
+		{"name": "LightBase", "color": Color(0.55, 0.85, 1.0)},
+		{"name": "DarkBase", "color": Color(0.68, 0.32, 1.0)},
+	]
+	for config in base_configs:
+		var base := get_node_or_null("Arena/Bases/%s" % String(config["name"])) as Node3D
+		if base == null:
+			continue
+		for child in base.get_children():
+			if not child is MeshInstance3D:
+				continue
+			var mesh_instance := child as MeshInstance3D
+			if not mesh_instance.mesh is TorusMesh:
+				continue
+			var color: Color = config["color"]
+			var glow := FxUtils.soft_ground_glow(8.4, Color(color.r, color.g, color.b, 0.5), 0.9, 0.38, 0.5)
+			glow.name = "BaseGlow"
+			glow.position = mesh_instance.position
+			base.add_child(glow)
+			mesh_instance.queue_free()
 
 
 func _create_base_shield_domes() -> void:
@@ -773,22 +797,11 @@ func _prepare_effect_pools() -> void:
 		burst_pool.append({"node": particles, "material": material, "count": int(amount), "busy": false, "remaining": 0.0})
 
 	for index in VFX_POOL_SIZE:
-		var ring := MeshInstance3D.new()
+		var ring := FxUtils.soft_ground_glow(1.0, Color.WHITE, 0.75, 0.7, 0.35)
 		ring.name = "PooledRing%d" % index
-		var torus := TorusMesh.new()
-		torus.inner_radius = 0.8
-		torus.outer_radius = 1.0
-		torus.rings = 40
-		torus.ring_segments = 8
-		ring.mesh = torus
-		var material := StandardMaterial3D.new()
-		material.emission_enabled = true
-		material.emission_energy_multiplier = 3.0
-		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		ring.material_override = material
 		ring.visible = false
 		add_child(ring)
+		var material := ring.material_override as ShaderMaterial
 		ring_pool.append({"node": ring, "material": material, "busy": false, "elapsed": 0.0, "duration": 0.0, "start_scale": Vector3.ONE, "target_scale": Vector3.ONE, "fade": false, "alpha": 0.8})
 
 	var root_mesh := CylinderMesh.new()
@@ -893,15 +906,12 @@ func _update_effect_pools(delta: float) -> void:
 		var duration := maxf(float(entry["duration"]), 0.001)
 		var progress := clampf(float(entry["elapsed"]) / duration, 0.0, 1.0)
 		var ring := entry["node"] as MeshInstance3D
-		var material := entry["material"] as StandardMaterial3D
+		var material := entry["material"] as ShaderMaterial
 		var start_scale: Vector3 = entry["start_scale"]
 		var target_scale: Vector3 = entry["target_scale"]
 		ring.scale = start_scale.lerp(target_scale, progress)
-		if bool(entry["fade"]):
-			var tint := material.albedo_color
-			tint.a = float(entry["alpha"]) * (1.0 - progress)
-			material.albedo_color = tint
-			material.emission_energy_multiplier = 3.0 * (1.0 - progress)
+		if bool(entry["fade"]) and material != null:
+			material.set_shader_parameter("intensity", float(entry["alpha"]) * (1.0 - progress))
 		if progress >= 1.0:
 			ring.visible = false
 			entry["busy"] = false
@@ -974,12 +984,12 @@ func _activate_ring(pos: Vector3, color: Color, duration: float, start_scale: Ve
 		if bool(entry["busy"]):
 			continue
 		var ring := entry["node"] as MeshInstance3D
-		var material := entry["material"] as StandardMaterial3D
+		var material := entry["material"] as ShaderMaterial
 		var tint := color
 		tint.a = alpha
-		material.albedo_color = tint
-		material.emission = color
-		material.emission_energy_multiplier = 3.0
+		if material != null:
+			material.set_shader_parameter("glow_color", tint)
+			material.set_shader_parameter("intensity", alpha)
 		ring.global_position = pos
 		ring.scale = start_scale
 		ring.visible = true
@@ -992,6 +1002,106 @@ func _activate_ring(pos: Vector3, color: Color, duration: float, start_scale: Ve
 		entry["alpha"] = alpha
 		ring_pool[index] = entry
 		return
+
+
+func lightning_strike_fx(target: Vector3, bolt_color := Color(0.55, 0.85, 1.0)) -> void:
+	var root := Node3D.new()
+	root.name = "LightningStrike"
+	add_child(root)
+	var start := target + Vector3(randf_range(-1.2, 1.2), 15.0, randf_range(-1.2, 1.2))
+	var current := start
+	var segments := 11
+	for i in range(segments):
+		var t := float(i + 1) / float(segments)
+		var next := start.lerp(target, t) + Vector3(randf_range(-0.8, 0.8), 0.0, randf_range(-0.8, 0.8)) * (1.0 - t * 0.65)
+		if i == segments - 1:
+			next = target
+		_add_lightning_segment(root, current, next, bolt_color, 0.05)
+		if i == 4 or i == 7:
+			var branch_end := current + Vector3(randf_range(-1.6, 1.6), -randf_range(0.8, 1.8), randf_range(-1.6, 1.6))
+			_add_lightning_segment(root, current, branch_end, bolt_color, 0.032)
+		current = next
+	var flash := OmniLight3D.new()
+	flash.light_color = bolt_color
+	flash.light_energy = 7.0
+	flash.omni_range = 11.0
+	flash.position = target + Vector3(0.0, 1.4, 0.0)
+	root.add_child(flash)
+	var flash_tween := create_tween()
+	flash_tween.tween_property(flash, "light_energy", 0.0, 0.35)
+	var flash_sphere := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.55
+	sphere.height = 1.1
+	flash_sphere.mesh = sphere
+	var flash_material := StandardMaterial3D.new()
+	flash_material.albedo_color = Color(bolt_color.r, bolt_color.g, bolt_color.b, 0.75)
+	flash_material.emission_enabled = true
+	flash_material.emission = bolt_color
+	flash_material.emission_energy_multiplier = 4.5
+	flash_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	flash_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	flash_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	flash_material.no_depth_test = true
+	flash_sphere.material_override = flash_material
+	flash_sphere.position = target + Vector3(0.0, 0.7, 0.0)
+	root.add_child(flash_sphere)
+	var sphere_tween := create_tween()
+	sphere_tween.tween_property(flash_sphere, "scale", Vector3.ONE * 2.4, 0.28)
+	sphere_tween.parallel().tween_property(flash_material, "albedo_color", Color(bolt_color.r, bolt_color.g, bolt_color.b, 0.0), 0.28)
+	burst(target + Vector3(0.0, 0.5, 0.0), bolt_color, 22)
+	_activate_ring(Vector3(target.x, 0.22, target.z), bolt_color, 0.38, Vector3.ONE * 0.35, Vector3.ONE * 3.2, true, 0.85)
+	get_tree().create_timer(0.45).timeout.connect(root.queue_free)
+
+
+func _add_lightning_segment(parent: Node3D, from: Vector3, to: Vector3, color: Color, thickness: float) -> void:
+	var diff := to - from
+	var length := diff.length()
+	if length < 0.001:
+		return
+	var seg := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = thickness
+	cyl.bottom_radius = thickness
+	cyl.height = length
+	cyl.radial_segments = 4
+	seg.mesh = cyl
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.emission_enabled = true
+	material.emission = color
+	material.emission_energy_multiplier = 5.5
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.no_depth_test = true
+	seg.material_override = material
+	var y_axis := diff.normalized()
+	var x_axis := y_axis.cross(Vector3.UP)
+	if x_axis.length() < 0.01:
+		x_axis = y_axis.cross(Vector3.RIGHT)
+	x_axis = x_axis.normalized()
+	var z_axis := x_axis.cross(y_axis).normalized()
+	seg.transform = Transform3D(Basis(x_axis, y_axis, z_axis), (from + to) * 0.5)
+	parent.add_child(seg)
+	var halo := MeshInstance3D.new()
+	var halo_cyl := CylinderMesh.new()
+	halo_cyl.top_radius = thickness * 3.4
+	halo_cyl.bottom_radius = thickness * 3.4
+	halo_cyl.height = length
+	halo_cyl.radial_segments = 4
+	halo.mesh = halo_cyl
+	var halo_material := StandardMaterial3D.new()
+	halo_material.albedo_color = Color(color.r, color.g, color.b, 0.22)
+	halo_material.emission_enabled = true
+	halo_material.emission = color
+	halo_material.emission_energy_multiplier = 2.0
+	halo_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	halo_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	halo_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	halo_material.no_depth_test = true
+	halo.material_override = halo_material
+	halo.transform = seg.transform
+	parent.add_child(halo)
 
 
 func _activate_shell_beam(pos: Vector3, beam_color := Color(0.85, 0.7, 1.0, 0.95)) -> void:
@@ -1586,21 +1696,8 @@ func spawn_crystal(pos: Vector3, spawn_on_pedestal := false) -> void:
 	light.light_energy = 3.0
 	light.omni_range = 9.0
 	c.add_child(light)
-	var ring := MeshInstance3D.new()
+	var ring := FxUtils.soft_ground_glow(2.6, Color(0.7, 0.95, 1.0, 0.55), 0.35, 0.42)
 	ring.name = "CrystalRing"
-	var torus := TorusMesh.new()
-	torus.inner_radius = 0.9
-	torus.outer_radius = 1.05
-	torus.rings = 32
-	torus.ring_segments = 8
-	ring.mesh = torus
-	var ring_mat := StandardMaterial3D.new()
-	ring_mat.albedo_color = Color(0.7, 0.95, 1.0)
-	ring_mat.emission_enabled = true
-	ring_mat.emission = Color(0.7, 0.95, 1.0)
-	ring_mat.emission_energy_multiplier = 2.2
-	ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	ring.material_override = ring_mat
 	ring.position.y = -0.6
 	c.add_child(ring)
 	var drop_position := Vector3.ZERO if spawn_on_pedestal else _find_crystal_drop_position(pos)
@@ -2306,22 +2403,32 @@ func mage_storm_tick(mage: HeroUnit, radius: float, damage: float) -> void:
 	if state != "live" or mage.dead:
 		return
 	play_sfx("thunder", -10.0)
+	var struck := false
 	for enemy in enemies_in_radius(mage.global_position, radius, mage.team):
+		lightning_strike_fx(enemy.global_position)
+		struck = true
 		_activate_shell_beam(enemy.global_position, Color(0.38, 0.82, 1.0, 0.95))
 		mage.spawn_ability_vfx(2, enemy.global_position + Vector3(0.0, 0.1, 0.0))
 		var rolled_damage := mage.roll_ultimate_damage(damage)
 		enemy.take_damage(mage._outgoing_damage(rolled_damage) * mage.get_blessing_damage_multiplier(), mage, "magic")
 	if mage.is_player:
 		for remote_enemy in network_enemies_in_radius(mage.global_position, radius, mage.team):
+			lightning_strike_fx(remote_enemy.global_position)
+			struck = true
 			_activate_shell_beam(remote_enemy.global_position, Color(0.38, 0.82, 1.0, 0.95))
 			mage.spawn_ability_vfx(2, remote_enemy.global_position + Vector3(0.0, 0.1, 0.0))
 			var network_damage := mage.roll_ultimate_damage(damage)
 			remote_enemy.take_damage(mage._outgoing_damage(network_damage) * mage.get_blessing_damage_multiplier(), mage, "magic", "ult_lightning_storm")
+	if not struck:
+		var angle := randf() * TAU
+		var distance := randf_range(2.0, radius * 0.75)
+		lightning_strike_fx(mage.global_position + Vector3(cos(angle) * distance, 0.0, sin(angle) * distance))
 
 
 func shell_bolt(pos: Vector3, radius: float, damage: float) -> void:
 	play_sfx("thunder", -2.0)
 	shake(0.7)
+	lightning_strike_fx(pos, Color(0.85, 0.65, 1.0))
 	_activate_shell_beam(pos)
 	burst(pos + Vector3(0.0, 0.6, 0.0), Color(0.85, 0.65, 1.0), 34)
 	ring_fx(Vector3(pos.x, 0.2, pos.z), Color(0.85, 0.65, 1.0), radius)

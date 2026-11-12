@@ -13,6 +13,7 @@ const DIRECT_DAMAGE_MAX_MULTIPLIER := 1.25
 const CRITICAL_CHANCE := 0.05
 const CRITICAL_DAMAGE_MULTIPLIER := 2.0
 const HEALTH_BAR_FILL_WIDTH := 1.18
+const GROUND_Y_OFFSET := -0.7
 const HEALTH_REGEN_PER_SECOND := 10.0
 const BASE_REGEN_RADIUS := 6.5
 const BASE_SHIELD_RADIUS := 4.9
@@ -209,7 +210,7 @@ var crit_cast_particle_restores: Array = []
 var crit_cast_particles: CPUParticles3D = null
 var crit_cast_light: OmniLight3D = null
 var blessing_timer := 0.0
-var blessing_ring: MeshInstance3D = null
+var blessing_ring: Node3D = null
 
 var ai_goal := Vector3.ZERO
 var navigation_agent: NavigationAgent3D = null
@@ -439,25 +440,12 @@ func _build_body() -> void:
 	visual.name = "Visual"
 	add_child(visual)
 
-	var ring := MeshInstance3D.new()
-	ring.name = "TeamRing"
-	var torus := TorusMesh.new()
-	torus.inner_radius = 0.76
-	torus.outer_radius = 0.92
-	torus.rings = 40
-	torus.ring_segments = 10
-	ring.mesh = torus
-	var ring_mat := StandardMaterial3D.new()
 	var local_player: HeroUnit = game.get("player") as HeroUnit if game != null else null
 	var is_ally := is_player or (local_player != null and local_player.team == team)
 	var ring_color := Color(0.18, 1.0, 0.52) if is_ally else Color(1.0, 0.2, 0.16)
-	ring_mat.albedo_color = ring_color
-	ring_mat.emission_enabled = true
-	ring_mat.emission = ring_color
-	ring_mat.emission_energy_multiplier = 2.8
-	ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	ring.material_override = ring_mat
-	ring.position = Vector3(0.0, 0.12, 0.0)
+	var ring := FxUtils.soft_ground_glow(2.4, ring_color, 0.0, 0.42)
+	ring.name = "TeamRing"
+	ring.position = Vector3(0.0, GROUND_Y_OFFSET, 0.0)
 	visual.add_child(ring)
 
 	_build_health_bar()
@@ -2235,48 +2223,19 @@ func use_ability(index: int, manual := true) -> bool:
 
 func _set_lightning_storm_ring(active: bool) -> void:
 	if lightning_storm_ring == null:
-		lightning_storm_ring = MeshInstance3D.new()
+		lightning_storm_ring = FxUtils.soft_ground_glow(MAGE_STORM_RADIUS * 2.0, Color(0.28, 0.76, 1.0, 0.55), 0.85, 0.28, 0.45)
 		lightning_storm_ring.name = "LightningStormRange"
-		var torus := TorusMesh.new()
-		torus.inner_radius = 0.97
-		torus.outer_radius = 1.0
-		torus.rings = 48
-		torus.ring_segments = 8
-		lightning_storm_ring.mesh = torus
-		var material := StandardMaterial3D.new()
-		material.albedo_color = Color(0.28, 0.76, 1.0, 0.48)
-		material.emission_enabled = true
-		material.emission = Color(0.2, 0.65, 1.0)
-		material.emission_energy_multiplier = 1.6
-		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		lightning_storm_ring.material_override = material
-		lightning_storm_ring.scale = Vector3(MAGE_STORM_RADIUS, 1.0, MAGE_STORM_RADIUS)
-		lightning_storm_ring.position.y = 0.14
+		lightning_storm_ring.position.y = GROUND_Y_OFFSET
 		add_child(lightning_storm_ring)
 	lightning_storm_ring.visible = active
 
 
 func _set_crit_buff_ring(active: bool) -> void:
 	if crit_buff_ring == null:
-		crit_buff_ring = MeshInstance3D.new()
-		crit_buff_ring.name = "CriticalBuffRing"
-		var torus := TorusMesh.new()
-		torus.inner_radius = 0.72
-		torus.outer_radius = 0.84
-		torus.rings = 32
-		torus.ring_segments = 8
-		crit_buff_ring.mesh = torus
 		var ring_color := Color(1.0, 0.28, 0.2) if hero_class == Cls.WARRIOR else Color(0.72, 1.0, 0.35)
-		var material := StandardMaterial3D.new()
-		material.albedo_color = Color(ring_color.r, ring_color.g, ring_color.b, 0.9)
-		material.emission_enabled = true
-		material.emission = ring_color
-		material.emission_energy_multiplier = 2.2
-		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		crit_buff_ring.material_override = material
-		crit_buff_ring.position.y = 0.18
+		crit_buff_ring = FxUtils.soft_ground_glow(1.9, Color(ring_color.r, ring_color.g, ring_color.b, 0.9), 0.0, 0.5)
+		crit_buff_ring.name = "CriticalBuffRing"
+		crit_buff_ring.position.y = GROUND_Y_OFFSET
 		visual.add_child(crit_buff_ring)
 	crit_buff_ring.visible = active
 
@@ -2505,24 +2464,27 @@ func apply_blessing(duration: float) -> void:
 	blessing_timer = maxf(blessing_timer, duration)
 	if blessing_ring != null and is_instance_valid(blessing_ring):
 		return
-	var ring := MeshInstance3D.new()
-	ring.name = "GoldenBlessingRing"
-	var torus := TorusMesh.new()
-	torus.inner_radius = 0.98
-	torus.outer_radius = 1.1
-	torus.rings = 32
-	torus.ring_segments = 8
-	ring.mesh = torus
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(1.0, 0.78, 0.18)
-	material.emission_enabled = true
-	material.emission = Color(1.0, 0.68, 0.12)
-	material.emission_energy_multiplier = 2.6
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	ring.material_override = material
-	ring.position.y = 0.16
-	visual.add_child(ring)
-	blessing_ring = ring
+	var root := Node3D.new()
+	root.name = "GoldenBlessingRing"
+	root.position.y = GROUND_Y_OFFSET + 0.06
+	var glow := OmniLight3D.new()
+	glow.name = "Glow"
+	glow.light_color = Color(1.0, 0.72, 0.2)
+	glow.light_energy = 3.2
+	glow.omni_range = 6.0
+	glow.position = Vector3(0.0, 0.6, 0.0)
+	root.add_child(glow)
+	var banner := Sprite3D.new()
+	banner.name = "Banner"
+	banner.texture = preload("res://ui/fx/blessing_banner.png")
+	banner.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	banner.pixel_size = 0.005
+	banner.position = Vector3(1.2, 2.0, 0.0)
+	banner.modulate = Color(1.0, 0.95, 0.75, 0.9)
+	banner.no_depth_test = true
+	root.add_child(banner)
+	visual.add_child(root)
+	blessing_ring = root
 
 
 func _update_blessing(delta: float) -> void:
@@ -2530,7 +2492,7 @@ func _update_blessing(delta: float) -> void:
 		return
 	blessing_timer = maxf(0.0, blessing_timer - delta)
 	if blessing_ring != null and is_instance_valid(blessing_ring):
-		var pulse := 1.0 + sin(float(Time.get_ticks_msec()) * 0.008) * 0.08
+		var pulse := 1.0 + sin(float(Time.get_ticks_msec()) * 0.008) * 0.06
 		blessing_ring.scale = Vector3.ONE * pulse
 	if blessing_timer == 0.0 and blessing_ring != null:
 		blessing_ring.queue_free()
