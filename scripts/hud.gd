@@ -1,23 +1,19 @@
 extends CanvasLayer
 
 class AbilityCooldownWipe extends Control:
-	var progress := 0.0
+	var mask_material: ShaderMaterial
+
+	func _init() -> void:
+		mask_material = ShaderMaterial.new()
+		mask_material.shader = preload("res://shaders/ability_cooldown_mask.gdshader")
+		material = mask_material
 
 	func set_progress(value: float) -> void:
-		progress = clampf(value, 0.0, 1.0)
+		mask_material.set_shader_parameter("progress", clampf(value, 0.0, 1.0))
 		queue_redraw()
 
 	func _draw() -> void:
-		if progress <= 0.0:
-			return
-		var center := size * 0.5
-		var radius := minf(size.x, size.y) * 0.46
-		var segments := maxi(3, ceili(48.0 * progress))
-		var points := PackedVector2Array([center])
-		for segment in range(segments + 1):
-			var angle := -PI * 0.5 + TAU * progress * float(segment) / float(segments)
-			points.append(center + Vector2(cos(angle), sin(angle)) * radius)
-		draw_colored_polygon(points, Color(0.92, 0.67, 0.2, 0.94))
+		draw_rect(Rect2(Vector2.ZERO, size), Color.WHITE)
 
 var game: Node
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
@@ -658,6 +654,9 @@ func _build_abilities(root: Control) -> void:
 		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		icon_rect.texture = ABILITY_ICONS[0][i]
+		var icon_material := ShaderMaterial.new()
+		icon_material.shader = preload("res://shaders/ability_icon_mask.gdshader")
+		icon_rect.material = icon_material
 		icon_rect.z_index = 0
 		button.add_child(icon_rect)
 		var key_label := _make_label(str(i + 1), 14, Color.WHITE)
@@ -688,13 +687,13 @@ func _build_abilities(root: Control) -> void:
 		ability_name_labels.append(name_label)
 		ability_key_labels.append(key_label)
 
-func _ability_style(is_ready: bool, hovered: bool) -> StyleBoxFlat:
+func _ability_style(_is_ready: bool, hovered: bool) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	var base_color := Color(0.68, 0.43, 0.12) if is_ready else Color(0.14, 0.1, 0.21)
-	style.bg_color = base_color.lightened(0.08) if hovered else base_color
-	style.border_color = Color(1.0, 0.79, 0.4) if is_ready else Color(0.48, 0.39, 0.62)
+	var base_color := Color(0.075, 0.09, 0.13)
+	style.bg_color = base_color.lightened(0.12) if hovered else base_color
+	style.border_color = Color(0.45, 0.55, 0.7, 0.9)
 	style.set_border_width_all(2)
-	style.set_corner_radius_all(44 if OS.has_feature("mobile") else 42)
+	style.set_corner_radius_all(14 if OS.has_feature("mobile") else 12)
 	style.content_margin_left = 2.0
 	style.content_margin_right = 2.0
 	style.content_margin_top = 2.0
@@ -724,8 +723,6 @@ func _refresh_ability_button_style(index: int) -> void:
 		if index == tutorial_ability_index:
 			style.border_color = Color(1.0, 0.9, 0.48, 1.0)
 			style.set_border_width_all(5)
-			if ability_ready[index]:
-				style.bg_color = Color(0.82, 0.57, 0.16, 1.0)
 		ability_buttons[index].add_theme_stylebox_override(style_name, style)
 
 

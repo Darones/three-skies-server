@@ -6,6 +6,11 @@ const HERO_ART := [
 	"res://ui/portraits/fairy_portrait.png",
 ]
 const HERO_NAMES := ["Воин", "Маг", "Фея"]
+const CLASS_FRAME_COLORS := {
+	0: Color(0.95, 0.78, 0.36),
+	1: Color(0.45, 0.78, 1.0),
+	2: Color(0.55, 0.9, 0.5),
+}
 const SAVE_PATH := "user://lobby.cfg"
 const TUTORIAL_SAVE_PATH := "user://tutorial.cfg"
 const GOLD := Color(0.95, 0.76, 0.38)
@@ -19,6 +24,9 @@ var selected_class := 0
 var slot_classes: Array[int] = [HeroUnit.Cls.MAGE, HeroUnit.Cls.WARRIOR, HeroUnit.Cls.FAIRY]
 var card_images: Array[TextureRect] = []
 var card_names: Array[Label] = []
+var card_class_labels: Array[Label] = []
+var card_footers: Array[Panel] = []
+var card_portrait_materials: Array[ShaderMaterial] = []
 var cards: Array[Control] = []
 var avatar: TextureRect
 var profile_name_label: Label
@@ -204,26 +212,21 @@ func _layout_lobby_logo() -> void:
 	if lobby_logo == null or lobby_logo.texture == null:
 		return
 	var viewport_size := get_viewport_rect().size
-	var card_left := viewport_size.x * 0.5 - 392.0
-	var available_width := maxf(0.0, card_left - 48.0)
+	var card_top := viewport_size.y * 0.5 - 173.0
+	var available_height := maxf(0.0, card_top - 16.0)
 	var aspect_ratio := lobby_logo.texture.get_size().x / maxf(1.0, lobby_logo.texture.get_size().y)
-	var display_width := minf(available_width, minf(340.0, viewport_size.x * 0.3))
-	if display_width < 140.0:
-		lobby_logo.visible = false
-		return
+	var display_height := minf(available_height, minf(200.0, viewport_size.y * 0.44))
+	var display_width := minf(500.0, minf(viewport_size.x * 0.9, display_height * aspect_ratio))
+	display_height = display_width / aspect_ratio
 	lobby_logo.visible = true
-	var display_height := display_width / aspect_ratio
-	if display_height > viewport_size.y * 0.42:
-		display_height = viewport_size.y * 0.42
-		display_width = display_height * aspect_ratio
-	lobby_logo.anchor_left = 0.0
-	lobby_logo.anchor_right = 0.0
-	lobby_logo.anchor_top = 0.5
-	lobby_logo.anchor_bottom = 0.5
-	lobby_logo.offset_left = 24.0
-	lobby_logo.offset_right = 24.0 + display_width
-	lobby_logo.offset_top = -display_height * 0.5 - 20.0
-	lobby_logo.offset_bottom = display_height * 0.5 - 20.0
+	lobby_logo.anchor_left = 0.5
+	lobby_logo.anchor_right = 0.5
+	lobby_logo.anchor_top = 0.0
+	lobby_logo.anchor_bottom = 0.0
+	lobby_logo.offset_left = -display_width * 0.5
+	lobby_logo.offset_top = 8.0
+	lobby_logo.offset_right = display_width * 0.5
+	lobby_logo.offset_bottom = 8.0 + display_height
 
 
 func _build_player_profile() -> void:
@@ -879,6 +882,9 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 	card.anchor_bottom = 0.5
 	var card_width := 330.0 if is_center else 210.0
 	var card_height := 430.0 if is_center else 280.0
+	var footer_height := 52.0 if is_center else 44.0
+	var inset := 8.0
+	var frame_color: Color = CLASS_FRAME_COLORS.get(slot_classes[slot], GOLD)
 	card.custom_minimum_size = Vector2(card_width, card_height)
 	if is_center:
 		card.offset_left = -165.0
@@ -886,6 +892,7 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 		card.offset_right = 165.0
 		card.offset_bottom = 265.0
 		card.z_index = 2
+		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	else:
 		var side_offset := -392.0 if slot == 0 else 182.0
 		card.offset_left = side_offset
@@ -893,52 +900,75 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 		card.offset_right = side_offset + 210.0
 		card.offset_bottom = 160.0
 		card.z_index = 1
-	if is_center:
-		card.add_theme_stylebox_override("normal", _card_style(true, false))
-		card.add_theme_stylebox_override("hover", _card_style(true, false))
-		card.add_theme_stylebox_override("pressed", _card_style(true, false))
-		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	else:
-		card.add_theme_stylebox_override("normal", _card_style(false, false))
-		card.add_theme_stylebox_override("hover", _card_style(false, true))
-		card.add_theme_stylebox_override("pressed", _card_style(false, true))
+	card.add_theme_stylebox_override("normal", _card_style(is_center, false, frame_color))
+	card.add_theme_stylebox_override("hover", _card_style(is_center, not is_center, frame_color))
+	card.add_theme_stylebox_override("pressed", _card_style(is_center, not is_center, frame_color))
 	add_child(card)
 
 	var image := TextureRect.new()
 	image.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	image.offset_left = inset
+	image.offset_top = inset
+	image.offset_right = -inset
+	image.offset_bottom = -(inset + footer_height)
 	image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	image.stretch_mode = TextureRect.STRETCH_SCALE
 	image.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var portrait_material := ShaderMaterial.new()
+	portrait_material.shader = preload("res://shaders/card_portrait.gdshader")
+	portrait_material.set_shader_parameter("rect_size", Vector2(card_width - inset * 2.0, card_height - inset * 2.0 - footer_height))
+	portrait_material.set_shader_parameter("corner_px", 14.0 if is_center else 11.0)
+	image.material = portrait_material
 	card.add_child(image)
 
-	var title_backing := ColorRect.new()
-	title_backing.color = Color(0.02, 0.028, 0.05, 0.84)
-	title_backing.anchor_top = 1.0
-	title_backing.anchor_right = 1.0
-	title_backing.anchor_bottom = 1.0
-	title_backing.offset_left = 2.0
-	title_backing.offset_top = -50.0 if is_center else -40.0
-	title_backing.offset_right = -2.0
-	title_backing.offset_bottom = -2.0
-	title_backing.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card.add_child(title_backing)
+	var footer := Panel.new()
+	footer.name = "HeroFooter%d" % slot
+	footer.anchor_left = 0.0
+	footer.anchor_top = 1.0
+	footer.anchor_right = 1.0
+	footer.anchor_bottom = 1.0
+	footer.offset_left = inset
+	footer.offset_top = -(inset + footer_height)
+	footer.offset_right = -inset
+	footer.offset_bottom = -inset
+	footer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	footer.add_theme_stylebox_override("panel", _card_footer_style(frame_color))
+	card.add_child(footer)
 
-	var name_label := _make_label("", 29 if is_center else 21, PALE)
+	var name_label := _make_label("", 23 if is_center else 17, PALE)
 	name_label.name = "HeroName%d" % slot
-	name_label.anchor_top = 1.0
+	name_label.anchor_left = 0.0
+	name_label.anchor_top = 0.0
 	name_label.anchor_right = 1.0
-	name_label.anchor_bottom = 1.0
-	name_label.offset_left = 8.0
-	name_label.offset_top = -48.0 if is_center else -38.0
-	name_label.offset_right = -8.0
-	name_label.offset_bottom = -4.0
+	name_label.anchor_bottom = 0.62
+	name_label.offset_left = 4.0
+	name_label.offset_right = -4.0
+	name_label.offset_top = 2.0
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card.add_child(name_label)
+	footer.add_child(name_label)
+
+	var class_label := _make_label("", 11 if is_center else 9, frame_color)
+	class_label.name = "HeroClass%d" % slot
+	class_label.anchor_left = 0.0
+	class_label.anchor_top = 0.62
+	class_label.anchor_right = 1.0
+	class_label.anchor_bottom = 1.0
+	class_label.offset_left = 4.0
+	class_label.offset_right = -4.0
+	class_label.offset_bottom = -2.0
+	class_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	class_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	class_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	footer.add_child(class_label)
+
 	cards.append(card)
 	card_images.append(image)
 	card_names.append(name_label)
+	card_class_labels.append(class_label)
+	card_footers.append(footer)
+	card_portrait_materials.append(portrait_material)
 
 
 func _build_actions() -> void:
@@ -1034,14 +1064,23 @@ func _refresh_selection() -> void:
 	slot_classes[2] = side_classes[1]
 	for slot in range(3):
 		var hero_class: int = slot_classes[slot]
-		card_images[slot].texture = load(HERO_ART[hero_class]) as Texture2D
+		var frame_color: Color = CLASS_FRAME_COLORS.get(hero_class, GOLD)
+		var texture := load(HERO_ART[hero_class]) as Texture2D
+		card_images[slot].texture = texture
 		card_names[slot].text = HERO_NAMES[hero_class]
+		card_class_labels[slot].text = String(HERO_NAMES[hero_class]).to_upper()
+		card_class_labels[slot].add_theme_color_override("font_color", frame_color)
+		if texture != null:
+			card_portrait_materials[slot].set_shader_parameter("texture_size", texture.get_size())
+		for style_name in ["normal", "hover", "pressed"]:
+			cards[slot].add_theme_stylebox_override(style_name, _card_style(slot == 1, style_name != "normal", frame_color))
+		card_footers[slot].add_theme_stylebox_override("panel", _card_footer_style(frame_color))
 		if slot == 1:
 			card_images[slot].modulate = Color.WHITE
 			card_names[slot].add_theme_color_override("font_color", GOLD)
 		else:
-			card_images[slot].modulate = Color(0.46, 0.49, 0.56, 1.0)
-			card_names[slot].add_theme_color_override("font_color", Color(0.62, 0.65, 0.72))
+			card_images[slot].modulate = Color(0.62, 0.65, 0.72, 1.0)
+			card_names[slot].add_theme_color_override("font_color", Color(0.72, 0.75, 0.82))
 	avatar.texture = load(HERO_ART[selected_class]) as Texture2D
 	_refresh_player_profile()
 	_refresh_player_menu()
@@ -1245,19 +1284,36 @@ func _action_style(primary: bool, hovered: bool) -> StyleBoxFlat:
 	return style
 
 
-func _card_style(is_center: bool, hovered: bool) -> StyleBoxFlat:
+func _card_style(is_center: bool, hovered: bool, frame_color: Color) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.045, 0.06, 0.09, 0.93) if is_center else Color(0.035, 0.045, 0.07, 0.78)
-	style.border_color = GOLD if is_center else Color(0.43, 0.5, 0.65, 0.58)
+	style.bg_color = Color(0.045, 0.06, 0.09, 0.95) if is_center else Color(0.035, 0.045, 0.07, 0.85)
 	if hovered and not is_center:
-		style.bg_color = Color(0.075, 0.09, 0.13, 0.95)
-		style.border_color = Color(0.78, 0.85, 0.98, 0.9)
-	style.set_border_width_all(2 if is_center else 1)
-	style.set_corner_radius_all(14)
-	style.content_margin_left = 11.0
-	style.content_margin_right = 11.0
-	style.content_margin_top = 10.0
-	style.content_margin_bottom = 9.0
+		style.bg_color = Color(0.075, 0.09, 0.13, 0.97)
+	style.border_color = Color(frame_color.r, frame_color.g, frame_color.b, 1.0 if is_center else 0.5)
+	if hovered and not is_center:
+		style.border_color = frame_color
+	style.set_border_width_all(3 if is_center else 1)
+	style.set_corner_radius_all(16)
+	if is_center:
+		style.shadow_color = Color(frame_color.r, frame_color.g, frame_color.b, 0.3)
+		style.shadow_size = 18
+	style.content_margin_left = 0.0
+	style.content_margin_right = 0.0
+	style.content_margin_top = 0.0
+	style.content_margin_bottom = 0.0
+	return style
+
+
+func _card_footer_style(frame_color: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.02, 0.028, 0.05, 0.96)
+	style.border_color = Color(frame_color.r, frame_color.g, frame_color.b, 0.9)
+	style.border_width_top = 2
+	style.set_corner_radius_all(10)
+	style.content_margin_left = 6.0
+	style.content_margin_right = 6.0
+	style.content_margin_top = 2.0
+	style.content_margin_bottom = 2.0
 	return style
 
 
