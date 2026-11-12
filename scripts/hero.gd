@@ -212,6 +212,7 @@ var crit_cast_light: OmniLight3D = null
 var blessing_timer := 0.0
 var blessing_ring: Node3D = null
 var blessing_rune: MeshInstance3D = null
+var blessing_ground_timer := 0.0
 
 var ai_goal := Vector3.ZERO
 var navigation_agent: NavigationAgent3D = null
@@ -2487,7 +2488,7 @@ func apply_blessing(duration: float) -> void:
 		return
 	var root := Node3D.new()
 	root.name = "GoldenBlessingRing"
-	root.position.y = GROUND_Y_OFFSET + 0.06
+	root.position = Vector3(0.0, 0.05, 0.0)
 	var glow := OmniLight3D.new()
 	glow.name = "Glow"
 	glow.light_color = Color(1.0, 0.72, 0.2)
@@ -2498,18 +2499,20 @@ func apply_blessing(duration: float) -> void:
 	var rune := MeshInstance3D.new()
 	rune.name = "BlessingRune"
 	var rune_mesh := QuadMesh.new()
-	rune_mesh.size = Vector2(4.4, 4.4)
+	rune_mesh.size = Vector2(5.6, 5.6)
 	rune.mesh = rune_mesh
 	var rune_material := StandardMaterial3D.new()
 	rune_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	rune_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	rune_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	rune_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	rune_material.no_depth_test = true
+	rune_material.render_priority = 2
 	rune_material.albedo_texture = preload("res://ui/fx/blessing_rune.png")
-	rune_material.albedo_color = Color(1.0, 0.9, 0.55, 0.95)
+	rune_material.albedo_color = Color(1.0, 0.88, 0.48, 1.0)
 	rune_material.emission_enabled = true
 	rune_material.emission = Color(1.0, 0.68, 0.18)
-	rune_material.emission_energy_multiplier = 1.35
+	rune_material.emission_energy_multiplier = 1.8
 	rune_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	rune.material_override = rune_material
 	rune.rotation_degrees.x = -90.0
@@ -2517,8 +2520,10 @@ func apply_blessing(duration: float) -> void:
 	rune.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(rune)
 	blessing_rune = rune
-	visual.add_child(root)
+	add_child(root)
 	blessing_ring = root
+	blessing_ground_timer = 0.0
+	_snap_blessing_to_ground()
 
 
 func _update_blessing(delta: float) -> void:
@@ -2526,6 +2531,10 @@ func _update_blessing(delta: float) -> void:
 		return
 	blessing_timer = maxf(0.0, blessing_timer - delta)
 	if blessing_ring != null and is_instance_valid(blessing_ring):
+		blessing_ground_timer -= delta
+		if blessing_ground_timer <= 0.0:
+			blessing_ground_timer = 0.25
+			_snap_blessing_to_ground()
 		var pulse := 1.0 + sin(float(Time.get_ticks_msec()) * 0.008) * 0.06
 		blessing_ring.scale = Vector3.ONE * pulse
 	if blessing_rune != null and is_instance_valid(blessing_rune):
@@ -2534,6 +2543,25 @@ func _update_blessing(delta: float) -> void:
 		blessing_ring.queue_free()
 		blessing_ring = null
 		blessing_rune = null
+		blessing_ground_timer = 0.0
+
+
+func _snap_blessing_to_ground() -> void:
+	if blessing_ring == null or not is_instance_valid(blessing_ring):
+		return
+	var target_y := global_position.y + 0.05
+	if is_inside_tree():
+		var space := get_world_3d().direct_space_state
+		var query := PhysicsRayQueryParameters3D.create(
+			global_position + Vector3(0.0, 3.0, 0.0),
+			global_position + Vector3(0.0, -3.0, 0.0),
+			0xFFFFFFFF,
+			[get_rid()]
+		)
+		var hit := space.intersect_ray(query)
+		if not hit.is_empty():
+			target_y = float(hit["position"].y) + 0.06
+	blessing_ring.global_position = Vector3(global_position.x, target_y, global_position.z)
 
 
 func ability_ready(index: int) -> bool:
