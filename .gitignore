@@ -24,3 +24,8 @@ Thumbs.db
 
 # Local Godot editor state (optional, uncomment if needed)
 # user://
+
+# Local binaries and scratch tools
+server/*.exe
+tools/icon_picker/
+
