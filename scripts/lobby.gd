@@ -919,8 +919,22 @@ func _on_rename_completed(success: bool, nickname: String, error: String) -> voi
 		nickname_status_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
 		_refresh_player_profile()
 	else:
-		nickname_status_label.text = "Не удалось: %s" % error
+		nickname_status_label.text = "Не удалось: %s" % _localize_nickname_error(error)
 		nickname_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
+
+
+func _localize_nickname_error(error: String) -> String:
+	match error:
+		"Nickname already taken":
+			return "этот ник уже занят, выбери другой."
+		"Nickname must be 3 to 12 characters":
+			return "ник должен быть от 3 до 12 символов."
+		"Player not found":
+			return "профиль не найден, перезапусти игру."
+		"Нет связи с сервером":
+			return "сервер недоступен, попробуй позже."
+		_:
+			return error
 
 
 func _load_player_id() -> int:
