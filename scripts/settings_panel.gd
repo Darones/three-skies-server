@@ -113,20 +113,6 @@ func _build_panel() -> void:
 	volume_slider.value_changed.connect(_on_volume_changed)
 	volume_row.add_child(volume_slider)
 
-	var show_haptics := mobile_layout and not OS.has_feature("web")
-	if show_haptics:
-		vibration_toggle = CheckButton.new()
-		vibration_toggle.name = "VibrationToggle"
-		vibration_toggle.text = "Вибрация"
-		vibration_toggle.add_theme_font_override("font", UI_FONT)
-		vibration_toggle.add_theme_font_size_override("font_size", 16)
-		vibration_toggle.toggled.connect(_on_vibration_toggled)
-		layout.add_child(vibration_toggle)
-	elif not mobile_layout:
-		layout.add_child(_make_label("УПРАВЛЕНИЕ · нажмите кнопку и задайте новую клавишу", 15, Color(0.9, 0.92, 0.98)))
-		for binding in CONTROL_BINDINGS:
-			_build_binding_row(layout, String(binding["action"]), String(binding["label"]))
-
 	layout.add_child(_make_label("ИГРА", 17, Color(0.9, 0.92, 0.98)))
 	var credits_button := _make_button("Авторы и лицензии", false)
 	credits_button.name = "CreditsButton"
@@ -141,6 +127,20 @@ func _build_panel() -> void:
 	var reset_hint := _make_label("Удалит сохранения, прогресс и кэш игры.", 13, Color(0.7, 0.74, 0.82))
 	reset_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	layout.add_child(reset_hint)
+
+	var show_haptics := mobile_layout and not OS.has_feature("web")
+	if show_haptics:
+		vibration_toggle = CheckButton.new()
+		vibration_toggle.name = "VibrationToggle"
+		vibration_toggle.text = "Вибрация"
+		vibration_toggle.add_theme_font_override("font", UI_FONT)
+		vibration_toggle.add_theme_font_size_override("font_size", 16)
+		vibration_toggle.toggled.connect(_on_vibration_toggled)
+		layout.add_child(vibration_toggle)
+	elif not mobile_layout:
+		layout.add_child(_make_label("УПРАВЛЕНИЕ · нажмите кнопку и задайте новую клавишу", 15, Color(0.9, 0.92, 0.98)))
+		for binding in CONTROL_BINDINGS:
+			_build_binding_row(layout, String(binding["action"]), String(binding["label"]))
 
 	status_label = _make_label("", 13, Color(0.76, 0.8, 0.89))
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
