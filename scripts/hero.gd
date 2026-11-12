@@ -57,9 +57,11 @@ const VFX_LIGHTNING_SCENE: PackedScene = preload("res://assets/hit_fx/BinbunVFX_
 const VFX_GOLDEN_SCENE: PackedScene = preload("res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn")
 const VFX_HIT_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/hits_impacts/deep_punch_impact.wav")
 const FOOTSTEP_SOUNDS := [
-	preload("res://assets/audio/Soundza_Game_SFX_Pack/footsteps/hiking_boot_footsteps_on_stone.wav"),
-	preload("res://assets/audio/Soundza_Game_SFX_Pack/footsteps/footstep_on_dirt_and_gravel.wav"),
-	preload("res://assets/audio/Soundza_Game_SFX_Pack/footsteps/soft_footsteps.wav"),
+	preload("res://assets/audio/kenney_rpg/footstep_0.ogg"),
+	preload("res://assets/audio/kenney_rpg/footstep_1.ogg"),
+	preload("res://assets/audio/kenney_rpg/footstep_2.ogg"),
+	preload("res://assets/audio/kenney_rpg/footstep_3.ogg"),
+	preload("res://assets/audio/kenney_rpg/footstep_4.ogg"),
 ]
 const ABILITY_SOUNDS := [
 	[

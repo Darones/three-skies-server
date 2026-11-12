@@ -4,6 +4,7 @@ signal purchase_updated(success: bool, purchase_type: String, item_id: int, new_
 signal profile_updated
 
 const MAX_CHARACTER_LEVEL := 15
+const STATS_PATH := "user://stats.cfg"
 const LEVEL_UP_SHARD_REWARDS: Dictionary = {
 	1: 50, 2: 75, 3: 100, 4: 125, 5: 150,
 	6: 175, 7: 200, 8: 225, 9: 250, 10: 300,
@@ -25,9 +26,25 @@ var unlocked_weapons: Array[int] = []
 var pending_purchase_type := ""
 var pending_purchase_id := 0
 var pending_level_shards := 0
+var stats_all := {
+	"matches": 0, "wins": 0, "kills": 0, "deaths": 0,
+	"damage": 0, "shells": 0, "crystals": 0, "xp": 0, "shards": 0,
+}
+var stats_session := {
+	"matches": 0, "wins": 0, "kills": 0, "deaths": 0,
+	"damage": 0, "shells": 0, "crystals": 0, "xp": 0, "shards": 0,
+}
+var stats_last := {
+	"won": false, "place": 0, "kills": 0, "deaths": 0,
+	"damage": 0, "shells": 0, "crystals": 0, "xp": 0, "shards": 0,
+}
 
 
 func _ready() -> void:
+	var stats_config := ConfigFile.new()
+	if stats_config.load(STATS_PATH) == OK:
+		for key in stats_all.keys():
+			stats_all[key] = int(stats_config.get_value("all", key, 0))
 	if not NetworkClient.registration_completed.is_connected(_on_registration_completed):
 		NetworkClient.registration_completed.connect(_on_registration_completed)
 	if not NetworkClient.profile_loaded.is_connected(_on_profile_loaded):
@@ -193,3 +210,58 @@ func _on_purchase_completed(success: bool, purchase_type: String, item_id: int, 
 		elif purchase_type == "weapon" and item_id not in unlocked_weapons:
 			unlocked_weapons.append(item_id)
 	purchase_updated.emit(success, purchase_type, item_id, sky_shards)
+
+
+func record_match_result(won: bool, place: int, match_stats: Dictionary, xp: int, shards: int) -> void:
+	var kills := int(match_stats.get("p_kills", 0))
+	var deaths := int(match_stats.get("p_deaths", 0))
+	var damage := int(match_stats.get("p_damage", 0))
+	var shells := int(match_stats.get("p_shells_destroyed", 0))
+	var crystals := int(match_stats.get("p_crystals", 0))
+	for stats in [stats_all, stats_session]:
+		stats["matches"] = int(stats["matches"]) + 1
+		if won:
+			stats["wins"] = int(stats["wins"]) + 1
+		stats["kills"] = int(stats["kills"]) + kills
+		stats["deaths"] = int(stats["deaths"]) + deaths
+		stats["damage"] = int(stats["damage"]) + damage
+		stats["shells"] = int(stats["shells"]) + shells
+		stats["crystals"] = int(stats["crystals"]) + crystals
+		stats["xp"] = int(stats["xp"]) + xp
+		stats["shards"] = int(stats["shards"]) + shards
+	stats_last = {
+		"won": won, "place": place, "kills": kills, "deaths": deaths,
+		"damage": damage, "shells": shells, "crystals": crystals,
+		"xp": xp, "shards": shards,
+	}
+	_save_stats()
+
+
+func add_reward_delta(xp: int, shards: int) -> void:
+	if xp <= 0 and shards <= 0:
+		return
+	for stats in [stats_all, stats_session]:
+		stats["xp"] = int(stats["xp"]) + maxi(0, xp)
+		stats["shards"] = int(stats["shards"]) + maxi(0, shards)
+	stats_last["xp"] = int(stats_last["xp"]) + maxi(0, xp)
+	stats_last["shards"] = int(stats_last["shards"]) + maxi(0, shards)
+	_save_stats()
+
+
+func stats_for(tab: String) -> Dictionary:
+	match tab:
+		"last":
+			return stats_last
+		"session":
+			return stats_session
+		_:
+			return stats_all
+
+
+func _save_stats() -> void:
+	var config := ConfigFile.new()
+	for key in stats_all.keys():
+		config.set_value("all", key, int(stats_all[key]))
+	var error := config.save(STATS_PATH)
+	if error != OK:
+		push_warning("Не удалось сохранить статистику: %s" % error_string(error))

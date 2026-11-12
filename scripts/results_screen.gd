@@ -54,6 +54,7 @@ func _ready() -> void:
 	var crystals_delivered := int(match_stats.get("p_crystals", 0))
 	final_shards = 5 if player_won and player_is_mvp else 3 if player_won or player_is_mvp else 1
 	final_xp = kills * 10 + shells_destroyed * 25 + crystals_delivered * 25 + (50 if player_won else 20)
+	MetaProgression.record_match_result(player_won, player_place, match_stats, final_xp, final_shards)
 	_grant_match_reward_to_server(final_shards)
 	if not rewards_committed:
 		MetaProgression.add_character_xp(CHARACTER_KEYS[selected_class], final_xp)
@@ -368,6 +369,7 @@ func _on_rewarded_ad_completed() -> void:
 	final_xp *= 2
 	final_shards *= 2
 	MetaProgression.add_character_xp(CHARACTER_KEYS[selected_class], final_xp - previous_xp)
+	MetaProgression.add_reward_delta(final_xp - previous_xp, final_shards - previous_shards)
 	_grant_match_reward_to_server(final_shards - previous_shards)
 	rewards_doubled = true
 	_refresh_reward_ui()

@@ -11,6 +11,40 @@ const CLASS_FRAME_COLORS := {
 	1: Color(0.45, 0.78, 1.0),
 	2: Color(0.55, 0.9, 0.5),
 }
+const SKILL_ICONS := [
+	[
+		preload("res://assets/ui/icon/128/002.png"),
+		preload("res://assets/ui/icon/128/004.png"),
+		preload("res://assets/ui/icon/128/012.png"),
+	],
+	[
+		preload("res://assets/ui/icon/128/011.png"),
+		preload("res://assets/ui/icon/128/008.png"),
+		preload("res://assets/ui/icon/128/007.png"),
+	],
+	[
+		preload("res://assets/ui/icon/128/001.png"),
+		preload("res://assets/ui/icon/128/010.png"),
+		preload("res://assets/ui/icon/128/005.png"),
+	],
+]
+const SKILL_DESCRIPTIONS := [
+	[
+		"Рывок к цели и удар.",
+		"Усиливает следующий удар.",
+		"Урон и страх вокруг себя.",
+	],
+	[
+		"Обездвиживает цель.",
+		"Лечит союзников рядом.",
+		"Молнии бьют по области.",
+	],
+	[
+		"Стрела оглушает цель.",
+		"Заряженный выстрел с критом.",
+		"Бафф команде, взрыв и замедление.",
+	],
+]
 const SAVE_PATH := "user://lobby.cfg"
 const TUTORIAL_SAVE_PATH := "user://tutorial.cfg"
 const GOLD := Color(0.95, 0.76, 0.38)
@@ -58,6 +92,10 @@ var ui_click_player: AudioStreamPlayer
 var tutorial_button: Button
 var pending_nickname := ""
 var guest_attempts := 0
+var skills_info_box: VBoxContainer
+var stats_box: VBoxContainer
+var stats_tab := "all"
+var stats_tab_buttons: Dictionary = {}
 
 
 func _notification(what: int) -> void:
@@ -700,6 +738,32 @@ func _build_player_menu() -> void:
 	menu_next_reward_label = _make_label("Награда: 75 осколков", 14, Color(0.43, 0.84, 1.0))
 	menu_next_reward_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_content.add_child(menu_next_reward_label)
+	var skills_title := _make_label("СКИЛЛЫ", 16, GOLD)
+	skills_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	profile_content.add_child(skills_title)
+	skills_info_box = VBoxContainer.new()
+	skills_info_box.name = "SkillInfoBox"
+	skills_info_box.add_theme_constant_override("separation", 4)
+	profile_content.add_child(skills_info_box)
+	var stats_title := _make_label("СТАТИСТИКА", 16, GOLD)
+	stats_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	profile_content.add_child(stats_title)
+	var stats_tabs := HBoxContainer.new()
+	stats_tabs.add_theme_constant_override("separation", 4)
+	profile_content.add_child(stats_tabs)
+	var tab_defs := [["all", "ВСЁ"], ["last", "БОЙ"], ["session", "СЕССИЯ"]]
+	for tab_def in tab_defs:
+		var tab_button := _make_action_button(String(tab_def[1]), false)
+		tab_button.custom_minimum_size = Vector2(0, 30)
+		tab_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		tab_button.add_theme_font_size_override("font_size", 11)
+		tab_button.pressed.connect(_set_stats_tab.bind(String(tab_def[0])))
+		stats_tabs.add_child(tab_button)
+		stats_tab_buttons[String(tab_def[0])] = tab_button
+	stats_box = VBoxContainer.new()
+	stats_box.name = "PlayerStats"
+	stats_box.add_theme_constant_override("separation", 2)
+	profile_content.add_child(stats_box)
 
 	var hero_panel := PanelContainer.new()
 	hero_panel.name = "PlayerMenuHero"
@@ -918,6 +982,94 @@ func _refresh_player_menu() -> void:
 	else:
 		menu_xp_remaining_label.text = "До следующего уровня: %d XP" % maxi(0, max_xp - character_xp)
 		menu_next_reward_label.text = "Награда: %d осколков" % MetaProgression.get_shard_reward_for_level(character_level + 1)
+	_refresh_skill_info()
+	_refresh_stats()
+
+
+func _refresh_skill_info() -> void:
+	if skills_info_box == null:
+		return
+	for child in skills_info_box.get_children():
+		skills_info_box.remove_child(child)
+		child.queue_free()
+	var abilities: Array = HeroUnit.CLASS_DATA[selected_class]["abilities"]
+	var descriptions: Array = SKILL_DESCRIPTIONS[selected_class]
+	for index in range(abilities.size()):
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		var icon := TextureRect.new()
+		icon.texture = SKILL_ICONS[selected_class][index]
+		icon.custom_minimum_size = Vector2(28, 28)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(icon)
+		var text_box := VBoxContainer.new()
+		text_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		text_box.add_theme_constant_override("separation", 0)
+		var title := _make_label("%s · %d с" % [String(abilities[index]["name"]), int(abilities[index]["cd"])], 12, PALE)
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		title.clip_text = true
+		text_box.add_child(title)
+		var description := _make_label(String(descriptions[index]), 10, Color(0.72, 0.76, 0.86))
+		description.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text_box.add_child(description)
+		row.add_child(text_box)
+		skills_info_box.add_child(row)
+
+
+func _set_stats_tab(tab: String) -> void:
+	stats_tab = tab
+	_refresh_stats()
+
+
+func _refresh_stats() -> void:
+	if stats_box == null:
+		return
+	for key in stats_tab_buttons:
+		var tab_button: Button = stats_tab_buttons[key]
+		tab_button.add_theme_color_override("font_color", GOLD if key == stats_tab else PALE)
+	for child in stats_box.get_children():
+		stats_box.remove_child(child)
+		child.queue_free()
+	var stats := MetaProgression.stats_for(stats_tab)
+	var rows: Array = []
+	if stats_tab == "last":
+		rows = [
+			["Результат", "Победа" if bool(stats.get("won", false)) else "Поражение"],
+			["Место", str(int(stats.get("place", 0)))],
+			["Убийства", str(int(stats.get("kills", 0)))],
+			["Смерти", str(int(stats.get("deaths", 0)))],
+			["Урон", str(int(stats.get("damage", 0)))],
+			["Оболочки", str(int(stats.get("shells", 0)))],
+			["Осколки", str(int(stats.get("crystals", 0)))],
+			["Опыт", "+%d" % int(stats.get("xp", 0))],
+			["Награда", "+%d" % int(stats.get("shards", 0))],
+		]
+	else:
+		rows = [
+			["Боёв", str(int(stats.get("matches", 0)))],
+			["Побед", str(int(stats.get("wins", 0)))],
+			["Убийств", str(int(stats.get("kills", 0)))],
+			["Смертей", str(int(stats.get("deaths", 0)))],
+			["Урон", str(int(stats.get("damage", 0)))],
+			["Оболочек", str(int(stats.get("shells", 0)))],
+			["Осколков", str(int(stats.get("crystals", 0)))],
+			["Опыт", str(int(stats.get("xp", 0)))],
+		]
+	for row in rows:
+		var line := HBoxContainer.new()
+		var key_label := _make_label(String(row[0]), 11, Color(0.7, 0.75, 0.84))
+		key_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		key_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var value_label := _make_label(String(row[1]), 11, PALE)
+		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		line.add_child(key_label)
+		line.add_child(value_label)
+		stats_box.add_child(line)
+
+
 func _cycle_selected_hero(direction: int) -> void:
 	selected_class = wrapi(selected_class + direction, 0, HERO_NAMES.size())
 	_save_selection()
