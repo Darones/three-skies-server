@@ -88,6 +88,11 @@ var rename_confirm_overlay: ColorRect
 var rename_confirm_label: Label
 var pending_rename_nickname := ""
 var nickname_input_synced := ""
+var report_overlay: ColorRect
+var report_nickname_edit: LineEdit
+var report_reason_option: OptionButton
+var report_status_label: Label
+var report_submit_button: Button
 var menu_hero_portrait: TextureRect
 var menu_hero_name_label: Label
 var menu_level_label: Label
@@ -131,6 +136,7 @@ func _ready() -> void:
 	_build_shard_shop()
 	_build_player_menu()
 	_build_rename_confirm()
+	_build_report_form()
 	_refresh_wing_shop()
 	_refresh_weapon_shop()
 	_refresh_selection()
@@ -150,6 +156,8 @@ func _ready() -> void:
 		NetworkManager.disconnected.connect(_on_network_disconnected)
 	if not NetworkClient.rename_completed.is_connected(_on_rename_completed):
 		NetworkClient.rename_completed.connect(_on_rename_completed)
+	if not NetworkClient.report_completed.is_connected(_on_report_completed):
+		NetworkClient.report_completed.connect(_on_report_completed)
 	if MetaProgression.player_id <= 0:
 		var saved_player_id := _load_player_id()
 		if saved_player_id > 0:
@@ -693,6 +701,12 @@ func _build_player_menu() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
+	var report_button := _make_action_button("Пожаловаться", false)
+	report_button.name = "ReportPlayerButton"
+	report_button.custom_minimum_size = Vector2(150, 44)
+	report_button.add_theme_font_size_override("font_size", 14)
+	report_button.pressed.connect(_open_report_form)
+	header.add_child(report_button)
 	var close_button := _make_action_button("×", false)
 	close_button.custom_minimum_size = Vector2(46, 44)
 	close_button.add_theme_font_size_override("font_size", 25)
@@ -934,6 +948,10 @@ func _save_player_nickname() -> void:
 		nickname_status_label.text = "Введите от 3 до 12 символов."
 		nickname_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
 		return
+	if ProfanityFilter.contains(nickname):
+		nickname_status_label.text = "Ник содержит недопустимые слова."
+		nickname_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
+		return
 	if nickname == MetaProgression.player_nickname:
 		nickname_status_label.text = "Ник не изменился."
 		nickname_status_label.add_theme_color_override("font_color", Color(0.76, 0.8, 0.89))
@@ -995,6 +1013,8 @@ func _localize_nickname_error(error: String) -> String:
 			return "этот ник уже занят, выбери другой."
 		"Nickname must be 3 to 12 characters":
 			return "ник должен быть от 3 до 12 символов."
+		"Nickname contains forbidden words":
+			return "ник содержит недопустимые слова."
 		"Player not found":
 			return "профиль не найден, перезапусти игру."
 		"Not enough shards":
@@ -1132,6 +1152,144 @@ func _confirm_rename() -> void:
 	_close_rename_confirm()
 	if not nickname.is_empty():
 		_perform_rename(nickname)
+
+
+func _build_report_form() -> void:
+	report_overlay = ColorRect.new()
+	report_overlay.name = "ReportFormOverlay"
+	report_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	report_overlay.color = Color(0.005, 0.008, 0.018, 0.82)
+	report_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	report_overlay.visible = false
+	report_overlay.z_index = 45
+	add_child(report_overlay)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	report_overlay.add_child(center)
+	var panel := PanelContainer.new()
+	panel.name = "ReportFormPanel"
+	panel.custom_minimum_size = Vector2(460, 0)
+	panel.add_theme_stylebox_override("panel", _panel_style(GOLD, Color(0.035, 0.045, 0.07, 0.99)))
+	center.add_child(panel)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 18)
+	margin.add_theme_constant_override("margin_right", 18)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	panel.add_child(margin)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 10)
+	margin.add_child(content)
+	var header := HBoxContainer.new()
+	content.add_child(header)
+	var title := _make_label("ПОЖАЛОВАТЬСЯ", 22, GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+	var close_button := _make_action_button("×", false)
+	close_button.custom_minimum_size = Vector2(42, 40)
+	close_button.add_theme_font_size_override("font_size", 22)
+	close_button.pressed.connect(_close_report_form)
+	header.add_child(close_button)
+	var nickname_label := _make_label("Ник игрока", 15, PALE)
+	nickname_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	content.add_child(nickname_label)
+	report_nickname_edit = LineEdit.new()
+	report_nickname_edit.name = "ReportNickname"
+	report_nickname_edit.placeholder_text = "Ник (3–12 символов)"
+	report_nickname_edit.max_length = 12
+	report_nickname_edit.custom_minimum_size = Vector2(0, 42)
+	report_nickname_edit.add_theme_font_override("font", font)
+	content.add_child(report_nickname_edit)
+	var reason_label := _make_label("Причина", 15, PALE)
+	reason_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	content.add_child(reason_label)
+	report_reason_option = OptionButton.new()
+	report_reason_option.name = "ReportReason"
+	report_reason_option.custom_minimum_size = Vector2(0, 42)
+	report_reason_option.add_theme_font_override("font", font)
+	report_reason_option.add_theme_font_size_override("font_size", 15)
+	report_reason_option.add_item("Оскорбительный ник")
+	report_reason_option.add_item("Читы / нечестная игра")
+	report_reason_option.add_item("Другое")
+	content.add_child(report_reason_option)
+	report_status_label = _make_label("", 14, Color(0.76, 0.8, 0.89))
+	report_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	report_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(report_status_label)
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 12)
+	content.add_child(buttons)
+	var cancel_button := _make_action_button("Отмена", false)
+	cancel_button.custom_minimum_size = Vector2(150, 46)
+	cancel_button.add_theme_font_size_override("font_size", 17)
+	cancel_button.pressed.connect(_close_report_form)
+	buttons.add_child(cancel_button)
+	report_submit_button = _make_action_button("Отправить", true)
+	report_submit_button.name = "ReportSubmit"
+	report_submit_button.custom_minimum_size = Vector2(150, 46)
+	report_submit_button.add_theme_font_size_override("font_size", 17)
+	report_submit_button.pressed.connect(_submit_report)
+	buttons.add_child(report_submit_button)
+
+
+func _open_report_form() -> void:
+	report_nickname_edit.text = ""
+	report_reason_option.select(0)
+	report_status_label.text = ""
+	report_status_label.add_theme_color_override("font_color", Color(0.76, 0.8, 0.89))
+	report_submit_button.disabled = false
+	report_overlay.visible = true
+	report_nickname_edit.grab_focus()
+
+
+func _close_report_form() -> void:
+	if report_overlay != null:
+		report_overlay.visible = false
+
+
+func _submit_report() -> void:
+	var nickname := report_nickname_edit.text.strip_edges()
+	if nickname.length() < 3 or nickname.length() > 12:
+		report_status_label.text = "Введите ник от 3 до 12 символов."
+		report_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
+		return
+	if nickname == MetaProgression.player_nickname:
+		report_status_label.text = "Нельзя пожаловаться на себя."
+		report_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
+		return
+	var reason := report_reason_option.get_item_text(report_reason_option.selected)
+	report_status_label.text = "Отправляем жалобу..."
+	report_status_label.add_theme_color_override("font_color", Color(0.76, 0.8, 0.89))
+	report_submit_button.disabled = true
+	NetworkClient.report_player(MetaProgression.player_id, nickname, reason)
+
+
+func _on_report_completed(success: bool, error: String) -> void:
+	if report_submit_button != null:
+		report_submit_button.disabled = false
+	if report_status_label == null:
+		return
+	if success:
+		report_status_label.text = "Жалоба отправлена. Спасибо!"
+		report_status_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
+	else:
+		report_status_label.text = "Не удалось: %s" % _localize_report_error(error)
+		report_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
+
+
+func _localize_report_error(error: String) -> String:
+	match error:
+		"Too many reports":
+			return "слишком много жалоб, попробуй позже."
+		"Player not found":
+			return "профиль не найден."
+		"Нет связи с сервером":
+			return "сервер недоступен, попробуй позже."
+		_:
+			return error
 
 
 func _refresh_player_menu() -> void:

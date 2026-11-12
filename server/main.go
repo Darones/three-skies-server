@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/lib/pq"
@@ -124,6 +125,17 @@ type renameResponse struct {
 	Cost      int    `json:"cost,omitempty"`
 	NewShards int    `json:"new_shards,omitempty"`
 	Error     string `json:"error,omitempty"`
+}
+
+type reportRequest struct {
+	PlayerID int64  `json:"player_id"`
+	Nickname string `json:"nickname"`
+	Reason   string `json:"reason"`
+}
+
+type reportResponse struct {
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
 }
 
 type matchRewardRequest struct {
@@ -243,6 +255,7 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	mux.HandleFunc("/register", service.handleRegister)
 	mux.HandleFunc("/profile", service.handleProfile)
 	mux.HandleFunc("/rename", service.handleRename)
+	mux.HandleFunc("/report", service.handleReport)
 	mux.HandleFunc("/buy_wing", service.handleBuyWing)
 	mux.HandleFunc("/buy_weapon", service.handleBuyWeapon)
 	mux.HandleFunc("/match_reward", service.handleMatchReward)
@@ -321,6 +334,9 @@ func (service *api) monitorDatabase(db *sql.DB) {
 
 func createSchema(ctx context.Context, db *sql.DB) error {
 	if err := createPlayersTable(ctx, db); err != nil {
+		return err
+	}
+	if err := createReportsTable(ctx, db); err != nil {
 		return err
 	}
 	return createMatchesTable(ctx, db)
@@ -417,6 +433,23 @@ func dropNicknameUniqueness(ctx context.Context, db *sql.DB) error {
 	return nil
 }
 
+func createReportsTable(ctx context.Context, db *sql.DB) error {
+	_, err := db.ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS reports (
+			id BIGSERIAL PRIMARY KEY,
+			reporter_id BIGINT NOT NULL,
+			reported_nickname TEXT NOT NULL,
+			reason TEXT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)
+	`)
+	if err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS reports_created_idx ON reports (created_at)`)
+	return err
+}
+
 func createMatchesTable(ctx context.Context, db *sql.DB) error {
 	_, err := db.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS matches (
@@ -448,6 +481,10 @@ func (service *api) handleRegister(w http.ResponseWriter, r *http.Request) {
 	nickname := strings.TrimSpace(request.Nickname)
 	if !validNickname(nickname) {
 		writeJSON(w, http.StatusBadRequest, registerResponse{Error: "Nickname must be 3 to 12 characters"})
+		return
+	}
+	if containsProfanity(nickname) {
+		writeJSON(w, http.StatusBadRequest, registerResponse{Error: "Nickname contains forbidden words"})
 		return
 	}
 
@@ -525,6 +562,10 @@ func (service *api) handleRename(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, renameResponse{Error: "Nickname must be 3 to 12 characters"})
 		return
 	}
+	if containsProfanity(nickname) {
+		writeJSON(w, http.StatusBadRequest, renameResponse{Error: "Nickname contains forbidden words"})
+		return
+	}
 
 	tx, err := service.db.BeginTx(r.Context(), nil)
 	if err != nil {
@@ -595,9 +636,117 @@ func (service *api) handleRename(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (service *api) handleReport(w http.ResponseWriter, r *http.Request) {
+	if !requirePost(w, r) {
+		return
+	}
+	var request reportRequest
+	if err := decodeJSON(w, r, &request); err != nil {
+		writeJSON(w, http.StatusBadRequest, reportResponse{Error: "Invalid JSON"})
+		return
+	}
+	nickname := strings.TrimSpace(request.Nickname)
+	reason := strings.TrimSpace(request.Reason)
+	if request.PlayerID <= 0 || !validNickname(nickname) {
+		writeJSON(w, http.StatusBadRequest, reportResponse{Error: "Invalid report"})
+		return
+	}
+	reasonLength := utf8.RuneCountInString(reason)
+	if reasonLength < 3 || reasonLength > 200 {
+		writeJSON(w, http.StatusBadRequest, reportResponse{Error: "Invalid report"})
+		return
+	}
+	var recent int
+	err := service.db.QueryRowContext(r.Context(),
+		`SELECT COUNT(*) FROM reports WHERE reporter_id = $1 AND created_at > NOW() - INTERVAL '1 minute'`,
+		request.PlayerID,
+	).Scan(&recent)
+	if err != nil {
+		log.Printf("report rate limit: %v", err)
+		writeJSON(w, http.StatusInternalServerError, reportResponse{Error: "Internal server error"})
+		return
+	}
+	if recent >= 5 {
+		writeJSON(w, http.StatusTooManyRequests, reportResponse{Error: "Too many reports"})
+		return
+	}
+	_, err = service.db.ExecContext(r.Context(),
+		`INSERT INTO reports (reporter_id, reported_nickname, reason) VALUES ($1, $2, $3)`,
+		request.PlayerID, nickname, reason,
+	)
+	if err != nil {
+		log.Printf("save report: %v", err)
+		writeJSON(w, http.StatusInternalServerError, reportResponse{Error: "Internal server error"})
+		return
+	}
+	log.Printf("[REPORT] reporter=%d nickname=%q reason=%q", request.PlayerID, nickname, reason)
+	writeJSON(w, http.StatusOK, reportResponse{Success: true})
+}
+
 func validNickname(nickname string) bool {
 	length := utf8.RuneCountInString(nickname)
 	return length >= 3 && length <= 12
+}
+
+var profanityRoots = []string{
+	"хуй", "хуё", "хуе", "хую", "хуя",
+	"пизд",
+	"ебат", "ебал", "ебан", "ебуч", "ебёт", "ебет", "ебу", "ебись", "ебля",
+	"ёб", "ёба", "ёбу",
+	"бля", "блят",
+	"сука", "суки", "суке", "суку", "суч",
+	"мудак", "мудил", "мудоз",
+	"гандон",
+	"залуп",
+	"дроч",
+	"пидор", "пидар", "педик",
+	"шлюх",
+	"мраз",
+	"ублюд",
+	"долбо",
+	"дебил", "кретин",
+	"нацист", "нацизм", "фашист",
+	"fuck", "shit", "bitch", "cunt", "dick", "cock", "pussy",
+	"asshole", "nigger", "faggot", "whore", "slut", "rapist",
+	"nazi", "retard",
+}
+
+func containsProfanity(nickname string) bool {
+	normalized := normalizeNickname(nickname)
+	for _, root := range profanityRoots {
+		if strings.Contains(normalized, root) {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeNickname(value string) string {
+	var builder strings.Builder
+	for _, r := range strings.ToLower(value) {
+		switch r {
+		case '0':
+			r = 'о'
+		case '1':
+			r = 'и'
+		case '3':
+			r = 'е'
+		case '4':
+			r = 'а'
+		case '5':
+			r = 'с'
+		case '7':
+			r = 'т'
+		case '@':
+			r = 'а'
+		case '$':
+			r = 'с'
+		}
+		if unicode.Is(unicode.Cyrillic, r) || unicode.Is(unicode.Latin, r) {
+			builder.WriteRune(r)
+		}
+	}
+	return builder.String()
 }
 
 func (service *api) handleBuyWing(w http.ResponseWriter, r *http.Request) {

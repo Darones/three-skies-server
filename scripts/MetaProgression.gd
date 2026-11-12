@@ -56,6 +56,37 @@ func _ready() -> void:
 		NetworkClient.match_reward_completed.connect(_on_match_reward_completed)
 
 
+func reset_all() -> void:
+	player_id = 0
+	player_nickname = ""
+	profile_loaded = false
+	nickname_custom = false
+	sky_shards = 0
+	char_levels = {"warrior": 1, "mage": 1, "fairy": 1}
+	char_xps = {"warrior": 0, "mage": 0, "fairy": 0}
+	just_leveled_up = false
+	just_leveled_up_character = ""
+	equipped_wing = 0
+	equipped_wings = {"warrior": 0, "mage": 0, "fairy": 0}
+	unlocked_wings.clear()
+	unlocked_weapons.clear()
+	pending_purchase_type = ""
+	pending_purchase_id = 0
+	pending_level_shards = 0
+	stats_all = {
+		"matches": 0, "wins": 0, "kills": 0, "deaths": 0,
+		"damage": 0, "shells": 0, "crystals": 0, "xp": 0, "shards": 0,
+	}
+	stats_session = {
+		"matches": 0, "wins": 0, "kills": 0, "deaths": 0,
+		"damage": 0, "shells": 0, "crystals": 0, "xp": 0, "shards": 0,
+	}
+	stats_last = {
+		"won": false, "place": 0, "kills": 0, "deaths": 0,
+		"damage": 0, "shells": 0, "crystals": 0, "xp": 0, "shards": 0,
+	}
+
+
 func register_player(nickname: String) -> void:
 	var clean_nickname := nickname.strip_edges()
 	if player_id > 0 or clean_nickname.is_empty():

@@ -8,6 +8,7 @@ signal profile_loaded(success: bool, player_id: int, sky_shards: int, unlocked_w
 signal purchase_completed(success: bool, purchase_type: String, item_id: int, new_shards: int)
 signal match_reward_completed(success: bool, amount: int, new_shards: int)
 signal rename_completed(success: bool, nickname: String, error: String, charged: bool, cost: int, new_shards: int)
+signal report_completed(success: bool, error: String)
 
 const API_BASE_URL := "https://three-skies-server.relaxdev.ru"
 
@@ -73,6 +74,19 @@ func rename_player(player_id: int, nickname: String) -> void:
 		"player_id": player_id,
 		"nickname": clean_nickname,
 	}, "rename")
+
+
+func report_player(player_id: int, nickname: String, reason: String) -> void:
+	var clean_nickname := nickname.strip_edges()
+	var clean_reason := reason.strip_edges()
+	if player_id <= 0 or clean_nickname.is_empty() or clean_reason.is_empty():
+		report_completed.emit(false, "Некорректная жалоба")
+		return
+	_send_post("/report", {
+		"player_id": player_id,
+		"nickname": clean_nickname,
+		"reason": clean_reason,
+	}, "report")
 
 
 func load_player_profile(player_id: int) -> void:
@@ -156,6 +170,9 @@ func _on_http_request_completed(result: int, response_code: int, _headers: Packe
 		var new_shards := int(response.get("new_shards", 0)) if response is Dictionary else 0
 		var saved_nickname := String(response.get("nickname", nickname)) if response is Dictionary else nickname
 		rename_completed.emit(success, saved_nickname if success else nickname, "" if success else error_text, charged if success else false, cost if success else 0, new_shards if success else 0)
+	elif request["request_type"] == "report":
+		var error_text := String(response.get("error", "")) if response is Dictionary else "Нет связи с сервером"
+		report_completed.emit(success, "" if success else error_text)
 	_start_next_http_request()
 
 
@@ -170,3 +187,5 @@ func _emit_http_failure(request: Dictionary) -> void:
 		match_reward_completed.emit(false, int(request["payload"].get("amount", 0)), 0)
 	elif request["request_type"] == "rename":
 		rename_completed.emit(false, String(request["payload"].get("nickname", "")), "Нет связи с сервером", false, 0, 0)
+	elif request["request_type"] == "report":
+		report_completed.emit(false, "Нет связи с сервером")

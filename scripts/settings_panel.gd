@@ -5,6 +5,7 @@ signal back_requested
 const SETTINGS_PATH := "user://settings.cfg"
 const LEGACY_SETTINGS_PATH := "user://game_settings.cfg"
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
+const CREDITS_SCRIPT = preload("res://credits/licenses.gd")
 const CONTROL_BINDINGS := [
 	{"action": "move_forward", "label": "Движение вперёд"},
 	{"action": "move_back", "label": "Движение назад"},
@@ -22,6 +23,8 @@ var current_volume := 1.0
 var listening_action := ""
 var binding_buttons: Dictionary = {}
 var status_label: Label
+var credits_overlay: ColorRect
+var reset_dialog: ConfirmationDialog
 
 
 func _ready() -> void:
@@ -69,9 +72,15 @@ func _build_panel() -> void:
 	panel.add_theme_stylebox_override("panel", panel_style)
 	add_child(panel)
 
+	var scroll := ScrollContainer.new()
+	scroll.name = "SettingsScroll"
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	panel.add_child(scroll)
 	var layout := VBoxContainer.new()
+	layout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	layout.add_theme_constant_override("separation", 10)
-	panel.add_child(layout)
+	scroll.add_child(layout)
 
 	var header := HBoxContainer.new()
 	layout.add_child(header)
@@ -117,6 +126,21 @@ func _build_panel() -> void:
 		layout.add_child(_make_label("УПРАВЛЕНИЕ · нажмите кнопку и задайте новую клавишу", 15, Color(0.9, 0.92, 0.98)))
 		for binding in CONTROL_BINDINGS:
 			_build_binding_row(layout, String(binding["action"]), String(binding["label"]))
+
+	layout.add_child(_make_label("ИГРА", 17, Color(0.9, 0.92, 0.98)))
+	var credits_button := _make_button("Авторы и лицензии", false)
+	credits_button.name = "CreditsButton"
+	credits_button.custom_minimum_size = Vector2(0.0, 42.0)
+	credits_button.pressed.connect(_open_credits)
+	layout.add_child(credits_button)
+	var reset_button := _make_danger_button("Сбросить общий прогресс")
+	reset_button.name = "ResetProgressButton"
+	reset_button.custom_minimum_size = Vector2(0.0, 42.0)
+	reset_button.pressed.connect(_confirm_reset_progress)
+	layout.add_child(reset_button)
+	var reset_hint := _make_label("Удалит сохранения, прогресс и кэш игры.", 13, Color(0.7, 0.74, 0.82))
+	reset_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	layout.add_child(reset_hint)
 
 	status_label = _make_label("", 13, Color(0.76, 0.8, 0.89))
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -179,6 +203,160 @@ func _button_style(primary: bool, hovered: bool) -> StyleBoxFlat:
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(8)
 	return style
+
+
+func _make_danger_button(text: String) -> Button:
+	var button := _make_button(text, false)
+	button.add_theme_color_override("font_color", Color(1.0, 0.56, 0.5))
+	button.add_theme_color_override("font_hover_color", Color(1.0, 0.75, 0.7))
+	button.add_theme_stylebox_override("normal", _danger_style(false))
+	button.add_theme_stylebox_override("hover", _danger_style(true))
+	button.add_theme_stylebox_override("pressed", _danger_style(true))
+	return button
+
+
+func _danger_style(hovered: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.18, 0.05, 0.06, 0.95) if not hovered else Color(0.3, 0.08, 0.09, 1.0)
+	style.border_color = Color(0.85, 0.28, 0.24, 1.0) if not hovered else Color(1.0, 0.45, 0.38, 1.0)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(8)
+	return style
+
+
+func _text_edit_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.02, 0.025, 0.04, 0.96)
+	style.border_color = Color(0.3, 0.36, 0.48, 0.8)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(8)
+	style.content_margin_left = 10.0
+	style.content_margin_right = 10.0
+	style.content_margin_top = 8.0
+	style.content_margin_bottom = 8.0
+	return style
+
+
+func _open_credits() -> void:
+	if credits_overlay == null:
+		_build_credits_overlay()
+	credits_overlay.visible = true
+
+
+func _build_credits_overlay() -> void:
+	credits_overlay = ColorRect.new()
+	credits_overlay.name = "CreditsOverlay"
+	credits_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	credits_overlay.color = Color(0.005, 0.008, 0.018, 0.92)
+	credits_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	credits_overlay.z_index = 400
+	add_child(credits_overlay)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	credits_overlay.add_child(center)
+	var panel := PanelContainer.new()
+	panel.name = "CreditsPanel"
+	panel.custom_minimum_size = Vector2(760, 600)
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.035, 0.045, 0.07, 0.99)
+	panel_style.border_color = Color(0.78, 0.62, 0.32)
+	panel_style.set_border_width_all(2)
+	panel_style.set_corner_radius_all(12)
+	panel_style.content_margin_left = 18.0
+	panel_style.content_margin_right = 18.0
+	panel_style.content_margin_top = 14.0
+	panel_style.content_margin_bottom = 14.0
+	panel.add_theme_stylebox_override("panel", panel_style)
+	center.add_child(panel)
+	var layout := VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 10)
+	panel.add_child(layout)
+	var header := HBoxContainer.new()
+	layout.add_child(header)
+	var title := _make_label("АВТОРЫ И ЛИЦЕНЗИИ", 24, Color(0.95, 0.76, 0.38))
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	header.add_child(title)
+	var close_button := _make_button("×", false)
+	close_button.custom_minimum_size = Vector2(44, 40)
+	close_button.add_theme_font_size_override("font_size", 22)
+	close_button.pressed.connect(_close_credits)
+	header.add_child(close_button)
+	var text_edit := TextEdit.new()
+	text_edit.name = "CreditsText"
+	text_edit.text = CREDITS_SCRIPT.TEXT
+	text_edit.editable = false
+	text_edit.custom_minimum_size = Vector2(0, 460)
+	text_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	text_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	text_edit.add_theme_font_override("font", UI_FONT)
+	text_edit.add_theme_font_size_override("font_size", 15)
+	text_edit.add_theme_color_override("font_color", Color(0.88, 0.9, 0.96))
+	text_edit.add_theme_stylebox_override("normal", _text_edit_style())
+	layout.add_child(text_edit)
+	var close_bottom := _make_button("Закрыть", true)
+	close_bottom.custom_minimum_size = Vector2(0.0, 44.0)
+	close_bottom.pressed.connect(_close_credits)
+	layout.add_child(close_bottom)
+
+
+func _close_credits() -> void:
+	if credits_overlay != null:
+		credits_overlay.visible = false
+
+
+func _confirm_reset_progress() -> void:
+	if reset_dialog != null and is_instance_valid(reset_dialog):
+		reset_dialog.queue_free()
+	reset_dialog = ConfirmationDialog.new()
+	reset_dialog.title = "Сбросить общий прогресс?"
+	reset_dialog.dialog_text = "Вы потеряете всё, что успели накопить: уровни, осколки, покупки, статистику и ник. Это действие нельзя отменить."
+	reset_dialog.get_ok_button().text = "Сбросить"
+	reset_dialog.get_cancel_button().text = "Отмена"
+	reset_dialog.get_label().autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	reset_dialog.min_size = Vector2i(520, 0)
+	reset_dialog.confirmed.connect(_reset_progress)
+	add_child(reset_dialog)
+	reset_dialog.popup_centered()
+
+
+func _reset_progress() -> void:
+	var dir := DirAccess.open("user://")
+	if dir != null:
+		for file in ["lobby.cfg", "stats.cfg", "tutorial.cfg", "tutorial_done.cfg", "meta_save.cfg"]:
+			if dir.file_exists(file):
+				dir.remove(file)
+	MetaProgression.reset_all()
+	if OS.has_feature("web"):
+		var script := """
+		(function() {
+			function reload() {
+				var url = new URL(location.href);
+				url.searchParams.set('reset', Date.now().toString());
+				location.replace(url.toString());
+			}
+			var work = Promise.resolve();
+			if ('caches' in window) {
+				work = work.then(function() {
+					return caches.keys().then(function(keys) {
+						return Promise.all(keys.map(function(key) { return caches.delete(key); }));
+					});
+				});
+			}
+			if ('serviceWorker' in navigator) {
+				work = work.then(function() {
+					return navigator.serviceWorker.getRegistrations().then(function(registrations) {
+						return Promise.all(registrations.map(function(registration) { return registration.unregister(); }));
+					});
+				});
+			}
+			work.then(reload).catch(reload);
+		})();
+		"""
+		JavaScriptBridge.eval(script)
+	else:
+		get_tree().reload_current_scene()
 
 
 func _load_settings() -> void:
@@ -258,6 +436,10 @@ func _input(event: InputEvent) -> void:
 	if not key_event.pressed or key_event.echo:
 		return
 	if key_event.keycode == KEY_ESCAPE or key_event.physical_keycode == KEY_ESCAPE:
+		if credits_overlay != null and credits_overlay.visible:
+			_close_credits()
+			get_viewport().set_input_as_handled()
+			return
 		if listening_action.is_empty():
 			_on_back_pressed()
 		else:

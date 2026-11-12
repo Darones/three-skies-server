@@ -1,0 +1,7 @@
+Kenney RPG Audio
+Author: Kenney
+License: CC0 1.0 Universal (Public Domain Dedication)
+Source: https://kenney.nl/assets/rpg-audio
+
+All assets in the Kenney RPG Audio pack are released under CC0 1.0.
+You may use them in personal and commercial projects without attribution.

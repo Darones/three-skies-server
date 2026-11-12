@@ -1,0 +1,7 @@
+Philosopher
+Author: Jovanny Lemonad
+License: SIL Open Font License 1.1
+Source: https://fonts.google.com/specimen/Philosopher
+
+The Philosopher font is distributed under the SIL Open Font License, Version 1.1.
+Full license text: https://openfontlicense.org/open-font-license-official-text/
