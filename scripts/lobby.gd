@@ -633,7 +633,7 @@ func _build_player_menu() -> void:
 	player_menu_overlay.name = "PlayerMenuOverlay"
 	player_menu_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	player_menu_overlay.color = Color(0.005, 0.008, 0.018, 0.86)
-	player_menu_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	player_menu_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	player_menu_overlay.visible = false
 	player_menu_overlay.z_index = 30
 	add_child(player_menu_overlay)
@@ -698,6 +698,9 @@ func _build_player_menu() -> void:
 	nickname_line_edit.text = MetaProgression.player_nickname
 	nickname_line_edit.custom_minimum_size = Vector2(0, 42)
 	nickname_line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nickname_line_edit.mouse_filter = Control.MOUSE_FILTER_STOP
+	nickname_line_edit.focus_mode = Control.FOCUS_ALL
+	nickname_line_edit.caret_blink = true
 	nickname_line_edit.add_theme_font_override("font", font)
 	nickname_row.add_child(nickname_line_edit)
 	var save_nickname_button := _make_action_button("✓", true)
@@ -751,12 +754,12 @@ func _build_player_menu() -> void:
 	var stats_tabs := HBoxContainer.new()
 	stats_tabs.add_theme_constant_override("separation", 4)
 	profile_content.add_child(stats_tabs)
-	var tab_defs := [["all", "ВСЁ"], ["last", "БОЙ"], ["session", "СЕССИЯ"]]
+	var tab_defs := [["all", "Всё время"], ["last", "Последний бой"], ["session", "Сессия"]]
 	for tab_def in tab_defs:
 		var tab_button := _make_action_button(String(tab_def[1]), false)
-		tab_button.custom_minimum_size = Vector2(0, 30)
+		tab_button.custom_minimum_size = Vector2(0, 28)
 		tab_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		tab_button.add_theme_font_size_override("font_size", 11)
+		tab_button.add_theme_font_size_override("font_size", 9)
 		tab_button.pressed.connect(_set_stats_tab.bind(String(tab_def[0])))
 		stats_tabs.add_child(tab_button)
 		stats_tab_buttons[String(tab_def[0])] = tab_button
@@ -804,7 +807,11 @@ func _build_player_menu() -> void:
 	menu_hero_portrait.custom_minimum_size = Vector2(0, 280)
 	menu_hero_portrait.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	menu_hero_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	menu_hero_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	menu_hero_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var portrait_material := ShaderMaterial.new()
+	portrait_material.shader = preload("res://shaders/ability_icon_mask.gdshader")
+	portrait_material.set_shader_parameter("corner_radius", 0.05)
+	menu_hero_portrait.material = portrait_material
 	menu_hero_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	portrait_frame.add_child(menu_hero_portrait)
 
@@ -858,6 +865,7 @@ func _open_player_menu() -> void:
 	_refresh_player_menu()
 	player_menu_overlay.visible = true
 	nickname_line_edit.editable = true
+	nickname_line_edit.grab_focus()
 	nickname_line_edit.call_deferred("grab_focus")
 	if MetaProgression.player_id <= 0:
 		_retry_registration()
@@ -999,7 +1007,7 @@ func _refresh_skill_info() -> void:
 		row.add_theme_constant_override("separation", 6)
 		var icon := TextureRect.new()
 		icon.texture = SKILL_ICONS[selected_class][index]
-		icon.custom_minimum_size = Vector2(28, 28)
+		icon.custom_minimum_size = Vector2(32, 32)
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1007,11 +1015,11 @@ func _refresh_skill_info() -> void:
 		var text_box := VBoxContainer.new()
 		text_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		text_box.add_theme_constant_override("separation", 0)
-		var title := _make_label("%s · %d с" % [String(abilities[index]["name"]), int(abilities[index]["cd"])], 12, PALE)
+		var title := _make_label("%s · %d с" % [String(abilities[index]["name"]), int(abilities[index]["cd"])], 14, PALE)
 		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		title.clip_text = true
 		text_box.add_child(title)
-		var description := _make_label(String(descriptions[index]), 10, Color(0.72, 0.76, 0.86))
+		var description := _make_label(String(descriptions[index]), 12, Color(0.72, 0.76, 0.86))
 		description.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		text_box.add_child(description)
@@ -1034,40 +1042,25 @@ func _refresh_stats() -> void:
 		stats_box.remove_child(child)
 		child.queue_free()
 	var stats := MetaProgression.stats_for(stats_tab)
-	var rows: Array = []
-	if stats_tab == "last":
-		rows = [
-			["Результат", "Победа" if bool(stats.get("won", false)) else "Поражение"],
-			["Место", str(int(stats.get("place", 0)))],
-			["Убийства", str(int(stats.get("kills", 0)))],
-			["Смерти", str(int(stats.get("deaths", 0)))],
-			["Урон", str(int(stats.get("damage", 0)))],
-			["Оболочки", str(int(stats.get("shells", 0)))],
-			["Осколки", str(int(stats.get("crystals", 0)))],
-			["Опыт", "+%d" % int(stats.get("xp", 0))],
-			["Награда", "+%d" % int(stats.get("shards", 0))],
-		]
-	else:
-		rows = [
-			["Боёв", str(int(stats.get("matches", 0)))],
-			["Побед", str(int(stats.get("wins", 0)))],
-			["Убийств", str(int(stats.get("kills", 0)))],
-			["Смертей", str(int(stats.get("deaths", 0)))],
-			["Урон", str(int(stats.get("damage", 0)))],
-			["Оболочек", str(int(stats.get("shells", 0)))],
-			["Осколков", str(int(stats.get("crystals", 0)))],
-			["Опыт", str(int(stats.get("xp", 0)))],
-		]
+	var rows := [
+		["Урон", str(int(stats.get("damage", 0)))],
+		["Убийства", str(int(stats.get("kills", 0)))],
+		["Опыт", str(int(stats.get("xp", 0)))],
+	]
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 6)
 	for row in rows:
-		var line := HBoxContainer.new()
-		var key_label := _make_label(String(row[0]), 11, Color(0.7, 0.75, 0.84))
+		var key_label := _make_label(String(row[0]), 13, Color(0.7, 0.75, 0.84))
+		key_label.custom_minimum_size = Vector2(150, 22)
 		key_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		key_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var value_label := _make_label(String(row[1]), 11, PALE)
+		grid.add_child(key_label)
+		var value_label := _make_label(String(row[1]), 13, PALE)
+		value_label.custom_minimum_size = Vector2(80, 22)
 		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		line.add_child(key_label)
-		line.add_child(value_label)
-		stats_box.add_child(line)
+		grid.add_child(value_label)
+	stats_box.add_child(grid)
 
 
 func _cycle_selected_hero(direction: int) -> void:
@@ -1289,7 +1282,12 @@ func _refresh_selection() -> void:
 		else:
 			card_images[slot].modulate = Color(0.62, 0.65, 0.72, 1.0)
 			card_names[slot].add_theme_color_override("font_color", Color(0.72, 0.75, 0.82))
-	avatar.texture = load(HERO_ART[selected_class]) as Texture2D
+	var avatar_source := load(HERO_ART[selected_class]) as Texture2D
+	if avatar_source != null:
+		var avatar_atlas := AtlasTexture.new()
+		avatar_atlas.atlas = avatar_source
+		avatar_atlas.region = Rect2(0.0, 0.0, avatar_source.get_width(), avatar_source.get_height() * 0.42)
+		avatar.texture = avatar_atlas
 	_refresh_player_profile()
 	_refresh_player_menu()
 
