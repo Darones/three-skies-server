@@ -13,18 +13,18 @@ const CLASS_FRAME_COLORS := {
 }
 const SKILL_ICONS := [
 	[
-		preload("res://assets/ui/icon/128/002.png"),
 		preload("res://assets/ui/icon/128/004.png"),
-		preload("res://assets/ui/icon/128/012.png"),
+		preload("res://assets/ui/icon/128/002.png"),
+		preload("res://assets/ui/icon/128/009.png"),
 	],
 	[
 		preload("res://assets/ui/icon/128/011.png"),
 		preload("res://assets/ui/icon/128/008.png"),
-		preload("res://assets/ui/icon/128/007.png"),
+		preload("res://assets/ui/icon/128/001.png"),
 	],
 	[
-		preload("res://assets/ui/icon/128/001.png"),
-		preload("res://assets/ui/icon/128/crit_red.png"),
+		preload("res://assets/ui/icon/128/003.png"),
+		preload("res://assets/ui/icon/128/014.png"),
 		preload("res://assets/ui/icon/128/005.png"),
 	],
 ]

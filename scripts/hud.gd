@@ -90,18 +90,18 @@ const SHOP_ICON_SHEET: Texture2D = preload("res://assets/shop_icons/e1689879_126
 const HEARTBEAT_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/hits_impacts/deep_sub_impact.wav")
 const ABILITY_ICONS := [
 	[
-		preload("res://assets/ui/icon/128/002.png"),
 		preload("res://assets/ui/icon/128/004.png"),
-		preload("res://assets/ui/icon/128/012.png"),
+		preload("res://assets/ui/icon/128/002.png"),
+		preload("res://assets/ui/icon/128/009.png"),
 	],
 	[
 		preload("res://assets/ui/icon/128/011.png"),
 		preload("res://assets/ui/icon/128/008.png"),
-		preload("res://assets/ui/icon/128/007.png"),
+		preload("res://assets/ui/icon/128/001.png"),
 	],
 	[
-		preload("res://assets/ui/icon/128/001.png"),
-		preload("res://assets/ui/icon/128/crit_red.png"),
+		preload("res://assets/ui/icon/128/003.png"),
+		preload("res://assets/ui/icon/128/014.png"),
 		preload("res://assets/ui/icon/128/005.png"),
 	],
 ]
