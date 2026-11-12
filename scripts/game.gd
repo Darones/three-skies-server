@@ -57,6 +57,9 @@ const SHOP_ITEMS := [
 	{"id": "cleansing_charm", "name": "Оберег Очищения", "effect": "−20% времени станов", "price": 300, "icon": 3},
 ]
 
+const SHOP_ITEM_TEXTURES := {
+	"vampire_fang": preload("res://assets/ui/icon/128/012.png"),
+}
 const MUSIC_PATH := "res://audio/music/dread/6adcd384-a1c6-4d03-ab8f-2885c6220fd5_music_dark_fantasy_arena_battle_them__1793744175999.mp3"
 const AMBIENT_PATH := "res://audio/ambient/arena_wind.wav"
 const SFX_PATHS := {
@@ -1166,6 +1169,10 @@ func clamp_to_arena(position: Vector3) -> Vector3:
 
 func get_shop_items() -> Array:
 	return SHOP_ITEMS
+
+
+func get_shop_item_texture(item_id: String) -> Texture2D:
+	return SHOP_ITEM_TEXTURES.get(item_id, null) as Texture2D
 
 
 func nearest_gold_coin(from_position: Vector3) -> Node3D:

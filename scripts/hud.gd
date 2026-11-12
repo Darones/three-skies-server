@@ -900,7 +900,8 @@ func _build_shop(root: Control) -> void:
 		button.add_child(content)
 
 		var icon := TextureRect.new()
-		icon.texture = _shop_icon(int(item["icon"]))
+		var custom_texture: Texture2D = game.get_shop_item_texture(item_id) if game != null else null
+		icon.texture = custom_texture if custom_texture != null else _shop_icon(int(item["icon"]))
 		icon.custom_minimum_size = Vector2(50.0, 50.0)
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
