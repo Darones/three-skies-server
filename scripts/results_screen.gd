@@ -13,8 +13,8 @@ const GOLD := Color(0.94, 0.78, 0.43)
 const PALE := Color(0.9, 0.91, 0.95)
 
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
-const VICTORY_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/glockenspiel_success_chime.wav")
-const DEFEAT_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/horn_fail_wah_wah_low.wav")
+const VICTORY_SOUND: AudioStream = preload("res://audio/sfx/misc_start_kenney_hit_11.ogg")
+const DEFEAT_SOUND: AudioStream = preload("res://audio/sfx/fairy_death_scream.wav")
 
 var font: FontFile
 var selected_class := 0
@@ -139,7 +139,7 @@ func _build_content() -> void:
 	content.anchor_left = 0.12
 	content.anchor_top = 0.27
 	content.anchor_right = 0.88
-	content.anchor_bottom = 0.765
+	content.anchor_bottom = 0.755
 	content.add_theme_constant_override("separation", 30)
 	add_child(content)
 
@@ -160,7 +160,7 @@ func _build_content() -> void:
 	var portrait := TextureRect.new()
 	portrait.name = "HeroPortrait"
 	portrait.texture = load(CHARACTER_ART[selected_class]) as Texture2D
-	portrait.custom_minimum_size = Vector2(0.0, 260.0)
+	portrait.custom_minimum_size = Vector2(0.0, 220.0)
 	portrait.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -181,10 +181,18 @@ func _build_content() -> void:
 	stats_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stats_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(stats_panel)
+	var stats_scroll := ScrollContainer.new()
+	stats_scroll.name = "StatsScroll"
+	stats_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stats_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stats_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	stats_panel.add_child(stats_scroll)
 	var stats_content := VBoxContainer.new()
+	stats_content.name = "StatsContent"
+	stats_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stats_content.add_theme_constant_override("separation", 5)
-	stats_panel.add_child(stats_content)
-	var stats_title := _make_label("СТАТИСТИКА", 27, GOLD)
+	stats_scroll.add_child(stats_content)
+	var stats_title := _make_label("СТАТИСТИКА", 24, GOLD)
 	stats_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	stats_content.add_child(stats_title)
 	var divider := ColorRect.new()
@@ -192,11 +200,11 @@ func _build_content() -> void:
 	divider.color = Color(GOLD.r, GOLD.g, GOLD.b, 0.35)
 	stats_content.add_child(divider)
 
-	shards_reward_label = _make_label("Получено: %d осколков" % final_shards, 18, Color(0.43, 0.84, 1.0))
+	shards_reward_label = _make_label("Получено: %d осколков" % final_shards, 17, Color(0.43, 0.84, 1.0))
 	shards_reward_label.name = "ShardReward"
 	shards_reward_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	stats_content.add_child(shards_reward_label)
-	xp_reward_label = _make_label("Получено: %d опыта" % final_xp, 18, Color(0.62, 0.86, 1.0))
+	xp_reward_label = _make_label("Получено: %d опыта" % final_xp, 17, Color(0.62, 0.86, 1.0))
 	xp_reward_label.name = "XPReward"
 	xp_reward_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	stats_content.add_child(xp_reward_label)
@@ -208,8 +216,8 @@ func _build_content() -> void:
 
 	double_reward_button = _make_button("", true)
 	double_reward_button.name = "DoubleRewardsButton"
-	double_reward_button.custom_minimum_size = Vector2(0.0, 46.0)
-	double_reward_button.add_theme_font_size_override("font_size", 18)
+	double_reward_button.custom_minimum_size = Vector2(0.0, 40.0)
+	double_reward_button.add_theme_font_size_override("font_size", 16)
 	double_reward_button.add_theme_color_override("font_color", Color(0.18, 0.11, 0.02))
 	double_reward_button.add_theme_color_override("font_hover_color", Color(0.12, 0.075, 0.01))
 	double_reward_button.add_theme_color_override("font_pressed_color", Color(0.12, 0.075, 0.01))
@@ -233,13 +241,13 @@ func _get_player_character_name() -> String:
 
 func _make_stat_row(label_text: String, value_text: String) -> Control:
 	var row := HBoxContainer.new()
-	row.custom_minimum_size = Vector2(0.0, 38.0)
+	row.custom_minimum_size = Vector2(0.0, 32.0)
 	row.add_theme_constant_override("separation", 12)
-	var name_label := _make_label(label_text, 21, PALE)
+	var name_label := _make_label(label_text, 19, PALE)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(name_label)
-	var value_label := _make_label(value_text, 25, GOLD)
+	var value_label := _make_label(value_text, 22, GOLD)
 	value_label.custom_minimum_size = Vector2(64.0, 0.0)
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	row.add_child(value_label)
@@ -255,19 +263,23 @@ func _make_stat_row(label_text: String, value_text: String) -> Control:
 func _build_buttons() -> void:
 	var button_row := HBoxContainer.new()
 	button_row.name = "ActionButtons"
-	button_row.anchor_left = 0.24
-	button_row.anchor_top = 0.825
-	button_row.anchor_right = 0.76
+	button_row.anchor_left = 0.235
+	button_row.anchor_top = 0.81
+	button_row.anchor_right = 0.765
 	button_row.anchor_bottom = 0.94
 	button_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	button_row.add_theme_constant_override("separation", 20)
+	button_row.add_theme_constant_override("separation", 24)
 	add_child(button_row)
 	var retry_button := _make_button("ИГРАТЬ СНОВА", true)
 	retry_button.name = "ReplayButton"
+	retry_button.custom_minimum_size = Vector2(220.0, 54.0)
+	retry_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	retry_button.pressed.connect(_open_replay)
 	button_row.add_child(retry_button)
 	var menu_button := _make_button("В ЛОББИ", false)
 	menu_button.name = "MenuButton"
+	menu_button.custom_minimum_size = Vector2(180.0, 54.0)
+	menu_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	menu_button.pressed.connect(_open_menu)
 	button_row.add_child(menu_button)
 
@@ -312,10 +324,10 @@ func _make_label(text: String, font_size: int, color: Color) -> Label:
 func _make_button(text: String, primary: bool) -> Button:
 	var button := Button.new()
 	button.text = text
-	button.custom_minimum_size = Vector2(230.0, 62.0)
+	button.custom_minimum_size = Vector2(210.0, 54.0)
 	button.focus_mode = Control.FOCUS_NONE
 	button.add_theme_font_override("font", font)
-	button.add_theme_font_size_override("font_size", 18)
+	button.add_theme_font_size_override("font_size", 17)
 	button.add_theme_color_override("font_color", GOLD if primary else PALE)
 	button.add_theme_color_override("font_hover_color", Color(1.0, 0.94, 0.78))
 	button.add_theme_color_override("font_pressed_color", Color.WHITE)
@@ -393,7 +405,7 @@ func _refresh_reward_ui() -> void:
 		double_reward_button.text = "Награды удвоены"
 		double_reward_button.disabled = true
 	else:
-		double_reward_button.text = "▶ Смотреть рекламу: награды x2"
+		double_reward_button.text = "▶ Реклама: награды ×2"
 		double_reward_button.disabled = false
 
 
@@ -416,14 +428,14 @@ func _start_ad_button_pulse() -> void:
 	double_reward_button.pivot_offset = double_reward_button.size * 0.5
 	ad_button_pulse_tween = create_tween().set_loops()
 	ad_button_pulse_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	ad_button_pulse_tween.tween_property(double_reward_button, 'scale', Vector2(1.05, 1.05), 0.65)
+	ad_button_pulse_tween.tween_property(double_reward_button, 'scale', Vector2(1.03, 1.03), 0.65)
 	ad_button_pulse_tween.tween_property(double_reward_button, 'scale', Vector2.ONE, 0.65)
 
 func _play_victory_celebration() -> void:
 	victory_player = AudioStreamPlayer.new()
 	victory_player.name = "VictoryFanfare"
 	victory_player.stream = VICTORY_SOUND
-	victory_player.volume_db = -10.0
+	victory_player.volume_db = -8.0
 	victory_player.bus = "Master"
 	victory_player.max_polyphony = 1
 	add_child(victory_player)
@@ -435,7 +447,7 @@ func _play_defeat_stinger() -> void:
 	victory_player = AudioStreamPlayer.new()
 	victory_player.name = "DefeatStinger"
 	victory_player.stream = DEFEAT_SOUND
-	victory_player.volume_db = -10.0
+	victory_player.volume_db = -11.0
 	victory_player.bus = "Master"
 	victory_player.max_polyphony = 1
 	add_child(victory_player)

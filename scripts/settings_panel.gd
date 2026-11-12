@@ -324,7 +324,7 @@ func _confirm_reset_progress() -> void:
 func _reset_progress() -> void:
 	var dir := DirAccess.open("user://")
 	if dir != null:
-		for file in ["lobby.cfg", "stats.cfg", "tutorial.cfg", "tutorial_done.cfg", "meta_save.cfg"]:
+		for file in ["lobby.cfg", "stats.cfg", "tutorial.cfg", "tutorial_done.cfg", "meta_save.cfg", "loadout.cfg"]:
 			if dir.file_exists(file):
 				dir.remove(file)
 	MetaProgression.reset_all()

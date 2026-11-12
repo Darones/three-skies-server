@@ -5,6 +5,7 @@ signal profile_updated
 
 const MAX_CHARACTER_LEVEL := 15
 const STATS_PATH := "user://stats.cfg"
+const LOADOUT_PATH := "user://loadout.cfg"
 const LEVEL_UP_SHARD_REWARDS: Dictionary = {
 	1: 50, 2: 75, 3: 100, 4: 125, 5: 150,
 	6: 175, 7: 200, 8: 225, 9: 250, 10: 300,
@@ -42,6 +43,7 @@ var stats_last := {
 
 
 func _ready() -> void:
+	_load_loadout()
 	var stats_config := ConfigFile.new()
 	if stats_config.load(STATS_PATH) == OK:
 		for key in stats_all.keys():
@@ -85,6 +87,24 @@ func reset_all() -> void:
 		"won": false, "place": 0, "kills": 0, "deaths": 0,
 		"damage": 0, "shells": 0, "crystals": 0, "xp": 0, "shards": 0,
 	}
+	_save_loadout()
+
+
+func _load_loadout() -> void:
+	var config := ConfigFile.new()
+	if config.load(LOADOUT_PATH) != OK:
+		return
+	for key in equipped_wings.keys():
+		equipped_wings[key] = clampi(int(config.get_value("wings", String(key), 0)), 0, 4)
+	equipped_wing = clampi(int(config.get_value("wings", "last", 0)), 0, 4)
+
+
+func _save_loadout() -> void:
+	var config := ConfigFile.new()
+	for key in equipped_wings.keys():
+		config.set_value("wings", String(key), int(equipped_wings[key]))
+	config.set_value("wings", "last", equipped_wing)
+	config.save(LOADOUT_PATH)
 
 
 func register_player(nickname: String) -> void:
@@ -170,6 +190,7 @@ func equip_wing(wing_id: int, character_key: String) -> bool:
 		return false
 	equipped_wings[character_key] = wing_id
 	equipped_wing = wing_id
+	_save_loadout()
 	return true
 
 
@@ -226,6 +247,17 @@ func _on_profile_loaded(success: bool, loaded_player_id: int, server_shards: int
 		var parsed_weapon_id := int(weapon_id)
 		if parsed_weapon_id == 1 and parsed_weapon_id not in unlocked_weapons:
 			unlocked_weapons.append(parsed_weapon_id)
+	var loadout_changed := false
+	for key in equipped_wings.keys():
+		var equipped_id := int(equipped_wings[key])
+		if equipped_id > 0 and equipped_id not in unlocked_wings:
+			equipped_wings[key] = 0
+			loadout_changed = true
+	if equipped_wing > 0 and equipped_wing not in unlocked_wings:
+		equipped_wing = 0
+		loadout_changed = true
+	if loadout_changed:
+		_save_loadout()
 	if pending_level_shards > 0:
 		var pending := pending_level_shards
 		pending_level_shards = 0
@@ -240,8 +272,13 @@ func _on_purchase_completed(success: bool, purchase_type: String, item_id: int, 
 	pending_purchase_id = 0
 	if success:
 		sky_shards = maxi(0, new_shards)
-		if purchase_type == "wing" and item_id not in unlocked_wings:
-			unlocked_wings.append(item_id)
+		if purchase_type == "wing":
+			if item_id not in unlocked_wings:
+				unlocked_wings.append(item_id)
+			for key in equipped_wings.keys():
+				equipped_wings[key] = item_id
+			equipped_wing = item_id
+			_save_loadout()
 		elif purchase_type == "weapon" and item_id not in unlocked_weapons:
 			unlocked_weapons.append(item_id)
 	purchase_updated.emit(success, purchase_type, item_id, sky_shards)

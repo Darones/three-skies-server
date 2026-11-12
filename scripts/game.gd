@@ -67,12 +67,15 @@ const SFX_PATHS := {
 	"hit": "res://audio/sfx/sword_hit.wav",
 	"magic": "res://audio/sfx/magic_burst.wav",
 	"thunder": "res://audio/sfx/shell_thunder.wav",
-	"coin_pickup": "res://assets/audio/Soundza_Game_SFX_Pack/pickups_powerups/coin_drop_metal_box.wav",
+	"coin_pickup": "res://audio/sfx/misc_coin_wallet.wav",
 	"shop_purchase": "res://assets/audio/Soundza_Game_SFX_Pack/pickups_powerups/coins_1.wav",
-	"shard_pickup": "res://assets/audio/Soundza_Game_SFX_Pack/pickups_powerups/synth_power_up_ascending.wav",
-	"shard_delivery": "res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/level_clear.wav",
-	"death": "res://assets/audio/Soundza_Game_SFX_Pack/explosions/dark_boom_impact.wav",
+	"shard_pickup": "res://audio/sfx/misc_shard_pickup.wav",
+	"shard_delivery": "res://audio/sfx/misc_shard_delivery.wav",
+	"death": "res://audio/sfx/death_soft_thud.wav",
 	"respawn": "res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/level_up_chime.wav",
+	"shell_hit": "res://audio/sfx/misc_shell_hit.wav",
+	"shell_destroyed": "res://audio/sfx/misc_shell_destroyed.wav",
+	"match_start": "res://audio/sfx/misc_start_kenney_hit_15.ogg",
 }
 
 var camera: Camera3D
@@ -1211,6 +1214,8 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	shell_phase = "idle"
 	shell_cycle_timer = SHELL_SPAWN_INTERVAL
 	shell_timer = SHELL_SPAWN_INTERVAL
+	if not tutorial_mode:
+		play_sfx("match_start", -7.0)
 	if hud != null:
 		hud.hide_class_select()
 		if tutorial_mode:
@@ -1659,7 +1664,7 @@ func on_shell_died(s: SkyShell, source: Node = null) -> void:
 		vfx_host.spawn_vfx_silent(HeroUnit.VFX_BIG_IMPACT_02_SCENE, pos, 1.8)
 	burst(pos, Color(0.75, 0.9, 1.0), 60)
 	ring_fx(Vector3(pos.x, 0.25, pos.z), Color(0.8, 0.95, 1.0), 9.0)
-	play_sfx("thunder", -2.0)
+	play_sfx("shell_destroyed", -3.0)
 	shake(0.8)
 	spawn_crystal(pos, true)
 	announce("Оболочка пала! Осколок свободен", Color(0.8, 0.95, 1.0), 2.4)
@@ -1927,10 +1932,9 @@ func drop_crystal(pos: Vector3) -> void:
 func on_hero_died(h: HeroUnit) -> void:
 	burst(h.global_position + Vector3(0.0, 1.0, 0.0), Color(1.0, 0.45, 0.4), 22)
 	h.spawn_vfx_silent(HeroUnit.VFX_GOLDEN_SCENE, h.global_position + Vector3(0.0, 0.4, 0.0), 1.2)
-	play_sfx("hit", -6.0)
+	play_sfx("death", -9.0)
 	if h == player:
 		p_deaths += 1
-		play_sfx("death", -6.0)
 		if network_play:
 			NetworkManager.send_death()
 	if h == carrier or h.carrying:
@@ -2407,7 +2411,7 @@ func melee_fx(_from: Vector3, to: Vector3) -> void:
 func mage_storm_tick(mage: HeroUnit, radius: float, damage: float) -> void:
 	if state != "live" or mage.dead:
 		return
-	play_sfx("thunder", -10.0)
+	play_sfx("thunder", -16.0)
 	var struck := false
 	for enemy in enemies_in_radius(mage.global_position, radius, mage.team):
 		lightning_strike_fx(enemy.global_position)

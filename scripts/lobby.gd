@@ -87,7 +87,6 @@ var menu_shard_label: Label
 var rename_confirm_overlay: ColorRect
 var rename_confirm_label: Label
 var pending_rename_nickname := ""
-var nickname_input_synced := ""
 var report_overlay: ColorRect
 var report_nickname_edit: LineEdit
 var report_reason_option: OptionButton
@@ -102,6 +101,13 @@ var menu_next_reward_label: Label
 var lobby_logo: TextureRect
 var wing_buttons: Dictionary = {}
 var wing_cards: Array[PanelContainer] = []
+var wing_inventory_card: PanelContainer
+var wing_inventory_status: Label
+var wing_inventory_button: Button
+var nickname_display_label: Label
+var nickname_popup_overlay: ColorRect
+var nickname_popup_status_label: Label
+var nickname_popup_cost_label: Label
 var weapon_buttons: Dictionary = {}
 var weapon_cards: Dictionary = {}
 var weapon_status_labels: Array[Label] = []
@@ -135,6 +141,7 @@ func _ready() -> void:
 	_build_actions()
 	_build_shard_shop()
 	_build_player_menu()
+	_build_nickname_popup()
 	_build_rename_confirm()
 	_build_report_form()
 	_refresh_wing_shop()
@@ -734,26 +741,18 @@ func _build_player_menu() -> void:
 	var nickname_row := HBoxContainer.new()
 	nickname_row.add_theme_constant_override("separation", 6)
 	profile_content.add_child(nickname_row)
-	nickname_line_edit = LineEdit.new()
-	nickname_line_edit.name = "NicknameInput"
-	nickname_line_edit.placeholder_text = "Никнейм (3–12 символов)"
-	nickname_line_edit.max_length = 12
-	nickname_line_edit.text = MetaProgression.player_nickname
-	nickname_input_synced = MetaProgression.player_nickname
-	nickname_line_edit.custom_minimum_size = Vector2(0, 42)
-	nickname_line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	nickname_line_edit.mouse_filter = Control.MOUSE_FILTER_STOP
-	nickname_line_edit.focus_mode = Control.FOCUS_ALL
-	nickname_line_edit.caret_blink = true
-	nickname_line_edit.add_theme_font_override("font", font)
-	nickname_row.add_child(nickname_line_edit)
-	var save_nickname_button := _make_action_button("✓", true)
-	save_nickname_button.name = "NicknameCheck"
-	save_nickname_button.custom_minimum_size = Vector2(42, 42)
-	save_nickname_button.add_theme_font_size_override("font_size", 22)
-	save_nickname_button.tooltip_text = "Сохранить ник"
-	save_nickname_button.pressed.connect(_save_player_nickname)
-	nickname_row.add_child(save_nickname_button)
+	nickname_display_label = _make_label(MetaProgression.player_nickname, 18, PALE)
+	nickname_display_label.name = "NicknameDisplay"
+	nickname_display_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	nickname_display_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nickname_display_label.clip_text = true
+	nickname_row.add_child(nickname_display_label)
+	var change_nickname_button := _make_action_button("Сменить ник", false)
+	change_nickname_button.name = "NicknameChangeButton"
+	change_nickname_button.custom_minimum_size = Vector2(140, 42)
+	change_nickname_button.add_theme_font_size_override("font_size", 14)
+	change_nickname_button.pressed.connect(_open_nickname_popup)
+	nickname_row.add_child(change_nickname_button)
 	nickname_status_label = _make_label("", 15, Color(0.58, 0.9, 0.64))
 	nickname_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_content.add_child(nickname_status_label)
@@ -913,15 +912,191 @@ func _build_player_menu() -> void:
 		var status := _make_label("В магазине" if weapon_index == 0 else "Скоро", 12, Color(0.62, 0.65, 0.72))
 		weapon_content.add_child(status)
 		weapon_status_labels.append(status)
+	_build_wing_inventory_card(inventory_grid)
 	_refresh_player_menu()
+
+
+func _build_wing_inventory_card(inventory_grid: GridContainer) -> void:
+	wing_inventory_card = PanelContainer.new()
+	wing_inventory_card.name = "WingInventoryCard"
+	wing_inventory_card.custom_minimum_size = Vector2(110, 154)
+	wing_inventory_card.add_theme_stylebox_override("panel", _panel_style(Color(0.34, 0.37, 0.44), Color(0.065, 0.072, 0.09, 0.92)))
+	inventory_grid.add_child(wing_inventory_card)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 5)
+	wing_inventory_card.add_child(content)
+	var icon := TextureRect.new()
+	icon.name = "WingInventoryIcon"
+	icon.texture = SHOP_WING_ICON
+	icon.custom_minimum_size = Vector2(0, 52)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(icon)
+	content.add_child(_make_label("Белые крылья", 12, PALE))
+	wing_inventory_status = _make_label("Не куплено", 12, Color(0.62, 0.65, 0.72))
+	content.add_child(wing_inventory_status)
+	wing_inventory_button = _make_action_button("Купить", false)
+	wing_inventory_button.name = "WingInventoryButton"
+	wing_inventory_button.custom_minimum_size = Vector2(0, 30)
+	wing_inventory_button.add_theme_font_size_override("font_size", 12)
+	wing_inventory_button.pressed.connect(_on_inventory_wing_pressed)
+	content.add_child(wing_inventory_button)
+
+
+func _refresh_wing_inventory() -> void:
+	if wing_inventory_button == null or wing_inventory_status == null:
+		return
+	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
+	var is_owned: bool = 1 in MetaProgression.unlocked_wings
+	var is_equipped: bool = MetaProgression.get_equipped_wing(character_key) == 1
+	if not is_owned:
+		wing_inventory_status.text = "Не куплено"
+		wing_inventory_status.add_theme_color_override("font_color", Color(0.62, 0.65, 0.72))
+		wing_inventory_button.text = "В магазин"
+		wing_inventory_button.disabled = false
+		wing_inventory_card.add_theme_stylebox_override("panel", _panel_style(Color(0.34, 0.37, 0.44), Color(0.065, 0.072, 0.09, 0.92)))
+	elif is_equipped:
+		wing_inventory_status.text = "Надето"
+		wing_inventory_status.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
+		wing_inventory_button.text = "Снять"
+		wing_inventory_button.disabled = false
+		wing_inventory_card.add_theme_stylebox_override("panel", _wing_card_style(true))
+	else:
+		wing_inventory_status.text = "Куплено"
+		wing_inventory_status.add_theme_color_override("font_color", GOLD)
+		wing_inventory_button.text = "Одеть"
+		wing_inventory_button.disabled = false
+		wing_inventory_card.add_theme_stylebox_override("panel", _panel_style(Color(0.66, 0.58, 0.38), Color(0.08, 0.075, 0.06, 0.96)))
+
+
+func _on_inventory_wing_pressed() -> void:
+	if not 1 in MetaProgression.unlocked_wings:
+		_open_shard_shop()
+		return
+	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
+	var is_equipped: bool = MetaProgression.get_equipped_wing(character_key) == 1
+	MetaProgression.equip_wing(0 if is_equipped else 1, character_key)
+	_refresh_wing_inventory()
+
+
+func _build_nickname_popup() -> void:
+	nickname_popup_overlay = ColorRect.new()
+	nickname_popup_overlay.name = "NicknamePopupOverlay"
+	nickname_popup_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	nickname_popup_overlay.color = Color(0.005, 0.008, 0.018, 0.82)
+	nickname_popup_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	nickname_popup_overlay.visible = false
+	nickname_popup_overlay.z_index = 38
+	add_child(nickname_popup_overlay)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	nickname_popup_overlay.add_child(center)
+	var panel := PanelContainer.new()
+	panel.name = "NicknamePopupPanel"
+	panel.custom_minimum_size = Vector2(460, 0)
+	panel.add_theme_stylebox_override("panel", _panel_style(GOLD, Color(0.035, 0.045, 0.07, 0.99)))
+	center.add_child(panel)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 18)
+	margin.add_theme_constant_override("margin_right", 18)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	panel.add_child(margin)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 10)
+	margin.add_child(content)
+	var header := HBoxContainer.new()
+	content.add_child(header)
+	var title := _make_label("СМЕНА НИКА", 22, GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+	var close_button := _make_action_button("×", false)
+	close_button.custom_minimum_size = Vector2(42, 40)
+	close_button.add_theme_font_size_override("font_size", 22)
+	close_button.pressed.connect(_close_nickname_popup)
+	header.add_child(close_button)
+	var hint := _make_label("Никнейм видят все игроки. От 3 до 12 символов.", 15, Color(0.76, 0.8, 0.89))
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(hint)
+	nickname_line_edit = LineEdit.new()
+	nickname_line_edit.name = "NicknamePopupInput"
+	nickname_line_edit.placeholder_text = "Введите никнейм"
+	nickname_line_edit.max_length = 12
+	nickname_line_edit.text = MetaProgression.player_nickname
+	nickname_line_edit.custom_minimum_size = Vector2(0, 46)
+	nickname_line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nickname_line_edit.mouse_filter = Control.MOUSE_FILTER_STOP
+	nickname_line_edit.focus_mode = Control.FOCUS_ALL
+	nickname_line_edit.caret_blink = true
+	nickname_line_edit.add_theme_font_override("font", font)
+	nickname_line_edit.add_theme_font_size_override("font_size", 20)
+	nickname_line_edit.text_submitted.connect(_on_nickname_submitted)
+	content.add_child(nickname_line_edit)
+	nickname_popup_status_label = _make_label("", 15, Color(0.58, 0.9, 0.64))
+	nickname_popup_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	nickname_popup_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(nickname_popup_status_label)
+	nickname_popup_cost_label = _make_label("", 14, Color(0.76, 0.8, 0.89))
+	nickname_popup_cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	content.add_child(nickname_popup_cost_label)
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 12)
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	content.add_child(buttons)
+	var cancel_button := _make_action_button("Отмена", false)
+	cancel_button.custom_minimum_size = Vector2(150, 46)
+	cancel_button.add_theme_font_size_override("font_size", 17)
+	cancel_button.pressed.connect(_close_nickname_popup)
+	buttons.add_child(cancel_button)
+	var save_button := _make_action_button("Сохранить", true)
+	save_button.custom_minimum_size = Vector2(170, 46)
+	save_button.add_theme_font_size_override("font_size", 17)
+	save_button.pressed.connect(_save_player_nickname)
+	buttons.add_child(save_button)
+
+
+func _open_nickname_popup() -> void:
+	if nickname_popup_overlay == null or nickname_line_edit == null:
+		return
+	nickname_line_edit.text = MetaProgression.player_nickname
+	nickname_popup_status_label.text = ""
+	if MetaProgression.nickname_custom:
+		nickname_popup_cost_label.text = "Смена ника стоит %d осколков." % NICKNAME_CHANGE_COST
+		nickname_popup_cost_label.add_theme_color_override("font_color", Color(0.95, 0.76, 0.38))
+	else:
+		nickname_popup_cost_label.text = "Первый ник — бесплатно."
+		nickname_popup_cost_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
+	nickname_popup_overlay.visible = true
+	nickname_line_edit.call_deferred("grab_focus")
+
+
+func _close_nickname_popup() -> void:
+	if nickname_popup_overlay != null:
+		nickname_popup_overlay.visible = false
+	if nickname_line_edit != null:
+		nickname_line_edit.release_focus()
+
+
+func _on_nickname_submitted(_text: String) -> void:
+	_save_player_nickname()
+
+
+func _set_nickname_status(message: String, color: Color) -> void:
+	if nickname_status_label != null:
+		nickname_status_label.text = message
+		nickname_status_label.add_theme_color_override("font_color", color)
+	if nickname_popup_status_label != null:
+		nickname_popup_status_label.text = message
+		nickname_popup_status_label.add_theme_color_override("font_color", color)
 
 
 func _open_player_menu() -> void:
 	_refresh_player_menu()
 	player_menu_overlay.visible = true
-	nickname_line_edit.editable = true
-	nickname_line_edit.grab_focus()
-	nickname_line_edit.call_deferred("grab_focus")
 	if MetaProgression.player_id <= 0:
 		_retry_registration()
 
@@ -940,31 +1115,29 @@ func _generate_guest_nickname() -> String:
 
 func _close_player_menu() -> void:
 	player_menu_overlay.visible = false
+	_close_nickname_popup()
 
 
 func _save_player_nickname() -> void:
+	if nickname_line_edit == null:
+		return
 	var nickname := nickname_line_edit.text.strip_edges()
 	if nickname.length() < 3 or nickname.length() > 12:
-		nickname_status_label.text = "Введите от 3 до 12 символов."
-		nickname_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
+		_set_nickname_status("Введите от 3 до 12 символов.", Color(1.0, 0.48, 0.42))
 		return
 	if ProfanityFilter.contains(nickname):
-		nickname_status_label.text = "Ник содержит недопустимые слова."
-		nickname_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
+		_set_nickname_status("Ник содержит недопустимые слова.", Color(1.0, 0.48, 0.42))
 		return
 	if nickname == MetaProgression.player_nickname:
-		nickname_status_label.text = "Ник не изменился."
-		nickname_status_label.add_theme_color_override("font_color", Color(0.76, 0.8, 0.89))
+		_set_nickname_status("Ник не изменился.", Color(0.76, 0.8, 0.89))
 		return
 	if MetaProgression.player_id <= 0:
 		pending_nickname = nickname
 		MetaProgression.register_player(nickname)
-		nickname_status_label.text = "Регистрируем профиль на сервере..."
-		nickname_status_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
+		_set_nickname_status("Регистрируем профиль на сервере...", Color(0.58, 0.9, 0.64))
 		return
 	if MetaProgression.nickname_custom and MetaProgression.sky_shards < NICKNAME_CHANGE_COST:
-		nickname_status_label.text = "Не хватает: %d" % NICKNAME_CHANGE_COST
-		nickname_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
+		_set_nickname_status("Не хватает: %d" % NICKNAME_CHANGE_COST, Color(1.0, 0.48, 0.42))
 		MetaProgression.load_profile(MetaProgression.player_id)
 		return
 	if MetaProgression.nickname_custom:
@@ -975,8 +1148,7 @@ func _save_player_nickname() -> void:
 
 func _perform_rename(nickname: String) -> void:
 	NetworkClient.rename_player(MetaProgression.player_id, nickname)
-	nickname_status_label.text = "Сохраняем ник на сервере..."
-	nickname_status_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
+	_set_nickname_status("Сохраняем ник на сервере...", Color(0.58, 0.9, 0.64))
 
 
 func _on_rename_completed(success: bool, nickname: String, error: String, charged: bool, cost: int, new_shards: int) -> void:
@@ -988,23 +1160,22 @@ func _on_rename_completed(success: bool, nickname: String, error: String, charge
 		if charged:
 			MetaProgression.sky_shards = maxi(0, new_shards)
 		_save_player_id(MetaProgression.player_id)
-		nickname_line_edit.text = nickname
-		nickname_input_synced = nickname
+		if nickname_line_edit != null:
+			nickname_line_edit.text = nickname
 		if charged:
-			nickname_status_label.text = "Ник изменён. Списано %d." % cost
+			_set_nickname_status("Ник изменён. Списано %d." % cost, Color(0.58, 0.9, 0.64))
 		else:
-			nickname_status_label.text = "Ник сохранён."
-		nickname_status_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
+			_set_nickname_status("Ник сохранён.", Color(0.58, 0.9, 0.64))
+		_close_nickname_popup()
 		_refresh_player_profile()
 		_refresh_player_menu()
 		_refresh_wing_shop()
 	else:
 		if error == "Not enough shards":
-			nickname_status_label.text = "Не хватает: %d" % NICKNAME_CHANGE_COST
+			_set_nickname_status("Не хватает: %d" % NICKNAME_CHANGE_COST, Color(1.0, 0.48, 0.42))
 			MetaProgression.load_profile(MetaProgression.player_id)
 		else:
-			nickname_status_label.text = "Не удалось: %s" % _localize_nickname_error(error)
-		nickname_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
+			_set_nickname_status("Не удалось: %s" % _localize_nickname_error(error), Color(1.0, 0.48, 0.42))
 
 
 func _localize_nickname_error(error: String) -> String:
@@ -1057,9 +1228,9 @@ func _on_registration_completed(success: bool, registered_player_id: int) -> voi
 		_save_player_id(registered_player_id)
 		if nickname_line_edit != null:
 			nickname_line_edit.text = MetaProgression.player_nickname
-		if nickname_status_label != null:
-			nickname_status_label.text = "Профиль подключён."
-			nickname_status_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
+		_set_nickname_status("Профиль подключён.", Color(0.58, 0.9, 0.64))
+		_close_nickname_popup()
+		_refresh_player_menu()
 		return
 	if nickname_status_label == null:
 		return
@@ -1067,11 +1238,9 @@ func _on_registration_completed(success: bool, registered_player_id: int) -> voi
 		guest_attempts += 1
 		MetaProgression.player_nickname = _generate_guest_nickname()
 		MetaProgression.register_player(MetaProgression.player_nickname)
-		nickname_status_label.text = "Пробуем другой временный ник..."
-		nickname_status_label.add_theme_color_override("font_color", Color(0.76, 0.8, 0.89))
+		_set_nickname_status("Пробуем другой временный ник...", Color(0.76, 0.8, 0.89))
 		return
-	nickname_status_label.text = "Регистрация не удалась: сервер недоступен или ник занят."
-	nickname_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
+	_set_nickname_status("Регистрация не удалась: сервер недоступен или ник занят.", Color(1.0, 0.48, 0.42))
 
 
 func _build_rename_confirm() -> void:
@@ -1295,11 +1464,10 @@ func _localize_report_error(error: String) -> String:
 func _refresh_player_menu() -> void:
 	if menu_hero_portrait == null:
 		return
-	if nickname_line_edit != null:
-		var current_input := nickname_line_edit.text.strip_edges()
-		if not nickname_line_edit.has_focus() or current_input == nickname_input_synced:
-			nickname_line_edit.text = MetaProgression.player_nickname
-		nickname_input_synced = MetaProgression.player_nickname
+	if nickname_display_label != null:
+		nickname_display_label.text = MetaProgression.player_nickname
+	if nickname_line_edit != null and nickname_popup_overlay != null and nickname_popup_overlay.visible and not nickname_line_edit.has_focus():
+		nickname_line_edit.text = MetaProgression.player_nickname
 	if nickname_cost_label != null:
 		if MetaProgression.nickname_custom:
 			nickname_cost_label.text = "Смена ника — %d" % NICKNAME_CHANGE_COST
@@ -1326,6 +1494,7 @@ func _refresh_player_menu() -> void:
 		menu_next_reward_label.text = "Награда: %d осколков" % MetaProgression.get_shard_reward_for_level(character_level + 1)
 	_refresh_skill_info()
 	_refresh_stats()
+	_refresh_wing_inventory()
 
 
 func _refresh_skill_info() -> void:

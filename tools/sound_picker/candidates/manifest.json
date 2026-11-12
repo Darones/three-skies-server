@@ -256,9 +256,9 @@
       "coin_pickup": "misc_coin_wallet.wav",
       "shell_hit": "misc_shell_hit.wav",
       "shell_destroyed": "misc_shell_destroyed.wav",
-      "victory": "misc_victory_kenney_steel_01.ogg",
-      "defeat": "misc_defeat_kenney_steel_03.ogg",
-      "match_start": "misc_match_start_swords.wav"
+      "victory": "misc_start_kenney_hit_11.ogg",
+      "defeat": "fairy_death_scream.wav",
+      "match_start": "misc_start_kenney_hit_15.ogg"
     }
   }
 }

@@ -30,25 +30,25 @@ const WEAPON_MAGE_GLOW := Color(0.35, 0.78, 1.0)
 const WEAPON_WARRIOR_GLOW := Color(1.0, 0.64, 0.24)
 const WEAPON_FAIRY_GLOW := Color(0.55, 1.0, 0.62)
 const WARRIOR_SWING_SOUNDS := [
-	preload("res://assets/audio/Soundza_Game_SFX_Pack/swords_melee/sword_slash.wav"),
-	preload("res://assets/audio/Soundza_Game_SFX_Pack/swords_melee/weapon_swing_1.wav"),
-	preload("res://assets/audio/Soundza_Game_SFX_Pack/swords_melee/sword_attack_3.wav"),
+	preload("res://audio/sfx/warrior_attack_sword_01.wav"),
 ]
 const WARRIOR_HIT_SOUNDS := [
-	preload("res://assets/audio/Soundza_Game_SFX_Pack/hits_impacts/deep_industrial_impact.wav"),
-	preload("res://assets/audio/Soundza_Game_SFX_Pack/hits_impacts/deep_punch_impact.wav"),
-	preload("res://assets/audio/Soundza_Game_SFX_Pack/hits_impacts/cinematic_impact_hit.wav"),
+	preload("res://audio/sfx/warrior_hit.wav"),
 ]
 const MAGE_ATTACK_SOUNDS := [
-	preload("res://assets/audio/Soundza_Game_SFX_Pack/magic/sparkle_magic_spell.wav"),
-	preload("res://assets/audio/Soundza_Game_SFX_Pack/magic/spell_2.wav"),
+	preload("res://audio/sfx/mage_ice_ball.wav"),
+]
+const MAGE_HIT_SOUNDS := [
+	preload("res://audio/sfx/mage_hit.wav"),
 ]
 const FAIRY_ATTACK_SOUNDS := [
-	preload("res://assets/audio/Soundza_Game_SFX_Pack/whooshes_swings/fast_air_whoosh.wav"),
-	preload("res://assets/audio/Soundza_Game_SFX_Pack/whooshes_swings/quick_air_whoosh.wav"),
+	preload("res://audio/sfx/fairy_bow_release_01.wav"),
+]
+const FAIRY_HIT_SOUNDS := [
+	preload("res://audio/sfx/fairy_hit.wav"),
 ]
 const WARRIOR_ULT_SOUND := [
-	preload("res://assets/audio/Soundza_Game_SFX_Pack/explosions/fireball_explosion.wav"),
+	preload("res://audio/sfx/warrior_quake_ult.wav"),
 ]
 const VFX_HIT_SCENE: PackedScene = preload("res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn")
 const VFX_HIT_02_SCENE: PackedScene = preload("res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn")
@@ -66,19 +66,19 @@ const FOOTSTEP_SOUNDS := [
 ]
 const ABILITY_SOUNDS := [
 	[
-		preload("res://assets/audio/Soundza_Game_SFX_Pack/whooshes_swings/fast_air_whoosh.wav"),
-		preload("res://assets/audio/Soundza_Game_SFX_Pack/explosions/dark_boom_impact.wav"),
+		preload("res://audio/sfx/warrior_dash_shadow.wav"),
+		preload("res://audio/sfx/warrior_bloodthirst.wav"),
 		null,
 	],
 	[
-		preload("res://assets/audio/Soundza_Game_SFX_Pack/magic/sparkle_magic_spell.wav"),
-		preload("res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/level_up_chime.wav"),
-		preload("res://audio/sfx/shell_thunder.wav"),
+		preload("res://audio/sfx/mage_root_vines_short.wav"),
+		preload("res://audio/sfx/mage_heal_chime.wav"),
+		preload("res://audio/sfx/mage_storm_ult.wav"),
 	],
 	[
-		preload("res://assets/audio/Soundza_Game_SFX_Pack/whooshes_swings/quick_air_whoosh.wav"),
-		preload("res://assets/audio/Soundza_Game_SFX_Pack/whooshes_swings/fast_air_whoosh.wav"),
-		null,
+		preload("res://audio/sfx/fairy_stun_shot.wav"),
+		preload("res://audio/sfx/fairy_crit_draw_release.wav"),
+		preload("res://audio/sfx/fairy_blessing.wav"),
 	],
 ]
 const VFX_BIG_IMPACT_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/explosions/fireball_explosion.wav")
@@ -515,6 +515,16 @@ func _play_class_attack_sfx() -> void:
 			_play_combat_sfx("attack", MAGE_ATTACK_SOUNDS, -11.0)
 		Cls.FAIRY:
 			_play_combat_sfx("attack", FAIRY_ATTACK_SOUNDS, -10.0)
+
+
+func _play_class_hit_sfx() -> void:
+	match hero_class:
+		Cls.WARRIOR:
+			_play_combat_sfx("impact", WARRIOR_HIT_SOUNDS, -11.0)
+		Cls.MAGE:
+			_play_combat_sfx("impact", MAGE_HIT_SOUNDS, -12.0)
+		Cls.FAIRY:
+			_play_combat_sfx("impact", FAIRY_HIT_SOUNDS, -11.0)
 
 
 func _vfx_palette() -> Dictionary:
@@ -1965,8 +1975,8 @@ func take_damage(amount: float, source: Node = null, damage_type: String = "phys
 		game.damage_number(global_position + Vector3(0.0, 2.0, 0.0), final_damage, team)
 	if source is HeroUnit:
 		var source_hero := source as HeroUnit
-		if source_hero.hero_class == Cls.WARRIOR and applied_damage > 0.0:
-			source_hero._play_combat_sfx("impact", WARRIOR_HIT_SOUNDS, -11.0)
+		if applied_damage > 0.0:
+			source_hero._play_class_hit_sfx()
 		(source as HeroUnit).on_damage_dealt(applied_damage)
 	if health <= 0.0:
 		_die()
