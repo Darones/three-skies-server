@@ -157,8 +157,8 @@
       "path": "candidates/warrior_hit.wav"
     },
     {
-      "name": "warrior_quake_crit.wav",
-      "path": "candidates/warrior_quake_crit.wav"
+      "name": "warrior_quake_ult.wav",
+      "path": "candidates/warrior_quake_ult.wav"
     }
   ],
   "assignments": {
@@ -166,10 +166,9 @@
       "attack": "warrior_attack_sword_01.wav",
       "skill1": "warrior_dash_shadow.wav",
       "skill2": "warrior_bloodthirst.wav",
-      "ult": "warrior_fear_roar.wav",
+      "ult": "warrior_quake_ult.wav",
       "hit": "warrior_hit.wav",
-      "death": "death_soft_aaa.wav",
-      "crit": "warrior_quake_crit.wav"
+      "death": "death_soft_aaa.wav"
     },
     "fairy": {
       "attack": "fairy_bow_release_01.wav",
