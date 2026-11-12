@@ -1096,42 +1096,43 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 	card.anchor_right = 0.5
 	card.anchor_bottom = 0.5
 	var card_width := 330.0 if is_center else 210.0
-	var card_height := 430.0 if is_center else 280.0
+	var card_height := 502.0 if is_center else 333.0
 	var footer_height := 52.0 if is_center else 44.0
-	var inset := 8.0
 	var frame_color: Color = CLASS_FRAME_COLORS.get(slot_classes[slot], GOLD)
 	card.custom_minimum_size = Vector2(card_width, card_height)
 	if is_center:
 		card.offset_left = -165.0
 		card.offset_top = -165.0
 		card.offset_right = 165.0
-		card.offset_bottom = 265.0
+		card.offset_bottom = 337.0
 		card.z_index = 2
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	else:
 		var side_offset := -392.0 if slot == 0 else 182.0
 		card.offset_left = side_offset
-		card.offset_top = -120.0
+		card.offset_top = -160.0
 		card.offset_right = side_offset + 210.0
-		card.offset_bottom = 160.0
+		card.offset_bottom = 173.0
 		card.z_index = 1
 	card.add_theme_stylebox_override("normal", _card_style(is_center, false, frame_color))
 	card.add_theme_stylebox_override("hover", _card_style(is_center, not is_center, frame_color))
 	card.add_theme_stylebox_override("pressed", _card_style(is_center, not is_center, frame_color))
 	add_child(card)
 
+	var inset := 8.0
 	var image := TextureRect.new()
 	image.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	image.offset_left = inset
-	image.offset_top = inset
-	image.offset_right = -inset
-	image.offset_bottom = -(inset + footer_height)
+	image.offset_left = 0.0
+	image.offset_top = 0.0
+	image.offset_right = 0.0
+	image.offset_bottom = -(footer_height + inset)
 	image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	image.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var portrait_material := ShaderMaterial.new()
 	portrait_material.shader = preload("res://shaders/card_portrait.gdshader")
-	portrait_material.set_shader_parameter("corner_radius", 0.06)
+	portrait_material.set_shader_parameter("rect_size", Vector2(card_width, card_height - footer_height - inset))
+	portrait_material.set_shader_parameter("corner_px", 16.0 if is_center else 12.0)
 	image.material = portrait_material
 	card.add_child(image)
 
@@ -1163,6 +1164,14 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	footer.add_child(name_label)
+
+	var frame := Panel.new()
+	frame.name = "CardFrame"
+	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.z_index = 3
+	frame.add_theme_stylebox_override("panel", _card_frame_style(frame_color, is_center))
+	card.add_child(frame)
 
 	cards.append(card)
 	card_images.append(image)
@@ -1271,6 +1280,9 @@ func _refresh_selection() -> void:
 		for style_name in ["normal", "hover", "pressed"]:
 			cards[slot].add_theme_stylebox_override(style_name, _card_style(slot == 1, style_name != "normal", frame_color))
 		card_footers[slot].add_theme_stylebox_override("panel", _card_footer_style(frame_color))
+		var frame := cards[slot].get_node_or_null("CardFrame") as Panel
+		if frame != null:
+			frame.add_theme_stylebox_override("panel", _card_frame_style(frame_color, slot == 1))
 		if slot == 1:
 			card_images[slot].modulate = Color.WHITE
 			card_names[slot].add_theme_color_override("font_color", GOLD)
@@ -1473,11 +1485,24 @@ func _card_style(is_center: bool, hovered: bool, frame_color: Color) -> StyleBox
 	style.border_color = Color(frame_color.r, frame_color.g, frame_color.b, 1.0 if is_center else 0.5)
 	if hovered and not is_center:
 		style.border_color = frame_color
-	style.set_border_width_all(3 if is_center else 1)
-	style.set_corner_radius_all(16)
+	style.set_border_width_all(0)
+	style.set_corner_radius_all(16 if is_center else 12)
 	if is_center:
 		style.shadow_color = Color(frame_color.r, frame_color.g, frame_color.b, 0.3)
 		style.shadow_size = 18
+	style.content_margin_left = 0.0
+	style.content_margin_right = 0.0
+	style.content_margin_top = 0.0
+	style.content_margin_bottom = 0.0
+	return style
+
+
+func _card_frame_style(frame_color: Color, is_center: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.0, 0.0, 0.0, 0.0)
+	style.border_color = frame_color
+	style.set_border_width_all(3 if is_center else 2)
+	style.set_corner_radius_all(16 if is_center else 12)
 	style.content_margin_left = 0.0
 	style.content_margin_right = 0.0
 	style.content_margin_top = 0.0
