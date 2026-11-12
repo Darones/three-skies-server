@@ -931,6 +931,7 @@ func _save_player_nickname() -> void:
 	if MetaProgression.nickname_custom and MetaProgression.sky_shards < NICKNAME_CHANGE_COST:
 		nickname_status_label.text = "Не хватает: %d" % NICKNAME_CHANGE_COST
 		nickname_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
+		MetaProgression.load_profile(MetaProgression.player_id)
 		return
 	if MetaProgression.nickname_custom:
 		_open_rename_confirm(nickname)
