@@ -32,6 +32,8 @@ var load_failed := false
 var network_flow := false
 var network_player_slots: Dictionary = {}
 var back_button: Button
+var wait_seconds_left := 30.0
+var wait_countdown_active := false
 
 func _ready() -> void:
 	randomize()
@@ -43,12 +45,16 @@ func _ready() -> void:
 	else:
 		_use_bot_fallback()
 	search_label.text = '\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432...'
+	if network_flow:
+		search_label.text = '\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432 \u00b7 \u0441\u0442\u0430\u0440\u0442 \u0447\u0435\u0440\u0435\u0437 30 \u0441\u0435\u043a'
 	tip_label.text = TIPS[0]
 
 
 func _start_network_flow() -> void:
 	no_network = false
 	fill_with_bots = true
+	wait_seconds_left = 30.0
+	wait_countdown_active = true
 	connection_hint.text = '\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0430\u0435\u043c\u0441\u044f \u043a \u0441\u0435\u0440\u0432\u0435\u0440\u0443...'
 	if not NetworkManager.connection_succeeded.is_connected(_on_network_connected):
 		NetworkManager.connection_succeeded.connect(_on_network_connected)
@@ -115,6 +121,7 @@ func _on_network_match_started(room_id: int, _host_id: int, players: Array) -> v
 	if transition_started:
 		return
 	transition_started = true
+	wait_countdown_active = false
 	network_player_slots.clear()
 	for team_index in range(2):
 		for slot_index in range(SLOTS_PER_TEAM):
@@ -154,6 +161,7 @@ func _on_network_failed(reason: String) -> void:
 	if transition_started:
 		return
 	transition_started = true
+	wait_countdown_active = false
 	search_label.text = '\u0421\u0435\u0440\u0432\u0435\u0440 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d'
 	connection_hint.text = '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u044c\u0441\u044f: %s' % reason
 	for spinner in searching_spinners:
@@ -184,6 +192,14 @@ func _add_back_button() -> void:
 func _process(delta: float) -> void:
 	if transition_started:
 		return
+	if network_flow and wait_countdown_active:
+		wait_seconds_left = maxf(0.0, wait_seconds_left - delta)
+		var seconds_left := int(ceil(wait_seconds_left))
+		if seconds_left > 0:
+			search_label.text = '\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432 \u00b7 \u0441\u0442\u0430\u0440\u0442 \u0447\u0435\u0440\u0435\u0437 %d \u0441\u0435\u043a' % seconds_left
+		else:
+			search_label.text = '\u0421\u0442\u0430\u0440\u0442 \u0447\u0435\u0440\u0435\u0437 0 \u0441\u0435\u043a'
+			wait_countdown_active = false
 	tip_timer += delta
 	if tip_timer >= 3.0:
 		tip_timer = 0.0
@@ -382,7 +398,7 @@ func _build_screen() -> void:
 	versus.anchor_top = 0.43
 	versus.anchor_bottom = 0.53
 	add_child(versus)
-	search_label = _make_label('\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432...', 23, Color(1.0, 0.9, 0.7))
+	search_label = _make_label('\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432...', 26, Color(1.0, 0.9, 0.7))
 	search_label.anchor_left = 0.12
 	search_label.anchor_right = 0.88
 	search_label.anchor_top = 0.765
