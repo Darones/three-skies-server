@@ -227,7 +227,7 @@ func take_damage(amount: float, source: Node = null, _damage_type: String = "phy
 	health -= applied_damage
 	game.damage_number(global_position + Vector3(0.0, 3.4, 0.0), applied_damage, 1, true)
 	if applied_damage > 0.0 and health > 0.0:
-		game.play_sfx("shell_hit", -12.0)
+		game.play_sfx("shell_hit", -8.0)
 	if source is HeroUnit:
 		(source as HeroUnit).on_damage_dealt(applied_damage)
 	if health <= 0.0:

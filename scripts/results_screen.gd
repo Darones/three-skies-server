@@ -13,6 +13,7 @@ const GOLD := Color(0.94, 0.78, 0.43)
 const PALE := Color(0.9, 0.91, 0.95)
 
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
+const SHARD_ICON: Texture2D = preload("res://ui/icons/sky_shard.png")
 const VICTORY_SOUND: AudioStream = preload("res://audio/sfx/misc_start_kenney_hit_11.ogg")
 const DEFEAT_SOUND: AudioStream = preload("res://audio/sfx/fairy_death_scream.wav")
 
@@ -200,10 +201,15 @@ func _build_content() -> void:
 	divider.color = Color(GOLD.r, GOLD.g, GOLD.b, 0.35)
 	stats_content.add_child(divider)
 
-	shards_reward_label = _make_label("Получено: %d осколков" % final_shards, 17, Color(0.43, 0.84, 1.0))
+	var shards_row := HBoxContainer.new()
+	shards_row.name = "ShardRewardRow"
+	shards_row.add_theme_constant_override("separation", 5)
+	shards_reward_label = _make_label("Получено: %d" % final_shards, 17, Color(0.43, 0.84, 1.0))
 	shards_reward_label.name = "ShardReward"
 	shards_reward_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	stats_content.add_child(shards_reward_label)
+	shards_row.add_child(shards_reward_label)
+	shards_row.add_child(_shard_icon(18))
+	stats_content.add_child(shards_row)
 	xp_reward_label = _make_label("Получено: %d опыта" % final_xp, 17, Color(0.62, 0.86, 1.0))
 	xp_reward_label.name = "XPReward"
 	xp_reward_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -306,6 +312,16 @@ func _panel_style(border_color: Color, fill_color: Color) -> StyleBoxFlat:
 	return style
 
 
+func _shard_icon(icon_size: int) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.texture = SHARD_ICON
+	icon.custom_minimum_size = Vector2(icon_size * 0.7, icon_size)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return icon
+
+
 func _make_label(text: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
@@ -396,7 +412,7 @@ func _on_rewarded_ad_completed() -> void:
 
 func _refresh_reward_ui() -> void:
 	if shards_reward_label != null:
-		shards_reward_label.text = "Получено: %d осколков" % final_shards
+		shards_reward_label.text = "Получено: %d" % final_shards
 	if xp_reward_label != null:
 		xp_reward_label.text = "Получено: %d опыта" % final_xp
 	if double_reward_button == null:
@@ -435,7 +451,7 @@ func _play_victory_celebration() -> void:
 	victory_player = AudioStreamPlayer.new()
 	victory_player.name = "VictoryFanfare"
 	victory_player.stream = VICTORY_SOUND
-	victory_player.volume_db = -8.0
+	victory_player.volume_db = -6.0
 	victory_player.bus = "Master"
 	victory_player.max_polyphony = 1
 	add_child(victory_player)
@@ -447,7 +463,7 @@ func _play_defeat_stinger() -> void:
 	victory_player = AudioStreamPlayer.new()
 	victory_player.name = "DefeatStinger"
 	victory_player.stream = DEFEAT_SOUND
-	victory_player.volume_db = -11.0
+	victory_player.volume_db = -8.0
 	victory_player.bus = "Master"
 	victory_player.max_polyphony = 1
 	add_child(victory_player)

@@ -701,7 +701,7 @@ func _update_gold_fountain(delta: float) -> void:
 			collector.match_coins_collected += 1
 			var coin_value := int(coin.get_meta("gold_value", 1))
 			if collector.is_player:
-				play_sfx("coin_pickup", -18.0)
+				play_sfx("coin_pickup", -10.0)
 				award_gold(coin_value)
 				if tutorial_mode and tutorial_controller != null:
 					tutorial_controller.call("on_coin_collected")
@@ -1215,7 +1215,7 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	shell_cycle_timer = SHELL_SPAWN_INTERVAL
 	shell_timer = SHELL_SPAWN_INTERVAL
 	if not tutorial_mode:
-		play_sfx("match_start", -7.0)
+		play_sfx("match_start", -4.0)
 	if hud != null:
 		hud.hide_class_select()
 		if tutorial_mode:
@@ -1385,7 +1385,7 @@ func buy_item(item_id: String) -> bool:
 		if hud != null:
 			hud.update_gold()
 			hud.update_shop()
-		play_sfx("shop_purchase", -10.0)
+		play_sfx("shop_purchase", -7.0)
 		if tutorial_mode and tutorial_controller != null:
 			tutorial_controller.call("on_shop_item_bought", item_id)
 		return true
@@ -1870,7 +1870,7 @@ func _try_pickup() -> void:
 		best.carrying = true
 		carrier = best
 		crystal_state = "carried"
-		play_sfx("shard_pickup", -9.0)
+		play_sfx("shard_pickup", -6.0)
 		if best == player:
 			announce("Осколок у тебя! Неси на базу", Color(0.75, 1.0, 0.85), 2.0)
 		else:
@@ -1886,7 +1886,7 @@ func _deliver(h: HeroUnit) -> void:
 			burst(crystal_node.global_position, Color(0.7, 0.95, 1.0), 40)
 			crystal_node.queue_free()
 			crystal_node = null
-		play_sfx("shard_delivery", -8.0)
+		play_sfx("shard_delivery", -5.0)
 		if tutorial_controller != null:
 			tutorial_controller.call("on_delivery")
 		return
@@ -1905,7 +1905,7 @@ func _deliver(h: HeroUnit) -> void:
 		burst(crystal_node.global_position, Color(0.7, 0.95, 1.0), 40)
 		crystal_node.queue_free()
 		crystal_node = null
-	play_sfx("shard_delivery", -8.0)
+	play_sfx("shard_delivery", -5.0)
 	var team_name := "Свет" if h.team == 0 else "Тьма"
 	announce("Осколок на базе: %s  %d : %d" % [team_name, score[0], score[1]], Color(1.0, 0.9, 0.6), 2.6)
 	if network_play:
@@ -1934,7 +1934,7 @@ func drop_crystal(pos: Vector3) -> void:
 func on_hero_died(h: HeroUnit) -> void:
 	burst(h.global_position + Vector3(0.0, 1.0, 0.0), Color(1.0, 0.45, 0.4), 22)
 	h.spawn_vfx_silent(HeroUnit.VFX_GOLDEN_SCENE, h.global_position + Vector3(0.0, 0.4, 0.0), 1.2)
-	play_sfx("death", -9.0)
+	play_sfx("death", -6.0)
 	if h == player:
 		p_deaths += 1
 		if network_play:
@@ -1966,7 +1966,7 @@ func record_hero_damage(target: HeroUnit, source: Node, damage: float, killed: b
 func on_hero_respawned(h: HeroUnit) -> void:
 	if h == player:
 		death_camera_active = false
-		play_sfx("respawn", -9.0)
+		play_sfx("respawn", -6.0)
 		if network_play:
 			var visual_rotation := h.global_rotation.y
 			if h.visual != null:
@@ -2398,7 +2398,7 @@ func _update_projectiles(delta: float) -> void:
 				stun_impact_fx(target.global_position, p["color"])
 			burst(node.global_position, p["color"], 10)
 			if p.get("source") == null:
-				play_sfx("magic", -12.0)
+				play_sfx("magic", -8.0)
 			_release_projectile(node, bool(p.get("pooled", false)))
 			continue
 		node.global_position += to_goal.normalized() * minf(dist, 26.0 * delta)
@@ -2530,7 +2530,6 @@ func earthquake_fx(center: Vector3, radius: float, duration: float) -> void:
 
 
 func golden_blessing_fx(center: Vector3, team: int, caster: HeroUnit) -> void:
-	play_sfx('fairy_ult', -4.0)
 	var gold := Color(1.0, 0.78, 0.22)
 	burst(center + Vector3(0.0, 1.0, 0.0), gold, 28)
 	_activate_ring(Vector3(center.x, 0.22, center.z), gold, 0.85, Vector3.ONE * 0.35, Vector3(4.5, 1.0, 4.5), true, 0.9)

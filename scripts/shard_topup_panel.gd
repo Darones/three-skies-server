@@ -4,6 +4,7 @@ const GOLD := Color(0.95, 0.76, 0.38)
 const PALE := Color(0.9, 0.92, 0.98)
 const MUTED := Color(0.72, 0.77, 0.86)
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
+const SHARD_ICON: Texture2D = preload("res://ui/icons/sky_shard.png")
 
 const MIN_SHARDS := 100
 const MAX_SHARDS := 10000
@@ -45,7 +46,7 @@ func _build() -> void:
 	header.add_theme_constant_override("separation", 12)
 	layout.add_child(header)
 
-	var title := _make_label("ПОПОЛНЕНИЕ ОСКОЛКОВ", 26, GOLD)
+	var title := _make_label("ПОПОЛНЕНИЕ БАЛАНСА", 26, GOLD)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	header.add_child(title)
@@ -70,14 +71,18 @@ func _build() -> void:
 	divider.color = Color(GOLD.r, GOLD.g, GOLD.b, 0.35)
 	layout.add_child(divider)
 
-	var hint := _make_label("Сколько осколков нужно?", 15, MUTED)
+	var hint := _make_label("Сколько нужно?", 15, MUTED)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	layout.add_child(hint)
 
 	amount_label = _make_label("", 24, PALE)
 	amount_label.name = "AmountLabel"
 	amount_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	layout.add_child(amount_label)
+	var amount_row := HBoxContainer.new()
+	amount_row.add_theme_constant_override("separation", 6)
+	amount_row.add_child(amount_label)
+	amount_row.add_child(_shard_icon(22))
+	layout.add_child(amount_row)
 
 	shards_slider = HSlider.new()
 	shards_slider.name = "ShardsSlider"
@@ -123,7 +128,7 @@ func _update_display() -> void:
 		return
 	var shards := int(shards_slider.value)
 	var price := int(shards / 100.0)
-	amount_label.text = "Осколков: %d" % shards
+	amount_label.text = str(shards)
 	price_label.text = "Стоимость: %d %s" % [price, _price_currency_name()]
 	pay_button.text = "Оплатить %s" % _payment_currency_name()
 
@@ -153,6 +158,16 @@ func _price_currency_name() -> String:
 
 func _payment_currency_name() -> String:
 	return "ОКами" if is_ok else "Голосами"
+
+
+func _shard_icon(icon_size: int) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.texture = SHARD_ICON
+	icon.custom_minimum_size = Vector2(icon_size * 0.7, icon_size)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return icon
 
 
 func _make_label(text: String, size: int, color: Color) -> Label:

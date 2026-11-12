@@ -495,7 +495,7 @@ func _play_ability_sfx(index: int) -> void:
 	if stream == null:
 		return
 	ability_sfx_player.stream = stream
-	ability_sfx_player.volume_db = -7.0
+	ability_sfx_player.volume_db = -3.0
 	ability_sfx_player.play()
 
 
@@ -511,21 +511,21 @@ func _play_combat_sfx(channel: String, sounds: Array, volume_db: float) -> void:
 func _play_class_attack_sfx() -> void:
 	match hero_class:
 		Cls.WARRIOR:
-			_play_combat_sfx("attack", WARRIOR_SWING_SOUNDS, -8.0)
+			_play_combat_sfx("attack", WARRIOR_SWING_SOUNDS, -5.0)
 		Cls.MAGE:
-			_play_combat_sfx("attack", MAGE_ATTACK_SOUNDS, -11.0)
+			_play_combat_sfx("attack", MAGE_ATTACK_SOUNDS, -7.0)
 		Cls.FAIRY:
-			_play_combat_sfx("attack", FAIRY_ATTACK_SOUNDS, -10.0)
+			_play_combat_sfx("attack", FAIRY_ATTACK_SOUNDS, -6.0)
 
 
 func _play_class_hit_sfx() -> void:
 	match hero_class:
 		Cls.WARRIOR:
-			_play_combat_sfx("impact", WARRIOR_HIT_SOUNDS, -11.0)
+			_play_combat_sfx("impact", WARRIOR_HIT_SOUNDS, -7.0)
 		Cls.MAGE:
-			_play_combat_sfx("impact", MAGE_HIT_SOUNDS, -12.0)
+			_play_combat_sfx("impact", MAGE_HIT_SOUNDS, -8.0)
 		Cls.FAIRY:
-			_play_combat_sfx("impact", FAIRY_HIT_SOUNDS, -11.0)
+			_play_combat_sfx("impact", FAIRY_HIT_SOUNDS, -7.0)
 
 
 func _vfx_palette() -> Dictionary:

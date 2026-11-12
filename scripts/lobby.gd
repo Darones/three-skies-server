@@ -108,6 +108,8 @@ var nickname_display_label: Label
 var nickname_popup_overlay: ColorRect
 var nickname_popup_status_label: Label
 var nickname_popup_cost_label: Label
+var nickname_popup_cost_icon: TextureRect
+var nickname_cost_icon: TextureRect
 var weapon_buttons: Dictionary = {}
 var weapon_cards: Dictionary = {}
 var weapon_status_labels: Array[Label] = []
@@ -388,9 +390,13 @@ func _build_shard_shop_button() -> void:
 	content.add_theme_constant_override("separation", 0)
 	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(content)
-	shard_amount_label = _make_label("Осколки: %d" % MetaProgression.sky_shards, 17, Color(0.43, 0.84, 1.0))
-	shard_amount_label.add_theme_font_size_override("font_size", 27)
-	content.add_child(shard_amount_label)
+	var balance_row := HBoxContainer.new()
+	balance_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	balance_row.add_theme_constant_override("separation", 6)
+	shard_amount_label = _make_label(str(MetaProgression.sky_shards), 27, Color(0.43, 0.84, 1.0))
+	balance_row.add_child(shard_amount_label)
+	balance_row.add_child(_shard_icon(26))
+	content.add_child(balance_row)
 	content.add_child(_make_label("Магазин", 12, Color(0.72, 0.77, 0.86)))
 
 
@@ -427,11 +433,11 @@ func _build_shard_shop() -> void:
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 10)
 	layout.add_child(header)
-	var title := _make_label("Магазин небесных осколков", 24, GOLD)
+	var title := _make_label("Магазин небесных сокровищ", 24, GOLD)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	header.add_child(title)
-	var shard_button := _make_action_button("Купить осколки небес", false)
+	var shard_button := _make_action_button("Пополнить баланс", false)
 	shard_button.name = "TopupButton"
 	shard_button.custom_minimum_size = Vector2(250, 44)
 	shard_button.add_theme_font_size_override("font_size", 16)
@@ -460,7 +466,7 @@ func _build_shard_shop() -> void:
 	_build_topup_panel()
 
 	info_dialog = AcceptDialog.new()
-	info_dialog.title = "Осколки неба"
+	info_dialog.title = "Небесный баланс"
 	info_dialog.dialog_text = ""
 	add_child(info_dialog)
 
@@ -497,8 +503,8 @@ func _build_wing_card(grid: GridContainer, wing_id: int, wing_name: String, leve
 	price_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	price_row.add_theme_constant_override("separation", 6)
 	content.add_child(price_row)
-	price_row.add_child(_make_label("◆", 16, Color(0.43, 0.84, 1.0)))
-	price_row.add_child(_make_label("%d осколков" % price, 14, Color(0.76, 0.82, 0.92)))
+	price_row.add_child(_make_label("%d" % price, 14, Color(0.76, 0.82, 0.92)))
+	price_row.add_child(_shard_icon(18))
 
 	var buy_button := _make_action_button("Купить", false)
 	buy_button.name = "WingButton%d" % wing_id
@@ -532,7 +538,12 @@ func _build_weapon_placeholder(grid: GridContainer, weapon_name: String, weapon_
 	content.add_child(_make_label(weapon_name, 18, PALE))
 	if weapon_id > 0:
 		content.add_child(_make_label("Легендарный меч", 12, Color(0.7, 0.76, 0.86)))
-		content.add_child(_make_label("◆ %d осколков" % price, 14, Color(0.76, 0.82, 0.92)))
+		var weapon_price_row := HBoxContainer.new()
+		weapon_price_row.alignment = BoxContainer.ALIGNMENT_CENTER
+		weapon_price_row.add_theme_constant_override("separation", 4)
+		weapon_price_row.add_child(_make_label("%d" % price, 14, Color(0.76, 0.82, 0.92)))
+		weapon_price_row.add_child(_shard_icon(18))
+		content.add_child(weapon_price_row)
 		var buy_button := _make_action_button("Купить", false)
 		buy_button.name = "WeaponButton%d" % weapon_id
 		buy_button.custom_minimum_size = Vector2(0, 38)
@@ -604,7 +615,7 @@ func _on_wing_button_pressed(wing_id: int, price: int) -> void:
 
 func _refresh_wing_shop() -> void:
 	if shard_amount_label != null:
-		shard_amount_label.text = "Осколки: %d" % MetaProgression.sky_shards
+		shard_amount_label.text = str(MetaProgression.sky_shards)
 	for wing_id in range(1, 2):
 		if not wing_buttons.has(wing_id) or wing_cards.size() < wing_id:
 			continue
@@ -757,16 +768,20 @@ func _build_player_menu() -> void:
 	nickname_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_content.add_child(nickname_status_label)
 	var nickname_cost_row := HBoxContainer.new()
-	nickname_cost_row.add_theme_constant_override("separation", 6)
+	nickname_cost_row.add_theme_constant_override("separation", 4)
 	profile_content.add_child(nickname_cost_row)
-	nickname_cost_row.add_child(_shard_icon(22))
-	nickname_cost_label = _make_label("Первый ник — бесплатно", 14, Color(0.76, 0.8, 0.89))
+	nickname_cost_label = _make_label("Первый ник — бесплатно", 13, Color(0.76, 0.8, 0.89))
 	nickname_cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	nickname_cost_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nickname_cost_label.clip_text = true
 	nickname_cost_row.add_child(nickname_cost_label)
-	menu_shard_label = _make_label("Баланс: 0", 14, Color(0.43, 0.84, 1.0))
+	nickname_cost_icon = _shard_icon(16)
+	nickname_cost_icon.visible = false
+	nickname_cost_row.add_child(nickname_cost_icon)
+	menu_shard_label = _make_label("Баланс: 0", 13, Color(0.43, 0.84, 1.0))
 	menu_shard_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	nickname_cost_row.add_child(menu_shard_label)
+	nickname_cost_row.add_child(_shard_icon(16))
 	var profile_divider := ColorRect.new()
 	profile_divider.custom_minimum_size = Vector2(0, 1)
 	profile_divider.color = Color(GOLD.r, GOLD.g, GOLD.b, 0.32)
@@ -792,9 +807,13 @@ func _build_player_menu() -> void:
 	menu_xp_remaining_label = _make_label("До следующего уровня: 1000 XP", 16, Color(0.76, 0.8, 0.89))
 	menu_xp_remaining_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_content.add_child(menu_xp_remaining_label)
-	menu_next_reward_label = _make_label("Награда: 75 осколков", 16, Color(0.43, 0.84, 1.0))
+	var reward_row := HBoxContainer.new()
+	reward_row.add_theme_constant_override("separation", 5)
+	menu_next_reward_label = _make_label("Награда: 75", 16, Color(0.43, 0.84, 1.0))
 	menu_next_reward_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	profile_content.add_child(menu_next_reward_label)
+	reward_row.add_child(menu_next_reward_label)
+	reward_row.add_child(_shard_icon(18))
+	profile_content.add_child(reward_row)
 	var skills_title := _make_label("СКИЛЛЫ", 16, GOLD)
 	skills_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_content.add_child(skills_title)
@@ -1042,7 +1061,12 @@ func _build_nickname_popup() -> void:
 	content.add_child(nickname_popup_status_label)
 	nickname_popup_cost_label = _make_label("", 14, Color(0.76, 0.8, 0.89))
 	nickname_popup_cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	content.add_child(nickname_popup_cost_label)
+	var popup_cost_row := HBoxContainer.new()
+	popup_cost_row.add_theme_constant_override("separation", 5)
+	popup_cost_row.add_child(nickname_popup_cost_label)
+	nickname_popup_cost_icon = _shard_icon(18)
+	popup_cost_row.add_child(nickname_popup_cost_icon)
+	content.add_child(popup_cost_row)
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 12)
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1065,11 +1089,13 @@ func _open_nickname_popup() -> void:
 	nickname_line_edit.text = MetaProgression.player_nickname
 	nickname_popup_status_label.text = ""
 	if MetaProgression.nickname_custom:
-		nickname_popup_cost_label.text = "Смена ника стоит %d осколков." % NICKNAME_CHANGE_COST
+		nickname_popup_cost_label.text = "Смена ника стоит %d" % NICKNAME_CHANGE_COST
 		nickname_popup_cost_label.add_theme_color_override("font_color", Color(0.95, 0.76, 0.38))
+		nickname_popup_cost_icon.visible = true
 	else:
-		nickname_popup_cost_label.text = "Первый ник — бесплатно."
+		nickname_popup_cost_label.text = "Первый ник — бесплатно"
 		nickname_popup_cost_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
+		nickname_popup_cost_icon.visible = false
 	nickname_popup_overlay.visible = true
 	nickname_line_edit.call_deferred("grab_focus")
 
@@ -1472,9 +1498,13 @@ func _refresh_player_menu() -> void:
 		if MetaProgression.nickname_custom:
 			nickname_cost_label.text = "Смена ника — %d" % NICKNAME_CHANGE_COST
 			nickname_cost_label.add_theme_color_override("font_color", Color(0.95, 0.76, 0.38))
+			if nickname_cost_icon != null:
+				nickname_cost_icon.visible = true
 		else:
 			nickname_cost_label.text = "Первый ник — бесплатно"
 			nickname_cost_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
+			if nickname_cost_icon != null:
+				nickname_cost_icon.visible = false
 	if menu_shard_label != null:
 		menu_shard_label.text = "Баланс: %d" % MetaProgression.sky_shards
 	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
@@ -1491,7 +1521,7 @@ func _refresh_player_menu() -> void:
 		menu_next_reward_label.text = "Награда: —"
 	else:
 		menu_xp_remaining_label.text = "До следующего уровня: %d XP" % maxi(0, max_xp - character_xp)
-		menu_next_reward_label.text = "Награда: %d осколков" % MetaProgression.get_shard_reward_for_level(character_level + 1)
+		menu_next_reward_label.text = "Награда: %d" % MetaProgression.get_shard_reward_for_level(character_level + 1)
 	_refresh_skill_info()
 	_refresh_stats()
 	_refresh_wing_inventory()
@@ -2071,7 +2101,7 @@ func _panel_style(border_color: Color, fill_color: Color) -> StyleBoxFlat:
 func _shard_icon(icon_size: int) -> TextureRect:
 	var icon := TextureRect.new()
 	icon.texture = SHARD_ICON
-	icon.custom_minimum_size = Vector2(icon_size, icon_size)
+	icon.custom_minimum_size = Vector2(icon_size * 0.7, icon_size)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
