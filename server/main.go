@@ -117,17 +117,6 @@ type renameResponse struct {
 	Error   string `json:"error,omitempty"`
 }
 
-type loginRequest struct {
-	Nickname string `json:"nickname"`
-}
-
-type loginResponse struct {
-	Success  bool   `json:"success"`
-	PlayerID int64  `json:"player_id,omitempty"`
-	Nickname string `json:"nickname,omitempty"`
-	Error    string `json:"error,omitempty"`
-}
-
 type matchRewardRequest struct {
 	PlayerID int64 `json:"player_id"`
 	Amount   int   `json:"amount"`
@@ -243,7 +232,6 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	mux.HandleFunc("/health", service.handleHealth)
 	mux.HandleFunc("/ws", hub.handleWebSocket)
 	mux.HandleFunc("/register", service.handleRegister)
-	mux.HandleFunc("/login", service.handleLogin)
 	mux.HandleFunc("/profile", service.handleProfile)
 	mux.HandleFunc("/rename", service.handleRename)
 	mux.HandleFunc("/buy_wing", service.handleBuyWing)
@@ -333,7 +321,7 @@ func createPlayersTable(ctx context.Context, db *sql.DB) error {
 	_, err := db.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS players (
 			id SERIAL PRIMARY KEY,
-			nickname TEXT UNIQUE NOT NULL,
+			nickname TEXT NOT NULL,
 			sky_shards INTEGER DEFAULT 0,
 			unlocked_wings TEXT DEFAULT '',
 			unlocked_weapons TEXT DEFAULT ''
@@ -343,6 +331,12 @@ func createPlayersTable(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 	_, err = db.ExecContext(ctx, `ALTER TABLE players ADD COLUMN IF NOT EXISTS unlocked_weapons TEXT DEFAULT ''`)
+	if err != nil {
+		return err
+	}
+	// Ник — отображаемое имя, а не логин: уникальность не нужна и мешает
+	// игрокам брать понравившиеся имена. Личность определяется по id.
+	_, err = db.ExecContext(ctx, `ALTER TABLE players DROP CONSTRAINT IF EXISTS players_nickname_key`)
 	return err
 }
 
@@ -433,36 +427,6 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 		UnlockedWings:   parseItemIDs(unlockedWings),
 		UnlockedWeapons: parseItemIDs(unlockedWeapons),
 	})
-}
-
-func (service *api) handleLogin(w http.ResponseWriter, r *http.Request) {
-	if !requirePost(w, r) {
-		return
-	}
-	var request loginRequest
-	if err := decodeJSON(w, r, &request); err != nil {
-		writeJSON(w, http.StatusBadRequest, loginResponse{Error: "Invalid JSON"})
-		return
-	}
-	nickname := strings.TrimSpace(request.Nickname)
-	if !validNickname(nickname) {
-		writeJSON(w, http.StatusBadRequest, loginResponse{Error: "Nickname must be 3 to 12 characters"})
-		return
-	}
-	var playerID int64
-	err := service.db.QueryRowContext(r.Context(),
-		`SELECT id FROM players WHERE nickname = $1`, nickname,
-	).Scan(&playerID)
-	if errors.Is(err, sql.ErrNoRows) {
-		writeJSON(w, http.StatusNotFound, loginResponse{Error: "Player not found"})
-		return
-	}
-	if err != nil {
-		log.Printf("login player: %v", err)
-		writeJSON(w, http.StatusInternalServerError, loginResponse{Error: "Internal server error"})
-		return
-	}
-	writeJSON(w, http.StatusOK, loginResponse{Success: true, PlayerID: playerID, Nickname: nickname})
 }
 
 func (service *api) handleRename(w http.ResponseWriter, r *http.Request) {
