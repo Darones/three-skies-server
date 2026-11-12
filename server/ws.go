@@ -23,7 +23,7 @@ const (
 	wsSendBuffer     = 64
 
 	roomSlots        = 6
-	roomBotFillDelay = 8 * time.Second
+	roomBotFillDelay = 30 * time.Second
 
 	matchLength      = 10 * time.Minute
 	crystalsToWin    = 3

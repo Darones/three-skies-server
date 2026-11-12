@@ -287,8 +287,40 @@ func hide_tutorial_card() -> void:
 
 
 func show_tutorial_hint(text: String) -> void:
+	_layout_tutorial_hint(shop_panel != null and shop_panel.visible)
 	tutorial_hint.text = text
 	tutorial_hint.visible = not text.is_empty()
+
+
+func _layout_tutorial_hint(shop_open: bool) -> void:
+	if tutorial_hint == null:
+		return
+	if shop_open:
+		tutorial_hint.anchor_left = 0.012
+		tutorial_hint.anchor_right = 0.21
+		tutorial_hint.anchor_top = 0.28
+		tutorial_hint.anchor_bottom = 0.72
+		tutorial_hint.offset_left = 0.0
+		tutorial_hint.offset_top = 0.0
+		tutorial_hint.offset_right = 0.0
+		tutorial_hint.offset_bottom = 0.0
+		tutorial_hint.add_theme_font_size_override("font_size", 19)
+		tutorial_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		tutorial_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tutorial_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	else:
+		tutorial_hint.anchor_left = 0.12
+		tutorial_hint.anchor_right = 0.88
+		tutorial_hint.anchor_top = 0.72
+		tutorial_hint.anchor_bottom = 0.72
+		tutorial_hint.offset_left = 0.0
+		tutorial_hint.offset_top = 0.0
+		tutorial_hint.offset_right = 0.0
+		tutorial_hint.offset_bottom = 48.0
+		tutorial_hint.add_theme_font_size_override("font_size", 24)
+		tutorial_hint.autowrap_mode = TextServer.AUTOWRAP_OFF
+		tutorial_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tutorial_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
 
 func _on_tutorial_primary_pressed() -> void:
@@ -975,6 +1007,7 @@ func set_shop_open(open: bool) -> void:
 	shop_panel.visible = open
 	if shop_dim != null:
 		shop_dim.visible = open
+	_layout_tutorial_hint(open)
 	if open:
 		update_shop()
 

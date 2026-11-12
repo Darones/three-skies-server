@@ -211,6 +211,7 @@ var crit_cast_particles: CPUParticles3D = null
 var crit_cast_light: OmniLight3D = null
 var blessing_timer := 0.0
 var blessing_ring: Node3D = null
+var blessing_rune: MeshInstance3D = null
 
 var ai_goal := Vector3.ZERO
 var navigation_agent: NavigationAgent3D = null
@@ -1416,7 +1417,7 @@ func _ensure_afk_label() -> void:
 	afk_label.modulate = Color(1.0, 0.74, 0.3, 1.0)
 	afk_label.outline_size = 7
 	afk_label.outline_modulate = Color(0.06, 0.03, 0.01, 0.95)
-	afk_label.position = Vector3(0.0, 3.05, 0.0)
+	afk_label.position = Vector3(0.0, 3.55, 0.0)
 	afk_label.visible = false
 	add_child(afk_label)
 
@@ -1548,6 +1549,16 @@ func _ai_pick_goal() -> void:
 	ai_attack_target = target
 	if carrying:
 		ai_goal = _base_position()
+		return
+	var crystal_carrier = game.get("carrier")
+	if crystal_carrier != null and is_instance_valid(crystal_carrier) and bool(crystal_carrier.get("carrying")):
+		var carrier_team := int(crystal_carrier.get("team"))
+		if carrier_team == team:
+			ai_goal = game.clamp_to_arena(crystal_carrier.global_position) if game.has_method("clamp_to_arena") else crystal_carrier.global_position
+		else:
+			if crystal_carrier is HeroUnit:
+				ai_attack_target = crystal_carrier
+			ai_goal = crystal_carrier.global_position
 		return
 	if ai_retreating:
 		ai_goal = _base_position()
@@ -2480,19 +2491,32 @@ func apply_blessing(duration: float) -> void:
 	var glow := OmniLight3D.new()
 	glow.name = "Glow"
 	glow.light_color = Color(1.0, 0.72, 0.2)
-	glow.light_energy = 3.2
+	glow.light_energy = 2.6
 	glow.omni_range = 6.0
 	glow.position = Vector3(0.0, 0.6, 0.0)
 	root.add_child(glow)
-	var banner := Sprite3D.new()
-	banner.name = "Banner"
-	banner.texture = preload("res://ui/fx/blessing_banner.png")
-	banner.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	banner.pixel_size = 0.005
-	banner.position = Vector3(1.2, 2.0, 0.0)
-	banner.modulate = Color(1.0, 0.95, 0.75, 0.9)
-	banner.no_depth_test = true
-	root.add_child(banner)
+	var rune := MeshInstance3D.new()
+	rune.name = "BlessingRune"
+	var rune_mesh := QuadMesh.new()
+	rune_mesh.size = Vector2(4.4, 4.4)
+	rune.mesh = rune_mesh
+	var rune_material := StandardMaterial3D.new()
+	rune_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	rune_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	rune_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	rune_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	rune_material.albedo_texture = preload("res://ui/fx/blessing_rune.png")
+	rune_material.albedo_color = Color(1.0, 0.9, 0.55, 0.95)
+	rune_material.emission_enabled = true
+	rune_material.emission = Color(1.0, 0.68, 0.18)
+	rune_material.emission_energy_multiplier = 1.35
+	rune_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	rune.material_override = rune_material
+	rune.rotation_degrees.x = -90.0
+	rune.position = Vector3(0.0, 0.02, 0.0)
+	rune.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(rune)
+	blessing_rune = rune
 	visual.add_child(root)
 	blessing_ring = root
 
@@ -2504,9 +2528,12 @@ func _update_blessing(delta: float) -> void:
 	if blessing_ring != null and is_instance_valid(blessing_ring):
 		var pulse := 1.0 + sin(float(Time.get_ticks_msec()) * 0.008) * 0.06
 		blessing_ring.scale = Vector3.ONE * pulse
+	if blessing_rune != null and is_instance_valid(blessing_rune):
+		blessing_rune.rotation.y += delta * 0.55
 	if blessing_timer == 0.0 and blessing_ring != null:
 		blessing_ring.queue_free()
 		blessing_ring = null
+		blessing_rune = null
 
 
 func ability_ready(index: int) -> bool:

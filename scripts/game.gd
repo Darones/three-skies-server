@@ -1593,6 +1593,8 @@ func _update_shake(delta: float) -> void:
 
 
 func _update_match(delta: float) -> void:
+	if tutorial_mode:
+		return
 	if sudden_death:
 		match_time = 0.0
 	else:
