@@ -710,7 +710,7 @@ func _build_player_menu() -> void:
 	save_nickname_button.tooltip_text = "Сохранить ник"
 	save_nickname_button.pressed.connect(_save_player_nickname)
 	nickname_row.add_child(save_nickname_button)
-	nickname_status_label = _make_label("", 13, Color(0.58, 0.9, 0.64))
+	nickname_status_label = _make_label("", 15, Color(0.58, 0.9, 0.64))
 	nickname_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_content.add_child(nickname_status_label)
 	var profile_divider := ColorRect.new()
@@ -735,10 +735,10 @@ func _build_player_menu() -> void:
 	menu_xp_bar.add_theme_stylebox_override("background", xp_background)
 	menu_xp_bar.add_theme_stylebox_override("fill", xp_fill)
 	profile_content.add_child(menu_xp_bar)
-	menu_xp_remaining_label = _make_label("До следующего уровня: 1000 XP", 14, Color(0.76, 0.8, 0.89))
+	menu_xp_remaining_label = _make_label("До следующего уровня: 1000 XP", 16, Color(0.76, 0.8, 0.89))
 	menu_xp_remaining_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_content.add_child(menu_xp_remaining_label)
-	menu_next_reward_label = _make_label("Награда: 75 осколков", 14, Color(0.43, 0.84, 1.0))
+	menu_next_reward_label = _make_label("Награда: 75 осколков", 16, Color(0.43, 0.84, 1.0))
 	menu_next_reward_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_content.add_child(menu_next_reward_label)
 	var skills_title := _make_label("СКИЛЛЫ", 16, GOLD)
@@ -759,7 +759,7 @@ func _build_player_menu() -> void:
 		var tab_button := _make_action_button(String(tab_def[1]), false)
 		tab_button.custom_minimum_size = Vector2(0, 28)
 		tab_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		tab_button.add_theme_font_size_override("font_size", 9)
+		tab_button.add_theme_font_size_override("font_size", 13)
 		tab_button.pressed.connect(_set_stats_tab.bind(String(tab_def[0])))
 		stats_tabs.add_child(tab_button)
 		stats_tab_buttons[String(tab_def[0])] = tab_button
@@ -1029,11 +1029,11 @@ func _refresh_skill_info() -> void:
 		var text_box := VBoxContainer.new()
 		text_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		text_box.add_theme_constant_override("separation", 0)
-		var title := _make_label("%s · %d с" % [String(abilities[index]["name"]), int(abilities[index]["cd"])], 14, PALE)
+		var title := _make_label("%s · %d с" % [String(abilities[index]["name"]), int(abilities[index]["cd"])], 16, PALE)
 		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		title.clip_text = true
 		text_box.add_child(title)
-		var description := _make_label(String(descriptions[index]), 12, Color(0.72, 0.76, 0.86))
+		var description := _make_label(String(descriptions[index]), 14, Color(0.72, 0.76, 0.86))
 		description.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		text_box.add_child(description)
@@ -1066,12 +1066,12 @@ func _refresh_stats() -> void:
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 6)
 	for row in rows:
-		var key_label := _make_label(String(row[0]), 13, Color(0.7, 0.75, 0.84))
-		key_label.custom_minimum_size = Vector2(150, 22)
+		var key_label := _make_label(String(row[0]), 16, Color(0.7, 0.75, 0.84))
+		key_label.custom_minimum_size = Vector2(150, 24)
 		key_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		grid.add_child(key_label)
-		var value_label := _make_label(String(row[1]), 13, PALE)
-		value_label.custom_minimum_size = Vector2(80, 22)
+		var value_label := _make_label(String(row[1]), 16, PALE)
+		value_label.custom_minimum_size = Vector2(80, 24)
 		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		grid.add_child(value_label)
 	stats_box.add_child(grid)
