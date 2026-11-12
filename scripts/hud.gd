@@ -923,13 +923,19 @@ func _build_shop(root: Control) -> void:
 
 		var content := HBoxContainer.new()
 		content.set_anchors_preset(Control.PRESET_FULL_RECT)
-		content.offset_left = 5.0
-		content.offset_top = 3.0
-		content.offset_right = -5.0
-		content.offset_bottom = -3.0
-		content.add_theme_constant_override("separation", 5)
+		content.offset_left = 10.0
+		content.offset_top = 5.0
+		content.offset_right = -10.0
+		content.offset_bottom = -5.0
+		content.add_theme_constant_override("separation", 6)
 		content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(content)
+
+		var icon_slot := CenterContainer.new()
+		icon_slot.custom_minimum_size = Vector2(58.0, 58.0)
+		icon_slot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		icon_slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		content.add_child(icon_slot)
 
 		var icon := TextureRect.new()
 		var custom_texture: Texture2D = game.get_shop_item_texture(item_id) if game != null else null
@@ -937,9 +943,8 @@ func _build_shop(root: Control) -> void:
 		icon.custom_minimum_size = Vector2(50.0, 50.0)
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		content.add_child(icon)
+		icon_slot.add_child(icon)
 
 		var details := VBoxContainer.new()
 		details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
