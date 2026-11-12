@@ -196,8 +196,24 @@ static func ensure_arena_features(arena_root: Node3D) -> void:
 		island.add_to_group("navigation_mesh_source_group", true)
 	if ruins != null:
 		_ensure_ruin_columns(ruins)
+	_rebuild_decor(arena_root)
 	_ensure_decor_collisions(arena_root)
 	_ensure_navigation_region(arena_root)
+
+
+static func _rebuild_decor(arena_root: Node3D) -> void:
+	# Запечённый в сцену декор больше не используется: арена целиком
+	# строится из кода, иначе правки в раскладке не доезжают до игры.
+	for node_name in ["Decor", "Bushes"]:
+		var old := arena_root.get_node_or_null(node_name)
+		if old != null:
+			arena_root.remove_child(old)
+			old.queue_free()
+	var decor := Node3D.new()
+	decor.name = "Decor"
+	arena_root.add_child(decor)
+	_add_decor(decor, rock_material())
+	add_bushes(arena_root)
 
 
 static func _ensure_light_floor(island: Node3D) -> void:
@@ -784,31 +800,34 @@ static func _add_decor(decor: Node3D, mat_rock: StandardMaterial3D) -> void:
 	trunk.albedo_color = Color(0.16, 0.13, 0.14)
 	trunk.roughness = 0.95
 
-	for i in 8:
-		var ang := TAU * float(i) / 8.0 + 0.22
-		var p := _shape_point(ang, 1.35)
-		var scale_factor := 0.95 + 0.25 * sin(float(i) * 1.7)
+	# деревья по самому краю арены, ровным шагом
+	var tree_count := 12
+	for i in tree_count:
+		var ang := TAU * float(i) / float(tree_count) + 0.17
+		var radius := 0.90 + 0.03 * sin(float(i) * 2.1)
+		var p := _shape_point(ang, radius)
+		var scale_factor := 0.88 + 0.18 * sin(float(i) * 1.7)
 		if p.y > 0.0:
 			_add_glowing_tree(decor, Vector3(p.x, -0.9, p.y), scale_factor, i)
 		else:
 			_add_tree(decor, Vector3(p.x, -0.9, p.y), scale_factor, true, trunk, light_green, light_green2, dark_foliage)
 
+	# камни средним кольцом
+	var rock_count := 9
+	for i in rock_count:
+		var ang := TAU * float(i) / float(rock_count) + 0.42
+		var radius := 0.58 + 0.13 * sin(float(i) * 2.7)
+		var p := _shape_point(ang, radius)
+		_add_rock(decor, Vector3(p.x, 0.28, p.y), 1.05 + 0.22 * sin(float(i) * 1.3), mat_rock)
 
-	var rock_spots := [
-		[Vector3(-34.0, 0.3, -22.0), 1.7],
-		[Vector3(34.0, 0.3, 22.0), 1.5],
-		[Vector3(-18.0, 0.25, 30.0), 1.3],
-		[Vector3(18.0, 0.25, -30.0), 1.2],
-	]
-	for spot in rock_spots:
-		_add_rock(decor, _place_inside(spot[0]), spot[1], mat_rock)
-
-	var crystal_spots := [
-		[Vector3(-36.0, 0.0, 0.0), Color(0.68, 0.34, 1.0), 2.0],
-		[Vector3(36.0, 0.0, 0.0), Color(0.4, 0.75, 1.0), 1.8],
-	]
-	for spot in crystal_spots:
-		_add_crystal_cluster(decor, _place_inside(spot[0]), spot[1], spot[2])
+	# кристаллы между камнями
+	var crystal_count := 6
+	var crystal_colors := [Color(0.68, 0.34, 1.0), Color(0.4, 0.75, 1.0), Color(0.5, 0.3, 1.0)]
+	for i in crystal_count:
+		var ang := TAU * float(i) / float(crystal_count) + 0.95
+		var radius := 0.44 + 0.10 * cos(float(i) * 1.9)
+		var p := _shape_point(ang, radius)
+		_add_crystal_cluster(decor, Vector3(p.x, 0.0, p.y), crystal_colors[i % crystal_colors.size()], 1.15 + 0.18 * sin(float(i)))
 
 	var float_spots := [
 		Vector3(-30.0, -3.0, -6.0), Vector3(30.0, -5.0, 8.0), Vector3(-24.0, 3.0, 22.0),
@@ -949,11 +968,12 @@ static func add_bushes(arena: Node3D) -> void:
 	var bushes := Node3D.new()
 	bushes.name = "Bushes"
 	arena.add_child(bushes)
-	var spots := [
-		Vector3(-30.0, 0.0, -10.0), Vector3(30.0, 0.0, -10.0),
-		Vector3(-30.0, 0.0, 10.0), Vector3(30.0, 0.0, 10.0),
-		Vector3(-12.0, 0.0, -28.0), Vector3(12.0, 0.0, 28.0),
-	]
+	var spots: Array[Vector3] = []
+	var bush_zones := 5
+	for i in bush_zones:
+		var ang := TAU * float(i) / float(bush_zones) + 0.6
+		var p := _shape_point(ang, 0.52)
+		spots.append(Vector3(p.x, 0.0, p.y))
 	for index in spots.size():
 		var zone := Area3D.new()
 		zone.name = "BushZone_%02d" % (index + 1)

@@ -13,8 +13,12 @@ const CRYSTAL_PICKUP_DELAY := 1.25
 const CRYSTAL_PICKUP_RADIUS := 3.2
 const CRYSTAL_DROP_SEARCH_RADII := [7.8, 9.0, 10.2, 11.4, 12.6]
 const TEST_STARTING_GOLD := 500
-const ARENA_SAFE_HALF_X := 52.0
-const ARENA_SAFE_HALF_Z := 37.0
+const ARENA_SAFE_HALF_X := 30.0
+const ARENA_SAFE_HALF_Z := 22.0
+const DEATH_CAM_HALF_X := 26.0
+const DEATH_CAM_HALF_Z := 18.5
+const DEATH_CAM_MIN_HEIGHT := 5.0
+const DEATH_CAM_MAX_HEIGHT := 40.0
 const VISIBILITY_COLLISION_MASK := 3
 const VISIBILITY_REFRESH_INTERVAL := 0.12
 const VFX_POOL_SIZE := 10
@@ -1420,6 +1424,14 @@ func _update_fog_of_war() -> void:
 	fog_of_war_material.set_shader_parameter("vision_count", vision_positions.size())
 
 
+func _clamp_death_camera(position: Vector3) -> Vector3:
+	return Vector3(
+		clampf(position.x, -DEATH_CAM_HALF_X, DEATH_CAM_HALF_X),
+		clampf(position.y, DEATH_CAM_MIN_HEIGHT, DEATH_CAM_MAX_HEIGHT),
+		clampf(position.z, -DEATH_CAM_HALF_Z, DEATH_CAM_HALF_Z)
+	)
+
+
 func _update_camera(delta: float) -> void:
 	if player == null or not is_instance_valid(player):
 		return
@@ -1437,7 +1449,6 @@ func _update_camera(delta: float) -> void:
 			camera.global_position -= -camera.global_transform.basis.z * zoom_delta
 			camera_pos = camera.global_position
 			death_camera_last_distance = camera_distance
-
 		var pan_input := Vector2.ZERO
 		if Input.is_action_pressed("move_left") or Input.is_action_pressed("move_left_2") or Input.is_key_pressed(KEY_LEFT):
 			pan_input.x -= 1.0
@@ -1454,6 +1465,10 @@ func _update_camera(delta: float) -> void:
 			var pan_direction := Vector3(pan_input.x * team_orientation, 0.0, -pan_input.y * team_orientation)
 			camera_pos = camera.global_position + pan_direction * 16.0 * delta
 			camera.global_position = camera_pos
+
+		# камера наблюдателя не должна уезжать за арену
+		camera_pos = _clamp_death_camera(camera.global_position)
+		camera.global_position = camera_pos
 		return
 
 	death_camera_active = false

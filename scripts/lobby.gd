@@ -2035,10 +2035,6 @@ func _play_button_style(hovered: bool, disabled: bool) -> StyleBoxFlat:
 	style.content_margin_right = 12.0
 	style.content_margin_top = 8.0
 	style.content_margin_bottom = 8.0
-	if not disabled:
-		style.shadow_color = Color(1.0, 0.65, 0.08, 0.35)
-		style.shadow_size = 10
-		style.shadow_offset = Vector2(0.0, 4.0)
 	return style
 
 

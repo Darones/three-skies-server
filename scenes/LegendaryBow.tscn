@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://clq8vbowlegend01"]
+[gd_scene format=3 uid="uid://bc2wefanaf6eu"]
 
 [ext_resource type="PackedScene" path="res://assets/models/legendary_bow/Elven_Recurve_Bow_legendary.glb" id="1_model"]
 [ext_resource type="Shader" path="res://shaders/legendary_bow.gdshader" id="2_bowshader"]
