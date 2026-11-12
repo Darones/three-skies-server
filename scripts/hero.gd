@@ -236,6 +236,7 @@ var combat_audio_players: Dictionary = {}
 var health_back: MeshInstance3D
 var health_fill: MeshInstance3D
 var health_label: Label3D
+var name_label: Label3D
 var occluded_from_player := false
 var carry_light: OmniLight3D
 var bush_zones: Array[Area3D] = []
@@ -461,6 +462,7 @@ func _build_body() -> void:
 
 	_build_health_bar()
 	_build_health_label()
+	_build_name_label()
 
 	carry_light = OmniLight3D.new()
 	carry_light.light_color = Color(0.7, 0.9, 1.0)
@@ -752,6 +754,31 @@ func _build_health_label() -> void:
 	health_label.outline_size = 5
 	health_label.outline_modulate = Color(0.02, 0.03, 0.05, 0.92)
 	health_label.modulate = Color(0.93, 1.0, 0.95, 0.96)
+
+
+func _build_name_label() -> void:
+	name_label = Label3D.new()
+	name_label.name = "NameLabel"
+	name_label.text = display_name
+	name_label.font = UI_FONT
+	name_label.font_size = 34
+	name_label.pixel_size = 0.005
+	name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	name_label.no_depth_test = true
+	name_label.modulate = Color(0.55, 0.9, 1.0) if team == 0 else Color(0.92, 0.66, 1.0)
+	name_label.outline_size = 6
+	name_label.outline_modulate = Color(0.02, 0.03, 0.06, 0.95)
+	name_label.position = Vector3(0.0, 3.0, 0.0)
+	add_child(name_label)
+
+
+func set_display_name(value: String) -> void:
+	var trimmed := value.strip_edges()
+	if trimmed.is_empty():
+		return
+	display_name = trimmed
+	if name_label != null and is_instance_valid(name_label):
+		name_label.text = display_name
 
 
 func _build_visual() -> void:

@@ -224,7 +224,11 @@ func _build_content() -> void:
 
 func _get_player_character_name() -> String:
 	var faction := "Света" if player_team == 0 else "Тьмы"
-	return "%s %s" % [CHARACTER_CLASS_NAMES[selected_class], faction]
+	var hero := "%s %s" % [CHARACTER_CLASS_NAMES[selected_class], faction]
+	var nickname := MetaProgression.player_nickname.strip_edges()
+	if nickname.is_empty():
+		return hero
+	return "%s\n%s" % [nickname, hero]
 
 
 func _make_stat_row(label_text: String, value_text: String) -> Control:

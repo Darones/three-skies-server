@@ -1111,7 +1111,7 @@ func _spawn_network_bots(light_spots: Array[Vector3], dark_spots: Array[Vector3]
 		bot.network_id = int(entry.get("id", 0))
 		var bot_name := String(entry.get("name", "")).strip_edges()
 		if not bot_name.is_empty():
-			bot.display_name = bot_name
+			bot.set_display_name(bot_name)
 		network_bots[bot.network_id] = bot
 		NetworkManager.register_bot(bot)
 
@@ -1121,8 +1121,12 @@ func _spawn_hero(cls: int, team: int, is_player: bool, pos: Vector3) -> HeroUnit
 	h.name = ("Player" if is_player else "%s_%d_%d" % [HeroUnit.CLASS_DATA[cls]["name"], team, heroes.size()])
 	add_child(h)
 	h.setup(self, cls, team, is_player)
-	if not is_player:
-		h.display_name = _next_bot_callsign()
+	if is_player:
+		var nickname := MetaProgression.player_nickname.strip_edges()
+		if not nickname.is_empty():
+			h.set_display_name(nickname)
+	else:
+		h.set_display_name(_next_bot_callsign())
 	h.global_position = pos
 	h.rotation.y = 0.0 if team == 0 else PI
 	heroes.append(h)
@@ -2100,7 +2104,7 @@ func spawn_tutorial_dummy() -> void:
 		spawn_position.y = 0.76
 	tutorial_dummy = _spawn_hero(HeroUnit.Cls.WARRIOR, 1 - player.team, false, spawn_position)
 	tutorial_dummy.name = "TrainingDummy"
-	tutorial_dummy.display_name = "Манекен"
+	tutorial_dummy.set_display_name("Манекен")
 	tutorial_dummy.tutorial_dummy = true
 	tutorial_dummy.max_health = 1000.0
 	tutorial_dummy.health = 1000.0

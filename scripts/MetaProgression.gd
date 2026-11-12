@@ -15,6 +15,7 @@ var sky_shards: int = 0
 var player_nickname: String = ""
 var player_id: int = 0
 var profile_loaded: bool = false
+var nickname_custom: bool = false
 var char_levels: Dictionary = {"warrior": 1, "mage": 1, "fairy": 1}
 var char_xps: Dictionary = {"warrior": 0, "mage": 0, "fairy": 0}
 var just_leveled_up: bool = false
@@ -174,13 +175,16 @@ func _on_registration_completed(success: bool, registered_player_id: int) -> voi
 	load_profile(registered_player_id)
 
 
-func _on_profile_loaded(success: bool, loaded_player_id: int, server_shards: int, server_wings: Array, server_weapons: Array) -> void:
+func _on_profile_loaded(success: bool, loaded_player_id: int, server_shards: int, server_wings: Array, server_weapons: Array, server_nickname: String, server_nickname_custom: bool) -> void:
 	if loaded_player_id != player_id:
 		return
 	profile_loaded = success
 	if not success:
 		return
 	sky_shards = maxi(0, server_shards)
+	if not server_nickname.strip_edges().is_empty():
+		player_nickname = server_nickname.strip_edges()
+	nickname_custom = server_nickname_custom
 	unlocked_wings.clear()
 	unlocked_weapons.clear()
 	for wing_id in server_wings:

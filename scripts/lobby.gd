@@ -53,6 +53,8 @@ const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const LOBBY_LOGO: Texture2D = preload("res://ui/logo.png")
 const UI_CLICK_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/ui_menu/menu_selection_click.wav")
 const SHARD_TOPUP_SCENE := preload("res://scenes/ShardTopupPanel.tscn")
+const SHARD_ICON: Texture2D = preload("res://ui/icons/sky_shard.png")
+const NICKNAME_CHANGE_COST := 100
 
 var selected_class := 0
 var slot_classes: Array[int] = [HeroUnit.Cls.MAGE, HeroUnit.Cls.WARRIOR, HeroUnit.Cls.FAIRY]
@@ -76,6 +78,11 @@ var settings_panel: Control
 var player_menu_overlay: ColorRect
 var nickname_line_edit: LineEdit
 var nickname_status_label: Label
+var nickname_cost_label: Label
+var menu_shard_label: Label
+var rename_confirm_overlay: ColorRect
+var rename_confirm_label: Label
+var pending_rename_nickname := ""
 var menu_hero_portrait: TextureRect
 var menu_hero_name_label: Label
 var menu_level_label: Label
@@ -118,6 +125,7 @@ func _ready() -> void:
 	_build_actions()
 	_build_shard_shop()
 	_build_player_menu()
+	_build_rename_confirm()
 	_refresh_wing_shop()
 	_refresh_weapon_shop()
 	_refresh_selection()
@@ -310,12 +318,13 @@ func _build_player_profile() -> void:
 	info.add_theme_constant_override("separation", 1)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(info)
-	profile_name_label = _make_label("Игрок", 18, PALE)
-	profile_name_label.add_theme_font_size_override("font_size", 27)
+	profile_name_label = _make_label("Игрок", 24, PALE)
+	profile_name_label.add_theme_font_size_override("font_size", 24)
 	profile_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	profile_name_label.clip_text = true
 	info.add_child(profile_name_label)
-	profile_level_label = _make_label("Уровень 1", 13, Color(0.7, 0.75, 0.84))
-	profile_level_label.add_theme_font_size_override("font_size", 27)
+	profile_level_label = _make_label("Уровень 1", 16, Color(0.7, 0.75, 0.84))
+	profile_level_label.add_theme_font_size_override("font_size", 16)
 	profile_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	info.add_child(profile_level_label)
 	experience_bar = ProgressBar.new()
@@ -617,6 +626,7 @@ func _on_purchase_updated(success: bool, _purchase_type: String, _item_id: int, 
 func _on_profile_updated() -> void:
 	_refresh_wing_shop()
 	_refresh_weapon_shop()
+	_refresh_player_profile()
 	_refresh_player_menu()
 
 
@@ -713,6 +723,21 @@ func _build_player_menu() -> void:
 	nickname_status_label = _make_label("", 15, Color(0.58, 0.9, 0.64))
 	nickname_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_content.add_child(nickname_status_label)
+	var nickname_cost_row := HBoxContainer.new()
+	nickname_cost_row.add_theme_constant_override("separation", 6)
+	profile_content.add_child(nickname_cost_row)
+	nickname_cost_row.add_child(_shard_icon(22))
+	nickname_cost_label = _make_label("Первый ник — бесплатно", 14, Color(0.76, 0.8, 0.89))
+	nickname_cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	nickname_cost_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nickname_cost_row.add_child(nickname_cost_label)
+	var balance_row := HBoxContainer.new()
+	balance_row.add_theme_constant_override("separation", 6)
+	profile_content.add_child(balance_row)
+	balance_row.add_child(_shard_icon(20))
+	menu_shard_label = _make_label("Баланс: 0", 14, Color(0.43, 0.84, 1.0))
+	menu_shard_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	balance_row.add_child(menu_shard_label)
 	var profile_divider := ColorRect.new()
 	profile_divider.custom_minimum_size = Vector2(0, 1)
 	profile_divider.color = Color(GOLD.r, GOLD.g, GOLD.b, 0.32)
@@ -893,33 +918,56 @@ func _save_player_nickname() -> void:
 		nickname_status_label.text = "Введите от 3 до 12 символов."
 		nickname_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
 		return
+	if nickname == MetaProgression.player_nickname:
+		nickname_status_label.text = "Ник не изменился."
+		nickname_status_label.add_theme_color_override("font_color", Color(0.76, 0.8, 0.89))
+		return
 	if MetaProgression.player_id <= 0:
 		pending_nickname = nickname
 		MetaProgression.register_player(nickname)
 		nickname_status_label.text = "Регистрируем профиль на сервере..."
 		nickname_status_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
 		return
-	if nickname == MetaProgression.player_nickname:
-		nickname_status_label.text = "Ник не изменился."
-		nickname_status_label.add_theme_color_override("font_color", Color(0.76, 0.8, 0.89))
+	if MetaProgression.nickname_custom and MetaProgression.sky_shards < NICKNAME_CHANGE_COST:
+		nickname_status_label.text = "Не хватает: %d" % NICKNAME_CHANGE_COST
+		nickname_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
 		return
+	if MetaProgression.nickname_custom:
+		_open_rename_confirm(nickname)
+		return
+	_perform_rename(nickname)
+
+
+func _perform_rename(nickname: String) -> void:
 	NetworkClient.rename_player(MetaProgression.player_id, nickname)
 	nickname_status_label.text = "Сохраняем ник на сервере..."
 	nickname_status_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
 
 
-func _on_rename_completed(success: bool, nickname: String, error: String) -> void:
+func _on_rename_completed(success: bool, nickname: String, error: String, charged: bool, cost: int, new_shards: int) -> void:
 	if not is_inside_tree():
 		return
 	if success:
 		MetaProgression.player_nickname = nickname
+		MetaProgression.nickname_custom = true
+		if charged:
+			MetaProgression.sky_shards = maxi(0, new_shards)
 		_save_player_id(MetaProgression.player_id)
 		nickname_line_edit.text = nickname
-		nickname_status_label.text = "Ник сохранён."
+		if charged:
+			nickname_status_label.text = "Ник изменён. Списано %d." % cost
+		else:
+			nickname_status_label.text = "Ник сохранён."
 		nickname_status_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
 		_refresh_player_profile()
+		_refresh_player_menu()
+		_refresh_wing_shop()
 	else:
-		nickname_status_label.text = "Не удалось: %s" % _localize_nickname_error(error)
+		if error == "Not enough shards":
+			nickname_status_label.text = "Не хватает: %d" % NICKNAME_CHANGE_COST
+			MetaProgression.load_profile(MetaProgression.player_id)
+		else:
+			nickname_status_label.text = "Не удалось: %s" % _localize_nickname_error(error)
 		nickname_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
 
 
@@ -931,6 +979,8 @@ func _localize_nickname_error(error: String) -> String:
 			return "ник должен быть от 3 до 12 символов."
 		"Player not found":
 			return "профиль не найден, перезапусти игру."
+		"Not enough shards":
+			return "не хватает %d на смену ника." % NICKNAME_CHANGE_COST
 		"Нет связи с сервером":
 			return "сервер недоступен, попробуй позже."
 		_:
@@ -986,9 +1036,100 @@ func _on_registration_completed(success: bool, registered_player_id: int) -> voi
 	nickname_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
 
 
+func _build_rename_confirm() -> void:
+	rename_confirm_overlay = ColorRect.new()
+	rename_confirm_overlay.name = "RenameConfirmOverlay"
+	rename_confirm_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	rename_confirm_overlay.color = Color(0.005, 0.008, 0.018, 0.78)
+	rename_confirm_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	rename_confirm_overlay.visible = false
+	rename_confirm_overlay.z_index = 40
+	add_child(rename_confirm_overlay)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rename_confirm_overlay.add_child(center)
+	var panel := PanelContainer.new()
+	panel.name = "RenameConfirmPanel"
+	panel.custom_minimum_size = Vector2(400, 0)
+	panel.add_theme_stylebox_override("panel", _panel_style(GOLD, Color(0.035, 0.045, 0.07, 0.99)))
+	center.add_child(panel)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 18)
+	margin.add_theme_constant_override("margin_right", 18)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	panel.add_child(margin)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 10)
+	margin.add_child(content)
+	var title := _make_label("СМЕНА НИКА", 22, GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	content.add_child(title)
+	rename_confirm_label = _make_label("", 17, PALE)
+	rename_confirm_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	rename_confirm_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(rename_confirm_label)
+	var cost_row := HBoxContainer.new()
+	cost_row.add_theme_constant_override("separation", 8)
+	cost_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	content.add_child(cost_row)
+	cost_row.add_child(_shard_icon(30))
+	var cost_label := _make_label(str(NICKNAME_CHANGE_COST), 22, Color(0.43, 0.84, 1.0))
+	cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	cost_row.add_child(cost_label)
+	var warning := _make_label("Спишутся сразу после подтверждения.", 13, Color(0.7, 0.74, 0.82))
+	warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	content.add_child(warning)
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 12)
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	content.add_child(buttons)
+	var cancel_button := _make_action_button("Отмена", false)
+	cancel_button.custom_minimum_size = Vector2(150, 46)
+	cancel_button.add_theme_font_size_override("font_size", 17)
+	cancel_button.pressed.connect(_close_rename_confirm)
+	buttons.add_child(cancel_button)
+	var confirm_button := _make_action_button("Сменить", true)
+	confirm_button.custom_minimum_size = Vector2(150, 46)
+	confirm_button.add_theme_font_size_override("font_size", 17)
+	confirm_button.pressed.connect(_confirm_rename)
+	buttons.add_child(confirm_button)
+
+
+func _open_rename_confirm(nickname: String) -> void:
+	pending_rename_nickname = nickname
+	rename_confirm_label.text = "Новый ник: «%s»" % nickname
+	rename_confirm_overlay.visible = true
+
+
+func _close_rename_confirm() -> void:
+	pending_rename_nickname = ""
+	if rename_confirm_overlay != null:
+		rename_confirm_overlay.visible = false
+
+
+func _confirm_rename() -> void:
+	var nickname := pending_rename_nickname
+	_close_rename_confirm()
+	if not nickname.is_empty():
+		_perform_rename(nickname)
+
+
 func _refresh_player_menu() -> void:
 	if menu_hero_portrait == null:
 		return
+	if nickname_line_edit != null and not nickname_line_edit.has_focus():
+		nickname_line_edit.text = MetaProgression.player_nickname
+	if nickname_cost_label != null:
+		if MetaProgression.nickname_custom:
+			nickname_cost_label.text = "Смена ника — %d" % NICKNAME_CHANGE_COST
+			nickname_cost_label.add_theme_color_override("font_color", Color(0.95, 0.76, 0.38))
+		else:
+			nickname_cost_label.text = "Первый ник — бесплатно"
+			nickname_cost_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
+	if menu_shard_label != null:
+		menu_shard_label.text = "Баланс: %d" % MetaProgression.sky_shards
 	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
 	var character_level := int(MetaProgression.char_levels.get(character_key, 1))
 	var character_xp := int(MetaProgression.char_xps.get(character_key, 0))
@@ -1307,11 +1448,16 @@ func _refresh_selection() -> void:
 
 
 func _refresh_player_profile() -> void:
+	if profile_name_label == null or profile_level_label == null:
+		return
 	var character_key: String = ['warrior', 'mage', 'fairy'][selected_class]
 	var character_level := int(MetaProgression.char_levels.get(character_key, 1))
 	var character_xp := int(MetaProgression.char_xps.get(character_key, 0))
-	profile_name_label.text = HERO_NAMES[selected_class]
-	profile_level_label.text = 'Уровень %d' % character_level
+	var nickname := MetaProgression.player_nickname.strip_edges()
+	if nickname.is_empty():
+		nickname = "Игрок"
+	profile_name_label.text = nickname
+	profile_level_label.text = '%s · Уровень %d' % [HERO_NAMES[selected_class], character_level]
 	profile_name_label.add_theme_color_override('font_color', PALE)
 	profile_level_label.add_theme_color_override('font_color', Color(0.7, 0.75, 0.84))
 	profile_level_label.add_theme_color_override('font_shadow_color', Color(0.0, 0.0, 0.0, 0.7))
@@ -1543,6 +1689,16 @@ func _panel_style(border_color: Color, fill_color: Color) -> StyleBoxFlat:
 	style.content_margin_top = 10.0
 	style.content_margin_bottom = 10.0
 	return style
+
+
+func _shard_icon(icon_size: int) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.texture = SHARD_ICON
+	icon.custom_minimum_size = Vector2(icon_size, icon_size)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return icon
 
 
 func _make_label(text: String, size: int, color: Color) -> Label:

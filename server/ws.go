@@ -528,7 +528,7 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 			continue
 		}
 		botID := -int64(slot + 1)
-		botName := fmt.Sprintf("Бот-%s-%d", classNames[class], slot+1)
+		botName := fmt.Sprintf("Игрок %04d", 1000+int((room.id*37+int64(slot)*211)%9000))
 		botZ := 27.5
 		botRotation := 0.0
 		if team == 1 {
