@@ -1458,7 +1458,7 @@ func _update_match(delta: float) -> void:
 		match_time = 0.0
 	else:
 		match_time = maxf(0.0, match_time - delta)
-		if match_time <= 0.0 and not network_play:
+		if match_time <= 0.0:
 			if score[0] == score[1]:
 				sudden_death = true
 				announce("Решающий осколок!", Color(1.0, 0.75, 0.35), 3.0)
@@ -2675,6 +2675,12 @@ func _on_match_score_updated(score_0: int, score_1: int, server_sudden_death: bo
 		return
 	score[0] = score_0
 	score[1] = score_1
+	if score[0] >= CRYSTALS_TO_WIN or score[1] >= CRYSTALS_TO_WIN:
+		end_match(score[0] > score[1])
+		return
+	if match_time <= 0.0 and score[0] != score[1]:
+		end_match(score[0] > score[1])
+		return
 	if server_sudden_death and not sudden_death:
 		sudden_death = true
 		announce("Решающий осколок!", Color(1.0, 0.75, 0.35), 3.0)

@@ -1487,9 +1487,6 @@ func _card_style(is_center: bool, hovered: bool, frame_color: Color) -> StyleBox
 		style.border_color = frame_color
 	style.set_border_width_all(0)
 	style.set_corner_radius_all(16 if is_center else 12)
-	if is_center:
-		style.shadow_color = Color(frame_color.r, frame_color.g, frame_color.b, 0.3)
-		style.shadow_size = 18
 	style.content_margin_left = 0.0
 	style.content_margin_right = 0.0
 	style.content_margin_top = 0.0
