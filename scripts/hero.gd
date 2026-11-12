@@ -761,8 +761,8 @@ func _build_name_label() -> void:
 	name_label.name = "NameLabel"
 	name_label.text = display_name
 	name_label.font = UI_FONT
-	name_label.font_size = 34
-	name_label.pixel_size = 0.005
+	name_label.font_size = 44
+	name_label.pixel_size = 0.006
 	name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	name_label.no_depth_test = true
 	name_label.modulate = Color(0.55, 0.9, 1.0) if team == 0 else Color(0.92, 0.66, 1.0)
