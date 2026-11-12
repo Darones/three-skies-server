@@ -974,10 +974,12 @@ func _build_shop(root: Control) -> void:
 func _shop_icon(index: int) -> Texture2D:
 	var atlas := AtlasTexture.new()
 	atlas.atlas = SHOP_ICON_SHEET
-	var cell_size := 256.0
+	var stride := 256.0
+	var inset := 50.0
+	var cell_size := 206.0
 	var column := index % 4
 	var row := floori(float(index) / 4.0)
-	atlas.region = Rect2(float(column) * cell_size, float(row) * cell_size, cell_size, cell_size)
+	atlas.region = Rect2(float(column) * stride + inset, float(row) * stride + inset, cell_size, cell_size)
 	return atlas
 
 
