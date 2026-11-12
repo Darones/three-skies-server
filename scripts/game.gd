@@ -58,6 +58,7 @@ const SHOP_ITEMS := [
 ]
 
 const MUSIC_PATH := "res://audio/music/dread/6adcd384-a1c6-4d03-ab8f-2885c6220fd5_music_dark_fantasy_arena_battle_them__1793744175999.mp3"
+const AMBIENT_PATH := "res://audio/ambient/arena_wind.wav"
 const SFX_PATHS := {
 	"fairy_ult": "res://audio/sfx/fairy_blessing_free/sfx_magical_fairy_chime_bell_brig_.wav",
 	"hit": "res://audio/sfx/sword_hit.wav",
@@ -147,6 +148,7 @@ var min_zoom_distance := 12.0
 var max_zoom_distance := 42.0
 
 var music: AudioStreamPlayer
+var ambient: AudioStreamPlayer
 var sfx_streams := {}
 var sfx_players: Array[AudioStreamPlayer] = []
 var sfx_index := 0
@@ -700,6 +702,17 @@ func _setup_audio() -> void:
 		music.volume_db = -10.0
 		add_child(music)
 		music.play()
+	ambient = AudioStreamPlayer.new()
+	ambient.name = "Ambient"
+	var ambient_stream := load(AMBIENT_PATH) as AudioStreamWAV
+	if ambient_stream != null:
+		ambient_stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		ambient_stream.loop_begin = 0
+		ambient_stream.loop_end = int(ambient_stream.get_length() * float(ambient_stream.mix_rate))
+		ambient.stream = ambient_stream
+		ambient.volume_db = -18.0
+		add_child(ambient)
+		ambient.play()
 	for key in SFX_PATHS.keys():
 		var s := load(SFX_PATHS[key]) as AudioStream
 		if s != null:
