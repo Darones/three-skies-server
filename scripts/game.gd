@@ -327,6 +327,7 @@ func _create_shop_stall() -> void:
 	var stall_model := SHOP_STALL_SCENE.instantiate() as Node3D
 	stall_model.name = "MarketStallModel"
 	shop.add_child(stall_model)
+	_disable_mesh_shadows(stall_model)
 	_add_shop_collision(shop)
 
 	var sign := MeshInstance3D.new()
@@ -339,6 +340,7 @@ func _create_shop_stall() -> void:
 	sign_material.roughness = 0.9
 	sign.material_override = sign_material
 	sign.position = Vector3(0.0, 3.65, 1.82)
+	sign.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	shop.add_child(sign)
 	var title := Label3D.new()
 	title.name = "ShopTitle"
@@ -351,7 +353,15 @@ func _create_shop_stall() -> void:
 	title.modulate = Color(1.0, 0.82, 0.48)
 	title.outline_size = 9
 	title.outline_modulate = Color(0.045, 0.03, 0.02, 0.95)
+	title.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	shop.add_child(title)
+
+
+func _disable_mesh_shadows(node: Node) -> void:
+	if node is GeometryInstance3D:
+		(node as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for child in node.get_children():
+		_disable_mesh_shadows(child)
 
 func _add_shop_collision(parent: Node3D) -> void:
 	var body := StaticBody3D.new()
