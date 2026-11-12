@@ -2338,7 +2338,7 @@ func heal_area(center: Vector3, radius: float, amount: float, team: int, max_tar
 func bless_team(team: int, duration: float) -> void:
 	for hero in heroes:
 		if hero.team == team and not hero.dead:
-			hero.apply_blessing(duration)
+			hero.apply_blessing(duration, team)
 
 
 func spawn_projectile(from: Vector3, target: Node3D, damage: float, color: Color, source: HeroUnit, stun_time := 0.0, damage_type: String = "physical", effect_type: String = "") -> void:

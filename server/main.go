@@ -251,6 +251,7 @@ func databaseHost(raw string) string {
 func newRouter(service *api, hub *wsHub) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", service.handleHealth)
+	mux.HandleFunc("/rules", service.handleRules)
 	mux.HandleFunc("/ws", hub.handleWebSocket)
 	mux.HandleFunc("/register", service.handleRegister)
 	mux.HandleFunc("/profile", service.handleProfile)
@@ -275,6 +276,22 @@ func databaseGate(next http.Handler, service *api) http.Handler {
 			"success": false,
 			"error":   "Database unavailable",
 		})
+	})
+}
+
+func (service *api) handleRules(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "Method not allowed",
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success":              true,
+		"crystals_to_win":      crystalsToWin,
+		"bot_fill_seconds":     int(roomBotFillDelay / time.Second),
+		"match_length_seconds": int(matchLength / time.Second),
 	})
 }
 

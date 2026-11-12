@@ -2245,9 +2245,9 @@ func use_ability(index: int, manual := true) -> bool:
 
 func _set_lightning_storm_ring(active: bool) -> void:
 	if lightning_storm_ring == null:
-		lightning_storm_ring = FxUtils.soft_ground_glow(MAGE_STORM_RADIUS * 2.0, Color(0.28, 0.76, 1.0, 0.55), 0.85, 0.28, 0.45)
+		lightning_storm_ring = FxUtils.soft_ground_glow(MAGE_STORM_RADIUS * 2.0, Color(0.35, 0.8, 1.0, 0.75), 0.9, 0.55, 0.35)
 		lightning_storm_ring.name = "LightningStormRange"
-		lightning_storm_ring.position.y = GROUND_Y_OFFSET
+		lightning_storm_ring.position.y = 0.06
 		add_child(lightning_storm_ring)
 	lightning_storm_ring.visible = active
 
@@ -2480,8 +2480,10 @@ func get_blessing_damage_multiplier() -> float:
 	return 1.1 if blessing_timer > 0.0 else 1.0
 
 
-func apply_blessing(duration: float) -> void:
+func apply_blessing(duration: float, source_team: int = -1) -> void:
 	if dead or duration <= 0.0:
+		return
+	if source_team >= 0 and team != source_team:
 		return
 	blessing_timer = maxf(blessing_timer, duration)
 	if blessing_ring != null and is_instance_valid(blessing_ring):
