@@ -527,7 +527,7 @@ func _build_weapon_placeholder(grid: GridContainer, weapon_name: String, weapon_
 		weapon_buttons[weapon_id] = buy_button
 		weapon_cards[weapon_id] = card
 	else:
-		content.add_child(_make_label("Иконка и цена позже", 12, Color(0.7, 0.76, 0.86)))
+		content.add_child(_make_label("Скоро в продаже", 12, Color(0.7, 0.76, 0.86)))
 
 
 func _build_topup_panel() -> void:
