@@ -1702,6 +1702,7 @@ func spawn_crystal(pos: Vector3, spawn_on_pedestal := false) -> void:
 	c.add_child(ring)
 	var drop_position := Vector3.ZERO if spawn_on_pedestal else _find_crystal_drop_position(pos)
 	c.global_position = Vector3(drop_position.x, 1.3, drop_position.z)
+	ring.position.y = 0.02 - c.global_position.y
 	c.set_meta("spin", 0.0)
 	crystal_node = c
 	crystal_state = "ground"
@@ -1822,6 +1823,10 @@ func _update_crystal(delta: float) -> void:
 			return
 		if crystal_timer > 35.0:
 			crystal_node.global_position = Vector3(0.0, 1.1, 0.0)
+			var altar_ring := crystal_node.get_node_or_null("CrystalRing") as MeshInstance3D
+			if altar_ring != null:
+				altar_ring.position = Vector3(0.0, 0.02 - crystal_node.global_position.y, 0.0)
+				altar_ring.scale = Vector3.ONE
 			crystal_timer = 0.0
 			announce("Осколок вернулся к алтарю", Color(0.75, 0.9, 1.0), 1.8)
 		if state == "live" and pickup_delay <= 0.0:
@@ -1915,7 +1920,7 @@ func drop_crystal(pos: Vector3) -> void:
 	crystal_node.global_position = Vector3(pos.x, 0.5, pos.z)
 	var ring := crystal_node.get_node_or_null("CrystalRing") as MeshInstance3D
 	if ring != null:
-		ring.position = Vector3(0.0, -0.6, 0.0)
+		ring.position = Vector3(0.0, 0.02 - crystal_node.global_position.y, 0.0)
 		ring.scale = Vector3.ONE
 
 
