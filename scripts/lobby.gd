@@ -55,6 +55,10 @@ const UI_CLICK_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX
 const SHARD_TOPUP_SCENE := preload("res://scenes/ShardTopupPanel.tscn")
 const SHARD_ICON: Texture2D = preload("res://ui/icons/sky_shard.png")
 const NICKNAME_CHANGE_COST := 100
+const SHOP_WING_ICON: Texture2D = preload("res://assets/ui/generated_wing_shop_icon/img-6adcd384-a1c6-4d03-ab8f-2885c6220fd5-1794244737264-0_1794244737264_rm3v6na1.webp")
+const SHOP_STAFF_ICON: Texture2D = preload("res://ui/icons/weapon_staff.png")
+const SHOP_BOW_ICON: Texture2D = preload("res://ui/icons/weapon_bow.png")
+const SHOP_SWORD_ICON: Texture2D = preload("res://ui/icons/weapon_sword.png")
 
 var selected_class := 0
 var slot_classes: Array[int] = [HeroUnit.Cls.MAGE, HeroUnit.Cls.WARRIOR, HeroUnit.Cls.FAIRY]
@@ -433,10 +437,10 @@ func _build_shard_shop() -> void:
 	grid.add_theme_constant_override("h_separation", 12)
 	grid.add_theme_constant_override("v_separation", 10)
 	layout.add_child(grid)
-	_build_wing_card(grid, 1, "Белые крылья", "Ур. 1", 50, Color(0.87, 0.91, 1.0))
-	_build_weapon_placeholder(grid, "Посох")
-	_build_weapon_placeholder(grid, "Лук")
-	_build_weapon_placeholder(grid, "Меч", 1, 500)
+	_build_wing_card(grid, 1, "Белые крылья", "Ур. 1", 50)
+	_build_weapon_placeholder(grid, "Посох", 0, 0, SHOP_STAFF_ICON)
+	_build_weapon_placeholder(grid, "Лук", 0, 0, SHOP_BOW_ICON)
+	_build_weapon_placeholder(grid, "Меч", 1, 500, SHOP_SWORD_ICON)
 
 	_build_topup_panel()
 
@@ -446,7 +450,7 @@ func _build_shard_shop() -> void:
 	add_child(info_dialog)
 
 
-func _build_wing_card(grid: GridContainer, wing_id: int, wing_name: String, level: String, price: int, swatch_color: Color) -> void:
+func _build_wing_card(grid: GridContainer, wing_id: int, wing_name: String, level: String, price: int) -> void:
 	var card := PanelContainer.new()
 	card.name = "WingCard%d" % wing_id
 	card.custom_minimum_size = Vector2(0, 190)
@@ -460,11 +464,17 @@ func _build_wing_card(grid: GridContainer, wing_id: int, wing_name: String, leve
 	var preview_frame := CenterContainer.new()
 	preview_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(preview_frame)
-	var preview := ColorRect.new()
-	preview.name = "WingPlaceholder"
-	preview.custom_minimum_size = Vector2(78, 78)
-	preview.color = swatch_color
+	var preview := TextureRect.new()
+	preview.name = "WingIcon"
+	preview.texture = SHOP_WING_ICON
+	preview.custom_minimum_size = Vector2(84, 84)
+	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var preview_material := ShaderMaterial.new()
+	preview_material.shader = preload("res://shaders/ability_icon_mask.gdshader")
+	preview_material.set_shader_parameter("corner_radius", 0.5)
+	preview.material = preview_material
 	preview_frame.add_child(preview)
 	content.add_child(_make_label("%s (%s)" % [wing_name, level], 17, PALE))
 
@@ -484,7 +494,7 @@ func _build_wing_card(grid: GridContainer, wing_id: int, wing_name: String, leve
 	wing_buttons[wing_id] = buy_button
 
 
-func _build_weapon_placeholder(grid: GridContainer, weapon_name: String, weapon_id: int = 0, price: int = 0) -> void:
+func _build_weapon_placeholder(grid: GridContainer, weapon_name: String, weapon_id: int = 0, price: int = 0, icon_texture: Texture2D = null) -> void:
 	var card := PanelContainer.new()
 	card.name = "WeaponPlaceholder%d" % grid.get_child_count()
 	card.custom_minimum_size = Vector2(0, 190)
@@ -496,11 +506,14 @@ func _build_weapon_placeholder(grid: GridContainer, weapon_name: String, weapon_
 	var placeholder_frame := CenterContainer.new()
 	placeholder_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(placeholder_frame)
-	var placeholder := ColorRect.new()
-	placeholder.custom_minimum_size = Vector2(78, 78)
-	placeholder.color = Color(0.12, 0.15, 0.22, 0.85)
-	placeholder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	placeholder_frame.add_child(placeholder)
+	var icon := TextureRect.new()
+	icon.name = "WeaponIcon"
+	icon.texture = icon_texture
+	icon.custom_minimum_size = Vector2(84, 84)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	placeholder_frame.add_child(icon)
 	content.add_child(_make_label(weapon_name, 18, PALE))
 	if weapon_id > 0:
 		content.add_child(_make_label("Легендарный меч", 12, Color(0.7, 0.76, 0.86)))

@@ -46,15 +46,15 @@ const GOLD_FOUNTAIN_SCENE: PackedScene = preload("res://assets/gold_fountain/3d_
 const TUTORIAL_CONTROLLER_SCRIPT: Script = preload("res://scripts/tutorial_controller.gd")
 const REMOTE_PLAYER_SCRIPT: Script = preload("res://scripts/remote_player.gd")
 const SHOP_ITEMS := [
-	{"id": "life_amulet", "name": "Амулет Жизни", "effect": "+150 Max HP", "price": 300, "icon": 0},
-	{"id": "revival_talisman", "name": "Талисман Возрождения", "effect": "+10 HP/сек реген", "price": 350, "icon": 1},
-	{"id": "titan_shell", "name": "Панцирь Титана", "effect": "−15% входящего урона", "price": 350, "icon": 2},
-	{"id": "power_glove", "name": "Перчатка Силы", "effect": "+25 к урону атаки", "price": 300, "icon": 3},
+	{"id": "life_amulet", "name": "Амулет Жизни", "effect": "+150 Max HP", "price": 300, "icon": 10},
+	{"id": "revival_talisman", "name": "Талисман Возрождения", "effect": "+10 HP/сек реген", "price": 350, "icon": 2},
+	{"id": "titan_shell", "name": "Панцирь Титана", "effect": "−15% входящего урона", "price": 350, "icon": 12},
+	{"id": "power_glove", "name": "Перчатка Силы", "effect": "+25 к урону атаки", "price": 300, "icon": 0},
 	{"id": "vampire_fang", "name": "Клык Вампира", "effect": "15% вампиризма", "price": 350, "icon": 4},
-	{"id": "agility_mark", "name": "Знак Ловкости", "effect": "+20% скорости атаки", "price": 300, "icon": 5},
-	{"id": "wind_boots", "name": "Сапоги Ветра", "effect": "+15% скорости бега", "price": 250, "icon": 6},
-	{"id": "hourglass", "name": "Песочные Часы", "effect": "−15% КД скиллов", "price": 350, "icon": 7},
-	{"id": "cleansing_charm", "name": "Оберег Очищения", "effect": "−20% времени станов", "price": 300, "icon": 8},
+	{"id": "agility_mark", "name": "Знак Ловкости", "effect": "+20% скорости атаки", "price": 300, "icon": 15},
+	{"id": "wind_boots", "name": "Сапоги Ветра", "effect": "+15% скорости бега", "price": 250, "icon": 11},
+	{"id": "hourglass", "name": "Песочные Часы", "effect": "−15% КД скиллов", "price": 350, "icon": 6},
+	{"id": "cleansing_charm", "name": "Оберег Очищения", "effect": "−20% времени станов", "price": 300, "icon": 3},
 ]
 
 const MUSIC_PATH := "res://audio/music/dread/6adcd384-a1c6-4d03-ab8f-2885c6220fd5_music_dark_fantasy_arena_battle_them__1793744175999.mp3"
