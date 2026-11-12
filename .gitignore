@@ -5,7 +5,7 @@
 
 # Export presets and configs
 export.cfg
-export_presets.cfg
+# export_presets.cfg is tracked: build settings are part of the project.
 
 # Build output
 build/
