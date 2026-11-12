@@ -60,6 +60,7 @@ const TOTAL_SLOTS = SLOT_GROUPS.reduce((sum, group) => sum + group.slots.length,
 
 const els = {
 	pickFolder: document.getElementById("pick-folder"),
+	loadCandidates: document.getElementById("load-candidates"),
 	rescan: document.getElementById("rescan"),
 	fallbackInput: document.getElementById("fallback-input"),
 	supportWarning: document.getElementById("support-warning"),
@@ -395,6 +396,18 @@ function stopPlayback() {
 
 async function playSound(sound) {
 	try {
+		if (sound.url) {
+			stopPlayback();
+			player.src = sound.url;
+			player.currentTime = 0;
+			await player.play();
+			setStatus(`▶ ${sound.name}`);
+			player.onended = () => {
+				stopPlayback();
+				setStatus("Готово.");
+			};
+			return;
+		}
 		const file = sound.file || (sound.handle ? await sound.handle.getFile() : null);
 		if (!file) {
 			throw new Error("файл недоступен, выберите папку заново");
@@ -628,6 +641,42 @@ function loadFromFileInput(fileList) {
 	toast(`Загружено звуков: ${found.length}.`);
 }
 
+async function loadCandidates() {
+	setStatus("Загружаю кандидатов…");
+	try {
+		const response = await fetch("candidates/manifest.json", { cache: "no-store" });
+		if (!response.ok) {
+			throw new Error(`HTTP ${response.status}`);
+		}
+		const data = await response.json();
+		const found = (data.files || []).map((file) => ({
+			id: file.path,
+			name: file.name,
+			path: file.path,
+			url: file.path,
+			handle: null,
+			file: null,
+		}));
+		state.sounds = found.sort(compareSounds);
+		state.folderLabel = "кандидаты";
+		state.selectedSoundId = null;
+		state.assignments = normalizeAssignments(data.assignments || {});
+		state.dirty = false;
+		els.search.disabled = false;
+		els.rescan.disabled = true;
+		els.folderName.textContent = `Папка: кандидаты · файлов: ${found.length}`;
+		renderSounds();
+		renderSlots();
+		setStatus(`Загружено кандидатов: ${found.length}. Жмите ▶ у слота или у файла.`);
+		toast(`Кандидаты загружены: ${found.length}.`);
+	} catch (error) {
+		showNotice("Не удалось загрузить candidates/manifest.json. Откройте страницу через локальный HTTP-сервер (например, python -m http.server) и обновите её.");
+		setStatus("Кандидаты не загрузились.");
+		toast(`Ошибка: ${error.message}`, true);
+	}
+}
+
+
 function init() {
 	loadSaved();
 	checkSupport();
@@ -637,6 +686,9 @@ function init() {
 
 	els.pickFolder.addEventListener("click", () => {
 		void chooseFolder();
+	});
+	els.loadCandidates.addEventListener("click", () => {
+		void loadCandidates();
 	});
 	els.rescan.addEventListener("click", () => {
 		void rescanFolder();

@@ -1,0 +1,180 @@
+{
+  "files": [
+    {
+      "name": "bonus_earthquake.wav",
+      "path": "candidates/bonus_earthquake.wav"
+    },
+    {
+      "name": "fairy_blessing.wav",
+      "path": "candidates/fairy_blessing.wav"
+    },
+    {
+      "name": "fairy_bow_release_01.wav",
+      "path": "candidates/fairy_bow_release_01.wav"
+    },
+    {
+      "name": "fairy_bow_release_02.wav",
+      "path": "candidates/fairy_bow_release_02.wav"
+    },
+    {
+      "name": "fairy_crit_draw_release.wav",
+      "path": "candidates/fairy_crit_draw_release.wav"
+    },
+    {
+      "name": "fairy_death_scream.wav",
+      "path": "candidates/fairy_death_scream.wav"
+    },
+    {
+      "name": "fairy_hit.wav",
+      "path": "candidates/fairy_hit.wav"
+    },
+    {
+      "name": "fairy_stun_shot.wav",
+      "path": "candidates/fairy_stun_shot.wav"
+    },
+    {
+      "name": "mage_attack_arcane.wav",
+      "path": "candidates/mage_attack_arcane.wav"
+    },
+    {
+      "name": "mage_attack_fire.wav",
+      "path": "candidates/mage_attack_fire.wav"
+    },
+    {
+      "name": "mage_death_scream.wav",
+      "path": "candidates/mage_death_scream.wav"
+    },
+    {
+      "name": "mage_heal.wav",
+      "path": "candidates/mage_heal.wav"
+    },
+    {
+      "name": "mage_heal_chime.wav",
+      "path": "candidates/mage_heal_chime.wav"
+    },
+    {
+      "name": "mage_hit.wav",
+      "path": "candidates/mage_hit.wav"
+    },
+    {
+      "name": "mage_lightning.wav",
+      "path": "candidates/mage_lightning.wav"
+    },
+    {
+      "name": "mage_root_vines.wav",
+      "path": "candidates/mage_root_vines.wav"
+    },
+    {
+      "name": "misc_coin_pickup.wav",
+      "path": "candidates/misc_coin_pickup.wav"
+    },
+    {
+      "name": "misc_defeat_dark.wav",
+      "path": "candidates/misc_defeat_dark.wav"
+    },
+    {
+      "name": "misc_match_start.wav",
+      "path": "candidates/misc_match_start.wav"
+    },
+    {
+      "name": "misc_shard_delivery.wav",
+      "path": "candidates/misc_shard_delivery.wav"
+    },
+    {
+      "name": "misc_shard_pickup.wav",
+      "path": "candidates/misc_shard_pickup.wav"
+    },
+    {
+      "name": "misc_shell_destroyed.wav",
+      "path": "candidates/misc_shell_destroyed.wav"
+    },
+    {
+      "name": "misc_shell_hit.wav",
+      "path": "candidates/misc_shell_hit.wav"
+    },
+    {
+      "name": "misc_victory_chime.wav",
+      "path": "candidates/misc_victory_chime.wav"
+    },
+    {
+      "name": "misc_victory_epic.wav",
+      "path": "candidates/misc_victory_epic.wav"
+    },
+    {
+      "name": "warrior_attack_sword_01.wav",
+      "path": "candidates/warrior_attack_sword_01.wav"
+    },
+    {
+      "name": "warrior_attack_sword_02.wav",
+      "path": "candidates/warrior_attack_sword_02.wav"
+    },
+    {
+      "name": "warrior_attack_sword_03.wav",
+      "path": "candidates/warrior_attack_sword_03.wav"
+    },
+    {
+      "name": "warrior_bloodthirst.wav",
+      "path": "candidates/warrior_bloodthirst.wav"
+    },
+    {
+      "name": "warrior_crit_clang.wav",
+      "path": "candidates/warrior_crit_clang.wav"
+    },
+    {
+      "name": "warrior_dash_shadow.wav",
+      "path": "candidates/warrior_dash_shadow.wav"
+    },
+    {
+      "name": "warrior_death.wav",
+      "path": "candidates/warrior_death.wav"
+    },
+    {
+      "name": "warrior_death_scream.wav",
+      "path": "candidates/warrior_death_scream.wav"
+    },
+    {
+      "name": "warrior_fear_roar.wav",
+      "path": "candidates/warrior_fear_roar.wav"
+    },
+    {
+      "name": "warrior_hit.wav",
+      "path": "candidates/warrior_hit.wav"
+    }
+  ],
+  "assignments": {
+    "warrior": {
+      "attack": "warrior_attack_sword_01.wav",
+      "skill1": "warrior_dash_shadow.wav",
+      "skill2": "warrior_bloodthirst.wav",
+      "ult": "warrior_fear_roar.wav",
+      "hit": "warrior_hit.wav",
+      "death": "warrior_death_scream.wav"
+    },
+    "fairy": {
+      "attack": "fairy_bow_release_01.wav",
+      "skill1": "fairy_stun_shot.wav",
+      "skill2": "fairy_crit_draw_release.wav",
+      "ult": "fairy_blessing.wav",
+      "hit": "fairy_hit.wav",
+      "death": "fairy_death_scream.wav"
+    },
+    "mage": {
+      "attack": "mage_attack_arcane.wav",
+      "skill1": "mage_root_vines.wav",
+      "skill2": "mage_heal_chime.wav",
+      "ult": "mage_lightning.wav",
+      "hit": "mage_hit.wav",
+      "death": "mage_death_scream.wav"
+    },
+    "misc": {
+      "shard_delivered": "misc_shard_delivery.wav",
+      "shard_picked": "misc_shard_pickup.wav",
+      "coin_pickup": "misc_coin_pickup.wav",
+      "shell_hit": "misc_shell_hit.wav",
+      "shell_destroyed": "misc_shell_destroyed.wav",
+      "victory": "misc_victory_epic.wav",
+      "defeat": "misc_defeat_dark.wav",
+      "match_start": "misc_match_start.wav"
+    }
+  }
+}
