@@ -73,6 +73,16 @@ func _on_network_connected() -> void:
 	if transition_started:
 		return
 	connection_hint.text = '\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432...'
+	if not network_player_slots.has(-1):
+		for slot_index in range(SLOTS_PER_TEAM):
+			if team_slots[0][slot_index]['state'] == 'searching':
+				var local_class := clampi(int(get_tree().get_meta('selected_class', 0)), 0, 2)
+				var local_name := MetaProgression.player_nickname
+				if local_name.is_empty():
+					local_name = 'Игрок'
+				_set_slot_entry(0, slot_index, local_name, local_class, false)
+				network_player_slots[-1] = true
+				break
 
 
 func _on_network_player_joined(player_id: int, info: Dictionary) -> void:
