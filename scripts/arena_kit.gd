@@ -743,7 +743,7 @@ static func _add_base(bases: Node3D, z: float, color: Color, mat_rock: StandardM
 	platform.position = Vector3(0.0, 0.09, 0.0)
 	base.add_child(platform)
 
-	var ring := FxUtils.soft_ground_glow(8.4, Color(color.r, color.g, color.b, 0.5), 0.9, 0.34, 0.5)
+	var ring := FxUtils.soft_ground_glow(9.0, Color(color.r, color.g, color.b, 0.45), 0.0, 0.22)
 	ring.name = "BaseGlow"
 	ring.position = Vector3(0.0, 0.2, 0.0)
 	base.add_child(ring)

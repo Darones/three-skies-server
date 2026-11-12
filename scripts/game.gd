@@ -228,7 +228,7 @@ func _soften_baked_base_rings() -> void:
 			if not mesh_instance.mesh is TorusMesh:
 				continue
 			var color: Color = config["color"]
-			var glow := FxUtils.soft_ground_glow(8.4, Color(color.r, color.g, color.b, 0.5), 0.9, 0.38, 0.5)
+			var glow := FxUtils.soft_ground_glow(9.0, Color(color.r, color.g, color.b, 0.45), 0.0, 0.22)
 			glow.name = "BaseGlow"
 			glow.position = mesh_instance.position
 			base.add_child(glow)
