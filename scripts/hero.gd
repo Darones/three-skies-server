@@ -256,6 +256,7 @@ var occluded_from_player := false
 var carry_light: OmniLight3D
 var bush_zones: Array[Area3D] = []
 var in_bush := false
+var name_label_timer := 0.0
 var bush_reveal_timer := 0.0
 var bush_visual_hidden := false
 var in_shop_zone := false
@@ -569,6 +570,10 @@ func _update_weapon_transform() -> void:
 
 func _process(delta: float) -> void:
 	_update_weapon_transform()
+	name_label_timer -= delta
+	if name_label_timer <= 0.0:
+		name_label_timer = 0.25
+		_update_name_visibility()
 	if wing_model == null or not is_instance_valid(wing_model):
 		return
 	wing_sway_time += delta
@@ -2058,6 +2063,34 @@ func dismiss_shop() -> void:
 	shop_manual_dismissed = true
 	if is_player and game != null:
 		game.set_shop_open(false)
+
+
+func _update_name_visibility() -> void:
+	if name_label == null or game == null or not is_instance_valid(game):
+		return
+	if is_player:
+		name_label.visible = true
+		return
+	var player_team := -1
+	if game.player != null and is_instance_valid(game.player):
+		player_team = int(game.player.team)
+	if team == player_team:
+		name_label.visible = true
+		if blessing_rune != null and is_instance_valid(blessing_rune):
+			blessing_rune.visible = true
+		return
+	# враг: скрываем ник и баф в тумане и в кустах
+	var visible_to_enemy := not _is_bush_stealthed()
+	if visible_to_enemy:
+		var nearest := 9999.0
+		for other in game.heroes:
+			if other == null or not is_instance_valid(other) or other.team != player_team or other.dead:
+				continue
+			nearest = minf(nearest, global_position.distance_to(other.global_position))
+		visible_to_enemy = nearest <= 12.0
+	name_label.visible = visible_to_enemy
+	if blessing_rune != null and is_instance_valid(blessing_rune):
+		blessing_rune.visible = visible_to_enemy
 
 
 func _refresh_bush_visibility() -> void:
