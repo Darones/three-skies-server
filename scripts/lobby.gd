@@ -107,6 +107,7 @@ var wing_inventory_cards: Dictionary = {}
 var wing_inventory_statuses: Dictionary = {}
 var wing_inventory_buttons: Dictionary = {}
 var weapon_inventory_statuses: Dictionary = {}
+var weapon_inventory_buttons: Dictionary = {}
 var nickname_display_label: Label
 var nickname_popup_overlay: ColorRect
 var nickname_popup_status_label: Label
@@ -372,10 +373,14 @@ func _build_player_profile() -> void:
 	experience_bar.add_theme_stylebox_override("fill", experience_fill)
 	info.add_child(experience_bar)
 
+	var xp_row := HBoxContainer.new()
+	xp_row.add_theme_constant_override("separation", 4)
+	info.add_child(xp_row)
 	profile_xp_label = _make_label("", 12, Color(0.62, 0.7, 0.82))
 	profile_xp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_xp_label.add_theme_font_size_override("font_size", 12)
-	info.add_child(profile_xp_label)
+	xp_row.add_child(profile_xp_label)
+	xp_row.add_child(_shard_icon(14))
 
 
 func _build_shard_shop_button() -> void:
@@ -677,6 +682,10 @@ func _refresh_weapon_shop() -> void:
 		var owned: bool = weapon_id in MetaProgression.unlocked_weapons
 		status_label.text = "Куплено" if owned else "В магазине"
 		status_label.add_theme_color_override("font_color", GOLD if owned else Color(0.62, 0.65, 0.72))
+		var button := weapon_inventory_buttons.get(weapon_id) as Button
+		if button != null:
+			button.text = "Надето" if owned else "Купить"
+			button.disabled = owned
 
 
 func _on_purchase_updated(success: bool, _purchase_type: String, _item_id: int, _new_shards: int) -> void:
@@ -736,7 +745,7 @@ func _build_player_menu() -> void:
 
 	var header := HBoxContainer.new()
 	layout.add_child(header)
-	var title := _make_label("МЕНЮ ИГРОКА", 25, GOLD)
+	var title := _make_label("ИНВЕНТАРЬ", 25, GOLD)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
@@ -954,7 +963,14 @@ func _build_player_menu() -> void:
 		weapon_content.add_child(_make_label(spec["name"], 12, PALE))
 		var weapon_status := _make_label("В магазине", 12, Color(0.62, 0.65, 0.72))
 		weapon_content.add_child(weapon_status)
+		var weapon_button := _make_action_button("Купить", false)
+		weapon_button.name = "WeaponInventoryButton%d" % weapon_id
+		weapon_button.custom_minimum_size = Vector2(0, 28)
+		weapon_button.add_theme_font_size_override("font_size", 11)
+		weapon_button.pressed.connect(_open_shard_shop)
+		weapon_content.add_child(weapon_button)
 		weapon_inventory_statuses[weapon_id] = weapon_status
+		weapon_inventory_buttons[weapon_id] = weapon_button
 	_build_wing_inventory_cards(inventory_grid)
 	_refresh_player_menu()
 
@@ -1884,7 +1900,7 @@ func _refresh_player_profile() -> void:
 			var next_level_xp := MetaProgression.get_xp_for_next_level(character_key)
 			var remaining := maxi(0, next_level_xp - character_xp)
 			var reward := MetaProgression.get_shard_reward_for_level(character_level + 1)
-			profile_xp_label.text = "До уровня: %d XP · награда %d осколков" % [remaining, reward]
+			profile_xp_label.text = "До уровня: %d XP · награда %d" % [remaining, reward]
 	if MetaProgression.consume_level_up_for(character_key):
 		profile_level_label.add_theme_color_override('font_color', GOLD)
 		profile_level_label.add_theme_color_override('font_shadow_color', Color(1.0, 0.68, 0.12, 0.95))

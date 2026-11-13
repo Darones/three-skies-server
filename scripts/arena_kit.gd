@@ -201,14 +201,33 @@ static func ensure_arena_features(arena_root: Node3D) -> void:
 	_ensure_navigation_region(arena_root)
 
 
+static var _occupied: Array = []
+
+
+static func _is_free(p: Vector3, radius: float, extra: float) -> bool:
+	for entry in _occupied:
+		var other: Vector3 = entry["pos"]
+		var other_radius: float = entry["radius"]
+		if Vector2(p.x, p.z).distance_to(Vector2(other.x, other.z)) < radius + other_radius + extra:
+			return false
+	return true
+
+
+static func _occupy(p: Vector3, radius: float) -> void:
+	_occupied.append({"pos": p, "radius": radius})
+
+
 static func _rebuild_decor(arena_root: Node3D) -> void:
 	# Запечённый в сцену декор больше не используется: арена целиком
 	# строится из кода, иначе правки в раскладке не доезжают до игры.
+	_occupied.clear()
 	for node_name in ["Decor", "Bushes"]:
 		var old := arena_root.get_node_or_null(node_name)
 		if old != null:
 			arena_root.remove_child(old)
 			old.queue_free()
+	# кусты первыми: остальной декор потом обходит их стороной
+	add_bushes(arena_root)
 	var decor := Node3D.new()
 	decor.name = "Decor"
 	arena_root.add_child(decor)
@@ -806,11 +825,15 @@ static func _add_decor(decor: Node3D, mat_rock: StandardMaterial3D) -> void:
 		var ang := TAU * float(i) / float(tree_count) + 0.17
 		var radius := 0.90 + 0.03 * sin(float(i) * 2.1)
 		var p := _shape_point(ang, radius)
+		var pos := Vector3(p.x, -0.9, p.y)
 		var scale_factor := 0.88 + 0.18 * sin(float(i) * 1.7)
+		if not _is_free(pos, 1.6 * scale_factor, 4.0):
+			continue
 		if p.y > 0.0:
-			_add_glowing_tree(decor, Vector3(p.x, -0.9, p.y), scale_factor, i)
+			_add_glowing_tree(decor, pos, scale_factor, i)
 		else:
-			_add_tree(decor, Vector3(p.x, -0.9, p.y), scale_factor, true, trunk, light_green, light_green2, dark_foliage)
+			_add_tree(decor, pos, scale_factor, true, trunk, light_green, light_green2, dark_foliage)
+		_occupy(pos, 1.6 * scale_factor)
 
 	# камни средним кольцом
 	var rock_count := 9
@@ -818,7 +841,12 @@ static func _add_decor(decor: Node3D, mat_rock: StandardMaterial3D) -> void:
 		var ang := TAU * float(i) / float(rock_count) + 0.42
 		var radius := 0.58 + 0.13 * sin(float(i) * 2.7)
 		var p := _shape_point(ang, radius)
-		_add_rock(decor, Vector3(p.x, 0.28, p.y), 1.05 + 0.22 * sin(float(i) * 1.3), mat_rock)
+		var pos := Vector3(p.x, 0.28, p.y)
+		var rock_scale := 1.05 + 0.22 * sin(float(i) * 1.3)
+		if not _is_free(pos, rock_scale * 0.9, 4.0):
+			continue
+		_add_rock(decor, pos, rock_scale, mat_rock)
+		_occupy(pos, rock_scale * 0.9)
 
 	# кристаллы между камнями
 	var crystal_count := 6
@@ -827,14 +855,14 @@ static func _add_decor(decor: Node3D, mat_rock: StandardMaterial3D) -> void:
 		var ang := TAU * float(i) / float(crystal_count) + 0.95
 		var radius := 0.44 + 0.10 * cos(float(i) * 1.9)
 		var p := _shape_point(ang, radius)
-		_add_crystal_cluster(decor, Vector3(p.x, 0.0, p.y), crystal_colors[i % crystal_colors.size()], 1.15 + 0.18 * sin(float(i)))
+		var pos := Vector3(p.x, 0.0, p.y)
+		var crystal_scale := 1.15 + 0.18 * sin(float(i))
+		if not _is_free(pos, crystal_scale, 4.0):
+			continue
+		_add_crystal_cluster(decor, pos, crystal_colors[i % crystal_colors.size()], crystal_scale)
+		_occupy(pos, crystal_scale)
 
-	var float_spots := [
-		Vector3(-30.0, -3.0, -6.0), Vector3(30.0, -5.0, 8.0), Vector3(-24.0, 3.0, 22.0),
-		Vector3(26.0, 2.0, -21.0), Vector3(0.0, -12.0, -26.0), Vector3(6.0, -16.0, 24.0),
-	]
-	for p in float_spots:
-		_add_rock(decor, p, 1.6, mat_rock, true)
+	# плавающие камни убраны: в игре они читались как летающие глыбы
 
 
 static func _add_tree(parent: Node3D, pos: Vector3, scale_factor: float, dark: bool, trunk_mat: StandardMaterial3D, green_mat: StandardMaterial3D, gold_mat: StandardMaterial3D, dark_mat: StandardMaterial3D) -> void:
@@ -879,6 +907,22 @@ static func _add_tree(parent: Node3D, pos: Vector3, scale_factor: float, dark: b
 	visibility_shape.position = Vector3(0.0, 2.7, 0.0)
 	visibility_body.add_child(visibility_shape)
 	tree.add_child(visibility_body)
+	_add_tree_body(tree, 0.5, 4.0)
+
+
+static func _add_tree_body(tree: Node3D, radius: float, height: float) -> void:
+	var body := StaticBody3D.new()
+	body.name = "TreeCollision"
+	body.collision_layer = 1
+	body.collision_mask = 1
+	var shape := CollisionShape3D.new()
+	var cylinder := CylinderShape3D.new()
+	cylinder.radius = radius
+	cylinder.height = height
+	shape.shape = cylinder
+	shape.position = Vector3(0.0, height * 0.5, 0.0)
+	body.add_child(shape)
+	tree.add_child(body)
 
 
 static func _add_glowing_tree(parent: Node3D, pos: Vector3, scale_factor: float, tree_index: int) -> void:
@@ -902,6 +946,7 @@ static func _add_glowing_tree(parent: Node3D, pos: Vector3, scale_factor: float,
 	visibility_shape.position = Vector3(0.0, 0.5, 0.0)
 	visibility_body.add_child(visibility_shape)
 	tree.add_child(visibility_body)
+	_add_tree_body(tree, 0.22, 1.0)
 
 
 static func _add_rock(parent: Node3D, pos: Vector3, size: float, mat: StandardMaterial3D, floating := false) -> void:
@@ -978,6 +1023,7 @@ static func add_bushes(arena: Node3D) -> void:
 		var zone := Area3D.new()
 		zone.name = "BushZone_%02d" % (index + 1)
 		zone.position = _place_inside(spots[index])
+		_occupy(zone.position, 3.4)
 		zone.collision_layer = 0
 		zone.collision_mask = 1
 		bushes.add_child(zone)

@@ -450,9 +450,9 @@ func _build_pause_menu(root: Control) -> void:
 	panel.anchor_right = 0.5
 	panel.anchor_bottom = 0.5
 	panel.offset_left = -210.0
-	panel.offset_top = -190.0
+	panel.offset_top = -145.0
 	panel.offset_right = 210.0
-	panel.offset_bottom = 190.0
+	panel.offset_bottom = 145.0
 	panel.add_theme_stylebox_override("panel", _panel_style(Color(0.78, 0.62, 0.32), Color(0.035, 0.045, 0.07, 0.99)))
 	pause_overlay.add_child(panel)
 	pause_menu_panel = panel
@@ -691,12 +691,12 @@ func _build_abilities(root: Control) -> void:
 		icon_rect.material = icon_material
 		icon_rect.z_index = 0
 		button.add_child(icon_rect)
-		var key_label := _make_label(str(i + 1), 14, Color.WHITE)
+		var key_label := _make_label(str(i + 1), 28, Color.WHITE)
 		key_label.text = str(ABILITY_SHORT_LABELS[HeroUnit.Cls.WARRIOR][i]) if is_mobile else str(i + 1)
-		key_label.add_theme_font_size_override("font_size", 12 if is_mobile else 14)
+		key_label.add_theme_font_size_override("font_size", 24 if is_mobile else 28)
 		key_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-		key_label.offset_left = -28.0
-		key_label.offset_top = -24.0
+		key_label.offset_left = -54.0
+		key_label.offset_top = -48.0
 		key_label.offset_right = -5.0
 		key_label.offset_bottom = -3.0
 		key_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT

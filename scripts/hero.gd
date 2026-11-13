@@ -337,7 +337,7 @@ func _wing_config(wing_id: int) -> Dictionary:
 			return {
 				"path": "res://assets/wings/low_poly_demon_wings_animated.glb",
 				"scale": 0.006,
-				"position": Vector3(0.0, -1.45, 0.0),
+				"position": Vector3(0.0, -0.85, 0.0),
 				"rotation": Vector3(0.0, 0.0, 0.0),
 				"tint": Color(1.0, 1.0, 1.0),
 				"emission": 0.0,
