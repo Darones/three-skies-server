@@ -39,6 +39,7 @@ var params := {
 }
 var sliders := {}
 var spins := {}
+var saved_all := {}
 
 var viewport: SubViewport
 var camera: Camera3D
@@ -56,7 +57,9 @@ const RANGES := {
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_load_saved()
 	_build_ui()
+	_apply_params(_wing_defaults(wing_id))
 	_reload_hero()
 	if OS.get_cmdline_user_args().has("--autoshot"):
 		for i in 8:
@@ -65,6 +68,25 @@ func _ready() -> void:
 		get_viewport().get_texture().get_image().save_png("user://tuner.png")
 		print("TUNER_SHOT")
 		get_tree().quit()
+
+
+func _load_saved() -> void:
+	var path := "user://wings_tune_all.json"
+	if FileAccess.file_exists(path):
+		var reader := FileAccess.open(path, FileAccess.READ)
+		if reader != null:
+			var parsed: Variant = JSON.parse_string(reader.get_as_text())
+			reader.close()
+			if parsed is Dictionary:
+				saved_all = parsed
+	# подхватываем и одиночное сохранение, если накопительного ещё нет
+	if saved_all.is_empty() and FileAccess.file_exists(SAVE_PATH):
+		var single := FileAccess.open(SAVE_PATH, FileAccess.READ)
+		if single != null:
+			var data: Variant = JSON.parse_string(single.get_as_text())
+			single.close()
+			if data is Dictionary:
+				saved_all["%s_%d" % [String(data.get("hero", "warrior")), int(data.get("wing", 1))]] = data
 
 
 func _build_ui() -> void:
@@ -294,6 +316,16 @@ func _process(_delta: float) -> void:
 
 
 func _wing_defaults(id: int) -> Dictionary:
+	var key := "%s_%d" % [hero_key, id]
+	if saved_all.has(key):
+		var saved: Dictionary = saved_all[key]
+		var pos: Array = saved.get("position", [0.0, 0.0, -0.12])
+		var rot: Array = saved.get("rotation", [0.0, 0.0, 0.0])
+		return {
+			"px": float(pos[0]), "py": float(pos[1]), "pz": float(pos[2]),
+			"rx": float(rot[0]), "ry": float(rot[1]), "rz": float(rot[2]),
+			"scale": float(saved.get("scale", 1.0)),
+		}
 	match id:
 		4:
 			return {"px": 0.0, "py": -0.85, "pz": -0.12, "rx": 0.0, "ry": 0.0, "rz": 0.0, "scale": 0.006}
@@ -325,12 +357,22 @@ func _save_json() -> void:
 	if file != null:
 		file.store_string(JSON.stringify(data, "  "))
 		file.close()
+
+	var key := "%s_%d" % [hero_key, wing_id]
+	saved_all[key] = data
+	var all_path := "user://wings_tune_all.json"
+	var writer := FileAccess.open(all_path, FileAccess.WRITE)
+	if writer != null:
+		writer.store_string(JSON.stringify(saved_all, "  "))
+		writer.close()
+
 	var log_label := find_child("LogLabel", true, false) as Label
 	var text := JSON.stringify(data, "  ")
 	if log_label != null:
-		log_label.text = text
+		log_label.text = "%s\n\nSaved: %d" % [text, saved_all.size()]
 	print("WINGS_TUNE ", text)
 	print("WINGS_TUNE_PATH ", ProjectSettings.globalize_path(SAVE_PATH))
+	print("WINGS_TUNE_ALL ", ProjectSettings.globalize_path(all_path))
 
 
 func _find_skeleton(node: Node) -> Skeleton3D:

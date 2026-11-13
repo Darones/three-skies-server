@@ -320,7 +320,24 @@ const WING_MODEL_DEFAULT := {
 }
 
 
+const WING_TUNING := {
+	"warrior": {
+		1: {"position": Vector3(0.0, 0.16, -0.1), "rotation": Vector3(-1.7, 0.0, 0.0)},
+	},
+}
+
+
 func _wing_config(wing_id: int) -> Dictionary:
+	var config := _wing_config_base(wing_id)
+	var hero_key: String = ["warrior", "mage", "fairy"][hero_class]
+	if WING_TUNING.has(hero_key) and WING_TUNING[hero_key].has(wing_id):
+		var tuning: Dictionary = WING_TUNING[hero_key][wing_id]
+		config["position"] = tuning["position"]
+		config["rotation"] = tuning["rotation"]
+	return config
+
+
+func _wing_config_base(wing_id: int) -> Dictionary:
 	match wing_id:
 		2:
 			# золотые: тёплый металл и мягкое свечение по кромке
