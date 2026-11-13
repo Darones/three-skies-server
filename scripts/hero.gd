@@ -328,7 +328,7 @@ const WING_TUNING := {
 
 
 func _wing_config(wing_id: int) -> Dictionary:
-	var config := _wing_config_base(wing_id)
+	var config: Dictionary = _wing_config_base(wing_id).duplicate()
 	var hero_key: String = ["warrior", "mage", "fairy"][hero_class]
 	if WING_TUNING.has(hero_key) and WING_TUNING[hero_key].has(wing_id):
 		var tuning: Dictionary = WING_TUNING[hero_key][wing_id]
