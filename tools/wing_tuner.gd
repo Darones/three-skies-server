@@ -219,6 +219,7 @@ func _reload_hero() -> void:
 	hero_root = load(HEROES[hero_key]).instantiate() as Node3D
 	viewport.add_child(hero_root)
 	_build_lights(hero_root)
+	_apply_idle_pose(hero_root)
 	skeleton = _find_skeleton(hero_root)
 	bone_index = -1
 	for i in range(skeleton.get_bone_count()):
@@ -380,6 +381,29 @@ func _find_skeleton(node: Node) -> Skeleton3D:
 		return node as Skeleton3D
 	for child in node.get_children():
 		var found := _find_skeleton(child)
+		if found != null:
+			return found
+	return null
+
+
+func _apply_idle_pose(hero: Node3D) -> void:
+	# в игре герой стоит в idle, а не в T-позе — настраивать надо по той же позе
+	var player := _find_anim(hero)
+	if player == null:
+		return
+	for anim_name in player.get_animation_list():
+		if String(anim_name).to_lower().contains("idle"):
+			player.play(anim_name)
+			player.seek(0.6, true)
+			player.pause()
+			return
+
+
+func _find_anim(node: Node) -> AnimationPlayer:
+	if node is AnimationPlayer:
+		return node as AnimationPlayer
+	for child in node.get_children():
+		var found := _find_anim(child)
 		if found != null:
 			return found
 	return null

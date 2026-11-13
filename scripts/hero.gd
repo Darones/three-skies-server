@@ -553,16 +553,9 @@ func _update_weapon_transform() -> void:
 	if weapon_skeleton == null or not is_instance_valid(weapon_skeleton) or weapon_bone_index < 0:
 		return
 	var bone_world := weapon_skeleton.global_transform * weapon_skeleton.get_bone_global_pose(weapon_bone_index)
-	var skel_basis := weapon_skeleton.global_transform.basis
-	var up := Vector3.UP
-	var forward := -skel_basis.z
-	forward.y = 0.0
-	if forward.length_squared() < 0.0001:
-		forward = Vector3.FORWARD
-	forward = forward.normalized()
-	var right := forward.cross(up).normalized()
-	var basis := Basis(right, up, forward)
-	basis = basis * Basis.from_euler(Vector3(
+	# жёстко к кости руки: оружие повторяет наклон корпуса
+	var base := bone_world.basis.orthonormalized()
+	var basis := base * Basis.from_euler(Vector3(
 		deg_to_rad(weapon_rotation_offset.x),
 		deg_to_rad(weapon_rotation_offset.y),
 		deg_to_rad(weapon_rotation_offset.z)
