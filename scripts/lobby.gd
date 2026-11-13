@@ -835,7 +835,7 @@ func _build_player_menu() -> void:
 	profile_content.add_child(nickname_cost_row)
 	nickname_cost_label = _make_label("Первый ник — бесплатно", 13, Color(0.76, 0.8, 0.89))
 	nickname_cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	nickname_cost_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nickname_cost_label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	nickname_cost_label.clip_text = true
 	nickname_cost_row.add_child(nickname_cost_label)
 	nickname_cost_icon = _shard_icon(16)
@@ -843,6 +843,9 @@ func _build_player_menu() -> void:
 	nickname_cost_row.add_child(nickname_cost_icon)
 	menu_shard_label = _make_label("Баланс: 0", 13, Color(0.43, 0.84, 1.0))
 	menu_shard_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var cost_spacer := Control.new()
+	cost_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nickname_cost_row.add_child(cost_spacer)
 	nickname_cost_row.add_child(menu_shard_label)
 	nickname_cost_row.add_child(_shard_icon(16))
 	var profile_divider := ColorRect.new()

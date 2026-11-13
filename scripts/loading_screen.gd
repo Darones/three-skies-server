@@ -1,4 +1,4 @@
-extends Control
+﻿extends Control
 
 const BG: Texture2D = preload('res://assets/ui/loading_bg.png')
 const LOGO: Texture2D = preload('res://ui/logo.png')
@@ -72,7 +72,7 @@ func _start_network_flow() -> void:
 		MetaProgression.player_id
 	)
 	if error != OK:
-		_on_network_failed('Не удалось начать подключение')
+		_on_network_failed('РќРµ СѓРґР°Р»РѕСЃСЊ РЅР°С‡Р°С‚СЊ РїРѕРґРєР»СЋС‡РµРЅРёРµ')
 
 
 func _on_network_connected() -> void:
@@ -85,7 +85,7 @@ func _on_network_connected() -> void:
 				var local_class := clampi(int(get_tree().get_meta('selected_class', 0)), 0, 2)
 				var local_name := MetaProgression.player_nickname
 				if local_name.is_empty():
-					local_name = 'Игрок'
+					local_name = 'РРіСЂРѕРє'
 				_set_slot_entry(0, slot_index, local_name, local_class, false)
 				network_player_slots[-1] = true
 				break
@@ -112,7 +112,7 @@ func _on_network_player_joined(player_id: int, info: Dictionary) -> void:
 	if slot_index < 0:
 		return
 	var class_index := clampi(int(info.get('class', 0)), 0, 2)
-	var player_name := String(info.get('name', 'Игрок'))
+	var player_name := String(info.get('name', 'РРіСЂРѕРє'))
 	_set_slot_entry(team, slot_index, player_name, class_index, false)
 	network_player_slots[player_id] = true
 
@@ -140,7 +140,7 @@ func _on_network_match_started(room_id: int, _host_id: int, players: Array) -> v
 		var slot_index: int = team_counts[team]
 		team_counts[team] += 1
 		var class_index := clampi(int(entry.get('class', 0)), 0, 2)
-		var entry_name := String(entry.get('name', 'Игрок'))
+		var entry_name := String(entry.get('name', 'РРіСЂРѕРє'))
 		_set_slot_entry(team, slot_index, entry_name, class_index, bool(entry.get('bot', false)))
 	_fill_open_slots_with_bots()
 	progress_bar.value = 100.0
@@ -201,7 +201,7 @@ func _process(delta: float) -> void:
 			search_label.text = '\u0421\u0442\u0430\u0440\u0442 \u0447\u0435\u0440\u0435\u0437 0 \u0441\u0435\u043a'
 			wait_countdown_active = false
 	tip_timer += delta
-	if tip_timer >= 3.0:
+	if tip_timer >= 10.0:
 		tip_timer = 0.0
 		_advance_tip()
 	for spinner in searching_spinners:
@@ -538,3 +538,4 @@ const TIPS := [
 	'\u0424\u0435\u044f \u0445\u0440\u0443\u043f\u043a\u0430\u044f, \u043d\u043e \u043d\u0430\u043d\u043e\u0441\u0438\u0442 \u043e\u0433\u0440\u043e\u043c\u043d\u044b\u0439 \u0443\u0440\u043e\u043d \u0441 \u0434\u0438\u0441\u0442\u0430\u043d\u0446\u0438\u0438. \u0412\u043e\u0438\u043d \u0434\u043e\u043b\u0436\u0435\u043d \u0437\u0430\u0449\u0438\u0449\u0430\u0442\u044c \u0435\u0451.',
 	'\u0415\u0441\u043b\u0438 \u043d\u043e\u0441\u0438\u043b\u044c\u0449\u0438\u043a \u041a\u0440\u0438\u0441\u0442\u0430\u043b\u043b\u0430 \u043f\u043e\u0433\u0438\u0431\u043d\u0435\u0442, \u041a\u0440\u0438\u0441\u0442\u0430\u043b\u043b \u0443\u043f\u0430\u0434\u0435\u0442 \u043d\u0430 \u0437\u0435\u043c\u043b\u044e. \u0421\u043a\u043e\u0440\u0435\u0435 \u043f\u043e\u0434\u0431\u0435\u0440\u0438\u0442\u0435 \u0435\u0433\u043e!',
 ]
+

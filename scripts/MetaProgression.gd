@@ -6,6 +6,7 @@ signal profile_updated
 const MAX_CHARACTER_LEVEL := 15
 const STATS_PATH := "user://stats.cfg"
 const LOADOUT_PATH := "user://loadout.cfg"
+const META_PATH := "user://meta_save.cfg"
 const LEVEL_UP_SHARD_REWARDS: Dictionary = {
 	1: 50, 2: 75, 3: 100, 4: 125, 5: 150,
 	6: 175, 7: 200, 8: 225, 9: 250, 10: 300,
@@ -47,6 +48,7 @@ var stats_last := {
 
 func _ready() -> void:
 	_load_loadout()
+	_load_meta()
 	var stats_config := ConfigFile.new()
 	if stats_config.load(STATS_PATH) == OK:
 		for key in stats_all.keys():
@@ -59,6 +61,33 @@ func _ready() -> void:
 		NetworkClient.purchase_completed.connect(_on_purchase_completed)
 	if not NetworkClient.match_reward_completed.is_connected(_on_match_reward_completed):
 		NetworkClient.match_reward_completed.connect(_on_match_reward_completed)
+
+
+func _load_meta() -> void:
+	var config := ConfigFile.new()
+	if config.load(META_PATH) != OK:
+		return
+	player_id = int(config.get_value("progression", "player_id", 0))
+	player_nickname = String(config.get_value("progression", "player_nickname", ""))
+	sky_shards = maxi(0, int(config.get_value("progression", "sky_shards", 0)))
+	var levels: Variant = config.get_value("progression", "char_levels", {})
+	if levels is Dictionary:
+		for key in char_levels.keys():
+			char_levels[key] = clampi(int(levels.get(key, 1)), 1, MAX_CHARACTER_LEVEL)
+	var xps: Variant = config.get_value("progression", "char_xps", {})
+	if xps is Dictionary:
+		for key in char_xps.keys():
+			char_xps[key] = maxi(0, int(xps.get(key, 0)))
+
+
+func _save_meta() -> void:
+	var config := ConfigFile.new()
+	config.set_value("progression", "player_id", player_id)
+	config.set_value("progression", "player_nickname", player_nickname)
+	config.set_value("progression", "sky_shards", sky_shards)
+	config.set_value("progression", "char_levels", char_levels)
+	config.set_value("progression", "char_xps", char_xps)
+	config.save(META_PATH)
 
 
 func reset_all() -> void:
@@ -191,6 +220,7 @@ func add_character_xp(char_name: String, amount: int) -> void:
 			pending_level_shards += level_reward
 	if int(char_levels[char_name]) >= MAX_CHARACTER_LEVEL:
 		char_xps[char_name] = 0
+	_save_meta()
 
 
 func consume_level_up_for(char_name: String) -> bool:
@@ -282,6 +312,7 @@ func _on_profile_loaded(success: bool, loaded_player_id: int, server_shards: int
 		var pending := pending_level_shards
 		pending_level_shards = 0
 		grant_match_reward(pending)
+	_save_meta()
 	profile_updated.emit()
 
 
