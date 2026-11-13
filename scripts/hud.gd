@@ -16,6 +16,7 @@ class AbilityCooldownWipe extends Control:
 		draw_rect(Rect2(Vector2.ZERO, size), Color.WHITE)
 
 var game: Node
+var kill_feed_box: VBoxContainer = null
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const SETTINGS_PANEL_SCRIPT := preload("res://scripts/settings_panel.gd")
 const HERO_PORTRAITS := {
@@ -117,6 +118,7 @@ func _ready() -> void:
 	add_child(root)
 
 	_build_top(root)
+	_build_kill_feed(root)
 	_build_abilities(root)
 	_build_announcement(root)
 	var mini_map := preload("res://scripts/minimap.gd").new() as Control
@@ -360,6 +362,42 @@ func _make_label(text: String, size: int, color: Color) -> Label:
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
+
+
+func _build_kill_feed(root: Control) -> void:
+	kill_feed_box = VBoxContainer.new()
+	kill_feed_box.name = "KillFeed"
+	kill_feed_box.anchor_left = 0.70
+	kill_feed_box.anchor_right = 0.98
+	kill_feed_box.anchor_top = 0.20
+	kill_feed_box.anchor_bottom = 0.46
+	kill_feed_box.alignment = BoxContainer.ALIGNMENT_BEGIN
+	kill_feed_box.add_theme_constant_override("separation", 2)
+	kill_feed_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(kill_feed_box)
+
+
+func show_kill_feed(killer: String, victim: String) -> void:
+	if kill_feed_box == null or not is_instance_valid(kill_feed_box):
+		return
+	var label := Label.new()
+	label.text = "%s  ⚔  %s" % [killer, victim]
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	label.add_theme_font_override("font", UI_FONT)
+	label.add_theme_font_size_override("font_size", 15)
+	label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.7))
+	label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.85))
+	label.add_theme_constant_override("shadow_offset_x", 1)
+	label.add_theme_constant_override("shadow_offset_y", 1)
+	kill_feed_box.add_child(label)
+	while kill_feed_box.get_child_count() > 5:
+		var oldest := kill_feed_box.get_child(0)
+		kill_feed_box.remove_child(oldest)
+		oldest.queue_free()
+	var tween := label.create_tween()
+	tween.tween_interval(4.0)
+	tween.tween_property(label, "modulate:a", 0.0, 0.6)
+	tween.tween_callback(label.queue_free)
 
 
 func _build_top(root: Control) -> void:

@@ -87,11 +87,9 @@ static func crystal_material(color: Color) -> StandardMaterial3D:
 	mat.albedo_color = color
 	mat.emission_enabled = true
 	mat.emission = color
-	mat.emission_energy_multiplier = 1.6
-	mat.roughness = 0.15
-	mat.metallic = 0.3
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color.a = 0.85
+	mat.emission_energy_multiplier = 0.65
+	mat.roughness = 0.12
+	mat.metallic = 0.35
 	return mat
 
 static func _is_inside(x: float, z: float) -> bool:

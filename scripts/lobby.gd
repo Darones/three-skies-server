@@ -1938,7 +1938,16 @@ func _refresh_player_profile() -> void:
 	profile_level_label.add_theme_constant_override('shadow_offset_y', 2)
 	profile_level_label.scale = Vector2.ONE
 	experience_bar.max_value = MetaProgression.get_xp_for_next_level(character_key)
-	experience_bar.value = character_xp
+	var xp_gain := 0
+	if MetaProgression.last_xp_gain > 0 and MetaProgression.last_xp_gain_character == character_key:
+		xp_gain = MetaProgression.last_xp_gain
+		MetaProgression.last_xp_gain = 0
+	if xp_gain > 0 and character_xp >= xp_gain:
+		experience_bar.value = character_xp - xp_gain
+		var bar_tween := create_tween()
+		bar_tween.tween_property(experience_bar, "value", float(character_xp), 1.2).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	else:
+		experience_bar.value = character_xp
 	if profile_xp_label != null:
 		if character_level >= MetaProgression.MAX_CHARACTER_LEVEL:
 			profile_xp_label.text = "Максимальный уровень"
@@ -1955,6 +1964,23 @@ func _refresh_player_profile() -> void:
 		var level_up_tween := create_tween()
 		level_up_tween.tween_property(profile_level_label, 'scale', Vector2(1.16, 1.16), 0.16)
 		level_up_tween.tween_property(profile_level_label, 'scale', Vector2.ONE, 0.3)
+		_play_level_up_feedback()
+
+
+func _play_level_up_feedback() -> void:
+	var player := AudioStreamPlayer.new()
+	player.stream = preload("res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/level_up_chime.wav")
+	player.volume_db = -4.0
+	add_child(player)
+	player.finished.connect(player.queue_free)
+	player.play()
+	if profile_level_label == null or not is_instance_valid(profile_level_label):
+		return
+	if not profile_level_label.text.ends_with("НОВЫЙ УРОВЕНЬ!"):
+		profile_level_label.text += "  ✦ НОВЫЙ УРОВЕНЬ!"
+	await get_tree().create_timer(2.6).timeout
+	if is_instance_valid(profile_level_label):
+		profile_level_label.text = profile_level_label.text.replace("  ✦ НОВЫЙ УРОВЕНЬ!", "")
 
 
 func _on_side_card_pressed(slot: int) -> void:

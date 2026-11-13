@@ -21,6 +21,8 @@ var char_levels: Dictionary = {"warrior": 1, "mage": 1, "fairy": 1}
 var char_xps: Dictionary = {"warrior": 0, "mage": 0, "fairy": 0}
 var just_leveled_up: bool = false
 var just_leveled_up_character: String = ""
+var last_xp_gain := 0
+var last_xp_gain_character := ""
 var equipped_wing: int = 0
 var equipped_wings: Dictionary = {"warrior": 0, "mage": 0, "fairy": 0}
 var weapons_enabled: Dictionary = {"warrior": true, "mage": true, "fairy": true}
@@ -169,6 +171,8 @@ func get_shard_reward_for_level(level: int) -> int:
 func add_character_xp(char_name: String, amount: int) -> void:
 	if not char_levels.has(char_name) or amount <= 0:
 		return
+	last_xp_gain = amount
+	last_xp_gain_character = char_name
 	just_leveled_up = false
 	just_leveled_up_character = ""
 	if int(char_levels[char_name]) >= MAX_CHARACTER_LEVEL:

@@ -2153,6 +2153,27 @@ func apply_network_heal(amount: float) -> void:
 		game.call("heal_number", global_position + Vector3(0.0, 2.2, 0.0), amount)
 
 
+func _spawn_damage_number(amount: float, source: Node) -> void:
+	if game == null or not is_instance_valid(game):
+		return
+	var label := Label3D.new()
+	label.text = str(int(round(amount)))
+	label.font_size = 64
+	label.pixel_size = 0.0055
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.outline_size = 8
+	label.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
+	label.modulate = Color(1.0, 0.86, 0.42) if source is HeroUnit else Color(0.82, 0.92, 1.0)
+	label.position = global_position + Vector3(randf_range(-0.35, 0.35), 2.1, randf_range(-0.35, 0.35))
+	game.add_child(label)
+	var tween := label.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(label, "position:y", label.position.y + 1.3, 0.8)
+	tween.tween_property(label, "modulate:a", 0.0, 0.8).set_delay(0.3)
+	tween.chain().tween_callback(label.queue_free)
+
+
 func take_damage(amount: float, source: Node = null, damage_type: String = "physical", _skill: String = "") -> void:
 	if dead or _is_under_base_shield():
 		return
@@ -2176,6 +2197,8 @@ func take_damage(amount: float, source: Node = null, damage_type: String = "phys
 	var applied_damage := minf(final_damage, health)
 	health = clampf(health - final_damage, 0.0, max_health)
 	_update_health_display()
+	if applied_damage >= 1.0:
+		_spawn_damage_number(applied_damage, source)
 	if is_player and game != null and game.hud != null:
 		game.hud.call("flash_damage", clampf(0.22 + applied_damage / 260.0, 0.22, 0.6))
 	if game != null and game.has_method("record_hero_damage"):
