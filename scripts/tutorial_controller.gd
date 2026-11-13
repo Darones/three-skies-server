@@ -146,6 +146,7 @@ func on_delivery() -> void:
 	game.call("set_shop_open", false)
 	_clear_target()
 	_save_completion()
+	game.hud.call("show_tutorial_hint", "")
 	game.hud.call("set_tutorial_ability", -1)
 	game.hud.call(
 		"show_tutorial_victory",
