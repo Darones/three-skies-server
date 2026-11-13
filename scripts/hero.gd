@@ -1674,7 +1674,15 @@ func _ai_pick_goal() -> void:
 	if crystal_carrier != null and is_instance_valid(crystal_carrier) and bool(crystal_carrier.get("carrying")):
 		var carrier_team := int(crystal_carrier.get("team"))
 		if carrier_team == team:
-			ai_goal = game.clamp_to_arena(crystal_carrier.global_position) if game.has_method("clamp_to_arena") else crystal_carrier.global_position
+			# сопровождающие держат дистанцию и расходятся по кругу,
+			# иначе все боты липнут в одну точку и толкаются
+			var escort_angle := float(get_instance_id() % 628) * 0.01
+			var escort_point: Vector3 = crystal_carrier.global_position + Vector3(
+				cos(escort_angle) * 6.0,
+				0.0,
+				sin(escort_angle) * 6.0
+			)
+			ai_goal = game.clamp_to_arena(escort_point) if game.has_method("clamp_to_arena") else escort_point
 		else:
 			if crystal_carrier is HeroUnit:
 				ai_attack_target = crystal_carrier
