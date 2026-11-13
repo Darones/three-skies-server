@@ -1,4 +1,4 @@
-class_name ArenaKit
+﻿class_name ArenaKit
 extends RefCounted
 
 const FLOOR_LIGHT_TEX := "res://art/textures/temple_floor/img-6adcd384-a1c6-4d03-ab8f-2885c6220fd5-1793744216285-0_1793744216285_y4vdgmr5.png"
@@ -216,15 +216,15 @@ static func _occupy(p: Vector3, radius: float) -> void:
 
 
 static func _rebuild_decor(arena_root: Node3D) -> void:
-	# Запечённый в сцену декор больше не используется: арена целиком
-	# строится из кода, иначе правки в раскладке не доезжают до игры.
+	# Р—Р°РїРµС‡С‘РЅРЅС‹Р№ РІ СЃС†РµРЅСѓ РґРµРєРѕСЂ Р±РѕР»СЊС€Рµ РЅРµ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ: Р°СЂРµРЅР° С†РµР»РёРєРѕРј
+	# СЃС‚СЂРѕРёС‚СЃСЏ РёР· РєРѕРґР°, РёРЅР°С‡Рµ РїСЂР°РІРєРё РІ СЂР°СЃРєР»Р°РґРєРµ РЅРµ РґРѕРµР·Р¶Р°СЋС‚ РґРѕ РёРіСЂС‹.
 	_occupied.clear()
 	for node_name in ["Decor", "Bushes"]:
 		var old := arena_root.get_node_or_null(node_name)
 		if old != null:
 			arena_root.remove_child(old)
 			old.queue_free()
-	# кусты первыми: остальной декор потом обходит их стороной
+	# РєСѓСЃС‚С‹ РїРµСЂРІС‹РјРё: РѕСЃС‚Р°Р»СЊРЅРѕР№ РґРµРєРѕСЂ РїРѕС‚РѕРј РѕР±С…РѕРґРёС‚ РёС… СЃС‚РѕСЂРѕРЅРѕР№
 	add_bushes(arena_root)
 	var decor := Node3D.new()
 	decor.name = "Decor"
@@ -817,7 +817,7 @@ static func _add_decor(decor: Node3D, mat_rock: StandardMaterial3D) -> void:
 	trunk.albedo_color = Color(0.16, 0.13, 0.14)
 	trunk.roughness = 0.95
 
-	# деревья по самому краю арены, ровным шагом
+	# РґРµСЂРµРІСЊСЏ РїРѕ СЃР°РјРѕРјСѓ РєСЂР°СЋ Р°СЂРµРЅС‹, СЂРѕРІРЅС‹Рј С€Р°РіРѕРј
 	var tree_count := 12
 	for i in tree_count:
 		var ang := TAU * float(i) / float(tree_count) + 0.17
@@ -833,7 +833,7 @@ static func _add_decor(decor: Node3D, mat_rock: StandardMaterial3D) -> void:
 			_add_tree(decor, pos, scale_factor, true, trunk, light_green, light_green2, dark_foliage)
 		_occupy(pos, 1.6 * scale_factor)
 
-	# камни средним кольцом
+	# РєР°РјРЅРё СЃСЂРµРґРЅРёРј РєРѕР»СЊС†РѕРј
 	var rock_count := 9
 	for i in rock_count:
 		var ang := TAU * float(i) / float(rock_count) + 0.42
@@ -841,26 +841,26 @@ static func _add_decor(decor: Node3D, mat_rock: StandardMaterial3D) -> void:
 		var p := _shape_point(ang, radius)
 		var pos := Vector3(p.x, 0.28, p.y)
 		var rock_scale := 1.05 + 0.22 * sin(float(i) * 1.3)
-		if not _is_free(pos, rock_scale * 0.9, 4.0):
+		if not _is_free(pos, rock_scale * 0.9, 2.5):
 			continue
 		_add_rock(decor, pos, rock_scale, mat_rock)
 		_occupy(pos, rock_scale * 0.9)
 
-	# кристаллы между камнями
+	# РєСЂРёСЃС‚Р°Р»Р»С‹ РјРµР¶РґСѓ РєР°РјРЅСЏРјРё
 	var crystal_count := 6
 	var crystal_colors := [Color(0.68, 0.34, 1.0), Color(0.4, 0.75, 1.0), Color(0.5, 0.3, 1.0)]
 	for i in crystal_count:
 		var ang := TAU * float(i) / float(crystal_count) + 0.95
-		var radius := 0.44 + 0.10 * cos(float(i) * 1.9)
+		var radius := 0.30 + 0.08 * cos(float(i) * 1.9)
 		var p := _shape_point(ang, radius)
 		var pos := Vector3(p.x, 0.0, p.y)
 		var crystal_scale := 1.15 + 0.18 * sin(float(i))
-		if not _is_free(pos, crystal_scale, 4.0):
+		if not _is_free(pos, crystal_scale, 1.5):
 			continue
 		_add_crystal_cluster(decor, pos, crystal_colors[i % crystal_colors.size()], crystal_scale)
 		_occupy(pos, crystal_scale)
 
-	# плавающие камни убраны: в игре они читались как летающие глыбы
+	# РїР»Р°РІР°СЋС‰РёРµ РєР°РјРЅРё СѓР±СЂР°РЅС‹: РІ РёРіСЂРµ РѕРЅРё С‡РёС‚Р°Р»РёСЃСЊ РєР°Рє Р»РµС‚Р°СЋС‰РёРµ РіР»С‹Р±С‹
 
 
 static func _add_tree(parent: Node3D, pos: Vector3, scale_factor: float, dark: bool, trunk_mat: StandardMaterial3D, green_mat: StandardMaterial3D, gold_mat: StandardMaterial3D, dark_mat: StandardMaterial3D) -> void:
@@ -1271,5 +1271,7 @@ static func ensure_perimeter_ridge(arena: Node3D) -> void:
 		collider.shape = shape
 		collider.position = position + Vector3.UP * 0.25
 		barrier.add_child(collider)
+
+
 
 

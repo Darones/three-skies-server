@@ -17,6 +17,9 @@ class AbilityCooldownWipe extends Control:
 
 var game: Node
 var kill_feed_box: VBoxContainer = null
+var carrier_panel: VBoxContainer = null
+var carrier_label: Label = null
+var carrier_bar: ProgressBar = null
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const SETTINGS_PANEL_SCRIPT := preload("res://scripts/settings_panel.gd")
 const HERO_PORTRAITS := {
@@ -119,6 +122,7 @@ func _ready() -> void:
 
 	_build_top(root)
 	_build_kill_feed(root)
+	_build_carrier_panel(root)
 	_build_abilities(root)
 	_build_announcement(root)
 	var mini_map := preload("res://scripts/minimap.gd").new() as Control
@@ -362,6 +366,56 @@ func _make_label(text: String, size: int, color: Color) -> Label:
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
+
+
+func _build_carrier_panel(root: Control) -> void:
+	carrier_panel = VBoxContainer.new()
+	carrier_panel.name = "CarrierPanel"
+	carrier_panel.anchor_left = 0.33
+	carrier_panel.anchor_right = 0.67
+	carrier_panel.anchor_top = 0.085
+	carrier_panel.anchor_bottom = 0.17
+	carrier_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	carrier_panel.visible = false
+	root.add_child(carrier_panel)
+	carrier_label = Label.new()
+	carrier_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	carrier_label.add_theme_font_override("font", UI_FONT)
+	carrier_label.add_theme_font_size_override("font_size", 15)
+	carrier_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.55))
+	carrier_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.8))
+	carrier_panel.add_child(carrier_label)
+	carrier_bar = ProgressBar.new()
+	carrier_bar.custom_minimum_size = Vector2(0, 8)
+	carrier_bar.min_value = 0
+	carrier_bar.max_value = 100
+	carrier_bar.show_percentage = false
+	var bar_bg := StyleBoxFlat.new()
+	bar_bg.bg_color = Color(0.08, 0.09, 0.13)
+	bar_bg.set_corner_radius_all(4)
+	var bar_fill := StyleBoxFlat.new()
+	bar_fill.bg_color = Color(1.0, 0.78, 0.28)
+	bar_fill.set_corner_radius_all(4)
+	carrier_bar.add_theme_stylebox_override("background", bar_bg)
+	carrier_bar.add_theme_stylebox_override("fill", bar_fill)
+	carrier_panel.add_child(carrier_bar)
+
+
+func _update_carrier_panel() -> void:
+	if carrier_panel == null or not is_instance_valid(carrier_panel):
+		return
+	if game == null:
+		carrier_panel.visible = false
+		return
+	var carrier_hero = game.carrier
+	if carrier_hero == null or not is_instance_valid(carrier_hero) or not bool(carrier_hero.get("carrying")):
+		carrier_panel.visible = false
+		return
+	carrier_panel.visible = not bool(game.get("tutorial_mode"))
+	var base_z := 28.0 if int(carrier_hero.get("team")) == 0 else -28.0
+	var dist := Vector2(carrier_hero.global_position.x, carrier_hero.global_position.z - base_z).length()
+	carrier_bar.value = clampf(100.0 * (1.0 - dist / 70.0), 0.0, 100.0)
+	carrier_label.text = "%s несёт осколок" % String(carrier_hero.get("display_name"))
 
 
 func _build_kill_feed(root: Control) -> void:
@@ -1176,6 +1230,7 @@ func _process(_delta: float) -> void:
 	if game.sudden_death:
 		timer_label.text = "РЕШАЮЩИЙ"
 	score_label.text = "Свет — %d:%d — Тьма" % [game.score[0], game.score[1]]
+	_update_carrier_panel()
 	score_label.visible = not game.tutorial_mode
 	timer_label.visible = not game.tutorial_mode
 	shell_timer_label.visible = not game.tutorial_mode
