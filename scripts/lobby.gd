@@ -391,8 +391,8 @@ func _build_player_profile() -> void:
 	profile_xp_label = _make_label("", 11, Color(0.62, 0.7, 0.82))
 	profile_xp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_xp_label.add_theme_font_size_override("font_size", 11)
-	profile_xp_label.clip_text = true
-	profile_xp_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	profile_xp_label.clip_text = false
+	profile_xp_label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	xp_row.add_child(profile_xp_label)
 	xp_row.add_child(_shard_icon(14))
 
