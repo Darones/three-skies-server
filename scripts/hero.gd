@@ -296,16 +296,37 @@ func setup(p_game: Node, p_class: int, p_team: int, p_player: bool) -> void:
 	_update_health_display()
 
 
+const WING_TINT_SHADER: Shader = preload("res://shaders/wing_tint.gdshader")
+
 const WING_MODEL_DEFAULT := {
 	"path": "res://assets/wings/angel_wings_animated.glb",
 	"scale": 1.0,
 	"position": Vector3.ZERO,
 	"rotation": Vector3(0.0, 18.0, 10.0),
+	"tint": Color(1.0, 1.0, 1.0),
+	"emission": 0.0,
+	"rim": 0.0,
 }
 
 
 func _wing_config(wing_id: int) -> Dictionary:
 	match wing_id:
+		2:
+			# золотые: тёплый металл и мягкое свечение по кромке
+			var gold := WING_MODEL_DEFAULT.duplicate()
+			gold["tint"] = Color(1.0, 0.78, 0.34)
+			gold["emission"] = 0.30
+			gold["rim"] = 0.55
+			return gold
+		3:
+			# чёрные: тёмное оперение с холодным отливом
+			var dark := WING_MODEL_DEFAULT.duplicate()
+			dark["tint"] = Color(0.16, 0.14, 0.20)
+			dark["emission"] = 0.0
+			dark["rim"] = 0.35
+			dark["scale"] = 1.06
+			dark["rotation"] = Vector3(0.0, 18.0, 4.0)
+			return dark
 		4:
 			# демонические: модель пришла в сантиметрах и со сдвинутым origin
 			return {
@@ -313,9 +334,30 @@ func _wing_config(wing_id: int) -> Dictionary:
 				"scale": 0.006,
 				"position": Vector3(0.0, -1.45, 0.0),
 				"rotation": Vector3(0.0, 0.0, 0.0),
+				"tint": Color(1.0, 1.0, 1.0),
+				"emission": 0.0,
+				"rim": 0.0,
 			}
 		_:
 			return WING_MODEL_DEFAULT
+
+
+func _apply_wing_tint(node: Node, tint: Color, emission: float, rim: float) -> void:
+	for child in node.get_children():
+		if child is MeshInstance3D:
+			var mesh_instance := child as MeshInstance3D
+			if mesh_instance.mesh != null:
+				for surface_index in range(mesh_instance.mesh.get_surface_count()):
+					var source := mesh_instance.get_active_material(surface_index) as BaseMaterial3D
+					var material := ShaderMaterial.new()
+					material.shader = WING_TINT_SHADER
+					material.set_shader_parameter("tint", tint)
+					material.set_shader_parameter("emission_strength", emission)
+					material.set_shader_parameter("rim_strength", rim)
+					if source != null and source.albedo_texture != null:
+						material.set_shader_parameter("albedo_texture", source.albedo_texture)
+					mesh_instance.set_surface_override_material(surface_index, material)
+		_apply_wing_tint(child, tint, emission, rim)
 
 
 func update_wings() -> void:
@@ -353,7 +395,13 @@ func update_wings() -> void:
 	wing_model.scale = Vector3.ONE * float(config["scale"])
 	wing_model.position = config["position"]
 	wing_model.rotation_degrees = config["rotation"]
-	_set_wing_materials_double_sided(wing_model)
+	var tint: Color = config["tint"]
+	var emission := float(config["emission"])
+	var rim := float(config["rim"])
+	if tint.is_equal_approx(Color.WHITE) and emission <= 0.0 and rim <= 0.0:
+		_set_wing_materials_double_sided(wing_model)
+	else:
+		_apply_wing_tint(wing_model, tint, emission, rim)
 	var wing_anim_player := _find_animation_player(wing_model)
 	if wing_anim_player != null:
 		var played := false
@@ -405,7 +453,7 @@ func _configure_wing_attachment() -> void:
 		1.0 / maxf(absf(parent_scale.z), 0.001)
 	)
 	wing_attachment.scale = inverse_parent_scale
-	wing_attachment.position = Vector3(0.0, 0.0, -0.32) * inverse_parent_scale if not wing_attachment_fallback else Vector3(0.0, 1.43, 0.32)
+	wing_attachment.position = Vector3(0.0, 0.0, -0.10) * inverse_parent_scale if not wing_attachment_fallback else Vector3(0.0, 1.43, 0.32)
 	wing_attachment.rotation = Vector3.ZERO
 
 
