@@ -19,9 +19,9 @@ var game: Node
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const SETTINGS_PANEL_SCRIPT := preload("res://scripts/settings_panel.gd")
 const HERO_PORTRAITS := {
-	HeroUnit.Cls.WARRIOR: preload("res://assets/characters/warrior_light.png"),
-	HeroUnit.Cls.MAGE: preload("res://assets/characters/mage_dark.png"),
-	HeroUnit.Cls.FAIRY: preload("res://assets/characters/fairy.png"),
+	HeroUnit.Cls.WARRIOR: preload("res://ui/portraits/warrior_portrait.png"),
+	HeroUnit.Cls.MAGE: preload("res://ui/portraits/mage_portrait.png"),
+	HeroUnit.Cls.FAIRY: preload("res://ui/portraits/fairy_portrait.png"),
 }
 
 const ABILITY_SHORT_LABELS := {

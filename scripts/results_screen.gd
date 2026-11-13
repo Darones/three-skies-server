@@ -1,9 +1,9 @@
 extends Control
 
 const CHARACTER_ART := [
-	"res://assets/characters/warrior_light.png",
-	"res://assets/characters/mage_dark.png",
-	"res://assets/characters/fairy.png",
+	"res://ui/portraits/warrior_portrait.png",
+	"res://ui/portraits/mage_portrait.png",
+	"res://ui/portraits/fairy_portrait.png",
 ]
 const CHARACTER_CLASS_NAMES := ["Воин", "Маг", "Фея"]
 const CHARACTER_KEYS := ["warrior", "mage", "fairy"]

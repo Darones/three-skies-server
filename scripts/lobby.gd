@@ -316,7 +316,7 @@ func _build_player_profile() -> void:
 	profile_button.name = "PlayerProfile"
 	profile_button.anchor_left = 0.02
 	profile_button.anchor_top = 0.025
-	profile_button.anchor_right = 0.29
+	profile_button.anchor_right = 0.265
 	profile_button.anchor_bottom = 0.16
 	profile_button.focus_mode = Control.FOCUS_NONE
 	profile_button.add_theme_stylebox_override("normal", _action_style(false, false))
@@ -325,11 +325,19 @@ func _build_player_profile() -> void:
 	profile_button.pressed.connect(_open_player_menu)
 	add_child(profile_button)
 
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	profile_button.add_child(margin)
+
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 13)
-	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	profile_button.add_child(row)
+	margin.add_child(row)
 
 	var avatar_frame := PanelContainer.new()
 	avatar_frame.name = "AvatarFrame"
@@ -378,10 +386,13 @@ func _build_player_profile() -> void:
 
 	var xp_row := HBoxContainer.new()
 	xp_row.add_theme_constant_override("separation", 4)
+	xp_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.add_child(xp_row)
-	profile_xp_label = _make_label("", 12, Color(0.62, 0.7, 0.82))
+	profile_xp_label = _make_label("", 11, Color(0.62, 0.7, 0.82))
 	profile_xp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	profile_xp_label.add_theme_font_size_override("font_size", 12)
+	profile_xp_label.add_theme_font_size_override("font_size", 11)
+	profile_xp_label.clip_text = true
+	profile_xp_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	xp_row.add_child(profile_xp_label)
 	xp_row.add_child(_shard_icon(14))
 
@@ -1935,7 +1946,7 @@ func _refresh_player_profile() -> void:
 			var next_level_xp := MetaProgression.get_xp_for_next_level(character_key)
 			var remaining := maxi(0, next_level_xp - character_xp)
 			var reward := MetaProgression.get_shard_reward_for_level(character_level + 1)
-			profile_xp_label.text = "До уровня: %d XP · награда %d" % [remaining, reward]
+			profile_xp_label.text = "До уровня: %d XP · %d" % [remaining, reward]
 	if MetaProgression.consume_level_up_for(character_key):
 		profile_level_label.add_theme_color_override('font_color', GOLD)
 		profile_level_label.add_theme_color_override('font_shadow_color', Color(1.0, 0.68, 0.12, 0.95))

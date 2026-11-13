@@ -519,16 +519,9 @@ func _update_wing_transform() -> void:
 	if wing_skeleton == null or not is_instance_valid(wing_skeleton) or wing_bone_index < 0:
 		return
 	var bone_world := wing_skeleton.global_transform * wing_skeleton.get_bone_global_pose(wing_bone_index)
-	var skel_basis := wing_skeleton.global_transform.basis
-	var up := Vector3.UP
-	var forward := -skel_basis.z
-	forward.y = 0.0
-	if forward.length_squared() < 0.0001:
-		forward = Vector3.FORWARD
-	forward = forward.normalized()
-	var right := forward.cross(up).normalized()
-	var basis := Basis(right, up, forward)
-	basis = basis * Basis.from_euler(Vector3(
+	# жёстко к кости спины: крылья повторяют наклон корпуса, а не только поворот
+	var base := bone_world.basis.orthonormalized()
+	var basis := base * Basis.from_euler(Vector3(
 		deg_to_rad(wing_rotation_offset.x),
 		deg_to_rad(wing_rotation_offset.y),
 		deg_to_rad(wing_rotation_offset.z)

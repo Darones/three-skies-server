@@ -24,6 +24,7 @@ const SAVE_PATH := "user://wings_tune.json"
 
 const VIEWS := {
 	"СПЕРЕДИ": [Vector3(0.0, 1.05, 3.4), Vector3(0.0, 1.05, 0.0)],
+	"СЗАДИ": [Vector3(0.0, 1.05, -3.4), Vector3(0.0, 1.05, 0.0)],
 	"СБОКУ": [Vector3(3.4, 1.05, 0.0), Vector3(0.0, 1.05, 0.0)],
 	"СВЕРХУ": [Vector3(0.0, 4.2, 0.02), Vector3(0.0, 0.6, 0.0)],
 	"3/4": [Vector3(2.4, 1.9, 2.4), Vector3(0.0, 1.0, 0.0)],
@@ -37,6 +38,7 @@ var params := {
 	"scale": 1.0,
 }
 var sliders := {}
+var spins := {}
 
 var viewport: SubViewport
 var camera: Camera3D
@@ -130,17 +132,34 @@ func _build_ui() -> void:
 
 	for key in ["px", "py", "pz", "rx", "ry", "rz", "scale"]:
 		panel.add_child(_make_label(key.to_upper()))
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		panel.add_child(row)
 		var slider := HSlider.new()
 		slider.min_value = RANGES[key][0]
 		slider.max_value = RANGES[key][1]
 		slider.step = 0.01
 		slider.value = float(params[key])
 		slider.custom_minimum_size = Vector2(0, 22)
+		slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(slider)
+		var spin := SpinBox.new()
+		spin.min_value = RANGES[key][0]
+		spin.max_value = RANGES[key][1]
+		spin.step = 0.01
+		spin.value = float(params[key])
+		spin.custom_minimum_size = Vector2(96, 0)
+		row.add_child(spin)
 		slider.value_changed.connect(func(value: float) -> void:
+			spin.set_value_no_signal(value)
 			params[key] = value
 			_update_wing())
-		panel.add_child(slider)
+		spin.value_changed.connect(func(value: float) -> void:
+			slider.set_value_no_signal(value)
+			params[key] = value
+			_update_wing())
 		sliders[key] = slider
+		spins[key] = spin
 
 	var save_button := Button.new()
 	save_button.text = "Сохранить JSON"
@@ -289,6 +308,8 @@ func _apply_params(values: Dictionary) -> void:
 		params[key] = values[key]
 		if sliders.has(key):
 			(sliders[key] as HSlider).set_value_no_signal(float(values[key]))
+		if spins.has(key):
+			(spins[key] as SpinBox).set_value_no_signal(float(values[key]))
 	_update_wing()
 
 
