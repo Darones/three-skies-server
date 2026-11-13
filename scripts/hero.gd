@@ -222,6 +222,7 @@ var ai_attack_target: Node3D = null
 var ai_offset := Vector3.ZERO
 var ai_retreating := false
 var ai_kiting := false
+var ai_aggression := 0.5
 var ai_strafe_sign := 1.0
 var ai_strafe_timer := 0.0
 
@@ -280,6 +281,8 @@ func setup(p_game: Node, p_class: int, p_team: int, p_player: bool) -> void:
 	if not is_player:
 		attack_damage *= BOT_DAMAGE_MULTIPLIER
 		attack_interval *= BOT_ATTACK_INTERVAL_MULTIPLIER
+		# характер: кто-то лезет первым, кто-то держится сзади
+		ai_aggression = randf_range(0.2, 1.0)
 	attack_animation_duration = float(data.get("attack_anim_time", 0.45))
 	ranged = data["ranged"]
 	display_name = data["name"]
@@ -1705,7 +1708,8 @@ func _ai_pick_target() -> Node3D:
 	if weakest != null and weakest_ratio < 0.45:
 		return weakest
 	# 3. ближайший
-	var local_enemy: HeroUnit = game.nearest_enemy(global_position, team, 30.0, self)
+	var engage_radius := lerpf(18.0, 34.0, ai_aggression)
+	var local_enemy: HeroUnit = game.nearest_enemy(global_position, team, engage_radius, self)
 	if local_enemy != null:
 		return local_enemy
 	if game.has_method("network_nearest_enemy"):
@@ -1717,9 +1721,11 @@ func _ai_pick_goal() -> void:
 	if game == null:
 		ai_goal = Vector3.ZERO
 		return
-	if not ai_retreating and health <= max_health * BOT_RETREAT_START_RATIO:
+	var retreat_start := lerpf(0.35, 0.15, ai_aggression)
+	var retreat_end := lerpf(0.55, 0.35, ai_aggression)
+	if not ai_retreating and health <= max_health * retreat_start:
 		ai_retreating = true
-	elif ai_retreating and health >= max_health * BOT_RETREAT_END_RATIO:
+	elif ai_retreating and health >= max_health * retreat_end:
 		ai_retreating = false
 	# двое союзников мертвы — отходим к базе и собираемся
 	var dead_allies := 0

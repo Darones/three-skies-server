@@ -1,4 +1,4 @@
-class_name SkyShell
+﻿class_name SkyShell
 extends CharacterBody3D
 
 const SHELL_MODEL: PackedScene = preload("res://art/generated/shell/3d_1793744338028.glb")
@@ -227,7 +227,7 @@ func take_damage(amount: float, source: Node = null, _damage_type: String = "phy
 	health -= applied_damage
 	game.damage_number(global_position + Vector3(0.0, 3.4, 0.0), applied_damage, 1, true)
 	if applied_damage > 0.0 and health > 0.0:
-		game.play_sfx("shell_hit", -8.0)
+		game.play_sfx("shell_hit", -4.0)
 	if source is HeroUnit:
 		(source as HeroUnit).on_damage_dealt(applied_damage)
 	if health <= 0.0:
@@ -243,3 +243,4 @@ func take_damage(amount: float, source: Node = null, _damage_type: String = "phy
 
 func despawn() -> void:
 	retire(0.6)
+

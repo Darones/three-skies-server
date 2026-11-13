@@ -37,6 +37,21 @@ var ad_button_pulse_tween: Tween
 var victory_player: AudioStreamPlayer
 
 
+func _animate_rewards() -> void:
+	if shards_reward_label == null or xp_reward_label == null:
+		return
+	var shard_tween := create_tween()
+	shard_tween.tween_method(func(value: float) -> void:
+		if is_instance_valid(shards_reward_label):
+			shards_reward_label.text = "Получено: %d" % int(round(value))
+	, 0.0, float(final_shards), 0.9)
+	var xp_tween := create_tween()
+	xp_tween.tween_method(func(value: float) -> void:
+		if is_instance_valid(xp_reward_label):
+			xp_reward_label.text = "Получено: %d опыта" % int(round(value))
+	, 0.0, float(final_xp), 1.2)
+
+
 func _ready() -> void:
 	font = UI_FONT
 	if not AdManager.rewarded_ad_completed.is_connected(_on_rewarded_ad_completed):
@@ -61,6 +76,7 @@ func _ready() -> void:
 		MetaProgression.add_character_xp(CHARACTER_KEYS[selected_class], final_xp)
 		rewards_committed = true
 	_build_screen()
+	_animate_rewards()
 	if player_won:
 		_play_victory_celebration()
 	else:
