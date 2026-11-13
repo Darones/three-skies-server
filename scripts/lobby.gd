@@ -71,6 +71,7 @@ var cards: Array[Control] = []
 var avatar: TextureRect
 var profile_name_label: Label
 var profile_level_label: Label
+var profile_xp_label: Label
 var experience_bar: ProgressBar
 var font: FontFile
 var shard_shop_overlay: ColorRect
@@ -102,9 +103,10 @@ var menu_next_reward_label: Label
 var lobby_logo: TextureRect
 var wing_buttons: Dictionary = {}
 var wing_cards: Array[PanelContainer] = []
-var wing_inventory_card: PanelContainer
-var wing_inventory_status: Label
-var wing_inventory_button: Button
+var wing_inventory_cards: Dictionary = {}
+var wing_inventory_statuses: Dictionary = {}
+var wing_inventory_buttons: Dictionary = {}
+var weapon_inventory_statuses: Dictionary = {}
 var nickname_display_label: Label
 var nickname_popup_overlay: ColorRect
 var nickname_popup_status_label: Label
@@ -370,6 +372,11 @@ func _build_player_profile() -> void:
 	experience_bar.add_theme_stylebox_override("fill", experience_fill)
 	info.add_child(experience_bar)
 
+	profile_xp_label = _make_label("", 12, Color(0.62, 0.7, 0.82))
+	profile_xp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	profile_xp_label.add_theme_font_size_override("font_size", 12)
+	info.add_child(profile_xp_label)
+
 
 func _build_shard_shop_button() -> void:
 	var button := Button.new()
@@ -398,7 +405,7 @@ func _build_shard_shop_button() -> void:
 	balance_row.add_child(shard_amount_label)
 	balance_row.add_child(_shard_icon(26))
 	content.add_child(balance_row)
-	content.add_child(_make_label("Магазин", 12, Color(0.72, 0.77, 0.86)))
+	content.add_child(_make_label("Магазин", 16, Color(0.72, 0.77, 0.86)))
 
 
 func _build_shard_shop() -> void:
@@ -665,8 +672,11 @@ func _refresh_weapon_shop() -> void:
 		button.text = "Покупка..." if is_pending else ("Куплено" if is_unlocked else "Купить")
 		button.disabled = is_unlocked or is_pending
 		card.add_theme_stylebox_override("panel", _wing_card_style(is_unlocked))
-	for index in range(weapon_status_labels.size()):
-		weapon_status_labels[index].text = "Куплено" if index == 0 and 1 in MetaProgression.unlocked_weapons else ("Скоро" if index > 0 else "В магазине")
+	for weapon_id in weapon_inventory_statuses.keys():
+		var status_label := weapon_inventory_statuses[weapon_id] as Label
+		var owned: bool = weapon_id in MetaProgression.unlocked_weapons
+		status_label.text = "Куплено" if owned else "В магазине"
+		status_label.add_theme_color_override("font_color", GOLD if owned else Color(0.62, 0.65, 0.72))
 
 
 func _on_purchase_updated(success: bool, _purchase_type: String, _item_id: int, _new_shards: int) -> void:
@@ -920,93 +930,97 @@ func _build_player_menu() -> void:
 	inventory_grid.add_theme_constant_override("h_separation", 8)
 	inventory_grid.add_theme_constant_override("v_separation", 8)
 	wardrobe_content.add_child(inventory_grid)
-	var weapon_names := ["Легендарный меч", "Легендарный посох", "Легендарный лук"]
-	var weapon_colors := [Color(0.78, 0.29, 0.22), Color(0.33, 0.54, 0.86), Color(0.38, 0.7, 0.48)]
-	for weapon_index in range(weapon_names.size()):
+	var weapon_specs := [
+		{"id": 1, "name": "Легендарный меч", "icon": SHOP_SWORD_ICON},
+		{"id": 2, "name": "Легендарный лук", "icon": SHOP_LEGENDARY_BOW_ICON},
+	]
+	for spec in weapon_specs:
+		var weapon_id: int = spec["id"]
 		var weapon_card := PanelContainer.new()
-		weapon_card.name = "LegendaryWeapon%d" % (weapon_index + 1)
-		weapon_card.custom_minimum_size = Vector2(110, 154)
+		weapon_card.name = "LegendaryWeapon%d" % weapon_id
+		weapon_card.custom_minimum_size = Vector2(110, 140)
 		weapon_card.add_theme_stylebox_override("panel", _panel_style(Color(0.34, 0.37, 0.44), Color(0.065, 0.072, 0.09, 0.92)))
 		inventory_grid.add_child(weapon_card)
 		var weapon_content := VBoxContainer.new()
 		weapon_content.add_theme_constant_override("separation", 5)
 		weapon_card.add_child(weapon_content)
-		var weapon_icon := ColorRect.new()
-		weapon_icon.name = "WeaponPlaceholder%d" % (weapon_index + 1)
+		var weapon_icon := TextureRect.new()
+		weapon_icon.texture = spec["icon"]
 		weapon_icon.custom_minimum_size = Vector2(0, 52)
-		weapon_icon.color = weapon_colors[weapon_index]
-		weapon_icon.modulate.a = 0.5
+		weapon_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		weapon_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		weapon_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		weapon_content.add_child(weapon_icon)
-		weapon_content.add_child(_make_label(weapon_names[weapon_index], 12, PALE))
-		var status := _make_label("В магазине" if weapon_index == 0 else "Скоро", 12, Color(0.62, 0.65, 0.72))
-		weapon_content.add_child(status)
-		weapon_status_labels.append(status)
-	_build_wing_inventory_card(inventory_grid)
+		weapon_content.add_child(_make_label(spec["name"], 12, PALE))
+		var weapon_status := _make_label("В магазине", 12, Color(0.62, 0.65, 0.72))
+		weapon_content.add_child(weapon_status)
+		weapon_inventory_statuses[weapon_id] = weapon_status
+	_build_wing_inventory_cards(inventory_grid)
 	_refresh_player_menu()
 
 
-func _build_wing_inventory_card(inventory_grid: GridContainer) -> void:
-	wing_inventory_card = PanelContainer.new()
-	wing_inventory_card.name = "WingInventoryCard"
-	wing_inventory_card.custom_minimum_size = Vector2(110, 154)
-	wing_inventory_card.add_theme_stylebox_override("panel", _panel_style(Color(0.34, 0.37, 0.44), Color(0.065, 0.072, 0.09, 0.92)))
-	inventory_grid.add_child(wing_inventory_card)
-	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 5)
-	wing_inventory_card.add_child(content)
-	var icon := TextureRect.new()
-	icon.name = "WingInventoryIcon"
-	icon.texture = SHOP_WING_ICON
-	icon.custom_minimum_size = Vector2(0, 52)
-	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	content.add_child(icon)
-	content.add_child(_make_label("Белые крылья", 12, PALE))
-	wing_inventory_status = _make_label("Не куплено", 12, Color(0.62, 0.65, 0.72))
-	content.add_child(wing_inventory_status)
-	wing_inventory_button = _make_action_button("Купить", false)
-	wing_inventory_button.name = "WingInventoryButton"
-	wing_inventory_button.custom_minimum_size = Vector2(0, 30)
-	wing_inventory_button.add_theme_font_size_override("font_size", 12)
-	wing_inventory_button.pressed.connect(_on_inventory_wing_pressed)
-	content.add_child(wing_inventory_button)
+func _build_wing_inventory_cards(inventory_grid: GridContainer) -> void:
+	var names := ["Белые крылья", "Золотые крылья", "Чёрные крылья", "Демонические крылья"]
+	var tints := [Color.WHITE, Color(1.0, 0.84, 0.45), Color(0.45, 0.42, 0.5), Color(0.85, 0.42, 0.4)]
+	for wing_id in range(1, 5):
+		var card := PanelContainer.new()
+		card.name = "WingInventoryCard%d" % wing_id
+		card.custom_minimum_size = Vector2(110, 150)
+		card.add_theme_stylebox_override("panel", _panel_style(Color(0.34, 0.37, 0.44), Color(0.065, 0.072, 0.09, 0.92)))
+		inventory_grid.add_child(card)
+		var content := VBoxContainer.new()
+		content.add_theme_constant_override("separation", 4)
+		card.add_child(content)
+		var icon := TextureRect.new()
+		icon.texture = SHOP_WING_ICON
+		icon.modulate = tints[wing_id - 1]
+		icon.custom_minimum_size = Vector2(0, 46)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		content.add_child(icon)
+		content.add_child(_make_label(names[wing_id - 1], 11, PALE))
+		var status := _make_label("Не куплено", 11, Color(0.62, 0.65, 0.72))
+		content.add_child(status)
+		var button := _make_action_button("Купить", false)
+		button.name = "WingInventoryButton%d" % wing_id
+		button.custom_minimum_size = Vector2(0, 28)
+		button.add_theme_font_size_override("font_size", 11)
+		button.pressed.connect(_on_inventory_wing_pressed.bind(wing_id))
+		content.add_child(button)
+		wing_inventory_cards[wing_id] = card
+		wing_inventory_statuses[wing_id] = status
+		wing_inventory_buttons[wing_id] = button
 
 
 func _refresh_wing_inventory() -> void:
-	if wing_inventory_button == null or wing_inventory_status == null:
+	if wing_inventory_cards.is_empty():
 		return
 	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
-	var is_owned: bool = 1 in MetaProgression.unlocked_wings
-	var is_equipped: bool = MetaProgression.get_equipped_wing(character_key) == 1
-	if not is_owned:
-		wing_inventory_status.text = "Не куплено"
-		wing_inventory_status.add_theme_color_override("font_color", Color(0.62, 0.65, 0.72))
-		wing_inventory_button.text = "В магазин"
-		wing_inventory_button.disabled = false
-		wing_inventory_card.add_theme_stylebox_override("panel", _panel_style(Color(0.34, 0.37, 0.44), Color(0.065, 0.072, 0.09, 0.92)))
-	elif is_equipped:
-		wing_inventory_status.text = "Надето"
-		wing_inventory_status.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
-		wing_inventory_button.text = "Снять"
-		wing_inventory_button.disabled = false
-		wing_inventory_card.add_theme_stylebox_override("panel", _wing_card_style(true))
-	else:
-		wing_inventory_status.text = "Куплено"
-		wing_inventory_status.add_theme_color_override("font_color", GOLD)
-		wing_inventory_button.text = "Одеть"
-		wing_inventory_button.disabled = false
-		wing_inventory_card.add_theme_stylebox_override("panel", _panel_style(Color(0.66, 0.58, 0.38), Color(0.08, 0.075, 0.06, 0.96)))
+	var equipped := MetaProgression.get_equipped_wing(character_key)
+	for wing_id in wing_inventory_cards.keys():
+		var card := wing_inventory_cards[wing_id] as PanelContainer
+		var status := wing_inventory_statuses[wing_id] as Label
+		var button := wing_inventory_buttons[wing_id] as Button
+		var owned: bool = wing_id in MetaProgression.unlocked_wings
+		card.visible = owned
+		if not owned:
+			continue
+		var is_equipped: bool = equipped == int(wing_id)
+		status.text = "Надето" if is_equipped else "Куплено"
+		status.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64) if is_equipped else GOLD)
+		button.text = "Снять" if is_equipped else "Одеть"
+		button.disabled = false
+		card.add_theme_stylebox_override("panel", _wing_card_style(is_equipped))
 
 
-func _on_inventory_wing_pressed() -> void:
-	if not 1 in MetaProgression.unlocked_wings:
+func _on_inventory_wing_pressed(wing_id: int) -> void:
+	if not wing_id in MetaProgression.unlocked_wings:
 		_open_shard_shop()
 		return
 	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
-	var is_equipped: bool = MetaProgression.get_equipped_wing(character_key) == 1
-	MetaProgression.equip_wing(0 if is_equipped else 1, character_key)
+	var is_equipped: bool = MetaProgression.get_equipped_wing(character_key) == wing_id
+	MetaProgression.equip_wing(0 if is_equipped else wing_id, character_key)
 	_refresh_wing_inventory()
 
 
@@ -1863,6 +1877,14 @@ func _refresh_player_profile() -> void:
 	profile_level_label.scale = Vector2.ONE
 	experience_bar.max_value = MetaProgression.get_xp_for_next_level(character_key)
 	experience_bar.value = character_xp
+	if profile_xp_label != null:
+		if character_level >= MetaProgression.MAX_CHARACTER_LEVEL:
+			profile_xp_label.text = "Максимальный уровень"
+		else:
+			var next_level_xp := MetaProgression.get_xp_for_next_level(character_key)
+			var remaining := maxi(0, next_level_xp - character_xp)
+			var reward := MetaProgression.get_shard_reward_for_level(character_level + 1)
+			profile_xp_label.text = "До уровня: %d XP · награда %d осколков" % [remaining, reward]
 	if MetaProgression.consume_level_up_for(character_key):
 		profile_level_label.add_theme_color_override('font_color', GOLD)
 		profile_level_label.add_theme_color_override('font_shadow_color', Color(1.0, 0.68, 0.12, 0.95))
