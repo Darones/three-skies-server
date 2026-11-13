@@ -1897,6 +1897,7 @@ func on_hero_died(h: HeroUnit) -> void:
 		p_deaths += 1
 		if network_play:
 			NetworkManager.send_death()
+	h.match_deaths += 1
 	if h == carrier or h.carrying:
 		drop_crystal(h.global_position)
 		announce("РћСЃРєРѕР»РѕРє РІС‹Р±РёС‚!", Color(1.0, 0.7, 0.4), 1.8)
@@ -1965,6 +1966,20 @@ func end_match(team_zero_won: bool) -> void:
 		"p_gold_earned": gold_earned_this_match,
 		"p_gold_spent": player.match_gold_spent if player != null else 0,
 	})
+	var players_table: Array = []
+	for h in heroes:
+		if h == null or not is_instance_valid(h):
+			continue
+		players_table.append({
+			"name": h.display_name,
+			"team": h.team,
+			"kills": h.match_kills,
+			"deaths": h.match_deaths,
+			"damage": int(h.match_damage_dealt),
+			"crystals": h.match_crystals,
+			"is_player": h.is_player,
+		})
+	get_tree().set_meta("last_match_players", players_table)
 	if player != null and is_instance_valid(player):
 		get_tree().set_meta("selected_class", player.hero_class)
 		player.is_player = false
@@ -2906,4 +2921,5 @@ func debug_state() -> Dictionary:
 	if shell != null and is_instance_valid(shell):
 		info["shell_hp"] = int(shell.health)
 	return info
+
 

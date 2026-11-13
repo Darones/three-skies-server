@@ -37,6 +37,29 @@ var ad_button_pulse_tween: Tween
 var victory_player: AudioStreamPlayer
 
 
+func _build_players_table(parent: VBoxContainer) -> void:
+	var players: Array = get_tree().get_meta("last_match_players", [])
+	if players.is_empty():
+		return
+	var title := _make_label("ИГРОКИ", 15, GOLD)
+	parent.add_child(title)
+	for entry in players:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		var entry_name := _make_label(String(entry.get("name", "?")), 13, PALE)
+		entry_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		entry_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		entry_name.clip_text = true
+		row.add_child(entry_name)
+		var kd := _make_label("%d / %d" % [int(entry.get("kills", 0)), int(entry.get("deaths", 0))], 13, Color(0.8, 0.85, 0.95))
+		row.add_child(kd)
+		var damage := _make_label(str(int(entry.get("damage", 0))), 13, Color(1.0, 0.8, 0.5))
+		damage.custom_minimum_size = Vector2(72, 0)
+		damage.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		row.add_child(damage)
+		parent.add_child(row)
+
+
 func _animate_rewards() -> void:
 	if shards_reward_label == null or xp_reward_label == null:
 		return
@@ -248,6 +271,7 @@ func _build_content() -> void:
 	double_reward_button.add_theme_stylebox_override("pressed", _ad_reward_button_style(true))
 	double_reward_button.pressed.connect(_double_rewards_for_ad)
 	stats_content.add_child(double_reward_button)
+	_build_players_table(stats_content)
 	_refresh_reward_ui()
 	call_deferred("_start_ad_button_pulse")
 

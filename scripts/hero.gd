@@ -1,4 +1,4 @@
-class_name HeroUnit
+﻿class_name HeroUnit
 extends CharacterBody3D
 
 signal hero_died(hero: HeroUnit)
@@ -98,8 +98,8 @@ const CRIT_CAST_COLOR := Color(1.0, 0.16, 0.1)
 
 const CLASS_DATA := {
 	Cls.WARRIOR: {
-		"name": "Воин",
-		"title": "Воин Света",
+		"name": "Р’РѕРёРЅ",
+		"title": "Р’РѕРёРЅ РЎРІРµС‚Р°",
 		"hp": 1050.0,
 		"speed": 6.4,
 		"range": 3.5,
@@ -109,14 +109,14 @@ const CLASS_DATA := {
 		"ranged": false,
 		"color": Color(1.0, 0.78, 0.4),
 		"abilities": [
-			{"name": "Теневой рывок", "cd": 8.0, "type": "shadow_assassin"},
-			{"name": "Жажда крови", "cd": 10.0, "type": "crit_buff"},
-			{"name": "Крик ужаса", "cd": 25.0, "type": "fear_ult"},
+			{"name": "РўРµРЅРµРІРѕР№ СЂС‹РІРѕРє", "cd": 8.0, "type": "shadow_assassin"},
+			{"name": "Р–Р°Р¶РґР° РєСЂРѕРІРё", "cd": 10.0, "type": "crit_buff"},
+			{"name": "РљСЂРёРє СѓР¶Р°СЃР°", "cd": 25.0, "type": "fear_ult"},
 		],
 	},
 	Cls.MAGE: {
-		"name": "Маг",
-		"title": "Маг-целитель",
+		"name": "РњР°Рі",
+		"title": "РњР°Рі-С†РµР»РёС‚РµР»СЊ",
 		"hp": 1000.0,
 		"speed": 5.9,
 		"range": 9.0,
@@ -125,14 +125,14 @@ const CLASS_DATA := {
 		"ranged": true,
 		"color": Color(0.6, 0.95, 1.0),
 		"abilities": [
-			{"name": "Лозы", "cd": 10.0, "type": "root"},
-			{"name": "Исцеление", "cd": 8.0, "type": "heal"},
-			{"name": "Грозовой шквал", "cd": 28.0, "type": "ult_lightning_storm"},
+			{"name": "Р›РѕР·С‹", "cd": 10.0, "type": "root"},
+			{"name": "РСЃС†РµР»РµРЅРёРµ", "cd": 8.0, "type": "heal"},
+			{"name": "Р“СЂРѕР·РѕРІРѕР№ С€РєРІР°Р»", "cd": 28.0, "type": "ult_lightning_storm"},
 		],
 	},
 	Cls.FAIRY: {
-		"name": "Фея",
-		"title": "Фея-лучница",
+		"name": "Р¤РµСЏ",
+		"title": "Р¤РµСЏ-Р»СѓС‡РЅРёС†Р°",
 		"hp": 950.0,
 		"speed": 4.5,
 		"range": 11.0,
@@ -141,9 +141,9 @@ const CLASS_DATA := {
 		"ranged": true,
 		"color": Color(0.72, 0.95, 0.55),
 		"abilities": [
-			{"name": "Оглушающий выстрел", "cd": 12.0, "type": "stun_shot"},
-			{"name": "100% Крит", "cd": 15.0, "type": "crit_shot"},
-			{"name": "Золотое благословение", "cd": 24.0, "type": "golden_blessing"},
+			{"name": "РћРіР»СѓС€Р°СЋС‰РёР№ РІС‹СЃС‚СЂРµР»", "cd": 12.0, "type": "stun_shot"},
+			{"name": "100% РљСЂРёС‚", "cd": 15.0, "type": "crit_shot"},
+			{"name": "Р—РѕР»РѕС‚РѕРµ Р±Р»Р°РіРѕСЃР»РѕРІРµРЅРёРµ", "cd": 24.0, "type": "golden_blessing"},
 		],
 	},
 }
@@ -181,6 +181,7 @@ var bot_gold := 0
 var match_coins_collected := 0
 var match_gold_spent := 0
 var match_kills := 0
+var match_deaths := 0
 var match_damage_dealt := 0.0
 var match_shells := 0
 var match_crystals := 0
@@ -282,7 +283,7 @@ func setup(p_game: Node, p_class: int, p_team: int, p_player: bool) -> void:
 	if not is_player:
 		attack_damage *= BOT_DAMAGE_MULTIPLIER
 		attack_interval *= BOT_ATTACK_INTERVAL_MULTIPLIER
-		# характер: кто-то лезет первым, кто-то держится сзади
+		# С…Р°СЂР°РєС‚РµСЂ: РєС‚Рѕ-С‚Рѕ Р»РµР·РµС‚ РїРµСЂРІС‹Рј, РєС‚Рѕ-С‚Рѕ РґРµСЂР¶РёС‚СЃСЏ СЃР·Р°РґРё
 		ai_aggression = randf_range(0.2, 1.0)
 	attack_animation_duration = float(data.get("attack_anim_time", 0.45))
 	ranged = data["ranged"]
@@ -344,14 +345,14 @@ func _wing_config(wing_id: int) -> Dictionary:
 func _wing_config_base(wing_id: int) -> Dictionary:
 	match wing_id:
 		2:
-			# золотые: тёплый металл и мягкое свечение по кромке
+			# Р·РѕР»РѕС‚С‹Рµ: С‚С‘РїР»С‹Р№ РјРµС‚Р°Р»Р» Рё РјСЏРіРєРѕРµ СЃРІРµС‡РµРЅРёРµ РїРѕ РєСЂРѕРјРєРµ
 			var gold := WING_MODEL_DEFAULT.duplicate()
 			gold["tint"] = Color(1.0, 0.78, 0.34)
 			gold["emission"] = 0.15
 			gold["rim"] = 0.30
 			return gold
 		3:
-			# чёрные: тёмное оперение без золотого ободка
+			# С‡С‘СЂРЅС‹Рµ: С‚С‘РјРЅРѕРµ РѕРїРµСЂРµРЅРёРµ Р±РµР· Р·РѕР»РѕС‚РѕРіРѕ РѕР±РѕРґРєР°
 			var dark := WING_MODEL_DEFAULT.duplicate()
 			dark["tint"] = Color(0.10, 0.09, 0.13)
 			dark["emission"] = 0.0
@@ -360,7 +361,7 @@ func _wing_config_base(wing_id: int) -> Dictionary:
 			dark["rotation"] = Vector3(0.0, 0.0, 4.0)
 			return dark
 		4:
-			# демонические: модель пришла в сантиметрах и со сдвинутым origin
+			# РґРµРјРѕРЅРёС‡РµСЃРєРёРµ: РјРѕРґРµР»СЊ РїСЂРёС€Р»Р° РІ СЃР°РЅС‚РёРјРµС‚СЂР°С… Рё СЃРѕ СЃРґРІРёРЅСѓС‚С‹Рј origin
 			return {
 				"path": "res://assets/wings/low_poly_demon_wings_animated.glb",
 				"scale": 0.006,
@@ -445,7 +446,7 @@ func update_wings() -> void:
 				played = true
 				break
 		if not played:
-			# резкую демоническую анимацию не играем — только покачивание
+			# СЂРµР·РєСѓСЋ РґРµРјРѕРЅРёС‡РµСЃРєСѓСЋ Р°РЅРёРјР°С†РёСЋ РЅРµ РёРіСЂР°РµРј вЂ” С‚РѕР»СЊРєРѕ РїРѕРєР°С‡РёРІР°РЅРёРµ
 			wing_anim_player.stop()
 	wing_sway_time = 0.0
 
@@ -540,7 +541,7 @@ func _update_wing_transform() -> void:
 	if wing_skeleton == null or not is_instance_valid(wing_skeleton) or wing_bone_index < 0:
 		return
 	var bone_world := wing_skeleton.global_transform * wing_skeleton.get_bone_global_pose(wing_bone_index)
-	# жёстко к кости спины: крылья повторяют наклон корпуса, а не только поворот
+	# Р¶С‘СЃС‚РєРѕ Рє РєРѕСЃС‚Рё СЃРїРёРЅС‹: РєСЂС‹Р»СЊСЏ РїРѕРІС‚РѕСЂСЏСЋС‚ РЅР°РєР»РѕРЅ РєРѕСЂРїСѓСЃР°, Р° РЅРµ С‚РѕР»СЊРєРѕ РїРѕРІРѕСЂРѕС‚
 	var base := bone_world.basis.orthonormalized()
 	var basis := base * Basis.from_euler(Vector3(
 		deg_to_rad(wing_rotation_offset.x),
@@ -557,7 +558,7 @@ func _update_weapon_transform() -> void:
 	if weapon_skeleton == null or not is_instance_valid(weapon_skeleton) or weapon_bone_index < 0:
 		return
 	var bone_world := weapon_skeleton.global_transform * weapon_skeleton.get_bone_global_pose(weapon_bone_index)
-	# жёстко к кости руки: оружие повторяет наклон корпуса
+	# Р¶С‘СЃС‚РєРѕ Рє РєРѕСЃС‚Рё СЂСѓРєРё: РѕСЂСѓР¶РёРµ РїРѕРІС‚РѕСЂСЏРµС‚ РЅР°РєР»РѕРЅ РєРѕСЂРїСѓСЃР°
 	var base := bone_world.basis.orthonormalized()
 	var basis := base * Basis.from_euler(Vector3(
 		deg_to_rad(weapon_rotation_offset.x),
@@ -942,7 +943,7 @@ func _build_visual() -> void:
 			var mesh_node := child as MeshInstance3D
 			var mesh_name := mesh_node.name.to_lower()
 			print("HERO: mesh = ", mesh_node.name)
-			if mesh_name.contains("sword") or mesh_name.contains("blade") or mesh_name.contains("weapon") or mesh_name.contains("weapon_bone") or mesh_name.contains("меч"):
+			if mesh_name.contains("sword") or mesh_name.contains("blade") or mesh_name.contains("weapon") or mesh_name.contains("weapon_bone") or mesh_name.contains("РјРµС‡"):
 				mesh_node.visible = false
 		var holder := Node3D.new()
 		holder.name = "Model"
@@ -1045,7 +1046,7 @@ func _attach_class_weapon(holder: Node3D) -> void:
 	var weapon_rotation := Vector3.ZERO
 	match hero_class:
 		Cls.WARRIOR:
-			# меч теперь покупается в магазине, по умолчанию воин без оружия
+			# РјРµС‡ С‚РµРїРµСЂСЊ РїРѕРєСѓРїР°РµС‚СЃСЏ РІ РјР°РіР°Р·РёРЅРµ, РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ РІРѕРёРЅ Р±РµР· РѕСЂСѓР¶РёСЏ
 			if not (1 in MetaProgression.unlocked_weapons) or not MetaProgression.is_weapon_enabled("warrior"):
 				return
 			weapon_path = "res://addons/low_poly_rpg_items/props/longsword.tscn"
@@ -1545,8 +1546,8 @@ func _set_afk(enabled: bool) -> void:
 			if game.has_method("set_shop_open"):
 				game.call("set_shop_open", false)
 			if game.has_method("announce"):
-				game.call("announce", "AFK: управление передано ИИ", Color(1.0, 0.76, 0.32), 3.0)
-		print("[AFK] Игрок неактивен %d секунд — управление передано ИИ." % int(AFK_TIMEOUT))
+				game.call("announce", "AFK: СѓРїСЂР°РІР»РµРЅРёРµ РїРµСЂРµРґР°РЅРѕ РР", Color(1.0, 0.76, 0.32), 3.0)
+		print("[AFK] РРіСЂРѕРє РЅРµР°РєС‚РёРІРµРЅ %d СЃРµРєСѓРЅРґ вЂ” СѓРїСЂР°РІР»РµРЅРёРµ РїРµСЂРµРґР°РЅРѕ РР." % int(AFK_TIMEOUT))
 	else:
 		afk_idle_time = 0.0
 		velocity.x = 0.0
@@ -1554,8 +1555,8 @@ func _set_afk(enabled: bool) -> void:
 		if afk_label != null:
 			afk_label.visible = false
 		if game != null and game.has_method("announce"):
-			game.call("announce", "С возвращением! Управление снова у тебя", Color(0.74, 1.0, 0.78), 2.8)
-		print("[AFK] Игрок снова активен — управление возвращено.")
+			game.call("announce", "РЎ РІРѕР·РІСЂР°С‰РµРЅРёРµРј! РЈРїСЂР°РІР»РµРЅРёРµ СЃРЅРѕРІР° Сѓ С‚РµР±СЏ", Color(0.74, 1.0, 0.78), 2.8)
+		print("[AFK] РРіСЂРѕРє СЃРЅРѕРІР° Р°РєС‚РёРІРµРЅ вЂ” СѓРїСЂР°РІР»РµРЅРёРµ РІРѕР·РІСЂР°С‰РµРЅРѕ.")
 
 
 func _ensure_navigation_agent() -> void:
@@ -1573,7 +1574,7 @@ func _ensure_afk_label() -> void:
 		return
 	afk_label = Label3D.new()
 	afk_label.name = "AfkLabel"
-	afk_label.text = "AFK · ИИ"
+	afk_label.text = "AFK В· РР"
 	afk_label.font = UI_FONT
 	afk_label.font_size = 34
 	afk_label.pixel_size = 0.0048
@@ -1693,12 +1694,12 @@ func _ai_abilities() -> void:
 func _ai_pick_target() -> Node3D:
 	if game == null:
 		return null
-	# 1. враг с осколком — главная цель
+	# 1. РІСЂР°Рі СЃ РѕСЃРєРѕР»РєРѕРј вЂ” РіР»Р°РІРЅР°СЏ С†РµР»СЊ
 	var carrier_node = game.get("carrier")
 	if carrier_node != null and is_instance_valid(carrier_node) and bool(carrier_node.get("carrying")):
 		if int(carrier_node.get("team")) != team and global_position.distance_to(carrier_node.global_position) < 34.0:
 			return carrier_node
-	# 2. тяжело раненый враг рядом
+	# 2. С‚СЏР¶РµР»Рѕ СЂР°РЅРµРЅС‹Р№ РІСЂР°Рі СЂСЏРґРѕРј
 	var weakest: HeroUnit = null
 	var weakest_ratio := 1.0
 	for other in game.heroes:
@@ -1712,7 +1713,7 @@ func _ai_pick_target() -> Node3D:
 			weakest = other
 	if weakest != null and weakest_ratio < 0.45:
 		return weakest
-	# 3. ближайший
+	# 3. Р±Р»РёР¶Р°Р№С€РёР№
 	var engage_radius := lerpf(18.0, 34.0, ai_aggression)
 	var local_enemy: HeroUnit = game.nearest_enemy(global_position, team, engage_radius, self)
 	if local_enemy != null:
@@ -1732,7 +1733,7 @@ func _ai_pick_goal() -> void:
 		ai_retreating = true
 	elif ai_retreating and health >= max_health * retreat_end:
 		ai_retreating = false
-	# двое союзников мертвы — отходим к базе и собираемся
+	# РґРІРѕРµ СЃРѕСЋР·РЅРёРєРѕРІ РјРµСЂС‚РІС‹ вЂ” РѕС‚С…РѕРґРёРј Рє Р±Р°Р·Рµ Рё СЃРѕР±РёСЂР°РµРјСЃСЏ
 	var dead_allies := 0
 	for ally in game.heroes:
 		if ally != self and is_instance_valid(ally) and ally.team == team and ally.dead:
@@ -1755,8 +1756,8 @@ func _ai_pick_goal() -> void:
 	if crystal_carrier != null and is_instance_valid(crystal_carrier) and bool(crystal_carrier.get("carrying")):
 		var carrier_team := int(crystal_carrier.get("team"))
 		if carrier_team == team:
-			# сопровождающие держат дистанцию и расходятся по кругу,
-			# иначе все боты липнут в одну точку и толкаются
+			# СЃРѕРїСЂРѕРІРѕР¶РґР°СЋС‰РёРµ РґРµСЂР¶Р°С‚ РґРёСЃС‚Р°РЅС†РёСЋ Рё СЂР°СЃС…РѕРґСЏС‚СЃСЏ РїРѕ РєСЂСѓРіСѓ,
+			# РёРЅР°С‡Рµ РІСЃРµ Р±РѕС‚С‹ Р»РёРїРЅСѓС‚ РІ РѕРґРЅСѓ С‚РѕС‡РєСѓ Рё С‚РѕР»РєР°СЋС‚СЃСЏ
 			var escort_angle := float(get_instance_id() % 628) * 0.01
 			var escort_point: Vector3 = crystal_carrier.global_position + Vector3(
 				cos(escort_angle) * 6.0,
@@ -2079,7 +2080,7 @@ func _update_name_visibility() -> void:
 		if blessing_rune != null and is_instance_valid(blessing_rune):
 			blessing_rune.visible = true
 		return
-	# враг: скрываем ник и баф в тумане и в кустах
+	# РІСЂР°Рі: СЃРєСЂС‹РІР°РµРј РЅРёРє Рё Р±Р°С„ РІ С‚СѓРјР°РЅРµ Рё РІ РєСѓСЃС‚Р°С…
 	var visible_to_enemy := not _is_bush_stealthed()
 	if visible_to_enemy:
 		var nearest := 9999.0
@@ -2826,3 +2827,4 @@ func _snap_blessing_to_ground() -> void:
 
 func ability_ready(index: int) -> bool:
 	return ability_cds[index] <= 0.01
+
