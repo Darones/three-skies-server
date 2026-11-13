@@ -1842,7 +1842,8 @@ func _deliver(h: HeroUnit) -> void:
 		return
 	h.carrying = false
 	h.match_crystals += 1
-	score[h.team] += 1
+	if not network_play:
+		score[h.team] += 1
 	if player != null and h.team == player.team:
 		award_gold(100)
 	if not h.is_player:

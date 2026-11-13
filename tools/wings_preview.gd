@@ -1,86 +1,46 @@
 extends Node3D
 
-# Рендерит все четыре варианта крыльев на Фее, ровно тем же способом,
-# что и hero.gd: Spine02 -> BoneAttachment3D -> WingAttachment -> модель.
-# Файл в tools/, в сборку не попадает.
+# Проверяет посадку крыльев на Войне теми же мировыми осями, что в hero.gd.
 
-const FAIRY := "res://art/generated/fairy/rig.glb"
-const WING_TINT_SHADER: Shader = preload("res://shaders/wing_tint.gdshader")
+const HERO := "res://art/generated/warrior/rig.glb"
 const OUT_DIR := "user://wings_preview"
+const WING_TINT_SHADER: Shader = preload("res://shaders/wing_tint.gdshader")
 
 const VARIANTS := [
-	{
-		"name": "1_white",
-		"path": "res://assets/wings/angel_wings_animated.glb",
-		"scale": 1.0,
-		"position": Vector3.ZERO,
-		"rotation": Vector3(0.0, 18.0, 10.0),
-		"tint": Color(1, 1, 1),
-		"emission": 0.0,
-		"rim": 0.0,
-	},
-	{
-		"name": "2_gold",
-		"path": "res://assets/wings/angel_wings_animated.glb",
-		"scale": 1.0,
-		"position": Vector3.ZERO,
-		"rotation": Vector3(0.0, 18.0, 10.0),
-		"tint": Color(1.0, 0.78, 0.34),
-		"emission": 0.30,
-		"rim": 0.55,
-	},
-	{
-		"name": "3_black",
-		"path": "res://assets/wings/angel_wings_animated.glb",
-		"scale": 1.06,
-		"position": Vector3.ZERO,
-		"rotation": Vector3(0.0, 18.0, 4.0),
-		"tint": Color(0.16, 0.14, 0.20),
-		"emission": 0.0,
-		"rim": 0.35,
-	},
-	{
-		"name": "4_demon",
-		"path": "res://assets/wings/low_poly_demon_wings_animated.glb",
-		"scale": 0.006,
-		"position": Vector3(0.0, -1.45, 0.0),
-		"rotation": Vector3(0.0, 0.0, 0.0),
-		"tint": Color(1, 1, 1),
-		"emission": 0.0,
-		"rim": 0.0,
-	},
+	{"name": "w_white", "path": "res://assets/wings/angel_wings_animated.glb", "scale": 1.0,
+	 "position": Vector3(0, 0, -0.12), "rotation": Vector3(0, 0, 0),
+	 "tint": Color(1, 1, 1), "emission": 0.0, "rim": 0.0},
+	{"name": "w_gold", "path": "res://assets/wings/angel_wings_animated.glb", "scale": 1.0,
+	 "position": Vector3(0, 0, -0.12), "rotation": Vector3(0, 0, 0),
+	 "tint": Color(1.0, 0.78, 0.34), "emission": 0.30, "rim": 0.55},
+	{"name": "w_black", "path": "res://assets/wings/angel_wings_animated.glb", "scale": 1.06,
+	 "position": Vector3(0, 0, -0.12), "rotation": Vector3(0, 0, 4),
+	 "tint": Color(0.16, 0.14, 0.20), "emission": 0.0, "rim": 0.35},
+	{"name": "w_demon", "path": "res://assets/wings/low_poly_demon_wings_animated.glb", "scale": 0.006,
+	 "position": Vector3(0, -0.85, -0.12), "rotation": Vector3(0, 0, 0),
+	 "tint": Color(1, 1, 1), "emission": 0.0, "rim": 0.0},
 ]
 
-var fairy: Node3D
 var skeleton: Skeleton3D
-var bone_attach: BoneAttachment3D
+var bone_index := -1
+var model: Node3D = null
+var model_scale := 1.0
+var rotation_offset := Vector3.ZERO
+var world_offset := Vector3.ZERO
 
 
 func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
 	_build_environment()
 
-	fairy = load(FAIRY).instantiate() as Node3D
-	add_child(fairy)
-	skeleton = _find_skeleton(fairy)
-	if skeleton == null:
-		print("NO SKELETON")
-		get_tree().quit()
-		return
-
-	var bone_name := ""
-	for want in ["spine02", "chest", "torso", "body", "spine"]:
-		for i in range(skeleton.get_bone_count()):
-			if String(skeleton.get_bone_name(i)).to_lower().contains(want):
-				bone_name = skeleton.get_bone_name(i)
-				break
-		if bone_name != "":
+	var hero := load(HERO).instantiate() as Node3D
+	add_child(hero)
+	skeleton = _find_skeleton(hero)
+	for i in range(skeleton.get_bone_count()):
+		if String(skeleton.get_bone_name(i)).to_lower().contains("spine02"):
+			bone_index = i
 			break
-	print("BONE ", bone_name)
-
-	bone_attach = BoneAttachment3D.new()
-	bone_attach.bone_name = bone_name
-	skeleton.add_child(bone_attach)
+	print("BONE index ", bone_index)
 
 	var cam := Camera3D.new()
 	cam.fov = 40.0
@@ -94,70 +54,65 @@ func _ready() -> void:
 
 
 func _shot_variant(cam: Camera3D, variant: Dictionary) -> void:
-	for old in bone_attach.get_children():
-		bone_attach.remove_child(old)
-		old.queue_free()
-
-	var attach := Node3D.new()
-	attach.name = "WingAttachment"
-	bone_attach.add_child(attach)
-	var parent_scale := bone_attach.global_transform.basis.get_scale()
-	var inverse := Vector3(
-		1.0 / maxf(absf(parent_scale.x), 0.001),
-		1.0 / maxf(absf(parent_scale.y), 0.001),
-		1.0 / maxf(absf(parent_scale.z), 0.001)
-	)
-	attach.scale = inverse
-	attach.position = Vector3(0.0, 0.0, -0.10) * inverse
-
+	if model != null and is_instance_valid(model):
+		model.queue_free()
+		model = null
 	var scene := load(String(variant["path"])) as PackedScene
-	if scene == null:
-		print("LOAD FAIL ", variant["name"])
-		return
-	var model := scene.instantiate() as Node3D
-	attach.add_child(model)
-	model.scale = Vector3.ONE * float(variant["scale"])
-	model.position = variant["position"]
-	model.rotation_degrees = variant["rotation"]
+	model = scene.instantiate() as Node3D
+	add_child(model)
+	model_scale = float(variant["scale"])
+	rotation_offset = variant["rotation"]
+	world_offset = variant["position"]
+	await get_tree().process_frame
+	_update_transform()
 
 	var tint: Color = variant["tint"]
-	var emission := float(variant["emission"])
-	var rim := float(variant["rim"])
-	if not (tint.is_equal_approx(Color.WHITE) and emission <= 0.0 and rim <= 0.0):
-		_apply_tint(model, tint, emission, rim)
-
-	var player := _find_anim(model)
-	if player != null:
-		for anim_name in player.get_animation_list():
-			if String(anim_name).to_lower().contains("flap"):
-				player.play(anim_name)
-				break
+	if not tint.is_equal_approx(Color.WHITE):
+		_apply_tint(model, tint, float(variant["emission"]), float(variant["rim"]))
 
 	await get_tree().process_frame
-	await get_tree().process_frame
-	cam.position = Vector3(0.0, 1.3, 2.7)
-	cam.look_at(Vector3(0.0, 1.05, 0.0), Vector3.UP)
+	_update_transform()
+	cam.position = Vector3(0.0, 1.4, 2.9)
+	cam.look_at(Vector3(0.0, 1.1, 0.0), Vector3.UP)
 	await RenderingServer.frame_post_draw
-	var image := get_viewport().get_texture().get_image()
-	image.save_png(OUT_DIR.path_join("%s.png" % variant["name"]))
+	get_viewport().get_texture().get_image().save_png(OUT_DIR.path_join("%s.png" % variant["name"]))
 	print("SHOT ", variant["name"])
+
+
+func _update_transform() -> void:
+	if model == null or skeleton == null or bone_index < 0:
+		return
+	var bone_world := skeleton.global_transform * skeleton.get_bone_global_pose(bone_index)
+	var skel_basis := skeleton.global_transform.basis
+	var up := Vector3.UP
+	var forward := -skel_basis.z
+	forward.y = 0.0
+	if forward.length_squared() < 0.0001:
+		forward = Vector3.FORWARD
+	forward = forward.normalized()
+	var right := forward.cross(up).normalized()
+	var basis := Basis(right, up, forward)
+	basis = basis * Basis.from_euler(Vector3(
+		deg_to_rad(rotation_offset.x), deg_to_rad(rotation_offset.y), deg_to_rad(rotation_offset.z)))
+	basis = basis.scaled(Vector3.ONE * model_scale)
+	model.global_transform = Transform3D(basis, bone_world.origin + world_offset)
 
 
 func _apply_tint(node: Node, tint: Color, emission: float, rim: float) -> void:
 	for child in node.get_children():
 		if child is MeshInstance3D:
-			var mesh_instance := child as MeshInstance3D
-			if mesh_instance.mesh != null:
-				for surface_index in range(mesh_instance.mesh.get_surface_count()):
-					var source := mesh_instance.get_active_material(surface_index) as BaseMaterial3D
-					var material := ShaderMaterial.new()
-					material.shader = WING_TINT_SHADER
-					material.set_shader_parameter("tint", tint)
-					material.set_shader_parameter("emission_strength", emission)
-					material.set_shader_parameter("rim_strength", rim)
-					if source != null and source.albedo_texture != null:
-						material.set_shader_parameter("albedo_texture", source.albedo_texture)
-					mesh_instance.set_surface_override_material(surface_index, material)
+			var mi := child as MeshInstance3D
+			if mi.mesh != null:
+				for s in range(mi.mesh.get_surface_count()):
+					var src := mi.get_active_material(s) as BaseMaterial3D
+					var mat := ShaderMaterial.new()
+					mat.shader = WING_TINT_SHADER
+					mat.set_shader_parameter("tint", tint)
+					mat.set_shader_parameter("emission_strength", emission)
+					mat.set_shader_parameter("rim_strength", rim)
+					if src != null and src.albedo_texture != null:
+						mat.set_shader_parameter("albedo_texture", src.albedo_texture)
+					mi.set_surface_override_material(s, mat)
 		_apply_tint(child, tint, emission, rim)
 
 
@@ -167,15 +122,14 @@ func _build_environment() -> void:
 	env.background_color = Color(0.10, 0.11, 0.15)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.55, 0.58, 0.72)
-	env.ambient_light_energy = 0.7
+	env.ambient_light_energy = 0.75
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.glow_enabled = true
-	env.glow_intensity = 0.8
+	env.glow_intensity = 0.9
 	env.glow_hdr_threshold = 1.0
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
-
 	var key := DirectionalLight3D.new()
 	key.light_energy = 1.4
 	key.rotation_degrees = Vector3(-32.0, 148.0, 0.0)
@@ -195,14 +149,3 @@ func _find_skeleton(node: Node) -> Skeleton3D:
 		if found != null:
 			return found
 	return null
-
-
-func _find_anim(node: Node) -> AnimationPlayer:
-	if node is AnimationPlayer:
-		return node as AnimationPlayer
-	for child in node.get_children():
-		var found := _find_anim(child)
-		if found != null:
-			return found
-	return null
-

@@ -23,6 +23,7 @@ var just_leveled_up: bool = false
 var just_leveled_up_character: String = ""
 var equipped_wing: int = 0
 var equipped_wings: Dictionary = {"warrior": 0, "mage": 0, "fairy": 0}
+var weapons_enabled: Dictionary = {"warrior": true, "mage": true, "fairy": true}
 var unlocked_wings: Array[int] = []
 var unlocked_weapons: Array[int] = []
 var pending_purchase_type := ""
@@ -97,6 +98,8 @@ func _load_loadout() -> void:
 	for key in equipped_wings.keys():
 		equipped_wings[key] = clampi(int(config.get_value("wings", String(key), 0)), 0, 4)
 	equipped_wing = clampi(int(config.get_value("wings", "last", 0)), 0, 4)
+	for key in weapons_enabled.keys():
+		weapons_enabled[key] = bool(config.get_value("weapons", String(key), true))
 
 
 func _save_loadout() -> void:
@@ -104,7 +107,20 @@ func _save_loadout() -> void:
 	for key in equipped_wings.keys():
 		config.set_value("wings", String(key), int(equipped_wings[key]))
 	config.set_value("wings", "last", equipped_wing)
+	for key in weapons_enabled.keys():
+		config.set_value("weapons", String(key), bool(weapons_enabled[key]))
 	config.save(LOADOUT_PATH)
+
+
+func is_weapon_enabled(character_key: String) -> bool:
+	return bool(weapons_enabled.get(character_key, true))
+
+
+func toggle_weapon(character_key: String) -> void:
+	if not weapons_enabled.has(character_key):
+		return
+	weapons_enabled[character_key] = not bool(weapons_enabled[character_key])
+	_save_loadout()
 
 
 func register_player(nickname: String) -> void:

@@ -230,6 +230,12 @@ var wing_attachment: Node3D
 var wing_bone_attachment: BoneAttachment3D
 var wing_attachment_fallback := false
 var wing_sway_time := 0.0
+var wing_skeleton: Skeleton3D = null
+var wing_bone_index := -1
+var wing_model: Node3D = null
+var wing_model_scale := 1.0
+var wing_rotation_offset := Vector3.ZERO
+var wing_world_offset := Vector3.ZERO
 var anim_player: AnimationPlayer = null
 var current_anim := ""
 var weapon_attachment: Node3D = null
@@ -307,7 +313,7 @@ const WING_MODEL_DEFAULT := {
 	"path": "res://assets/wings/angel_wings_animated.glb",
 	"scale": 1.0,
 	"position": Vector3.ZERO,
-	"rotation": Vector3(0.0, 18.0, 10.0),
+	"rotation": Vector3(0.0, 0.0, 0.0),
 	"tint": Color(1.0, 1.0, 1.0),
 	"emission": 0.0,
 	"rim": 0.0,
@@ -320,17 +326,17 @@ func _wing_config(wing_id: int) -> Dictionary:
 			# золотые: тёплый металл и мягкое свечение по кромке
 			var gold := WING_MODEL_DEFAULT.duplicate()
 			gold["tint"] = Color(1.0, 0.78, 0.34)
-			gold["emission"] = 0.30
-			gold["rim"] = 0.55
+			gold["emission"] = 0.15
+			gold["rim"] = 0.30
 			return gold
 		3:
-			# чёрные: тёмное оперение с холодным отливом
+			# чёрные: тёмное оперение без золотого ободка
 			var dark := WING_MODEL_DEFAULT.duplicate()
-			dark["tint"] = Color(0.16, 0.14, 0.20)
+			dark["tint"] = Color(0.10, 0.09, 0.13)
 			dark["emission"] = 0.0
-			dark["rim"] = 0.35
+			dark["rim"] = 0.0
 			dark["scale"] = 1.06
-			dark["rotation"] = Vector3(0.0, 18.0, 4.0)
+			dark["rotation"] = Vector3(0.0, 0.0, 4.0)
 			return dark
 		4:
 			# демонические: модель пришла в сантиметрах и со сдвинутым origin
@@ -392,21 +398,23 @@ func update_wings() -> void:
 	if wing_scene == null:
 		push_warning("Unable to load wing model: %s" % config["path"])
 		return
-	var wing_model := wing_scene.instantiate() as Node3D
-	if wing_model == null:
+	var wing_model_local := wing_scene.instantiate() as Node3D
+	if wing_model_local == null:
 		return
-	wing_model.name = "Wings3D"
-	wing_attachment.add_child(wing_model)
-	wing_model.scale = Vector3.ONE * float(config["scale"])
-	wing_model.position = config["position"]
-	wing_model.rotation_degrees = config["rotation"]
+	wing_model = wing_model_local
+	wing_model_local.name = "Wings3D"
+	wing_attachment.add_child(wing_model_local)
+	wing_model_scale = float(config["scale"])
+	wing_rotation_offset = config["rotation"]
+	wing_world_offset = config["position"] + Vector3(0.0, 0.0, -0.12)
+	_update_wing_transform()
 	var tint: Color = config["tint"]
 	var emission := float(config["emission"])
 	var rim := float(config["rim"])
 	if tint.is_equal_approx(Color.WHITE) and emission <= 0.0 and rim <= 0.0:
-		_set_wing_materials_double_sided(wing_model)
+		_set_wing_materials_double_sided(wing_model_local)
 	else:
-		_apply_wing_tint(wing_model, tint, emission, rim)
+		_apply_wing_tint(wing_model_local, tint, emission, rim)
 	var wing_anim_player := _find_animation_player(wing_model)
 	if wing_anim_player != null:
 		var played := false
@@ -426,6 +434,8 @@ func _configure_wing_attachment() -> void:
 	var fallback_parent: Node3D = model_root if model_root != null else visual
 	var skeleton := _find_skeleton(model_root)
 	var bone_index := _find_wing_bone_index(skeleton)
+	wing_skeleton = skeleton
+	wing_bone_index = bone_index
 	var target_parent: Node3D = fallback_parent
 	wing_attachment_fallback = true
 	if skeleton != null and bone_index >= 0:
@@ -503,6 +513,30 @@ func _find_wing_bone_index(skeleton: Skeleton3D) -> int:
 	return -1
 
 
+func _update_wing_transform() -> void:
+	if wing_model == null or not is_instance_valid(wing_model):
+		return
+	if wing_skeleton == null or not is_instance_valid(wing_skeleton) or wing_bone_index < 0:
+		return
+	var bone_world := wing_skeleton.global_transform * wing_skeleton.get_bone_global_pose(wing_bone_index)
+	var skel_basis := wing_skeleton.global_transform.basis
+	var up := Vector3.UP
+	var forward := -skel_basis.z
+	forward.y = 0.0
+	if forward.length_squared() < 0.0001:
+		forward = Vector3.FORWARD
+	forward = forward.normalized()
+	var right := forward.cross(up).normalized()
+	var basis := Basis(right, up, forward)
+	basis = basis * Basis.from_euler(Vector3(
+		deg_to_rad(wing_rotation_offset.x),
+		deg_to_rad(wing_rotation_offset.y),
+		deg_to_rad(wing_rotation_offset.z)
+	))
+	basis = basis.scaled(Vector3.ONE * wing_model_scale)
+	wing_model.global_transform = Transform3D(basis, bone_world.origin + wing_world_offset)
+
+
 func _update_weapon_transform() -> void:
 	if weapon_instance == null or not is_instance_valid(weapon_instance):
 		return
@@ -529,10 +563,10 @@ func _update_weapon_transform() -> void:
 
 func _process(delta: float) -> void:
 	_update_weapon_transform()
-	if wing_attachment == null or not is_instance_valid(wing_attachment):
+	if wing_model == null or not is_instance_valid(wing_model):
 		return
 	wing_sway_time += delta
-	wing_attachment.rotation.z = sin(wing_sway_time * 1.8) * 0.035
+	_update_wing_transform()
 
 
 func _build_body() -> void:
@@ -1001,7 +1035,7 @@ func _attach_class_weapon(holder: Node3D) -> void:
 	match hero_class:
 		Cls.WARRIOR:
 			# меч теперь покупается в магазине, по умолчанию воин без оружия
-			if not (1 in MetaProgression.unlocked_weapons):
+			if not (1 in MetaProgression.unlocked_weapons) or not MetaProgression.is_weapon_enabled("warrior"):
 				return
 			weapon_path = "res://addons/low_poly_rpg_items/props/longsword.tscn"
 			weapon_scale = 0.72
@@ -1012,7 +1046,7 @@ func _attach_class_weapon(holder: Node3D) -> void:
 			weapon_scale = 0.62
 			hand_offset = Vector3(0.04, 0.0, -0.1)
 		Cls.FAIRY:
-			if 2 in MetaProgression.unlocked_weapons:
+			if 2 in MetaProgression.unlocked_weapons and MetaProgression.is_weapon_enabled("fairy"):
 				weapon_path = "res://scenes/LegendaryBow.tscn"
 				weapon_scale = 0.82
 				hand_offset = Vector3(-0.06, 0.0, -0.1)
@@ -2645,7 +2679,7 @@ func apply_blessing(duration: float, source_team: int = -1) -> void:
 	rune_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	rune.material_override = rune_material
 	rune.rotation_degrees.x = -90.0
-	rune.position = Vector3(0.0, 0.02, 0.0)
+	rune.position = Vector3(0.0, 0.12, 0.0)
 	rune.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(rune)
 	blessing_rune = rune

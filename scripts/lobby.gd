@@ -680,12 +680,14 @@ func _refresh_weapon_shop() -> void:
 	for weapon_id in weapon_inventory_statuses.keys():
 		var status_label := weapon_inventory_statuses[weapon_id] as Label
 		var owned: bool = weapon_id in MetaProgression.unlocked_weapons
-		status_label.text = "Куплено" if owned else "В магазине"
+		var weapon_character := "warrior" if int(weapon_id) == 1 else "fairy"
+		var enabled: bool = MetaProgression.is_weapon_enabled(weapon_character)
+		status_label.text = "Надето" if owned and enabled else ("Куплено" if owned else "В магазине")
 		status_label.add_theme_color_override("font_color", GOLD if owned else Color(0.62, 0.65, 0.72))
 		var button := weapon_inventory_buttons.get(weapon_id) as Button
 		if button != null:
-			button.text = "Надето" if owned else "Купить"
-			button.disabled = owned
+			button.text = "Снять" if owned and enabled else "Надеть"
+			button.disabled = not owned
 
 
 func _on_purchase_updated(success: bool, _purchase_type: String, _item_id: int, _new_shards: int) -> void:
@@ -967,7 +969,7 @@ func _build_player_menu() -> void:
 		weapon_button.name = "WeaponInventoryButton%d" % weapon_id
 		weapon_button.custom_minimum_size = Vector2(0, 28)
 		weapon_button.add_theme_font_size_override("font_size", 11)
-		weapon_button.pressed.connect(_open_shard_shop)
+		weapon_button.pressed.connect(_on_inventory_weapon_pressed.bind(weapon_id))
 		weapon_content.add_child(weapon_button)
 		weapon_inventory_statuses[weapon_id] = weapon_status
 		weapon_inventory_buttons[weapon_id] = weapon_button
@@ -1025,9 +1027,19 @@ func _refresh_wing_inventory() -> void:
 		var is_equipped: bool = equipped == int(wing_id)
 		status.text = "Надето" if is_equipped else "Куплено"
 		status.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64) if is_equipped else GOLD)
-		button.text = "Снять" if is_equipped else "Одеть"
+		button.text = "Снять" if is_equipped else "Надеть"
 		button.disabled = false
 		card.add_theme_stylebox_override("panel", _wing_card_style(is_equipped))
+
+
+func _on_inventory_weapon_pressed(weapon_id: int) -> void:
+	if not weapon_id in MetaProgression.unlocked_weapons:
+		_open_shard_shop()
+		return
+	var weapon_character := "warrior" if weapon_id == 1 else "fairy"
+	MetaProgression.toggle_weapon(weapon_character)
+	_refresh_weapon_shop()
+	_refresh_player_menu()
 
 
 func _on_inventory_wing_pressed(wing_id: int) -> void:
