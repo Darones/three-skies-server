@@ -414,17 +414,19 @@ func _update_carrier_panel() -> void:
 	carrier_panel.visible = not bool(game.get("tutorial_mode"))
 	var base_z := 28.0 if int(carrier_hero.get("team")) == 0 else -28.0
 	var dist := Vector2(carrier_hero.global_position.x, carrier_hero.global_position.z - base_z).length()
-	carrier_bar.value = clampf(100.0 * (1.0 - dist / 70.0), 0.0, 100.0)
+	# 0% — момент подбора у алтаря, 100% — база
+	var max_dist := 28.0
+	carrier_bar.value = clampf(100.0 * (1.0 - dist / max_dist), 0.0, 100.0)
 	carrier_label.text = "%s несёт осколок" % String(carrier_hero.get("display_name"))
 
 
 func _build_kill_feed(root: Control) -> void:
 	kill_feed_box = VBoxContainer.new()
 	kill_feed_box.name = "KillFeed"
-	kill_feed_box.anchor_left = 0.70
-	kill_feed_box.anchor_right = 0.98
-	kill_feed_box.anchor_top = 0.20
-	kill_feed_box.anchor_bottom = 0.46
+	kill_feed_box.anchor_left = 0.02
+	kill_feed_box.anchor_right = 0.30
+	kill_feed_box.anchor_top = 0.175
+	kill_feed_box.anchor_bottom = 0.45
 	kill_feed_box.alignment = BoxContainer.ALIGNMENT_BEGIN
 	kill_feed_box.add_theme_constant_override("separation", 2)
 	kill_feed_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -436,7 +438,7 @@ func show_kill_feed(killer: String, victim: String) -> void:
 		return
 	var label := Label.new()
 	label.text = "%s  ⚔  %s" % [killer, victim]
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	label.add_theme_font_override("font", UI_FONT)
 	label.add_theme_font_size_override("font_size", 15)
 	label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.7))
