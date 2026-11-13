@@ -108,6 +108,7 @@ var wing_inventory_statuses: Dictionary = {}
 var wing_inventory_buttons: Dictionary = {}
 var weapon_inventory_statuses: Dictionary = {}
 var weapon_inventory_buttons: Dictionary = {}
+var weapon_inventory_cards: Dictionary = {}
 var nickname_display_label: Label
 var nickname_popup_overlay: ColorRect
 var nickname_popup_status_label: Label
@@ -358,14 +359,16 @@ func _build_player_profile() -> void:
 	info.add_child(profile_level_label)
 	experience_bar = ProgressBar.new()
 	experience_bar.name = "ExperienceBar"
-	experience_bar.custom_minimum_size = Vector2(0, 10)
+	experience_bar.custom_minimum_size = Vector2(0, 14)
 	experience_bar.min_value = 0
 	experience_bar.max_value = 1000
 	experience_bar.value = 0
 	experience_bar.show_percentage = false
 	var experience_bg := StyleBoxFlat.new()
 	experience_bg.bg_color = Color(0.08, 0.09, 0.13)
-	experience_bg.set_corner_radius_all(5)
+	experience_bg.set_corner_radius_all(6)
+	experience_bg.set_border_width_all(1)
+	experience_bg.border_color = Color(0.62, 0.72, 0.9, 0.85)
 	var experience_fill := StyleBoxFlat.new()
 	experience_fill.bg_color = Color(0.46, 0.74, 1.0)
 	experience_fill.set_corner_radius_all(5)
@@ -559,8 +562,8 @@ func _build_weapon_placeholder(grid: GridContainer, weapon_name: String, weapon_
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	placeholder_frame.add_child(icon)
 	content.add_child(_make_label(weapon_name, 18, PALE))
+	weapon_cards[weapon_id] = card
 	if weapon_id > 0:
-		content.add_child(_make_label("Легендарный меч", 12, Color(0.7, 0.76, 0.86)))
 		var weapon_price_row := HBoxContainer.new()
 		weapon_price_row.alignment = BoxContainer.ALIGNMENT_CENTER
 		weapon_price_row.add_theme_constant_override("separation", 4)
@@ -576,7 +579,7 @@ func _build_weapon_placeholder(grid: GridContainer, weapon_name: String, weapon_
 		weapon_buttons[weapon_id] = buy_button
 		weapon_cards[weapon_id] = card
 	else:
-		content.add_child(_make_label("Скоро в продаже", 12, Color(0.7, 0.76, 0.86)))
+		content.add_child(_make_label("Классовое оружие", 12, Color(0.7, 0.76, 0.86)))
 
 
 func _build_topup_panel() -> void:
@@ -669,6 +672,23 @@ func _on_weapon_button_pressed(weapon_id: int, price: int) -> void:
 
 
 func _refresh_weapon_shop() -> void:
+	# показываем только оружие текущего героя: воину меч, фее лук, магу посох
+	var allowed_weapons: Array[int] = []
+	match selected_class:
+		HeroUnit.Cls.WARRIOR:
+			allowed_weapons = [1]
+		HeroUnit.Cls.MAGE:
+			allowed_weapons = [0]
+		HeroUnit.Cls.FAIRY:
+			allowed_weapons = [2]
+	for weapon_id in weapon_cards.keys():
+		var shop_card := weapon_cards[weapon_id] as Control
+		if shop_card != null:
+			shop_card.visible = int(weapon_id) in allowed_weapons
+	for weapon_id in weapon_inventory_cards.keys():
+		var inventory_card := weapon_inventory_cards[weapon_id] as Control
+		if inventory_card != null:
+			inventory_card.visible = int(weapon_id) in allowed_weapons
 	for weapon_id in weapon_buttons.keys():
 		var button := weapon_buttons[weapon_id] as Button
 		var card := weapon_cards[weapon_id] as PanelContainer
@@ -823,13 +843,15 @@ func _build_player_menu() -> void:
 	profile_content.add_child(menu_level_label)
 	menu_xp_bar = ProgressBar.new()
 	menu_xp_bar.name = "PlayerMenuExperienceBar"
-	menu_xp_bar.custom_minimum_size = Vector2(0, 12)
+	menu_xp_bar.custom_minimum_size = Vector2(0, 16)
 	menu_xp_bar.min_value = 0
 	menu_xp_bar.max_value = 1000
 	menu_xp_bar.show_percentage = false
 	var xp_background := StyleBoxFlat.new()
 	xp_background.bg_color = Color(0.08, 0.09, 0.13)
-	xp_background.set_corner_radius_all(5)
+	xp_background.set_corner_radius_all(6)
+	xp_background.set_border_width_all(1)
+	xp_background.border_color = Color(0.62, 0.72, 0.9, 0.85)
 	var xp_fill := StyleBoxFlat.new()
 	xp_fill.bg_color = Color(0.46, 0.74, 1.0)
 	xp_fill.set_corner_radius_all(5)
@@ -973,6 +995,7 @@ func _build_player_menu() -> void:
 		weapon_content.add_child(weapon_button)
 		weapon_inventory_statuses[weapon_id] = weapon_status
 		weapon_inventory_buttons[weapon_id] = weapon_button
+		weapon_inventory_cards[weapon_id] = weapon_card
 	_build_wing_inventory_cards(inventory_grid)
 	_refresh_player_menu()
 
