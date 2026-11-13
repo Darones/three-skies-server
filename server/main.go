@@ -34,14 +34,15 @@ const maxMatchReward = 100000
 const nicknameChangeCost = 100
 
 var wingPrices = map[int]int{
-	1: 50,
-	2: 500,
-	3: 1500,
-	4: 3000,
+	1: 500,
+	2: 1500,
+	3: 3000,
+	4: 5000,
 }
 
 var weaponPrices = map[int]int{
-	1: 500,
+	1: 1500,
+	2: 1500,
 }
 
 var startedAt = time.Now()

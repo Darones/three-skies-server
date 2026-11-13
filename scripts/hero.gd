@@ -922,6 +922,9 @@ func _attach_class_weapon(holder: Node3D) -> void:
 	var weapon_rotation := Vector3.ZERO
 	match hero_class:
 		Cls.WARRIOR:
+			# меч теперь покупается в магазине, по умолчанию воин без оружия
+			if not (1 in MetaProgression.unlocked_weapons):
+				return
 			weapon_path = "res://addons/low_poly_rpg_items/props/longsword.tscn"
 			weapon_scale = 0.72
 			hand_offset = Vector3(0.06, 0.0, -0.12)
@@ -931,10 +934,16 @@ func _attach_class_weapon(holder: Node3D) -> void:
 			weapon_scale = 0.62
 			hand_offset = Vector3(0.04, 0.0, -0.1)
 		Cls.FAIRY:
-			weapon_path = "res://addons/low_poly_rpg_items/props/short_bow.tscn"
-			weapon_scale = 0.9
-			hand_offset = Vector3(-0.06, 0.0, -0.1)
-			weapon_rotation = Vector3(0.0, 0.0, 8.0)
+			if 2 in MetaProgression.unlocked_weapons:
+				weapon_path = "res://scenes/LegendaryBow.tscn"
+				weapon_scale = 0.82
+				hand_offset = Vector3(-0.06, 0.0, -0.1)
+				weapon_rotation = Vector3(0.0, 0.0, 8.0)
+			else:
+				weapon_path = "res://addons/low_poly_rpg_items/props/short_bow.tscn"
+				weapon_scale = 0.9
+				hand_offset = Vector3(-0.06, 0.0, -0.1)
+				weapon_rotation = Vector3(0.0, 0.0, 8.0)
 	var packed_weapon := load(weapon_path) as PackedScene
 	if packed_weapon == null:
 		return

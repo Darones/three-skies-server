@@ -59,6 +59,7 @@ const SHOP_WING_ICON: Texture2D = preload("res://assets/ui/generated_wing_shop_i
 const SHOP_STAFF_ICON: Texture2D = preload("res://ui/icons/weapon_staff.png")
 const SHOP_BOW_ICON: Texture2D = preload("res://ui/icons/weapon_bow.png")
 const SHOP_SWORD_ICON: Texture2D = preload("res://ui/icons/weapon_sword.png")
+const SHOP_LEGENDARY_BOW_ICON: Texture2D = preload("res://ui/icons/legendary_bow.png")
 
 var selected_class := 0
 var slot_classes: Array[int] = [HeroUnit.Cls.MAGE, HeroUnit.Cls.WARRIOR, HeroUnit.Cls.FAIRY]
@@ -458,10 +459,13 @@ func _build_shard_shop() -> void:
 	grid.add_theme_constant_override("h_separation", 12)
 	grid.add_theme_constant_override("v_separation", 10)
 	layout.add_child(grid)
-	_build_wing_card(grid, 1, "Белые крылья", "Ур. 1", 50)
+	_build_wing_card(grid, 1, "Белые крылья", "500", 500)
+	_build_wing_card(grid, 2, "Золотые крылья", "1 500", 1500, Color(1.0, 0.84, 0.45))
+	_build_wing_card(grid, 3, "Чёрные крылья", "3 000", 3000, Color(0.45, 0.42, 0.5))
+	_build_wing_card(grid, 4, "Демонические крылья", "5 000", 5000, Color(0.85, 0.42, 0.4))
 	_build_weapon_placeholder(grid, "Посох", 0, 0, SHOP_STAFF_ICON)
-	_build_weapon_placeholder(grid, "Лук", 0, 0, SHOP_BOW_ICON)
-	_build_weapon_placeholder(grid, "Меч", 1, 500, SHOP_SWORD_ICON)
+	_build_weapon_placeholder(grid, "Легендарный лук", 2, 1500, SHOP_LEGENDARY_BOW_ICON)
+	_build_weapon_placeholder(grid, "Меч", 1, 1500, SHOP_SWORD_ICON)
 
 	_build_topup_panel()
 
@@ -471,7 +475,7 @@ func _build_shard_shop() -> void:
 	add_child(info_dialog)
 
 
-func _build_wing_card(grid: GridContainer, wing_id: int, wing_name: String, level: String, price: int) -> void:
+func _build_wing_card(grid: GridContainer, wing_id: int, wing_name: String, level: String, price: int, tint: Color = Color.WHITE) -> void:
 	var card := PanelContainer.new()
 	card.name = "WingCard%d" % wing_id
 	card.custom_minimum_size = Vector2(0, 190)
@@ -488,6 +492,7 @@ func _build_wing_card(grid: GridContainer, wing_id: int, wing_name: String, leve
 	var preview := TextureRect.new()
 	preview.name = "WingIcon"
 	preview.texture = SHOP_WING_ICON
+	preview.modulate = tint
 	preview.custom_minimum_size = Vector2(84, 84)
 	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -616,7 +621,7 @@ func _on_wing_button_pressed(wing_id: int, price: int) -> void:
 func _refresh_wing_shop() -> void:
 	if shard_amount_label != null:
 		shard_amount_label.text = str(MetaProgression.sky_shards)
-	for wing_id in range(1, 2):
+	for wing_id in range(1, 5):
 		if not wing_buttons.has(wing_id) or wing_cards.size() < wing_id:
 			continue
 		var button := wing_buttons[wing_id] as Button

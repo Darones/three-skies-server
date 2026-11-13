@@ -206,7 +206,7 @@ func buy_wing(wing_id: int, cost: int) -> bool:
 
 
 func buy_weapon(weapon_id: int, cost: int) -> bool:
-	if weapon_id != 1 or cost <= 0 or weapon_id in unlocked_weapons:
+	if weapon_id < 1 or weapon_id > 2 or cost <= 0 or weapon_id in unlocked_weapons:
 		return false
 	if player_id <= 0 or not profile_loaded or pending_purchase_type != "":
 		return false
@@ -245,7 +245,7 @@ func _on_profile_loaded(success: bool, loaded_player_id: int, server_shards: int
 			unlocked_wings.append(parsed_wing_id)
 	for weapon_id in server_weapons:
 		var parsed_weapon_id := int(weapon_id)
-		if parsed_weapon_id == 1 and parsed_weapon_id not in unlocked_weapons:
+		if parsed_weapon_id >= 1 and parsed_weapon_id <= 2 and parsed_weapon_id not in unlocked_weapons:
 			unlocked_weapons.append(parsed_weapon_id)
 	var loadout_changed := false
 	for key in equipped_wings.keys():
