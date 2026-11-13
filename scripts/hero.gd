@@ -232,9 +232,14 @@ var wing_attachment_fallback := false
 var wing_sway_time := 0.0
 var anim_player: AnimationPlayer = null
 var current_anim := ""
-var weapon_attachment: BoneAttachment3D = null
+var weapon_attachment: Node3D = null
 var weapon_instance: Node3D = null
 var weapon_anim_player: AnimationPlayer = null
+var weapon_skeleton: Skeleton3D = null
+var weapon_bone_index: int = -1
+var weapon_base_scale := 1.0
+var weapon_rotation_offset := Vector3.ZERO
+var weapon_world_offset := Vector3.ZERO
 var combat_audio_players: Dictionary = {}
 var health_back: MeshInstance3D
 var health_fill: MeshInstance3D
@@ -498,7 +503,32 @@ func _find_wing_bone_index(skeleton: Skeleton3D) -> int:
 	return -1
 
 
+func _update_weapon_transform() -> void:
+	if weapon_instance == null or not is_instance_valid(weapon_instance):
+		return
+	if weapon_skeleton == null or not is_instance_valid(weapon_skeleton) or weapon_bone_index < 0:
+		return
+	var bone_world := weapon_skeleton.global_transform * weapon_skeleton.get_bone_global_pose(weapon_bone_index)
+	var skel_basis := weapon_skeleton.global_transform.basis
+	var up := Vector3.UP
+	var forward := -skel_basis.z
+	forward.y = 0.0
+	if forward.length_squared() < 0.0001:
+		forward = Vector3.FORWARD
+	forward = forward.normalized()
+	var right := forward.cross(up).normalized()
+	var basis := Basis(right, up, forward)
+	basis = basis * Basis.from_euler(Vector3(
+		deg_to_rad(weapon_rotation_offset.x),
+		deg_to_rad(weapon_rotation_offset.y),
+		deg_to_rad(weapon_rotation_offset.z)
+	))
+	basis = basis.scaled(Vector3.ONE * weapon_base_scale)
+	weapon_instance.global_transform = Transform3D(basis, bone_world.origin + weapon_world_offset)
+
+
 func _process(delta: float) -> void:
+	_update_weapon_transform()
 	if wing_attachment == null or not is_instance_valid(wing_attachment):
 		return
 	wing_sway_time += delta
@@ -995,23 +1025,24 @@ func _attach_class_weapon(holder: Node3D) -> void:
 	var packed_weapon := load(weapon_path) as PackedScene
 	if packed_weapon == null:
 		return
-	weapon_attachment = BoneAttachment3D.new()
-	weapon_attachment.name = "WeaponBoneAttachment"
-	weapon_attachment.bone_name = skeleton.get_bone_name(bone_index)
+	weapon_attachment = Node3D.new()
+	weapon_attachment.name = "WeaponAttachment"
 	skeleton.add_child(weapon_attachment)
-	var attachment_scale := maxf(absf(skeleton.global_transform.basis.get_scale().x), 0.001)
-	weapon_attachment.position = hand_offset / attachment_scale
+	weapon_skeleton = skeleton
+	weapon_bone_index = bone_index
+	weapon_base_scale = weapon_scale
+	weapon_rotation_offset = weapon_rotation
+	weapon_world_offset = hand_offset
 	weapon_instance = packed_weapon.instantiate() as Node3D
 	if weapon_instance == null:
 		weapon_attachment.queue_free()
 		weapon_attachment = null
 		return
 	weapon_instance.name = "EquippedWeapon"
-	weapon_instance.scale = Vector3.ONE * (weapon_scale / attachment_scale)
-	weapon_instance.rotation_degrees = weapon_rotation
 	weapon_instance.visible = true
 	_disable_weapon_collisions(weapon_instance)
 	weapon_attachment.add_child(weapon_instance)
+	_update_weapon_transform()
 	weapon_anim_player = _find_animation_player(weapon_instance)
 	_add_weapon_effects(weapon_instance)
 
