@@ -12,7 +12,7 @@ const GROUND_CRYSTAL_LIFETIME := 30.0
 const CRYSTAL_PICKUP_DELAY := 1.25
 const CRYSTAL_PICKUP_RADIUS := 3.2
 const CRYSTAL_DROP_SEARCH_RADII := [7.8, 9.0, 10.2, 11.4, 12.6]
-const TEST_STARTING_GOLD := 500
+const TEST_STARTING_GOLD := 0
 const ARENA_SAFE_HALF_X := 52.0
 const ARENA_SAFE_HALF_Z := 37.0
 const DEATH_CAM_HALF_X := 50.0
@@ -38,7 +38,12 @@ const SHOP_INTERACTION_RADIUS := 4.0
 const CRYSTAL_SCENE: PackedScene = preload("res://assets/models/detail-crystal.glb")
 const CRYSTAL_MODEL_SCALE := 2.7
 const CRYSTAL_EMISSION_COLOR := Color(0.16, 0.68, 1.0)
-const BOT_CALLSIGNS := ["ЛунныйЛис", "СеверныйВетер", "ТихийШторм", "Искра", "КаменныйПуть", "ЗвёздныйСлед", "СумрачныйКлинок", "БелыйВорон"]
+const BOT_CALLSIGNS := [
+	"Тёмный Лис", "Северный Ветер", "Тихий Шторм", "Искра", "Каменный Путь",
+	"Звёздный След", "Сумрачный Клинок", "Белый Ворон", "Летний Дождь",
+	"Холодный Рассвет", "Лунная Тень", "Стальной Волк", "Ветер Перемен",
+	"Пепел", "Огненный Лис", "Ночная Птица",
+]
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const CLOUD_WALL_SHADER: Shader = preload("res://shaders/cloud_wall.gdshader")
 const FOG_OF_WAR_SHADER_PATH := "res://shaders/fog_of_war.gdshader"
@@ -48,15 +53,15 @@ const GOLD_FOUNTAIN_SCENE: PackedScene = preload("res://assets/gold_fountain/3d_
 const TUTORIAL_CONTROLLER_SCRIPT: Script = preload("res://scripts/tutorial_controller.gd")
 const REMOTE_PLAYER_SCRIPT: Script = preload("res://scripts/remote_player.gd")
 const SHOP_ITEMS := [
-	{"id": "life_amulet", "name": "Амулет Жизни", "effect": "+150 Max HP", "price": 300, "icon": 10},
-	{"id": "revival_talisman", "name": "Талисман Возрождения", "effect": "+10 HP/сек реген", "price": 350, "icon": 2},
-	{"id": "titan_shell", "name": "Панцирь Титана", "effect": "−15% входящего урона", "price": 350, "icon": 12},
-	{"id": "power_glove", "name": "Перчатка Силы", "effect": "+25 к урону атаки", "price": 300, "icon": 0},
-	{"id": "vampire_fang", "name": "Клык Вампира", "effect": "15% вампиризма", "price": 350, "icon": 4},
-	{"id": "agility_mark", "name": "Знак Ловкости", "effect": "+20% скорости атаки", "price": 300, "icon": 15},
-	{"id": "wind_boots", "name": "Сапоги Ветра", "effect": "+15% скорости бега", "price": 250, "icon": 11},
-	{"id": "hourglass", "name": "Песочные Часы", "effect": "−15% КД скиллов", "price": 350, "icon": 6},
-	{"id": "cleansing_charm", "name": "Оберег Очищения", "effect": "−20% времени станов", "price": 300, "icon": 3},
+	{"id": "life_amulet", "name": "Амулет Жизни", "effect": "+150 Max HP", "price": 500, "icon": 10},
+	{"id": "revival_talisman", "name": "Талисман Возрождения", "effect": "+10 HP/сек реген", "price": 550, "icon": 2},
+	{"id": "titan_shell", "name": "Панцирь Титана", "effect": "−15% входящего урона", "price": 550, "icon": 12},
+	{"id": "power_glove", "name": "Перчатка Силы", "effect": "+25 к урону атаки", "price": 500, "icon": 0},
+	{"id": "vampire_fang", "name": "Клык Вампира", "effect": "15% вампиризма", "price": 550, "icon": 4},
+	{"id": "agility_mark", "name": "Знак Ловкости", "effect": "+20% скорости атаки", "price": 500, "icon": 15},
+	{"id": "wind_boots", "name": "Сапоги Ветра", "effect": "+15% скорости бега", "price": 450, "icon": 11},
+	{"id": "hourglass", "name": "Песочные Часы", "effect": "−15% КД скиллов", "price": 550, "icon": 6},
+	{"id": "cleansing_charm", "name": "Оберег Очищения", "effect": "−20% времени станов", "price": 500, "icon": 3},
 ]
 
 const SHOP_ITEM_TEXTURES := {

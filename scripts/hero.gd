@@ -1682,6 +1682,37 @@ func _ai_abilities() -> void:
 				use_ability(2, false)
 
 
+func _ai_pick_target() -> Node3D:
+	if game == null:
+		return null
+	# 1. враг с осколком — главная цель
+	var carrier_node = game.get("carrier")
+	if carrier_node != null and is_instance_valid(carrier_node) and bool(carrier_node.get("carrying")):
+		if int(carrier_node.get("team")) != team and global_position.distance_to(carrier_node.global_position) < 34.0:
+			return carrier_node
+	# 2. тяжело раненый враг рядом
+	var weakest: HeroUnit = null
+	var weakest_ratio := 1.0
+	for other in game.heroes:
+		if other == self or not is_instance_valid(other) or other.dead or other.team == team:
+			continue
+		if global_position.distance_to(other.global_position) > 24.0:
+			continue
+		var ratio := float(other.health) / maxf(float(other.max_health), 1.0)
+		if ratio < weakest_ratio:
+			weakest_ratio = ratio
+			weakest = other
+	if weakest != null and weakest_ratio < 0.45:
+		return weakest
+	# 3. ближайший
+	var local_enemy: HeroUnit = game.nearest_enemy(global_position, team, 30.0, self)
+	if local_enemy != null:
+		return local_enemy
+	if game.has_method("network_nearest_enemy"):
+		return game.call("network_nearest_enemy", global_position, team, 30.0)
+	return null
+
+
 func _ai_pick_goal() -> void:
 	if game == null:
 		ai_goal = Vector3.ZERO
@@ -1690,13 +1721,15 @@ func _ai_pick_goal() -> void:
 		ai_retreating = true
 	elif ai_retreating and health >= max_health * BOT_RETREAT_END_RATIO:
 		ai_retreating = false
-	var local_enemy: HeroUnit = game.nearest_enemy(global_position, team, 30.0, self)
-	var network_enemy: Node3D = null
-	if game.has_method("network_nearest_enemy"):
-		network_enemy = game.call("network_nearest_enemy", global_position, team, 30.0)
-	var target = local_enemy
-	if target == null and network_enemy != null:
-		target = network_enemy
+	# двое союзников мертвы — отходим к базе и собираемся
+	var dead_allies := 0
+	for ally in game.heroes:
+		if ally != self and is_instance_valid(ally) and ally.team == team and ally.dead:
+			dead_allies += 1
+	if dead_allies >= 2 and not carrying:
+		ai_goal = _base_position()
+		return
+	var target: Node3D = _ai_pick_target()
 	var previous_target = ai_attack_target
 	if previous_target != null and is_instance_valid(previous_target) and not previous_target.dead and previous_target.team != team:
 		var previous_distance := global_position.distance_to(previous_target.global_position)
