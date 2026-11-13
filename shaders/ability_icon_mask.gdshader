@@ -9,5 +9,6 @@ void fragment() {
 	if (d > 0.0) {
 		discard;
 	}
-	COLOR = texture(TEXTURE, uv);
+	// умножаем на modulate, иначе оттенок карточки (золото/чёрный) не применяется
+	COLOR = texture(TEXTURE, uv) * COLOR;
 }

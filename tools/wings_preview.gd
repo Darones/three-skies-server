@@ -1,8 +1,8 @@
-﻿extends Node3D
+extends Node3D
 
-# Р РµРЅРґРµСЂРёС‚ РІСЃРµ С‡РµС‚С‹СЂРµ РІР°СЂРёР°РЅС‚Р° РєСЂС‹Р»СЊРµРІ РЅР° Р¤РµРµ, СЂРѕРІРЅРѕ С‚РµРј Р¶Рµ СЃРїРѕСЃРѕР±РѕРј,
-# С‡С‚Рѕ Рё hero.gd: Spine02 -> BoneAttachment3D -> WingAttachment -> РјРѕРґРµР»СЊ.
-# Р¤Р°Р№Р» РІ tools/, РІ СЃР±РѕСЂРєСѓ РЅРµ РїРѕРїР°РґР°РµС‚.
+# Рендерит все четыре варианта крыльев на Фее, ровно тем же способом,
+# что и hero.gd: Spine02 -> BoneAttachment3D -> WingAttachment -> модель.
+# Файл в tools/, в сборку не попадает.
 
 const FAIRY := "res://art/generated/fairy/rig.glb"
 const WING_TINT_SHADER: Shader = preload("res://shaders/wing_tint.gdshader")

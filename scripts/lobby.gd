@@ -452,13 +452,19 @@ func _build_shard_shop() -> void:
 
 	layout.add_child(_make_label("Крылья и оружие", 16, PALE))
 
+	var scroll := ScrollContainer.new()
+	scroll.name = "ShopScroll"
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	layout.add_child(scroll)
+
 	var grid := GridContainer.new()
 	grid.name = "WingGrid"
 	grid.columns = 2
-	grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	grid.add_theme_constant_override("h_separation", 12)
 	grid.add_theme_constant_override("v_separation", 10)
-	layout.add_child(grid)
+	scroll.add_child(grid)
 	_build_wing_card(grid, 1, "Белые крылья", "500", 500)
 	_build_wing_card(grid, 2, "Золотые крылья", "1 500", 1500, Color(1.0, 0.84, 0.45))
 	_build_wing_card(grid, 3, "Чёрные крылья", "3 000", 3000, Color(0.45, 0.42, 0.5))
@@ -478,7 +484,7 @@ func _build_shard_shop() -> void:
 func _build_wing_card(grid: GridContainer, wing_id: int, wing_name: String, level: String, price: int, tint: Color = Color.WHITE) -> void:
 	var card := PanelContainer.new()
 	card.name = "WingCard%d" % wing_id
-	card.custom_minimum_size = Vector2(0, 190)
+	card.custom_minimum_size = Vector2(0, 158)
 	card.add_theme_stylebox_override("panel", _panel_style(Color(0.38, 0.46, 0.62, 0.8), Color(0.055, 0.07, 0.105, 0.98)))
 	grid.add_child(card)
 	wing_cards.append(card)
@@ -493,7 +499,7 @@ func _build_wing_card(grid: GridContainer, wing_id: int, wing_name: String, leve
 	preview.name = "WingIcon"
 	preview.texture = SHOP_WING_ICON
 	preview.modulate = tint
-	preview.custom_minimum_size = Vector2(84, 84)
+	preview.custom_minimum_size = Vector2(68, 68)
 	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -523,7 +529,7 @@ func _build_wing_card(grid: GridContainer, wing_id: int, wing_name: String, leve
 func _build_weapon_placeholder(grid: GridContainer, weapon_name: String, weapon_id: int = 0, price: int = 0, icon_texture: Texture2D = null) -> void:
 	var card := PanelContainer.new()
 	card.name = "WeaponPlaceholder%d" % grid.get_child_count()
-	card.custom_minimum_size = Vector2(0, 190)
+	card.custom_minimum_size = Vector2(0, 158)
 	card.add_theme_stylebox_override("panel", _panel_style(Color(0.38, 0.46, 0.62, 0.8), Color(0.055, 0.07, 0.105, 0.98)))
 	grid.add_child(card)
 	var content := VBoxContainer.new()
