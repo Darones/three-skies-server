@@ -296,6 +296,28 @@ func setup(p_game: Node, p_class: int, p_team: int, p_player: bool) -> void:
 	_update_health_display()
 
 
+const WING_MODEL_DEFAULT := {
+	"path": "res://assets/wings/angel_wings_animated.glb",
+	"scale": 1.0,
+	"position": Vector3.ZERO,
+	"rotation": Vector3(0.0, 18.0, 10.0),
+}
+
+
+func _wing_config(wing_id: int) -> Dictionary:
+	match wing_id:
+		4:
+			# демонические: модель пришла в сантиметрах и со сдвинутым origin
+			return {
+				"path": "res://assets/wings/low_poly_demon_wings_animated.glb",
+				"scale": 0.006,
+				"position": Vector3(0.0, -1.45, 0.0),
+				"rotation": Vector3(0.0, 0.0, 0.0),
+			}
+		_:
+			return WING_MODEL_DEFAULT
+
+
 func update_wings() -> void:
 	if not is_player or visual == null:
 		return
@@ -318,22 +340,31 @@ func update_wings() -> void:
 		wing_attachment.remove_child(old_wing)
 		old_wing.queue_free()
 
-	var wing_scene := load("res://assets/wings/realistic_detailed_wings_lowpoly.glb") as PackedScene
+	var config := _wing_config(wing_id)
+	var wing_scene := load(String(config["path"])) as PackedScene
 	if wing_scene == null:
-		push_warning("Unable to load realistic_detailed_wings_lowpoly.glb")
+		push_warning("Unable to load wing model: %s" % config["path"])
 		return
 	var wing_model := wing_scene.instantiate() as Node3D
 	if wing_model == null:
 		return
 	wing_model.name = "Wings3D"
 	wing_attachment.add_child(wing_model)
-	wing_model.scale = Vector3.ONE * 1.0
-	wing_model.position = Vector3(0, 0, 0)
-	wing_model.rotation_degrees = Vector3(0.0, 18.0, 10.0)
+	wing_model.scale = Vector3.ONE * float(config["scale"])
+	wing_model.position = config["position"]
+	wing_model.rotation_degrees = config["rotation"]
 	_set_wing_materials_double_sided(wing_model)
 	var wing_anim_player := _find_animation_player(wing_model)
 	if wing_anim_player != null:
-		wing_anim_player.stop()
+		var played := false
+		for animation_name in wing_anim_player.get_animation_list():
+			if String(animation_name).to_lower().contains("flap"):
+				wing_anim_player.play(animation_name)
+				played = true
+				break
+		if not played:
+			# резкую демоническую анимацию не играем — только покачивание
+			wing_anim_player.stop()
 	wing_sway_time = 0.0
 
 
