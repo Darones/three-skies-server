@@ -136,7 +136,9 @@ func on_shell_destroyed() -> void:
 
 
 func on_delivery() -> void:
-	if stage != "deliver_crystal":
+	# Доставка осколка всегда завершает обучение, на каком бы шаге игрок ни был:
+	# игрок может дойти до базы раньше, чем пройдёт фонтан и лавку.
+	if completed:
 		return
 	completed = true
 	stage = "complete"
