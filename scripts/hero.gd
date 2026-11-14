@@ -111,7 +111,7 @@ const CLASS_DATA := {
 		"abilities": [
 			{"name": "Теневой рывок", "cd": 8.0, "type": "shadow_assassin"},
 			{"name": "Жажда крови", "cd": 10.0, "type": "crit_buff"},
-			{"name": "Крик ужаса", "cd": 25.0, "type": "fear_ult"},
+			{"name": "Крик ужаса", "cd": 37.5, "type": "fear_ult"},
 		],
 	},
 	Cls.MAGE: {
@@ -127,7 +127,7 @@ const CLASS_DATA := {
 		"abilities": [
 			{"name": "Лозы", "cd": 10.0, "type": "root"},
 			{"name": "Исцеление", "cd": 8.0, "type": "heal"},
-			{"name": "Грозовой шквал", "cd": 28.0, "type": "ult_lightning_storm"},
+			{"name": "Грозовой шквал", "cd": 42.0, "type": "ult_lightning_storm"},
 		],
 	},
 	Cls.FAIRY: {
@@ -143,7 +143,7 @@ const CLASS_DATA := {
 		"abilities": [
 			{"name": "Оглушающий выстрел", "cd": 12.0, "type": "stun_shot"},
 			{"name": "100% Крит", "cd": 15.0, "type": "crit_shot"},
-			{"name": "Золотое благословение", "cd": 24.0, "type": "golden_blessing"},
+			{"name": "Золотое благословение", "cd": 36.0, "type": "golden_blessing"},
 		],
 	},
 }
@@ -156,12 +156,12 @@ const GEAR_NAMES := [
 ]
 const GEAR_DEFAULT := {
 	Cls.WARRIOR: ["1H_Sword", "Spike_Shield"],
-	Cls.MAGE: ["2H_Staff", "Spellbook"],
+	Cls.MAGE: ["1H_Wand"],
 	Cls.FAIRY: ["1H_Crossbow"],
 }
 const GEAR_VARIANT := {
 	Cls.WARRIOR: ["2H_Sword"],
-	Cls.MAGE: ["1H_Wand", "Spellbook"],
+	Cls.MAGE: ["2H_Staff"],
 	Cls.FAIRY: ["2H_Crossbow"],
 }
 const GEAR_VARIANT_IDS := {
@@ -1323,7 +1323,12 @@ func _physics_process(delta: float) -> void:
 	bush_reveal_timer = maxf(0.0, bush_reveal_timer - delta)
 	_refresh_bush_visibility()
 	if seconds_since_damage >= 5.0 and health < max_health:
-		var regen_multiplier := 2.0 if (_is_bush_stealthed() or _is_at_own_base()) else 1.0
+		var regen_multiplier := 1.0
+		if _is_at_own_base():
+			# База лечит в 3 раза быстрее, чем раньше (было 2x, стало 6x)
+			regen_multiplier = 6.0
+		elif _is_bush_stealthed():
+			regen_multiplier = 2.0
 		if blessing_timer > 0.0:
 			regen_multiplier *= 2.0
 		health = minf(max_health, health + (HEALTH_REGEN_PER_SECOND + bonus_regen_per_second) * regen_multiplier * delta)

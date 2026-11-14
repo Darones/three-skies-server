@@ -43,10 +43,12 @@ func configure(game_instance: Node) -> void:
 	anchor_top = 1.0
 	anchor_right = 0.5
 	anchor_bottom = 1.0
-	offset_left = -66.0
-	offset_top = -144.0
-	offset_right = 66.0
-	offset_bottom = -12.0
+	# Карта в 1.5 раза больше: масштабируем весь Control, включая маркеры.
+	scale = Vector2(1.5, 1.5)
+	offset_left = -99.0
+	offset_top = -216.0
+	offset_right = 33.0
+	offset_bottom = -84.0
 
 
 func _process(delta: float) -> void:

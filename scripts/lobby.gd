@@ -76,7 +76,7 @@ const SHOP_WING_ITEMS := [
 const SHOP_HERO_WEAPON := {
 	"fairy": {"id": 2, "name": "Тяжёлый арбалет", "price": 1500, "icon": SHOP_2H_CROSSBOW_ICON},
 	"warrior": {"id": 1, "name": "Двуручный меч", "price": 1500, "icon": SHOP_2H_SWORD_ICON},
-	"mage": {"id": 3, "name": "Боевой жезл", "price": 1500, "icon": SHOP_WAND_ICON},
+	"mage": {"id": 3, "name": "Посох волшебника", "price": 1500, "icon": GEAR_STAFF_ICON},
 }
 
 var selected_class := 0
@@ -970,7 +970,7 @@ func _refresh_weapon_shop() -> void:
 	var legendary_active: bool = legendary_owned and MetaProgression.is_weapon_enabled(hero_key)
 	var default_active := not legendary_active
 	if default_weapon_icon != null:
-		default_weapon_icon.texture = [GEAR_1H_SWORD_ICON, GEAR_STAFF_ICON, GEAR_1H_CROSSBOW_ICON][selected_class]
+		default_weapon_icon.texture = [GEAR_1H_SWORD_ICON, SHOP_WAND_ICON, GEAR_1H_CROSSBOW_ICON][selected_class]
 	if default_weapon_status != null:
 		default_weapon_status.text = "Надето" if default_active else "Стандартное"
 		default_weapon_status.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64) if default_active else Color(0.62, 0.65, 0.72))
@@ -1270,7 +1270,7 @@ func _build_player_menu() -> void:
 	var weapon_specs := [
 		{"id": 1, "name": "Двуручный меч", "icon": SHOP_2H_SWORD_ICON},
 		{"id": 2, "name": "Тяжёлый арбалет", "icon": SHOP_2H_CROSSBOW_ICON},
-		{"id": 3, "name": "Боевой жезл", "icon": SHOP_WAND_ICON},
+		{"id": 3, "name": "Посох волшебника", "icon": GEAR_STAFF_ICON},
 	]
 	for spec in weapon_specs:
 		var weapon_id: int = spec["id"]
@@ -2082,24 +2082,24 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 	card.anchor_top = 0.5
 	card.anchor_right = 0.5
 	card.anchor_bottom = 0.5
-	var card_width := 330.0 if is_center else 210.0
-	var card_height := 502.0 if is_center else 333.0
-	var footer_height := 52.0 if is_center else 44.0
+	var card_width := 260.0 if is_center else 160.0
+	var card_height := 400.0 if is_center else 260.0
+	var footer_height := 46.0 if is_center else 38.0
 	var frame_color: Color = CLASS_FRAME_COLORS.get(slot_classes[slot], GOLD)
 	card.custom_minimum_size = Vector2(card_width, card_height)
 	if is_center:
-		card.offset_left = -165.0
-		card.offset_top = -165.0
-		card.offset_right = 165.0
-		card.offset_bottom = 337.0
+		card.offset_left = -130.0
+		card.offset_top = -140.0
+		card.offset_right = 130.0
+		card.offset_bottom = 260.0
 		card.z_index = 2
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	else:
-		var side_offset := -392.0 if slot == 0 else 182.0
+		var side_offset := -310.0 if slot == 0 else 150.0
 		card.offset_left = side_offset
-		card.offset_top = -160.0
-		card.offset_right = side_offset + 210.0
-		card.offset_bottom = 173.0
+		card.offset_top = -135.0
+		card.offset_right = side_offset + 160.0
+		card.offset_bottom = 125.0
 		card.z_index = 1
 	card.add_theme_stylebox_override("normal", _card_style(is_center, false, frame_color))
 	card.add_theme_stylebox_override("hover", _card_style(is_center, not is_center, frame_color))
@@ -2137,7 +2137,7 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 	footer.add_theme_stylebox_override("panel", _card_footer_style(frame_color))
 	card.add_child(footer)
 
-	var name_label := _make_label("", 23 if is_center else 17, PALE)
+	var name_label := _make_label("", 20 if is_center else 15, PALE)
 	name_label.name = "HeroName%d" % slot
 	name_label.anchor_left = 0.0
 	name_label.anchor_top = 0.0
