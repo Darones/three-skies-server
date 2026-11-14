@@ -787,15 +787,15 @@ async function saveMarks() {
   }
 }
 
-canvas.addEventListener('pointerdown', (event) => {
-  if (!brushOn || event.button !== 0) return;
+window.addEventListener('pointerdown', (event) => {
+  if (!brushOn || event.button !== 0 || event.target !== canvas) return;
   painting = true;
   paintAt(event);
-});
-canvas.addEventListener('pointermove', (event) => {
-  if (painting) paintAt(event);
-});
-window.addEventListener('pointerup', () => { painting = false; });
+}, true);
+window.addEventListener('pointermove', (event) => {
+  if (painting && event.target === canvas) paintAt(event);
+}, true);
+window.addEventListener('pointerup', () => { painting = false; }, true);
 brushOnInput.addEventListener('change', () => {
   brushOn = brushOnInput.checked;
   controls.enabled = !brushOn;
