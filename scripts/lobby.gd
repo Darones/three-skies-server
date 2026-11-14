@@ -59,6 +59,8 @@ const SHOP_WING_ICON: Texture2D = preload("res://assets/ui/generated_wing_shop_i
 const SHOP_STAFF_ICON: Texture2D = preload("res://ui/icons/weapon_staff.png")
 const SHOP_BOW_ICON: Texture2D = preload("res://ui/icons/weapon_bow.png")
 const SHOP_SWORD_ICON: Texture2D = preload("res://ui/icons/weapon_sword.png")
+const SHOP_GREATSWORD_ICON: Texture2D = preload("res://ui/icons/legendary_greatsword.png")
+const SHOP_LEGENDARY_STAFF_ICON: Texture2D = preload("res://ui/icons/legendary_staff.png")
 const SHOP_LEGENDARY_BOW_ICON: Texture2D = preload("res://ui/icons/legendary_bow.png")
 const SHOP_HERO_TABS := [
 	{"key": "fairy", "class": 2, "name": "Фея", "portrait": "res://ui/portraits/fairy_portrait.png"},
@@ -73,7 +75,8 @@ const SHOP_WING_ITEMS := [
 ]
 const SHOP_HERO_WEAPON := {
 	"fairy": {"id": 2, "name": "Легендарный лук", "price": 1500, "icon": SHOP_LEGENDARY_BOW_ICON},
-	"warrior": {"id": 1, "name": "Меч", "price": 1500, "icon": SHOP_SWORD_ICON},
+	"warrior": {"id": 1, "name": "Легендарный меч", "price": 1500, "icon": SHOP_GREATSWORD_ICON},
+	"mage": {"id": 3, "name": "Легендарный посох", "price": 1500, "icon": SHOP_LEGENDARY_STAFF_ICON},
 }
 
 var selected_class := 0
@@ -828,7 +831,7 @@ func _refresh_weapon_shop() -> void:
 		HeroUnit.Cls.WARRIOR:
 			allowed_weapons = [1]
 		HeroUnit.Cls.MAGE:
-			allowed_weapons = [0]
+			allowed_weapons = [3]
 		HeroUnit.Cls.FAIRY:
 			allowed_weapons = [2]
 	for weapon_id in weapon_cards.keys():
@@ -1117,8 +1120,9 @@ func _build_player_menu() -> void:
 	inventory_grid.add_theme_constant_override("v_separation", 8)
 	wardrobe_content.add_child(inventory_grid)
 	var weapon_specs := [
-		{"id": 1, "name": "Легендарный меч", "icon": SHOP_SWORD_ICON},
+		{"id": 1, "name": "Легендарный меч", "icon": SHOP_GREATSWORD_ICON},
 		{"id": 2, "name": "Легендарный лук", "icon": SHOP_LEGENDARY_BOW_ICON},
+		{"id": 3, "name": "Легендарный посох", "icon": SHOP_LEGENDARY_STAFF_ICON},
 	]
 	for spec in weapon_specs:
 		var weapon_id: int = spec["id"]

@@ -100,6 +100,8 @@
     <option value="staff">Посох</option>
     <option value="legendary_bow">Легендарный лук</option>
     <option value="short_bow">Короткий лук</option>
+    <option value="greatsword">Легендарный меч</option>
+    <option value="wizard_staff">Легендарный посох</option>
   </select></label>
   <label>Скорость<input id="speed" type="range" min="0.2" max="1.6" step="0.05" value="1"></label>
   <button id="pause">Пауза</button>
@@ -194,6 +196,8 @@ const DEFAULT_WEAPONS = {
   staff: { path:'/addons/low_poly_rpg_items/models/staff_wizard_model.glb', bone:'RightHand', pos:[0.04,0,-0.1], rot:[0,0,0], scale:0.62 },
   legendary_bow: { path:'/assets/models/legendary_bow/Elven_Recurve_Bow_legendary.glb', bone:'LeftHand', pos:[-0.06,0,-0.1], rot:[0,0,8], scale:0.82 },
   short_bow: { path:'/addons/low_poly_rpg_items/models/short_bow_model.glb', bone:'LeftHand', pos:[-0.06,0,-0.1], rot:[0,0,8], scale:0.9 },
+  greatsword: { path:'/assets/weapons/crystal_greatsword_low.glb', bone:'RightHand', pos:[0.4,0,0.4], rot:[0,0,0], scale:1.0 },
+  wizard_staff: { path:'/assets/weapons/wizards_staff_low.glb', bone:'RightHand', pos:[0,0,0.5], rot:[0,0,0], scale:1.0 },
 };
 
 const CLIP_ORDER = ['Idle','Run','Walk','Attack','Charged Spell Cast','Dead'];

@@ -43,6 +43,7 @@ var wingPrices = map[int]int{
 var weaponPrices = map[int]int{
 	1: 1500,
 	2: 1500,
+	3: 1500,
 }
 
 var startedAt = time.Now()

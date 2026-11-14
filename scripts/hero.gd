@@ -1027,17 +1027,23 @@ func _attach_class_weapon(holder: Node3D) -> void:
 	var weapon_rotation := Vector3.ZERO
 	match hero_class:
 		Cls.WARRIOR:
-			# меч теперь покупается в магазине, по умолчанию воин без оружия
+			# легендарный кристальный меч покупается в магазине
 			if not (1 in MetaProgression.unlocked_weapons) or not MetaProgression.is_weapon_enabled("warrior"):
 				return
-			weapon_path = "res://addons/low_poly_rpg_items/props/longsword.tscn"
-			weapon_scale = 0.72
-			hand_offset = Vector3(0.06, 0.0, -0.12)
-			weapon_rotation = Vector3(0.0, 0.0, -12.0)
+			weapon_path = "res://assets/weapons/crystal_greatsword_low.glb"
+			weapon_scale = 1.0
+			hand_offset = Vector3(0.4, 0.0, 0.4)
+			weapon_rotation = Vector3(0.0, 0.0, 0.0)
 		Cls.MAGE:
-			weapon_path = "res://addons/low_poly_rpg_items/props/staff_wizard.tscn"
-			weapon_scale = 0.62
-			hand_offset = Vector3(0.04, 0.0, -0.1)
+			if 3 in MetaProgression.unlocked_weapons and MetaProgression.is_weapon_enabled("mage"):
+				weapon_path = "res://assets/weapons/wizards_staff_low.glb"
+				weapon_scale = 1.0
+				hand_offset = Vector3(0.0, 0.0, 0.5)
+				weapon_rotation = Vector3.ZERO
+			else:
+				weapon_path = "res://addons/low_poly_rpg_items/props/staff_wizard.tscn"
+				weapon_scale = 0.62
+				hand_offset = Vector3(0.04, 0.0, -0.1)
 		Cls.FAIRY:
 			if 2 in MetaProgression.unlocked_weapons and MetaProgression.is_weapon_enabled("fairy"):
 				weapon_path = "res://scenes/LegendaryBow.tscn"
