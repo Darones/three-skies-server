@@ -377,6 +377,10 @@ function loadHero(key) {
       return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
     });
     mixer = new THREE.AnimationMixer(hero);
+    const stopOption = document.createElement('option');
+    stopOption.value = '__stop';
+    stopOption.textContent = 'Стоп (заморозить позу)';
+    animSelect.appendChild(stopOption);
     for (const clip of clips) {
       const option = document.createElement('option');
       option.value = clip.name;
@@ -398,7 +402,15 @@ function loadHero(key) {
 }
 
 function playClip(name) {
+  if (name === '__stop') {
+    if (mixer) mixer.stopAllAction();
+    paused = true;
+    pauseButton.textContent = 'Продолжить';
+    return;
+  }
   if (!mixer) return;
+  paused = false;
+  pauseButton.textContent = 'Пауза';
   mixer.stopAllAction();
   const clip = clips.find((c) => c.name === name);
   if (!clip) return;
@@ -696,7 +708,14 @@ brushOnInput.addEventListener('change', () => {
   brushOn = brushOnInput.checked;
   controls.enabled = !brushOn;
   canvas.style.cursor = brushOn ? 'crosshair' : 'default';
-  setMarksStatus(brushOn ? 'Кисть включена: крась лук' : '');
+  if (brushOn) {
+    paused = true;
+    pauseButton.textContent = 'Продолжить';
+    animSelect.value = '__stop';
+    setMarksStatus('Кисть включена: анимация остановлена, крась лук');
+  } else {
+    setMarksStatus('');
+  }
 });
 brushSizeInput.addEventListener('input', () => {
   brushRadius = Number(brushSizeInput.value);
