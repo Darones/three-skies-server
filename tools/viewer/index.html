@@ -633,6 +633,36 @@ function raycastHero(raycaster) {
   return { localPoint: best.clone(), faceIndex: bestTri };
 }
 
+function screenSpaceHit(event) {
+  if (!heroMesh) return null;
+  const rect = canvas.getBoundingClientRect();
+  const mouseX = event.clientX - rect.left;
+  const mouseY = event.clientY - rect.top;
+  const geometry = heroMesh.geometry;
+  const positions = geometry.attributes.position;
+  const local = new THREE.Vector3();
+  const world = new THREE.Vector3();
+  const projected = new THREE.Vector3();
+  let bestDistance = 60.0;
+  let bestLocal = null;
+  for (let i = 0; i < positions.count; i++) {
+    local.fromBufferAttribute(positions, i);
+    heroMesh.applyBoneTransform(i, local);
+    world.copy(local).applyMatrix4(heroMesh.matrixWorld);
+    projected.copy(world).project(camera);
+    if (projected.z > 1.0) continue;
+    const screenX = (projected.x * 0.5 + 0.5) * rect.width;
+    const screenY = (-projected.y * 0.5 + 0.5) * rect.height;
+    const distance = Math.hypot(screenX - mouseX, screenY - mouseY);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestLocal = local.clone();
+    }
+  }
+  if (!bestLocal) return null;
+  return { localPoint: bestLocal, faceIndex: -1 };
+}
+
 function paintAt(event) {
   if (!brushOn || !heroMesh) return;
   const now = performance.now();
@@ -644,7 +674,7 @@ function paintAt(event) {
     -((event.clientY - rect.top) / rect.height) * 2 + 1
   );
   raycaster.setFromCamera(ndc, camera);
-  const hit = raycastHero(raycaster);
+  const hit = raycastHero(raycaster) || screenSpaceHit(event);
   if (!hit) {
     setMarksStatus('Кисть: мимо модели');
     return;
