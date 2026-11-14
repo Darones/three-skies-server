@@ -238,6 +238,7 @@ var wing_model: Node3D = null
 var wing_model_scale := 1.0
 var wing_rotation_offset := Vector3.ZERO
 var wing_world_offset := Vector3.ZERO
+var model_fit_scale := 1.0
 var anim_player: AnimationPlayer = null
 var current_anim := ""
 var weapon_attachment: Node3D = null
@@ -327,7 +328,22 @@ const WING_MODEL_DEFAULT := {
 
 const WING_TUNING := {
 	"warrior": {
-		1: {"position": Vector3(0.0, 0.16, -0.1), "rotation": Vector3(-1.7, 0.0, 0.0)},
+		1: {"position": Vector3(0.0, 0.25, -0.15), "rotation": Vector3(-1.7, 0.0, 0.0), "scale": 1.0},
+		2: {"position": Vector3(0.0, 0.25, -0.15), "rotation": Vector3(-1.7, 0.0, 0.0), "scale": 1.0},
+		3: {"position": Vector3(0.0, 0.25, -0.15), "rotation": Vector3(-1.7, 0.0, 0.0), "scale": 1.0},
+		4: {"position": Vector3(0.0, -0.68, -0.46), "rotation": Vector3(0.0, 0.0, 0.0), "scale": 0.006},
+	},
+	"mage": {
+		1: {"position": Vector3(0.0, 0.25, -0.15), "rotation": Vector3(-1.7, 0.0, 0.0), "scale": 1.0},
+		2: {"position": Vector3(0.0, 0.25, -0.15), "rotation": Vector3(-1.7, 0.0, 0.0), "scale": 1.0},
+		3: {"position": Vector3(0.0, 0.25, -0.15), "rotation": Vector3(-1.7, 0.0, 0.0), "scale": 1.0},
+		4: {"position": Vector3(0.0, -0.77, -0.49), "rotation": Vector3(0.0, 0.0, 0.0), "scale": 0.006},
+	},
+	"fairy": {
+		1: {"position": Vector3(0.0, 0.25, -0.07), "rotation": Vector3(-1.7, 0.0, 0.0), "scale": 1.0},
+		2: {"position": Vector3(0.0, 0.25, -0.07), "rotation": Vector3(-1.7, 0.0, 0.0), "scale": 1.0},
+		3: {"position": Vector3(0.0, 0.25, -0.07), "rotation": Vector3(-1.7, 0.0, 0.0), "scale": 1.0},
+		4: {"position": Vector3(0.0, -0.75, -0.15), "rotation": Vector3(16.98, 0.0, 0.0), "scale": 0.006},
 	},
 }
 
@@ -337,8 +353,11 @@ func _wing_config(wing_id: int) -> Dictionary:
 	var hero_key: String = ["warrior", "mage", "fairy"][hero_class]
 	if WING_TUNING.has(hero_key) and WING_TUNING[hero_key].has(wing_id):
 		var tuning: Dictionary = WING_TUNING[hero_key][wing_id]
-		config["position"] = tuning["position"]
+		# в тунере позиция задаётся от кости целиком; ниже в игре ещё добавляется -0.12
+		config["position"] = tuning["position"] - Vector3(0.0, 0.0, -0.12)
 		config["rotation"] = tuning["rotation"]
+		if tuning.has("scale"):
+			config["scale"] = tuning["scale"]
 	return config
 
 
@@ -541,15 +560,22 @@ func _update_wing_transform() -> void:
 	if wing_skeleton == null or not is_instance_valid(wing_skeleton) or wing_bone_index < 0:
 		return
 	var bone_world := wing_skeleton.global_transform * wing_skeleton.get_bone_global_pose(wing_bone_index)
-	# жёстко к кости спины: крылья повторяют наклон корпуса, а не только поворот
-	var base := bone_world.basis.orthonormalized()
-	var basis := base * Basis.from_euler(Vector3(
+	# та же формула, что в WingTuner: мировые оси + сохранённые смещение/поворот/масштаб
+	var skel_basis := wing_skeleton.global_transform.basis
+	var forward := -skel_basis.z
+	forward.y = 0.0
+	if forward.length_squared() < 0.0001:
+		forward = Vector3.FORWARD
+	forward = forward.normalized()
+	var right := forward.cross(Vector3.UP).normalized()
+	var basis := Basis(right, Vector3.UP, forward)
+	basis = basis * Basis.from_euler(Vector3(
 		deg_to_rad(wing_rotation_offset.x),
 		deg_to_rad(wing_rotation_offset.y),
 		deg_to_rad(wing_rotation_offset.z)
 	))
-	basis = basis.scaled(Vector3.ONE * wing_model_scale)
-	wing_model.global_transform = Transform3D(basis, bone_world.origin + wing_world_offset)
+	basis = basis.scaled(Vector3.ONE * wing_model_scale * model_fit_scale)
+	wing_model.global_transform = Transform3D(basis, bone_world.origin + wing_world_offset * model_fit_scale)
 
 
 func _update_weapon_transform() -> void:
@@ -996,6 +1022,7 @@ func _fit_model(holder: Node3D) -> void:
 	var factor := target / aabb.size.y
 	holder.scale = Vector3.ONE * factor
 	holder.position.y = -aabb.position.y * factor
+	model_fit_scale = factor
 
 
 func _node_aabb(node: Node) -> AABB:
