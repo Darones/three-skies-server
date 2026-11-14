@@ -592,10 +592,51 @@ function setMarksStatus(text, kind = '') {
   marksStatus.className = 'tune-status' + (kind ? ' ' + kind : '');
 }
 
+function raycastHero(raycaster) {
+  if (!heroMesh) return null;
+  const mesh = heroMesh;
+  mesh.updateWorldMatrix(true, false);
+  const inverse = new THREE.Matrix4().copy(mesh.matrixWorld).invert();
+  const localRay = raycaster.ray.clone().applyMatrix4(inverse);
+  const geometry = mesh.geometry;
+  const positions = geometry.attributes.position;
+  const index = geometry.index;
+  const triCount = index ? index.count / 3 : positions.count / 3;
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const point = new THREE.Vector3();
+  const best = new THREE.Vector3();
+  let bestDistance = Infinity;
+  let bestTri = -1;
+  for (let tri = 0; tri < triCount; tri++) {
+    const i0 = index ? index.getX(tri * 3) : tri * 3;
+    const i1 = index ? index.getX(tri * 3 + 1) : tri * 3 + 1;
+    const i2 = index ? index.getX(tri * 3 + 2) : tri * 3 + 2;
+    a.fromBufferAttribute(positions, i0);
+    b.fromBufferAttribute(positions, i1);
+    c.fromBufferAttribute(positions, i2);
+    mesh.applyBoneTransform(i0, a);
+    mesh.applyBoneTransform(i1, b);
+    mesh.applyBoneTransform(i2, c);
+    const hit = localRay.intersectTriangle(a, b, c, false, point);
+    if (hit) {
+      const distance = point.distanceTo(localRay.origin);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestTri = tri;
+        best.copy(point);
+      }
+    }
+  }
+  if (bestTri < 0) return null;
+  return { localPoint: best.clone(), faceIndex: bestTri };
+}
+
 function paintAt(event) {
   if (!brushOn || !heroMesh) return;
   const now = performance.now();
-  if (now - lastPaintAt < 25) return;
+  if (now - lastPaintAt < 40) return;
   lastPaintAt = now;
   const rect = canvas.getBoundingClientRect();
   const ndc = new THREE.Vector2(
@@ -603,26 +644,16 @@ function paintAt(event) {
     -((event.clientY - rect.top) / rect.height) * 2 + 1
   );
   raycaster.setFromCamera(ndc, camera);
-  const hits = raycaster.intersectObject(hero, true);
-  if (!hits.length) {
+  const hit = raycastHero(raycaster);
+  if (!hit) {
     setMarksStatus('Кисть: мимо модели');
     return;
   }
-  const hitMesh = hits[0].object;
-  if (!hitMesh.isMesh) {
-    setMarksStatus('Кисть: мимо модели');
-    return;
-  }
-  if (hitMesh !== heroMesh) {
-    heroMesh = hitMesh;
-    marked.clear();
-    ensureMarkOverlay();
-  }
-  const localHit = hitMesh.worldToLocal(hits[0].point.clone());
+  const localHit = hit.localPoint;
   const worldScale = new THREE.Vector3();
-  hitMesh.getWorldScale(worldScale);
+  heroMesh.getWorldScale(worldScale);
   const localRadius = brushRadius / Math.max(worldScale.x, 0.0001);
-  const geometry = hitMesh.geometry;
+  const geometry = heroMesh.geometry;
   const positions = geometry.attributes.position;
   const index = geometry.index;
   const triCount = index ? index.count / 3 : positions.count / 3;
