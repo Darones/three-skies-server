@@ -138,8 +138,11 @@
   <div class="row"><span>Радиус</span><input type="range" id="brushSize" min="0.02" max="0.3" step="0.01" value="0.08"><input type="number" id="brushSizen" step="0.01" value="0.08"></div>
   <div class="marks-count" id="marksCount">Отмечено: 0 треугольников</div>
   <div class="tune-actions">
-    <button id="saveMarks" class="primary">Сохранить метки</button>
+    <button id="undoMarks">Отменить</button>
     <button id="clearMarks">Очистить</button>
+  </div>
+  <div class="tune-actions">
+    <button id="saveMarks" class="primary">Сохранить метки</button>
   </div>
   <button id="testMarks" style="width:100%;margin-top:6px;">Тест: покрасить всё</button>
   <div class="tune-status" id="marksStatus"></div>
@@ -299,6 +302,7 @@ let brushRadius = 0.08;
 let painting = false;
 let lastPaintAt = 0;
 const marked = new Set();
+const undoStack = [];
 const raycaster = new THREE.Raycaster();
 const marksCount = document.getElementById('marksCount');
 const marksStatus = document.getElementById('marksStatus');
@@ -585,8 +589,20 @@ function updateMarkOverlay() {
 
 function clearMarks() {
   marked.clear();
+  undoStack.length = 0;
   updateMarkOverlay();
   setMarksStatus('Метки очищены');
+}
+
+function undoMarks() {
+  const stroke = undoStack.pop();
+  if (!stroke || !stroke.length) {
+    setMarksStatus('Нечего отменять');
+    return;
+  }
+  for (const tri of stroke) marked.delete(tri);
+  updateMarkOverlay();
+  setMarksStatus('Отменено: ' + stroke.length + ' треугольников');
 }
 
 function setMarksStatus(text, kind = '') {
@@ -684,7 +700,7 @@ function seedPoint(hit) {
   return seed;
 }
 
-function screenBrush(event) {
+function screenBrush(event, stroke) {
   if (!heroMesh) return 0;
   const rect = canvas.getBoundingClientRect();
   const mouseX = event.clientX - rect.left;
@@ -723,6 +739,7 @@ function screenBrush(event) {
     const centroidY = sumY / 3.0;
     if (Math.hypot(centroidX - mouseX, centroidY - mouseY) <= pixelRadius) {
       marked.add(tri);
+      stroke.push(tri);
       added += 1;
     }
   }
@@ -753,8 +770,10 @@ function paintAt(event) {
     if (screen) hit = { faceIndex: -1, vertexIndex: screen.vertexIndex };
   }
   if (!hit) {
-    const added = screenBrush(event);
+    const stroke = [];
+    const added = screenBrush(event, stroke);
     if (added > 0) {
+      if (stroke.length) undoStack.push(stroke);
       setMarksStatus('Отмечено: ' + marked.size);
       return;
     }
@@ -773,6 +792,7 @@ function paintAt(event) {
   const b = new THREE.Vector3();
   const c = new THREE.Vector3();
   const centroid = new THREE.Vector3();
+  const stroke = [];
   let added = false;
   for (let tri = 0; tri < triCount; tri++) {
     if (marked.has(tri)) continue;
@@ -785,10 +805,12 @@ function paintAt(event) {
     centroid.copy(a).add(b).add(c).multiplyScalar(1 / 3);
     if (centroid.distanceTo(localHit) <= localRadius) {
       marked.add(tri);
+      stroke.push(tri);
       added = true;
     }
   }
   if (added) {
+    if (stroke.length) undoStack.push(stroke);
     updateMarkOverlay();
     setMarksStatus('Отмечено: ' + marked.size);
   }
@@ -869,6 +891,7 @@ brushSizeNumber.addEventListener('input', () => {
   brushSizeInput.value = brushRadius;
 });
 document.getElementById('clearMarks').addEventListener('click', clearMarks);
+document.getElementById('undoMarks').addEventListener('click', undoMarks);
 document.getElementById('saveMarks').addEventListener('click', saveMarks);
 document.getElementById('testMarks').addEventListener('click', () => {
   if (!heroMesh) {
@@ -877,9 +900,21 @@ document.getElementById('testMarks').addEventListener('click', () => {
   }
   const index = heroMesh.geometry.index;
   const count = index ? index.count / 3 : heroMesh.geometry.attributes.position.count / 3;
-  for (let tri = 0; tri < count; tri++) marked.add(tri);
+  const stroke = [];
+  for (let tri = 0; tri < count; tri++) {
+    marked.add(tri);
+    stroke.push(tri);
+  }
+  undoStack.push(stroke);
   updateMarkOverlay();
   setMarksStatus('Тест: покрашено ' + marked.size + ' треугольников', 'ok');
+});
+window.addEventListener('keydown', (event) => {
+  const key = event.key.toLowerCase();
+  if ((event.ctrlKey || event.metaKey) && (event.code === 'KeyZ' || key === 'z' || key === 'я')) {
+    event.preventDefault();
+    undoMarks();
+  }
 });
 
 /* ---------- панель настройки ---------- */
