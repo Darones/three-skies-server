@@ -23,7 +23,9 @@ const (
 	wsSendBuffer     = 64
 
 	roomSlots        = 6
-	roomBotFillDelay = 30 * time.Second
+	// Временное значение для тестов: боты заполняют комнату через 15 секунд.
+	// Перед релизом вернуть 30 * time.Second.
+	roomBotFillDelay = 15 * time.Second
 
 	matchLength      = 10 * time.Minute
 	crystalsToWin    = 3

@@ -7,6 +7,8 @@ const MAGE: Texture2D = preload('res://ui/portraits/mage_portrait.png')
 const FAIRY: Texture2D = preload('res://ui/portraits/fairy_portrait.png')
 const MATCH_PATH := 'res://scenes/Main.tscn'
 const SEARCH_SECONDS := 15.0
+# Временное значение для тестов: ждём сервер 15 секунд вместо 30.
+const NETWORK_WAIT_SECONDS := 15.0
 const SLOTS_PER_TEAM := 3
 const SIMULATED_TARGET := 4
 const FONT: FontFile = preload('res://assets/fonts/Philosopher-Regular.ttf')
@@ -32,7 +34,7 @@ var load_failed := false
 var network_flow := false
 var network_player_slots: Dictionary = {}
 var back_button: Button
-var wait_seconds_left := 30.0
+var wait_seconds_left := NETWORK_WAIT_SECONDS
 var wait_countdown_active := false
 
 func _ready() -> void:
@@ -46,14 +48,14 @@ func _ready() -> void:
 		_use_bot_fallback()
 	search_label.text = '\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432...'
 	if network_flow:
-		search_label.text = '\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432 \u00b7 \u0441\u0442\u0430\u0440\u0442 \u0447\u0435\u0440\u0435\u0437 30 \u0441\u0435\u043a'
+		search_label.text = '\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432 \u00b7 \u0441\u0442\u0430\u0440\u0442 \u0447\u0435\u0440\u0435\u0437 %d \u0441\u0435\u043a' % int(NETWORK_WAIT_SECONDS)
 	tip_label.text = TIPS[0]
 
 
 func _start_network_flow() -> void:
 	no_network = false
 	fill_with_bots = true
-	wait_seconds_left = 30.0
+	wait_seconds_left = NETWORK_WAIT_SECONDS
 	wait_countdown_active = true
 	connection_hint.text = '\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0430\u0435\u043c\u0441\u044f \u043a \u0441\u0435\u0440\u0432\u0435\u0440\u0443...'
 	if not NetworkManager.connection_succeeded.is_connected(_on_network_connected):
