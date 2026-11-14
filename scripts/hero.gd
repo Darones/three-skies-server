@@ -1014,11 +1014,16 @@ func _attach_class_weapon(holder: Node3D) -> void:
 	var skeleton := _find_skeleton(holder)
 	if skeleton == null:
 		return
-	var desired_bone := "LeftHand" if hero_class == Cls.FAIRY else "RightHand"
+	var desired_names: Array[String] = ["RightHand", "hand.r", "handslot.r"]
+	if hero_class == Cls.FAIRY:
+		desired_names = ["LeftHand", "hand.l", "handslot.l"]
 	var bone_index := -1
-	for index in range(skeleton.get_bone_count()):
-		if String(skeleton.get_bone_name(index)).to_lower() == desired_bone.to_lower():
-			bone_index = index
+	for desired_bone in desired_names:
+		for index in range(skeleton.get_bone_count()):
+			if String(skeleton.get_bone_name(index)).to_lower() == desired_bone.to_lower():
+				bone_index = index
+				break
+		if bone_index >= 0:
 			break
 	if bone_index < 0:
 		return
@@ -1299,7 +1304,7 @@ func _play_weapon_attack_animation() -> void:
 func _play_anim(key: String, restart: bool = false) -> void:
 	if anim_player == null or (current_anim == key and not restart):
 		return
-	anim_player.speed_scale = 2.5 if hero_class == Cls.WARRIOR and key == "attack" else 1.0
+	anim_player.speed_scale = 1.0
 	var target := ""
 	for animation_name in anim_player.get_animation_list():
 		var low := String(animation_name).to_lower()
@@ -1871,7 +1876,12 @@ func _try_auto_attack(movement_direction: Vector3) -> void:
 	if is_player and game != null and bool(game.get("network_play")):
 		var network_target_id := int(target.peer_id) if "peer_id" in target else 0
 		NetworkManager.send_attack("auto", network_target_id)
-	_play_anim("cast" if ranged else "attack", true)
+	if hero_class == Cls.MAGE:
+		_play_anim("spellcast_shoot", true)
+	elif hero_class == Cls.FAIRY:
+		_play_anim("1h_ranged_shoot", true)
+	else:
+		_play_anim("attack", true)
 	_play_weapon_attack_animation()
 	_play_class_attack_sfx()
 	var guaranteed_crit_multiplier := crit_buff_multiplier if crit_buff else 1.0
@@ -2699,7 +2709,7 @@ func _release_crit_shot() -> void:
 		_face(aim.normalized(), 1.0)
 	attack_cd = attack_interval / attack_speed_multiplier
 	attack_anim_time = attack_animation_duration
-	_play_anim("cast", true)
+	_play_anim("1h_ranged_shoot", true)
 	_play_weapon_attack_animation()
 	_play_class_attack_sfx()
 	var color: Color = CLASS_DATA[hero_class]["color"]
