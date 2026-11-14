@@ -79,6 +79,7 @@ const SFX_PATHS := {
 	"shard_pickup": "res://audio/sfx/misc_shard_pickup.wav",
 	"shard_delivery": "res://audio/sfx/misc_shard_delivery.wav",
 	"death": "res://audio/sfx/death_soft_thud.wav",
+	"death_scream": "res://audio/sfx/fairy_death_scream.wav",
 	"respawn": "res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/level_up_chime.wav",
 	"shell_hit": "res://audio/sfx/misc_shell_hit.wav",
 	"shell_destroyed": "res://audio/sfx/misc_shell_destroyed.wav",
@@ -1093,7 +1094,7 @@ func _release_projectile(node: Node3D, pooled: bool) -> void:
 			return
 
 
-func play_sfx(key: String, volume_db := -4.0) -> void:
+func play_sfx(key: String, volume_db := -4.0, pitch := 1.0) -> void:
 	if not sfx_streams.has(key) or sfx_players.is_empty():
 		return
 	for offset in range(sfx_players.size()):
@@ -1103,6 +1104,7 @@ func play_sfx(key: String, volume_db := -4.0) -> void:
 			continue
 		player.stream = sfx_streams[key]
 		player.volume_db = volume_db
+		player.pitch_scale = pitch
 		player.play()
 		sfx_index = (index + 1) % sfx_players.size()
 		return
@@ -1892,8 +1894,15 @@ func drop_crystal(pos: Vector3) -> void:
 func on_hero_died(h: HeroUnit) -> void:
 	burst(h.global_position + Vector3(0.0, 1.0, 0.0), Color(1.0, 0.45, 0.4), 22)
 	h.spawn_vfx_silent(HeroUnit.VFX_GOLDEN_SCENE, h.global_position + Vector3(0.0, 0.4, 0.0), 1.2)
-	play_sfx("death", -6.0)
+	play_sfx("death", -3.0)
 	if h == player:
+		var death_pitch := 1.0
+		match h.hero_class:
+			HeroUnit.Cls.WARRIOR:
+				death_pitch = 0.7
+			HeroUnit.Cls.MAGE:
+				death_pitch = 0.85
+		play_sfx("death_scream", -7.0, death_pitch)
 		p_deaths += 1
 		if network_play:
 			NetworkManager.send_death()

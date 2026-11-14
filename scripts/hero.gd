@@ -2359,7 +2359,8 @@ func _die() -> void:
 	slow_factor = 0.0
 	set_collision_layer_value(1, false)
 	set_collision_mask_value(1, false)
-	visual.visible = false
+	_play_anim("dead", true)
+	_hide_after_death()
 	if health_label != null:
 		health_label.visible = false
 	if afk_label != null:
@@ -2375,6 +2376,17 @@ func _die() -> void:
 	if game != null:
 		game.on_hero_died(self)
 	hero_died.emit(self)
+
+
+func _hide_after_death() -> void:
+	var delay := 3.0
+	if anim_player != null and anim_player.current_animation != "":
+		delay = maxf(anim_player.current_animation_length, 0.8)
+	await get_tree().create_timer(delay).timeout
+	if not is_inside_tree():
+		return
+	if dead and visual != null and is_instance_valid(visual):
+		visual.visible = false
 
 
 func _respawn() -> void:
