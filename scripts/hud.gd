@@ -17,6 +17,7 @@ class AbilityCooldownWipe extends Control:
 
 var game: Node
 var kill_feed_box: VBoxContainer = null
+var team_icons: Dictionary = {}
 var carrier_panel: VBoxContainer = null
 var carrier_label: Label = null
 var carrier_bar: ProgressBar = null
@@ -480,27 +481,88 @@ func _build_kill_feed(root: Control) -> void:
 	root.add_child(kill_feed_box)
 
 
-func show_kill_feed(killer: String, victim: String) -> void:
+func show_kill_feed(killer: String, victim: String, killer_team: int = 0, victim_team: int = 1) -> void:
 	if kill_feed_box == null or not is_instance_valid(kill_feed_box):
 		return
-	var label := Label.new()
-	label.text = "%s  ⚔  %s" % [killer, victim]
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	label.add_theme_font_override("font", UI_FONT)
-	label.add_theme_font_size_override("font_size", 15)
-	label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.7))
-	label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.85))
-	label.add_theme_constant_override("shadow_offset_x", 1)
-	label.add_theme_constant_override("shadow_offset_y", 1)
-	kill_feed_box.add_child(label)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 5)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(_team_icon_control(killer_team))
+	row.add_child(_make_feed_name(killer, killer_team))
+	row.add_child(_make_feed_name("⚔", -1))
+	row.add_child(_team_icon_control(victim_team))
+	row.add_child(_make_feed_name(victim, victim_team))
+	kill_feed_box.add_child(row)
 	while kill_feed_box.get_child_count() > 5:
 		var oldest := kill_feed_box.get_child(0)
 		kill_feed_box.remove_child(oldest)
 		oldest.queue_free()
-	var tween := label.create_tween()
+	var tween := row.create_tween()
 	tween.tween_interval(4.0)
-	tween.tween_property(label, "modulate:a", 0.0, 0.6)
-	tween.tween_callback(label.queue_free)
+	tween.tween_property(row, "modulate:a", 0.0, 0.6)
+	tween.tween_callback(row.queue_free)
+
+
+func _team_icon_control(team: int) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.texture = _team_icon(team)
+	icon.custom_minimum_size = Vector2(17, 17)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return icon
+
+
+func _team_icon(team: int) -> Texture2D:
+	var key := "light" if team == 0 else "dark"
+	if team_icons.has(key):
+		return team_icons[key] as Texture2D
+	var fill := Color(0.97, 0.91, 0.69) if team == 0 else Color(0.08, 0.085, 0.12)
+	var outline := Color(0.04, 0.04, 0.06) if team == 0 else Color(0.95, 0.95, 0.97)
+	var texture := _build_cross_texture(fill, outline)
+	team_icons[key] = texture
+	return texture
+
+
+func _build_cross_texture(fill: Color, outline: Color) -> ImageTexture:
+	var size := 64
+	var image := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	image.fill(Color(0, 0, 0, 0))
+	var scale := float(size) / 24.0
+	var border := 1.8
+	for y in range(size):
+		for x in range(size):
+			var px := (float(x) + 0.5) / scale
+			var py := (float(y) + 0.5) / scale
+			if _cross_hit(px, py, 0.0):
+				image.set_pixel(x, y, fill)
+			elif _cross_hit(px, py, border):
+				image.set_pixel(x, y, outline)
+	return ImageTexture.create_from_image(image)
+
+
+func _cross_hit(px: float, py: float, grow: float) -> bool:
+	var vertical := px >= 9.0 - grow and px <= 15.0 + grow and py >= 2.0 - grow and py <= 22.0 + grow
+	var horizontal := px >= 2.0 - grow and px <= 22.0 + grow and py >= 9.0 - grow and py <= 15.0 + grow
+	return vertical or horizontal
+
+
+func _make_feed_name(text: String, team: int) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_override("font", UI_FONT)
+	label.add_theme_font_size_override("font_size", 15)
+	var color := Color(0.82, 0.74, 0.6)
+	if team == 0:
+		color = Color(1.0, 0.9, 0.7)
+	elif team == 1:
+		color = Color(0.8, 0.85, 0.97)
+	label.add_theme_color_override("font_color", color)
+	label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.85))
+	label.add_theme_constant_override("shadow_offset_x", 1)
+	label.add_theme_constant_override("shadow_offset_y", 1)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	return label
 
 
 func _build_top(root: Control) -> void:

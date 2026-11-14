@@ -1914,7 +1914,7 @@ func record_hero_damage(target: HeroUnit, source: Node, damage: float, killed: b
 	if source is HeroUnit and killed and target.team != (source as HeroUnit).team and not (source as HeroUnit).is_player:
 		(source as HeroUnit).bot_gold += 50
 	if killed and source is HeroUnit and target.team != (source as HeroUnit).team and hud != null:
-		hud.call("show_kill_feed", (source as HeroUnit).display_name, target.display_name)
+		hud.call("show_kill_feed", (source as HeroUnit).display_name, target.display_name, (source as HeroUnit).team, target.team)
 	if player == null or source != player or target == player or target.team == player.team or damage <= 0.0:
 		return
 	p_damage += damage
