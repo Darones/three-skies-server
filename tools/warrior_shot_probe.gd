@@ -2,6 +2,8 @@ extends Node3D
 
 
 func _ready() -> void:
+	MetaProgression.unlocked_weapons = [1, 2, 3]
+	MetaProgression.weapons_enabled = {"warrior": true, "mage": true, "fairy": true}
 	var game := (load("res://scenes/Main.tscn") as PackedScene).instantiate()
 	add_child(game)
 	for i in 12:

@@ -1014,9 +1014,8 @@ func _attach_class_weapon(holder: Node3D) -> void:
 	var skeleton := _find_skeleton(holder)
 	if skeleton == null:
 		return
-	var desired_names: Array[String] = ["RightHand", "hand.r", "handslot.r"]
-	if hero_class == Cls.FAIRY:
-		desired_names = ["LeftHand", "hand.l", "handslot.l"]
+	# KayKit: оружие крепится к handslot.r — у неё уже выставлен поворот кисти
+	var desired_names: Array[String] = ["handslot.r", "hand.r", "RightHand"]
 	var bone_index := -1
 	for desired_bone in desired_names:
 		for index in range(skeleton.get_bone_count()):
@@ -1029,38 +1028,43 @@ func _attach_class_weapon(holder: Node3D) -> void:
 		return
 	var weapon_path := ""
 	var weapon_scale := 1.0
-	var hand_offset := Vector3(0.06, 0.0, -0.1)
+	var hand_offset := Vector3.ZERO
 	var weapon_rotation := Vector3.ZERO
 	match hero_class:
 		Cls.WARRIOR:
-			# легендарный кристальный меч покупается в магазине
-			if not (1 in MetaProgression.unlocked_weapons) or not MetaProgression.is_weapon_enabled("warrior"):
-				return
-			weapon_path = "res://assets/weapons/crystal_greatsword_low.glb"
-			weapon_scale = 1.0
-			hand_offset = Vector3(0.4, 0.0, 0.4)
-			weapon_rotation = Vector3(0.0, 0.0, 0.0)
+			# простое оружие из пака — базовое, легендарный меч покупается в магазине
+			if 1 in MetaProgression.unlocked_weapons and MetaProgression.is_weapon_enabled("warrior"):
+				weapon_path = "res://assets/weapons/crystal_greatsword_low.glb"
+				weapon_scale = 1.3
+				hand_offset = Vector3.ZERO
+				weapon_rotation = Vector3(0.0, 180.0, 0.0)
+			else:
+				weapon_path = "res://assets/weapons/kaykit/sword_1handed.gltf"
+				weapon_scale = 1.0
+				hand_offset = Vector3(0.0, 0.033, 0.0)
+				weapon_rotation = Vector3(0.0, 180.0, 0.0)
 		Cls.MAGE:
 			if 3 in MetaProgression.unlocked_weapons and MetaProgression.is_weapon_enabled("mage"):
 				weapon_path = "res://assets/weapons/wizards_staff_low.glb"
-				weapon_scale = 1.0
-				hand_offset = Vector3(0.0, 0.0, 0.5)
-				weapon_rotation = Vector3.ZERO
+				weapon_scale = 1.6
+				hand_offset = Vector3.ZERO
+				weapon_rotation = Vector3(0.0, 180.0, 0.0)
 			else:
-				weapon_path = "res://addons/low_poly_rpg_items/props/staff_wizard.tscn"
-				weapon_scale = 0.62
-				hand_offset = Vector3(0.04, 0.0, -0.1)
+				weapon_path = "res://assets/weapons/kaykit/staff.gltf"
+				weapon_scale = 1.0
+				hand_offset = Vector3.ZERO
+				weapon_rotation = Vector3(0.0, 180.0, 0.0)
 		Cls.FAIRY:
 			if 2 in MetaProgression.unlocked_weapons and MetaProgression.is_weapon_enabled("fairy"):
 				weapon_path = "res://scenes/LegendaryBow.tscn"
-				weapon_scale = 0.82
-				hand_offset = Vector3(-0.06, 0.0, -0.1)
-				weapon_rotation = Vector3(0.0, 0.0, 8.0)
+				weapon_scale = 1.5
+				hand_offset = Vector3(-0.45, 0.0, 0.3)
+				weapon_rotation = Vector3(-31.92, 62.8, 63.87)
 			else:
-				weapon_path = "res://addons/low_poly_rpg_items/props/short_bow.tscn"
-				weapon_scale = 0.9
-				hand_offset = Vector3(-0.06, 0.0, -0.1)
-				weapon_rotation = Vector3(0.0, 0.0, 8.0)
+				weapon_path = "res://assets/weapons/kaykit/crossbow_1handed.gltf"
+				weapon_scale = 1.0
+				hand_offset = Vector3(0.0, -0.0104, -0.1046)
+				weapon_rotation = Vector3(0.0, 90.0, 0.0)
 	var packed_weapon := load(weapon_path) as PackedScene
 	if packed_weapon == null:
 		return
@@ -1083,7 +1087,6 @@ func _attach_class_weapon(holder: Node3D) -> void:
 	weapon_attachment.add_child(weapon_instance)
 	_update_weapon_transform()
 	weapon_anim_player = _find_animation_player(weapon_instance)
-	_add_weapon_effects(weapon_instance)
 
 
 func _add_weapon_effects(weapon: Node3D) -> void:
