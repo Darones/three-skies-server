@@ -235,14 +235,23 @@ func _soften_baked_base_rings() -> void:
 			if not child is MeshInstance3D:
 				continue
 			var mesh_instance := child as MeshInstance3D
+			# Опускаем низкие диски базы, чтобы кольцо бафа было выше площадки.
+			if mesh_instance.mesh is CylinderMesh:
+				var cylinder := mesh_instance.mesh as CylinderMesh
+				if cylinder.height < 0.5:
+					mesh_instance.position.y -= 0.35
 			if not mesh_instance.mesh is TorusMesh:
 				continue
 			var color: Color = config["color"]
 			var glow := FxUtils.soft_ground_glow(9.0, Color(color.r, color.g, color.b, 0.45), 0.0, 0.22)
 			glow.name = "BaseGlow"
-			glow.position = mesh_instance.position
+			glow.position = mesh_instance.position - Vector3(0.0, 0.2, 0.0)
 			base.add_child(glow)
 			mesh_instance.queue_free()
+	# Центральный алтарь: опускаем диск, чтобы кольцо кристалла не пересекалось с полом.
+	var altar_disc := get_node_or_null("Arena/Altar/AltarDisc") as MeshInstance3D
+	if altar_disc != null:
+		altar_disc.position.y -= 0.15
 
 
 func _create_base_shield_domes() -> void:
@@ -1853,8 +1862,9 @@ func _deliver(h: HeroUnit) -> void:
 		return
 	h.carrying = false
 	h.match_crystals += 1
-	if not network_play:
-		score[h.team] += 1
+	# Начисляем очко сразу на клиенте: сервер подтвердит его, но не сможет
+	# обнулить счёт, если ответ потеряется или задержится.
+	score[h.team] += 1
 	if player != null and h.team == player.team:
 		award_gold(100)
 	if not h.is_player:
@@ -1871,11 +1881,12 @@ func _deliver(h: HeroUnit) -> void:
 	var team_name := "Свет" if h.team == 0 else "Тьма"
 	announce("Осколок на базе: %s  %d : %d" % [team_name, score[0], score[1]], Color(1.0, 0.9, 0.6), 2.6)
 	if network_play:
+		print("[SCORE] deliver team=", h.team, " ws=", NetworkManager.state, " assigned=", NetworkManager.assigned_team)
 		NetworkManager.send_match_event("shard_delivered", h.team)
 		shell_phase = "idle"
-	elif sudden_death or score[h.team] >= CRYSTALS_TO_WIN:
+	if sudden_death or score[h.team] >= CRYSTALS_TO_WIN:
 		end_match(h.team == 0)
-	else:
+	elif not network_play:
 		shell_phase = "idle"
 
 
@@ -2791,10 +2802,12 @@ func _on_attack_denied(target_id: int, skill: String, reason: String) -> void:
 
 
 func _on_match_score_updated(score_0: int, score_1: int, server_sudden_death: bool) -> void:
-	if not network_play:
+	if not network_play or state != "live":
 		return
-	score[0] = score_0
-	score[1] = score_1
+	# Сервер может только увеличивать счёт: локальные доставки уже начислены.
+	print("[SCORE] server=", score_0, ":", score_1, " local=", score[0], ":", score[1])
+	score[0] = maxi(score[0], score_0)
+	score[1] = maxi(score[1], score_1)
 	if score[0] >= CRYSTALS_TO_WIN or score[1] >= CRYSTALS_TO_WIN:
 		end_match(score[0] > score[1])
 		return
@@ -2817,7 +2830,14 @@ func _on_match_event_received(event: String, _team: int) -> void:
 func _on_network_match_finished(winning_team: int) -> void:
 	if not network_play or state != "live":
 		return
-	end_match(winning_team == 0)
+	# Если локально уже набрано 3 осколка, не даём запоздавшему ответу сервера
+	# перевернуть результат.
+	var local_winner := -1
+	if score[0] >= CRYSTALS_TO_WIN:
+		local_winner = 0
+	elif score[1] >= CRYSTALS_TO_WIN:
+		local_winner = 1
+	end_match((local_winner if local_winner >= 0 else winning_team) == 0)
 
 
 func _on_network_disconnected() -> void:
