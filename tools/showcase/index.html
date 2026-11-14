@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Показ моделей — новые персонажи</title>
+<style>
+  :root { --bg:#0b0d13; --panel:#121620; --gold:#e8c56b; --pale:#d9dce6; --muted:#8a90a2; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; overflow:hidden; background:var(--bg); color:var(--pale); font-family:"Segoe UI",system-ui,sans-serif; }
+  #bar {
+    position:absolute; top:0; left:0; right:0; z-index:10;
+    display:flex; flex-wrap:wrap; align-items:center; gap:14px;
+    padding:12px 18px;
+    background:linear-gradient(180deg, rgba(8,10,15,.97), rgba(8,10,15,.84));
+    border-bottom:1px solid #232a3a;
+    backdrop-filter:blur(6px);
+  }
+  #bar .title { font-family:Georgia,serif; color:var(--gold); letter-spacing:2px; font-size:21px; }
+  .badge { font-size:10px; letter-spacing:1.4px; color:#0b0d13; background:var(--gold); padding:4px 8px; border-radius:5px; font-weight:600; }
+  label { font-size:11px; color:var(--muted); display:flex; flex-direction:column; gap:3px; }
+  select, button {
+    background:#151a25; color:var(--pale); border:1px solid #2c3446; border-radius:7px;
+    padding:7px 10px; font-size:13px; font-family:inherit; outline:none;
+  }
+  select:focus, button:hover { border-color:#55617a; }
+  button { cursor:pointer; }
+  #speed { width:110px; accent-color:var(--gold); }
+  #note {
+    position:absolute; top:74px; left:18px; z-index:9;
+    font-size:12px; color:#8a90a2; line-height:1.5;
+  }
+  #note b { color:var(--gold); font-weight:500; }
+  #status {
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    color:var(--gold); font-size:16px; letter-spacing:1px; z-index:9;
+    text-shadow:0 2px 8px #000; pointer-events:none;
+  }
+  canvas { display:block; width:100%; height:100%; }
+  #hint { position:absolute; left:18px; bottom:12px; z-index:9; font-size:12px; color:#6f7688; }
+  #hint b { color:#9aa3b8; font-weight:400; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "../viewer/vendor/three.module.js",
+    "three/addons/": "../viewer/vendor/addons/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="bar">
+  <span class="title">ПОКАЗ МОДЕЛЕЙ</span>
+  <span class="badge">НОВЫЕ ПЕРСОНАЖИ</span>
+  <label>Персонаж<select id="hero">
+    <option value="Knight">Рыцарь</option>
+    <option value="Mage">Маг</option>
+    <option value="Rogue">Разбойница</option>
+    <option value="Barbarian">Варвар</option>
+  </select></label>
+  <label>Анимация<select id="anim"></select></label>
+  <label>Оружие<select id="weapon"><option value="">Без оружия</option></select></label>
+  <label>Скорость<input id="speed" type="range" min="0.2" max="1.6" step="0.05" value="1"></label>
+  <button id="pause">Пауза</button>
+</div>
+<div id="note">KayKit Adventurers · <b>76 анимаций</b> · оружие из пака — <b>для новых персонажей</b></div>
+<div id="status">Загрузка...</div>
+<div id="hint"><b>ЛКМ</b> — вращать · <b>колесо</b> — приблизить · <b>ПКМ</b> — двигать</div>
+<canvas id="scene"></canvas>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const HEROES = {
+  Knight:    { file:'Knight.glb',    height:2.45 },
+  Mage:      { file:'Mage.glb',      height:2.70 },
+  Rogue:     { file:'Rogue.glb',     height:2.19 },
+  Barbarian: { file:'Barbarian.glb', height:2.39 },
+};
+
+const GEAR_KEYWORDS = ['Sword', 'Shield', 'Staff', 'Wand', 'Spellbook', 'Crossbow', 'Knife', 'Axe', 'Mug', 'Throwable'];
+const ANIM_ORDER = ['Idle','Unarmed_Idle','Walking_A','Running_A','1H_Melee_Attack_Chop','2H_Melee_Attack_Chop','1H_Ranged_Shoot','Spellcast_Shoot','Death_A','Hit_A','Dodge_Forward','Jump_Start','Jump_Idle','Jump_Land','Cheer'];
+
+const canvas = document.getElementById('scene');
+const statusEl = document.getElementById('status');
+const heroSelect = document.getElementById('hero');
+const animSelect = document.getElementById('anim');
+const weaponSelect = document.getElementById('weapon');
+const speedInput = document.getElementById('speed');
+const pauseButton = document.getElementById('pause');
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0d13);
+scene.fog = new THREE.Fog(0x0b0d13, 8, 16);
+
+const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 60);
+camera.position.set(2.4, 1.7, 4.4);
+
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 1.05, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 1.6;
+controls.maxDistance = 9;
+controls.maxPolarAngle = Math.PI * 0.52;
+controls.update();
+
+scene.add(new THREE.HemisphereLight(0x9fb4d8, 0x2a2430, 1.1));
+const key = new THREE.DirectionalLight(0xfff2d0, 2.2);
+key.position.set(-3, 5, 4);
+key.castShadow = true;
+key.shadow.mapSize.set(1024, 1024);
+key.shadow.camera.left = -4; key.shadow.camera.right = 4;
+key.shadow.camera.top = 5; key.shadow.camera.bottom = -1;
+scene.add(key);
+const rim = new THREE.PointLight(0x6fa8ff, 18, 8, 2);
+rim.position.set(1.6, 2.4, -2.6);
+scene.add(rim);
+const fill = new THREE.DirectionalLight(0x9fc0ff, 0.5);
+fill.position.set(3, 2, 2);
+scene.add(fill);
+
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(4.2, 64),
+  new THREE.MeshStandardMaterial({ color:0x151a24, roughness:0.9, metalness:0.05 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+const grid = new THREE.GridHelper(8, 32, 0x2a3348, 0x1a2030);
+grid.position.y = 0.002;
+scene.add(grid);
+
+const loader = new GLTFLoader();
+const clock = new THREE.Clock();
+
+let hero = null;
+let mixer = null;
+let clips = [];
+let gearNodes = [];
+let paused = false;
+let loadToken = 0;
+
+function setStatus(text) {
+  statusEl.textContent = text || '';
+  statusEl.style.display = text ? 'block' : 'none';
+}
+
+function disposeHero() {
+  if (!hero) return;
+  hero.traverse((node) => {
+    if (node.isMesh) {
+      node.geometry?.dispose();
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      for (const material of materials) {
+        if (!material) continue;
+        for (const value of Object.values(material)) {
+          if (value && value.isTexture) value.dispose();
+        }
+        material.dispose();
+      }
+    }
+  });
+  scene.remove(hero);
+  hero = null;
+  mixer = null;
+  clips = [];
+  gearNodes = [];
+}
+
+function loadHero(key) {
+  const token = ++loadToken;
+  disposeHero();
+  animSelect.innerHTML = '';
+  weaponSelect.innerHTML = '<option value="">Без оружия</option>';
+  setStatus('Загрузка ' + heroSelect.options[heroSelect.selectedIndex].text + '...');
+  loader.load('models/' + HEROES[key].file, (gltf) => {
+    if (token !== loadToken) return;
+    hero = gltf.scene;
+    const scale = 2.1 / HEROES[key].height;
+    hero.scale.setScalar(scale);
+    hero.position.y = 0;
+    hero.traverse((node) => {
+      if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; }
+    });
+    scene.add(hero);
+    gearNodes = [];
+    hero.traverse((node) => {
+      if (!node.name) return;
+      if (GEAR_KEYWORDS.some((word) => node.name.includes(word))) {
+        gearNodes.push(node);
+        node.visible = false;
+      }
+    });
+    for (const node of gearNodes) {
+      const option = document.createElement('option');
+      option.value = node.name;
+      option.textContent = node.name.replaceAll('_', ' ');
+      weaponSelect.appendChild(option);
+    }
+    clips = gltf.animations.slice().sort((a, b) => {
+      const ia = ANIM_ORDER.indexOf(a.name);
+      const ib = ANIM_ORDER.indexOf(b.name);
+      if (ia >= 0 || ib >= 0) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      return a.name.localeCompare(b.name);
+    });
+    mixer = new THREE.AnimationMixer(hero);
+    for (const clip of clips) {
+      const option = document.createElement('option');
+      option.value = clip.name;
+      option.textContent = clip.name;
+      animSelect.appendChild(option);
+    }
+    const initial = clips.find((c) => c.name === 'Idle') || clips[0];
+    if (initial) {
+      animSelect.value = initial.name;
+      playClip(initial.name);
+    }
+    setStatus('');
+  }, undefined, (error) => {
+    setStatus('Ошибка загрузки: ' + error.message);
+  });
+}
+
+function playClip(name) {
+  if (!mixer) return;
+  paused = false;
+  pauseButton.textContent = 'Пауза';
+  mixer.stopAllAction();
+  const clip = clips.find((c) => c.name === name);
+  if (!clip) return;
+  const action = mixer.clipAction(clip);
+  action.reset();
+  action.setLoop(THREE.LoopRepeat, Infinity);
+  action.play();
+}
+
+function applyWeapon(name) {
+  for (const node of gearNodes) node.visible = false;
+  if (!name) return;
+  const node = gearNodes.find((item) => item.name === name);
+  if (node) node.visible = true;
+}
+
+heroSelect.addEventListener('change', () => loadHero(heroSelect.value));
+animSelect.addEventListener('change', () => playClip(animSelect.value));
+weaponSelect.addEventListener('change', () => applyWeapon(weaponSelect.value));
+speedInput.addEventListener('input', () => { if (mixer) mixer.timeScale = Number(speedInput.value); });
+pauseButton.addEventListener('click', () => {
+  paused = !paused;
+  pauseButton.textContent = paused ? 'Продолжить' : 'Пауза';
+});
+
+function resize() {
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  renderer.setSize(width, height, false);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+resize();
+
+loadHero('Knight');
+
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = Math.min(clock.getDelta(), 0.05);
+  if (mixer && !paused) mixer.update(delta);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
