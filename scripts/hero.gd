@@ -340,9 +340,9 @@ const WING_TUNING := {
 		4: {"position": Vector3(0.0, -0.77, -0.49), "rotation": Vector3(0.0, 0.0, 0.0), "scale": 0.006},
 	},
 	"fairy": {
-		1: {"position": Vector3(0.0, 0.25, -0.07), "rotation": Vector3(-1.7, 0.0, 0.0), "scale": 1.0},
-		2: {"position": Vector3(0.0, 0.25, -0.07), "rotation": Vector3(-1.7, 0.0, 0.0), "scale": 1.0},
-		3: {"position": Vector3(0.0, 0.25, -0.07), "rotation": Vector3(-1.7, 0.0, 0.0), "scale": 1.0},
+		1: {"position": Vector3(0.0, 0.31, -0.22), "rotation": Vector3(-33.0, 0.0, 0.0), "scale": 1.0},
+		2: {"position": Vector3(0.0, 0.31, -0.22), "rotation": Vector3(-33.0, 0.0, 0.0), "scale": 1.0},
+		3: {"position": Vector3(0.0, 0.31, -0.22), "rotation": Vector3(-33.0, 0.0, 0.0), "scale": 1.0},
 		4: {"position": Vector3(0.0, -0.75, -0.15), "rotation": Vector3(16.98, 0.0, 0.0), "scale": 0.006},
 	},
 }

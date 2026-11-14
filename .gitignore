@@ -14,6 +14,10 @@ build/
 # Performance test reports
 perf_logs/
 
+# Viewer tool data
+tools/viewer/tuning.json
+tools/viewer/marks.json
+
 # OS generated files
 .DS_Store
 Thumbs.db
