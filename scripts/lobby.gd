@@ -532,9 +532,9 @@ func _build_shard_shop() -> void:
 	cards_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(cards_area)
 	var left_button := _make_action_button("‹", false)
-	left_button.custom_minimum_size = Vector2(46, 0)
-	left_button.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	left_button.add_theme_font_size_override("font_size", 30)
+	left_button.custom_minimum_size = Vector2(34, 34)
+	left_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	left_button.add_theme_font_size_override("font_size", 20)
 	left_button.pressed.connect(_change_shop_page.bind(-1))
 	cards_area.add_child(left_button)
 	shop_cards_row = HBoxContainer.new()
@@ -544,9 +544,9 @@ func _build_shard_shop() -> void:
 	shop_cards_row.add_theme_constant_override("separation", 10)
 	cards_area.add_child(shop_cards_row)
 	var right_button := _make_action_button("›", false)
-	right_button.custom_minimum_size = Vector2(46, 0)
-	right_button.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	right_button.add_theme_font_size_override("font_size", 30)
+	right_button.custom_minimum_size = Vector2(34, 34)
+	right_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	right_button.add_theme_font_size_override("font_size", 20)
 	right_button.pressed.connect(_change_shop_page.bind(1))
 	cards_area.add_child(right_button)
 

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Значки команд — Небесные осколки</title>
+<style>
+  :root {
+    --bg: #0b0d13;
+    --panel: #121620;
+    --gold: #e8c56b;
+    --pale: #d9dce6;
+    --muted: #8a90a2;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(circle at 50% -10%, #1a2030 0%, var(--bg) 55%);
+    color: var(--pale);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    padding: 28px 32px 100px;
+  }
+  header { max-width: 1180px; margin: 0 auto 22px; }
+  h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 34px;
+    letter-spacing: 2px;
+    color: var(--gold);
+    margin: 0 0 6px;
+    font-weight: 500;
+  }
+  header p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.5; }
+  .hint { color: #6f7688; font-size: 13px; margin-top: 6px; }
+  main {
+    max-width: 1180px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    background: linear-gradient(180deg, #151a25, #10141c);
+    border: 1px solid #2a3142;
+    border-radius: 14px;
+    padding: 14px 14px 12px;
+    cursor: pointer;
+    transition: border-color .15s, transform .15s, box-shadow .15s;
+    position: relative;
+  }
+  .card:hover { border-color: #55617a; transform: translateY(-2px); }
+  .card.selected {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 1px rgba(232,197,107,.35), 0 10px 30px rgba(0,0,0,.45);
+  }
+  .card.selected::after {
+    content: "✓";
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    color: var(--gold);
+    font-size: 18px;
+    font-weight: bold;
+  }
+  .name {
+    font-size: 16px;
+    letter-spacing: 1px;
+    color: #e6e8ef;
+    margin-bottom: 10px;
+  }
+  .pair {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background: #0a0c12;
+    border: 1px solid #222838;
+    border-radius: 10px;
+    padding: 12px 6px 8px;
+  }
+  .side { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .side span { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+  .strip {
+    margin-top: 10px;
+    background: rgba(10, 12, 18, .85);
+    border: 1px solid #1c2230;
+    border-radius: 8px;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .strip .label { font-size: 10px; color: #5f6678; width: 30px; }
+  .strip .samples { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .sample { display: inline-flex; align-items: center; gap: 3px; }
+  .sample b { font-weight: 400; font-size: 13px; color: #e9dfc2; }
+  .sample i { font-style: normal; font-size: 13px; color: #cfd3e0; }
+  .icon .solid { fill: var(--fill); stroke: var(--stroke); stroke-width: 1.6; stroke-linejoin: round; paint-order: stroke fill; }
+  .icon .line { fill: none; stroke: var(--stroke); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .icon.light { --fill: #f7e7b0; --stroke: #0a0a0f; filter: drop-shadow(0 0 6px rgba(247,231,176,.35)); }
+  .icon.dark { --fill: #15161f; --stroke: #f2f2f6; filter: drop-shadow(0 0 6px rgba(255,255,255,.16)); }
+  footer {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: rgba(8, 10, 15, .94);
+    border-top: 1px solid #232a3a;
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    backdrop-filter: blur(6px);
+  }
+  #selected { color: var(--pale); font-size: 15px; flex: 1; }
+  #selected b { color: var(--gold); font-weight: 500; }
+  button {
+    background: linear-gradient(180deg, #2a2213, #1a160d);
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    letter-spacing: .5px;
+  }
+  button:hover { background: #3a2e18; }
+  button:disabled { opacity: .35; cursor: default; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ЗНАЧКИ КОМАНД</h1>
+  <p>Выбери пару для килл-фида: слева — Свет (светлый знак в чёрном контуре), справа — Тьма (тёмный знак в белом контуре).</p>
+  <p class="hint">Внизу каждой карточки — как знак выглядит в размере строки килл-фида (18–22 px).</p>
+</header>
+<main id="grid"></main>
+<footer>
+  <span id="selected">Ничего не выбрано</span>
+  <button id="copy" disabled>Скопировать SVG</button>
+</footer>
+
+<script>
+const ICONS = [
+  { id: "cross", name: "Крест", body: '<path class="solid" d="M9 2h6v7h7v6h-7v7H9v-7H2V9h7z"/>' },
+  { id: "sun", name: "Солнце", body: '<circle class="solid" cx="12" cy="12" r="4.4"/><path class="line" d="M12 1.6v3.2M12 19.2v3.2M1.6 12h3.2M19.2 12h3.2M4.7 4.7l2.3 2.3M17 17l2.3 2.3M19.3 4.7L17 7M7 17l-2.3 2.3"/>' },
+  { id: "star", name: "Звезда", body: '<path class="solid" d="M12 1.5l3.1 7.4 7.4 3.1-7.4 3.1L12 22.5l-3.1-7.4L1.5 12l7.4-3.1z"/>' },
+  { id: "shield", name: "Щит", body: '<path class="solid" d="M12 1.8l8.5 3v6.3c0 5.4-3.6 9.2-8.5 11.1-4.9-1.9-8.5-5.7-8.5-11.1V4.8z"/>' },
+  { id: "diamond", name: "Ромб", body: '<path class="solid" d="M12 1.8L22.2 12 12 22.2 1.8 12z"/>' },
+  { id: "crown", name: "Корона", body: '<path class="solid" d="M2.8 6.5l5.2 4.2L12 3.2l4 7.5 5.2-4.2-2.1 13.3H4.9z"/>' },
+  { id: "flame", name: "Пламя", body: '<path class="solid" d="M12 1.6c3.2 4.6 6.6 6.7 6.6 11.1a6.6 6.6 0 0 1-13.2 0c0-3.6 2.2-5.7 3.6-8.6.6 2.2 1.4 3.2 2.4 3.5-.1-2.1-.1-4.2.6-6z"/>' },
+  { id: "moon", name: "Луна", body: '<path class="solid" d="M14.6 1.9A10.1 10.1 0 1 0 22 14.4 8.1 8.1 0 0 1 14.6 1.9z"/>' },
+  { id: "sword", name: "Меч", body: '<path class="solid" d="M12 1.4l2.2 2.2v9.6L12 15.4l-2.2-2.2V3.6z"/><path class="line" d="M6.4 14.4h11.2M12 16.2v6M9.2 22.2h5.6"/>' },
+  { id: "wing", name: "Крыло", body: '<path class="solid" d="M2.4 18.6C9 18.6 15.4 15 19 8.2c.8 6.6-2.4 12-9 13.4-3.2.7-5.6-.4-7.6-3z"/>' },
+  { id: "rune", name: "Руна", body: '<path class="line" d="M12 1.8v20.4M4.2 6.6L12 12l7.8-5.4M4.2 17.4L12 12l7.8 5.4"/>' },
+  { id: "eye", name: "Око", body: '<path class="line" d="M2 12s4.2-6.4 10-6.4S22 12 22 12s-4.2 6.4-10 6.4S2 12 2 12z"/><circle class="solid" cx="12" cy="12" r="3"/>' }
+];
+
+function svg(icon, mode, size) {
+  return `<svg class="icon ${mode}" viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true">${icon.body}</svg>`;
+}
+
+let selected = null;
+const grid = document.getElementById("grid");
+const selectedLabel = document.getElementById("selected");
+const copyButton = document.getElementById("copy");
+
+function render() {
+  grid.innerHTML = "";
+  for (const icon of ICONS) {
+    const card = document.createElement("div");
+    card.className = "card" + (selected === icon.id ? " selected" : "");
+    card.dataset.id = icon.id;
+    card.innerHTML = `
+      <div class="name">${icon.name}</div>
+      <div class="pair">
+        <div class="side">${svg(icon, "light", 74)}<span>СВЕТ</span></div>
+        <div class="side">${svg(icon, "dark", 74)}<span>ТЬМА</span></div>
+      </div>
+      <div class="strip">
+        <span class="label">20 px</span>
+        <div class="samples">
+          <span class="sample">${svg(icon, "light", 20)}<b>Даронес</b></span>
+          <span class="sample">${svg(icon, "dark", 20)}<i>Тёмный Лис</i></span>
+        </div>
+      </div>
+      <div class="strip">
+        <span class="label">16 px</span>
+        <div class="samples">
+          <span class="sample">${svg(icon, "light", 16)}<b>Даронес</b></span>
+          <span class="sample">${svg(icon, "dark", 16)}<i>Тёмный Лис</i></span>
+        </div>
+      </div>`;
+    card.addEventListener("click", () => {
+      selected = icon.id;
+      selectedLabel.innerHTML = `Выбрано: <b>${icon.name}</b> — скажи мне название, и я поставлю в килл-фид`;
+      copyButton.disabled = false;
+      render();
+    });
+    grid.appendChild(card);
+  }
+}
+
+copyButton.addEventListener("click", async () => {
+  const icon = ICONS.find((item) => item.id === selected);
+  if (!icon) return;
+  const code = `<!-- ${icon.name}: свет -->\n${svg(icon, "light", 24)}\n\n<!-- ${icon.name}: тьма -->\n${svg(icon, "dark", 24)}`;
+  try {
+    await navigator.clipboard.writeText(code);
+    copyButton.textContent = "Скопировано!";
+    setTimeout(() => { copyButton.textContent = "Скопировать SVG"; }, 1400);
+  } catch {
+    copyButton.textContent = "Не удалось";
+  }
+});
+
+render();
+</script>
+</body>
+</html>
