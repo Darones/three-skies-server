@@ -762,11 +762,11 @@ function paintAt(event) {
     return;
   }
   const localHit = seedPoint(hit);
-  const worldScale = new THREE.Vector3();
-  heroMesh.getWorldScale(worldScale);
-  const localRadius = brushRadius / Math.max(worldScale.x, 0.0001);
   const geometry = heroMesh.geometry;
   const positions = geometry.attributes.position;
+  const bindBox = new THREE.Box3().setFromBufferAttribute(positions);
+  const bindHeight = Math.max(bindBox.getSize(new THREE.Vector3()).y, 0.001);
+  const localRadius = brushRadius * (bindHeight / 2.15);
   const index = geometry.index;
   const triCount = index ? index.count / 3 : positions.count / 3;
   const a = new THREE.Vector3();
