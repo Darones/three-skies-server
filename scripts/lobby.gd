@@ -60,6 +60,21 @@ const SHOP_STAFF_ICON: Texture2D = preload("res://ui/icons/weapon_staff.png")
 const SHOP_BOW_ICON: Texture2D = preload("res://ui/icons/weapon_bow.png")
 const SHOP_SWORD_ICON: Texture2D = preload("res://ui/icons/weapon_sword.png")
 const SHOP_LEGENDARY_BOW_ICON: Texture2D = preload("res://ui/icons/legendary_bow.png")
+const SHOP_HERO_TABS := [
+	{"key": "fairy", "class": 2, "name": "Фея", "portrait": "res://ui/portraits/fairy_portrait.png"},
+	{"key": "mage", "class": 1, "name": "Маг", "portrait": "res://ui/portraits/mage_portrait.png"},
+	{"key": "warrior", "class": 0, "name": "Воин", "portrait": "res://ui/portraits/warrior_portrait.png"},
+]
+const SHOP_WING_ITEMS := [
+	{"id": 1, "name": "Белые крылья", "price": 500},
+	{"id": 2, "name": "Золотые крылья", "price": 1500},
+	{"id": 3, "name": "Чёрные крылья", "price": 3000},
+	{"id": 4, "name": "Демонические крылья", "price": 5000},
+]
+const SHOP_HERO_WEAPON := {
+	"fairy": {"id": 2, "name": "Легендарный лук", "price": 1500, "icon": SHOP_LEGENDARY_BOW_ICON},
+	"warrior": {"id": 1, "name": "Меч", "price": 1500, "icon": SHOP_SWORD_ICON},
+}
 
 var selected_class := 0
 var slot_classes: Array[int] = [HeroUnit.Cls.MAGE, HeroUnit.Cls.WARRIOR, HeroUnit.Cls.FAIRY]
@@ -76,6 +91,12 @@ var experience_bar: ProgressBar
 var font: FontFile
 var shard_shop_overlay: ColorRect
 var shop_panel: PanelContainer
+var shop_cards_row: HBoxContainer
+var shop_page_label: Label
+var shop_balance_label: Label
+var shop_hero_buttons: Array[Button] = []
+var shop_selected_hero := 0
+var shop_page := 0
 var topup_panel: PanelContainer
 var info_dialog: AcceptDialog
 var shard_amount_label: Label
@@ -458,46 +479,80 @@ func _build_shard_shop() -> void:
 	margin.add_child(layout)
 
 	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 10)
+	header.add_theme_constant_override("separation", 12)
 	layout.add_child(header)
-	var title := _make_label("Магазин небесных сокровищ", 24, GOLD)
+	var title := _make_label("МАГАЗИН", 28, GOLD)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	header.add_child(title)
-	var shard_button := _make_action_button("Пополнить баланс", false)
-	shard_button.name = "TopupButton"
-	shard_button.custom_minimum_size = Vector2(250, 44)
-	shard_button.add_theme_font_size_override("font_size", 16)
-	shard_button.pressed.connect(_open_topup_panel)
-	header.add_child(shard_button)
+	var balance_row := HBoxContainer.new()
+	balance_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	balance_row.add_theme_constant_override("separation", 6)
+	shop_balance_label = _make_label(str(MetaProgression.sky_shards), 24, Color(0.43, 0.84, 1.0))
+	balance_row.add_child(shop_balance_label)
+	balance_row.add_child(_shard_icon(22))
+	header.add_child(balance_row)
+	var topup_button := _make_action_button("КУПИТЬ ОСКОЛКИ", true)
+	topup_button.name = "TopupButton"
+	topup_button.custom_minimum_size = Vector2(230, 46)
+	topup_button.add_theme_font_size_override("font_size", 16)
+	topup_button.pressed.connect(_open_topup_panel)
+	header.add_child(topup_button)
 	var close_button := _make_action_button("×", false)
-	close_button.custom_minimum_size = Vector2(44, 44)
+	close_button.custom_minimum_size = Vector2(46, 46)
 	close_button.add_theme_font_size_override("font_size", 24)
 	close_button.pressed.connect(_close_shard_shop)
 	header.add_child(close_button)
 
-	layout.add_child(_make_label("Крылья и оружие", 16, PALE))
+	var tabs := HBoxContainer.new()
+	tabs.name = "ShopHeroTabs"
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 10)
+	layout.add_child(tabs)
+	shop_hero_buttons.clear()
+	for i in range(SHOP_HERO_TABS.size()):
+		var tab: Dictionary = SHOP_HERO_TABS[i]
+		var tab_button := Button.new()
+		tab_button.name = "ShopHeroTab%s" % String(tab["key"])
+		tab_button.text = String(tab["name"])
+		tab_button.icon = load(String(tab["portrait"])) as Texture2D
+		tab_button.expand_icon = true
+		tab_button.custom_minimum_size = Vector2(210, 58)
+		tab_button.focus_mode = Control.FOCUS_NONE
+		tab_button.add_theme_font_override("font", font)
+		tab_button.add_theme_font_size_override("font_size", 18)
+		tab_button.add_theme_constant_override("icon_max_width", 44)
+		tab_button.pressed.connect(_select_shop_hero.bind(i))
+		tabs.add_child(tab_button)
+		shop_hero_buttons.append(tab_button)
 
-	var scroll := ScrollContainer.new()
-	scroll.name = "ShopScroll"
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	layout.add_child(scroll)
+	var cards_area := HBoxContainer.new()
+	cards_area.name = "ShopCardsArea"
+	cards_area.add_theme_constant_override("separation", 10)
+	cards_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	layout.add_child(cards_area)
+	var left_button := _make_action_button("‹", false)
+	left_button.custom_minimum_size = Vector2(46, 0)
+	left_button.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left_button.add_theme_font_size_override("font_size", 30)
+	left_button.pressed.connect(_change_shop_page.bind(-1))
+	cards_area.add_child(left_button)
+	shop_cards_row = HBoxContainer.new()
+	shop_cards_row.name = "ShopCards"
+	shop_cards_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	shop_cards_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	shop_cards_row.add_theme_constant_override("separation", 10)
+	cards_area.add_child(shop_cards_row)
+	var right_button := _make_action_button("›", false)
+	right_button.custom_minimum_size = Vector2(46, 0)
+	right_button.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right_button.add_theme_font_size_override("font_size", 30)
+	right_button.pressed.connect(_change_shop_page.bind(1))
+	cards_area.add_child(right_button)
 
-	var grid := GridContainer.new()
-	grid.name = "WingGrid"
-	grid.columns = 2
-	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid.add_theme_constant_override("h_separation", 12)
-	grid.add_theme_constant_override("v_separation", 10)
-	scroll.add_child(grid)
-	_build_wing_card(grid, 1, "Белые крылья", "500", 500)
-	_build_wing_card(grid, 2, "Золотые крылья", "1 500", 1500, Color(1.0, 0.84, 0.45))
-	_build_wing_card(grid, 3, "Чёрные крылья", "3 000", 3000, Color(0.45, 0.42, 0.5))
-	_build_wing_card(grid, 4, "Демонические крылья", "5 000", 5000, Color(0.85, 0.42, 0.4))
-	_build_weapon_placeholder(grid, "Посох", 0, 0, SHOP_STAFF_ICON)
-	_build_weapon_placeholder(grid, "Легендарный лук", 2, 1500, SHOP_LEGENDARY_BOW_ICON)
-	_build_weapon_placeholder(grid, "Меч", 1, 1500, SHOP_SWORD_ICON)
+	shop_page_label = _make_label("1 / 1", 13, Color(0.62, 0.68, 0.78))
+	layout.add_child(shop_page_label)
+	layout.add_child(_make_label("Крылья надеваются в инвентаре · 100 осколков = 1 голос", 12, Color(0.5, 0.56, 0.66)))
 
 	_build_topup_panel()
 
@@ -505,92 +560,168 @@ func _build_shard_shop() -> void:
 	info_dialog.title = "Небесный баланс"
 	info_dialog.dialog_text = ""
 	add_child(info_dialog)
+	_refresh_shop()
 
 
-func _build_wing_card(grid: GridContainer, wing_id: int, wing_name: String, level: String, price: int, tint: Color = Color.WHITE) -> void:
+func _shop_items_for(hero_index: int) -> Array:
+	var key := String(SHOP_HERO_TABS[hero_index]["key"])
+	var items: Array = []
+	for wing in SHOP_WING_ITEMS:
+		items.append({
+			"type": "wing",
+			"id": int(wing["id"]),
+			"name": String(wing["name"]),
+			"price": int(wing["price"]),
+			"preview": "res://ui/shop/%s_wing%d.png" % [key, int(wing["id"])],
+		})
+	if SHOP_HERO_WEAPON.has(key):
+		var weapon: Dictionary = SHOP_HERO_WEAPON[key]
+		items.append({
+			"type": "weapon",
+			"id": int(weapon["id"]),
+			"name": String(weapon["name"]),
+			"price": int(weapon["price"]),
+			"icon": weapon["icon"],
+		})
+	return items
+
+
+func _shop_page_count() -> int:
+	return maxi(1, ceili(float(_shop_items_for(shop_selected_hero).size()) / 3.0))
+
+
+func _select_shop_hero(index: int) -> void:
+	if index == shop_selected_hero:
+		return
+	shop_selected_hero = clampi(index, 0, SHOP_HERO_TABS.size() - 1)
+	shop_page = 0
+	_refresh_shop()
+
+
+func _change_shop_page(delta: int) -> void:
+	shop_page = wrapi(shop_page + delta, 0, _shop_page_count())
+	_refresh_shop()
+
+
+func _style_shop_tab(button: Button, active: bool) -> void:
+	var normal := _action_style(active, false)
+	normal.bg_color = Color(0.18, 0.14, 0.08, 0.94) if active else Color(0.055, 0.07, 0.105, 0.92)
+	normal.border_color = GOLD if active else Color(0.32, 0.38, 0.5, 0.7)
+	var hovered := _action_style(active, true)
+	hovered.bg_color = Color(0.24, 0.19, 0.1, 0.98) if active else Color(0.1, 0.13, 0.18, 0.98)
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("hover", hovered)
+	button.add_theme_stylebox_override("pressed", hovered)
+	button.add_theme_color_override("font_color", GOLD if active else Color(0.72, 0.77, 0.87))
+
+
+func _shop_item_owned(item: Dictionary) -> bool:
+	if String(item["type"]) == "wing":
+		return int(item["id"]) in MetaProgression.unlocked_wings
+	return int(item["id"]) in MetaProgression.unlocked_weapons
+
+
+func _refresh_shop() -> void:
+	if shop_balance_label != null:
+		shop_balance_label.text = str(MetaProgression.sky_shards)
+	if shop_cards_row == null or shop_hero_buttons.is_empty():
+		return
+	for i in range(shop_hero_buttons.size()):
+		_style_shop_tab(shop_hero_buttons[i], i == shop_selected_hero)
+	for child in shop_cards_row.get_children():
+		shop_cards_row.remove_child(child)
+		child.queue_free()
+	var items := _shop_items_for(shop_selected_hero)
+	var page_count := _shop_page_count()
+	shop_page = clampi(shop_page, 0, page_count - 1)
+	var start := shop_page * 3
+	var shown := 0
+	for i in range(start, mini(items.size(), start + 3)):
+		shop_cards_row.add_child(_make_shop_card(items[i]))
+		shown += 1
+	for i in range(3 - shown):
+		var spacer := Control.new()
+		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		shop_cards_row.add_child(spacer)
+	if shop_page_label != null:
+		shop_page_label.text = "%d / %d" % [shop_page + 1, page_count]
+
+
+func _make_shop_card(item: Dictionary) -> Control:
 	var card := PanelContainer.new()
-	card.name = "WingCard%d" % wing_id
-	card.custom_minimum_size = Vector2(0, 158)
-	card.add_theme_stylebox_override("panel", _panel_style(Color(0.38, 0.46, 0.62, 0.8), Color(0.055, 0.07, 0.105, 0.98)))
-	grid.add_child(card)
-	wing_cards.append(card)
-
+	card.name = "ShopCard_%s%d" % [String(item["type"]), int(item["id"])]
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.add_theme_stylebox_override("panel", _panel_style(Color(0.34, 0.42, 0.56, 0.85), Color(0.055, 0.07, 0.105, 0.98)))
 	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 4)
+	content.add_theme_constant_override("separation", 6)
 	card.add_child(content)
-	var preview_frame := CenterContainer.new()
-	preview_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content.add_child(preview_frame)
+
 	var preview := TextureRect.new()
-	preview.name = "WingIcon"
-	preview.texture = SHOP_WING_ICON
-	preview.modulate = tint
-	preview.custom_minimum_size = Vector2(68, 68)
+	if String(item["type"]) == "weapon":
+		preview.texture = item["icon"] as Texture2D
+	else:
+		preview.texture = load(String(item["preview"])) as Texture2D
+	preview.custom_minimum_size = Vector2(0, 210)
+	preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var preview_material := ShaderMaterial.new()
-	preview_material.shader = preload("res://shaders/ability_icon_mask.gdshader")
-	preview_material.set_shader_parameter("corner_radius", 0.5)
-	preview.material = preview_material
-	preview_frame.add_child(preview)
-	content.add_child(_make_label("%s (%s)" % [wing_name, level], 17, PALE))
+	content.add_child(preview)
+
+	content.add_child(_make_label(String(item["name"]), 19, PALE))
+	var type_name := "Крылья" if String(item["type"]) == "wing" else "Оружие"
+	content.add_child(_make_label(type_name, 12, Color(0.62, 0.68, 0.78)))
 
 	var price_row := HBoxContainer.new()
 	price_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	price_row.add_theme_constant_override("separation", 6)
-	content.add_child(price_row)
-	price_row.add_child(_make_label("%d" % price, 14, Color(0.76, 0.82, 0.92)))
+	price_row.add_child(_make_label(str(int(item["price"])), 16, Color(0.78, 0.84, 0.94)))
 	price_row.add_child(_shard_icon(18))
+	content.add_child(price_row)
 
-	var buy_button := _make_action_button("Купить", false)
-	buy_button.name = "WingButton%d" % wing_id
-	buy_button.custom_minimum_size = Vector2(0, 38)
-	buy_button.add_theme_font_size_override("font_size", 15)
-	buy_button.pressed.connect(_on_wing_button_pressed.bind(wing_id, price))
+	var owned := _shop_item_owned(item)
+	var pending := MetaProgression.is_purchase_pending(String(item["type"]), int(item["id"]))
+	var affordable := MetaProgression.sky_shards >= int(item["price"])
+	var button_text := "Куплено" if owned else ("Покупка..." if pending else "Купить")
+	var buy_button := _make_action_button(button_text, not owned and affordable)
+	buy_button.name = "ShopBuy_%s%d" % [String(item["type"]), int(item["id"])]
+	buy_button.custom_minimum_size = Vector2(0, 40)
+	buy_button.add_theme_font_size_override("font_size", 16)
+	buy_button.disabled = owned or pending
+	buy_button.pressed.connect(_on_shop_item_pressed.bind(item))
 	content.add_child(buy_button)
-	wing_buttons[wing_id] = buy_button
+	return card
 
 
-func _build_weapon_placeholder(grid: GridContainer, weapon_name: String, weapon_id: int = 0, price: int = 0, icon_texture: Texture2D = null) -> void:
-	var card := PanelContainer.new()
-	card.name = "WeaponPlaceholder%d" % grid.get_child_count()
-	card.custom_minimum_size = Vector2(0, 158)
-	card.add_theme_stylebox_override("panel", _panel_style(Color(0.38, 0.46, 0.62, 0.8), Color(0.055, 0.07, 0.105, 0.98)))
-	grid.add_child(card)
-	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 5)
-	card.add_child(content)
-	var placeholder_frame := CenterContainer.new()
-	placeholder_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content.add_child(placeholder_frame)
-	var icon := TextureRect.new()
-	icon.name = "WeaponIcon"
-	icon.texture = icon_texture
-	icon.custom_minimum_size = Vector2(84, 84)
-	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	placeholder_frame.add_child(icon)
-	content.add_child(_make_label(weapon_name, 18, PALE))
-	weapon_cards[weapon_id] = card
-	if weapon_id > 0:
-		var weapon_price_row := HBoxContainer.new()
-		weapon_price_row.alignment = BoxContainer.ALIGNMENT_CENTER
-		weapon_price_row.add_theme_constant_override("separation", 4)
-		weapon_price_row.add_child(_make_label("%d" % price, 14, Color(0.76, 0.82, 0.92)))
-		weapon_price_row.add_child(_shard_icon(18))
-		content.add_child(weapon_price_row)
-		var buy_button := _make_action_button("Купить", false)
-		buy_button.name = "WeaponButton%d" % weapon_id
-		buy_button.custom_minimum_size = Vector2(0, 38)
-		buy_button.add_theme_font_size_override("font_size", 15)
-		buy_button.pressed.connect(_on_weapon_button_pressed.bind(weapon_id, price))
-		content.add_child(buy_button)
-		weapon_buttons[weapon_id] = buy_button
-		weapon_cards[weapon_id] = card
+func _on_shop_item_pressed(item: Dictionary) -> void:
+	if _shop_item_owned(item):
+		return
+	if int(item["price"]) > MetaProgression.sky_shards:
+		_open_topup_panel()
+		return
+	var ok := false
+	if String(item["type"]) == "wing":
+		ok = MetaProgression.buy_wing(int(item["id"]), int(item["price"]))
 	else:
-		content.add_child(_make_label("Классовое оружие", 12, Color(0.7, 0.76, 0.86)))
+		ok = MetaProgression.buy_weapon(int(item["id"]), int(item["price"]))
+	if ok:
+		_refresh_shop()
+		_refresh_wing_shop()
+		_refresh_weapon_shop()
+	else:
+		_show_purchase_error()
+
+
+func _show_purchase_error() -> void:
+	if MetaProgression.player_id <= 0:
+		_show_info("Сначала сохраните никнейм и дождитесь регистрации профиля.")
+	elif not MetaProgression.profile_loaded:
+		MetaProgression.load_profile(MetaProgression.player_id)
+		_show_info("Загружаем профиль и баланс с сервера.")
+	elif MetaProgression.pending_purchase_type != "":
+		_show_info("Покупка уже обрабатывается.")
+	else:
+		_show_info("Покупку не удалось отправить.")
 
 
 func _build_topup_panel() -> void:
@@ -619,6 +750,7 @@ func _close_topup_panel() -> void:
 func _open_shard_shop() -> void:
 	shard_shop_overlay.visible = true
 	_close_topup_panel()
+	_refresh_shop()
 
 
 func _close_shard_shop() -> void:
@@ -663,6 +795,7 @@ func _refresh_wing_shop() -> void:
 		button.text = "Покупка..." if is_pending else ("Куплено" if is_unlocked else "Купить")
 		button.disabled = is_unlocked or is_pending
 		card.add_theme_stylebox_override("panel", _wing_card_style(is_unlocked))
+	_refresh_shop()
 
 
 func _on_weapon_button_pressed(weapon_id: int, price: int) -> void:

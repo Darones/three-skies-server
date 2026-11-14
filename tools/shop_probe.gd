@@ -1,27 +1,43 @@
 extends Node3D
 
-# Открывает магазин в лобби и снимает скриншот, чтобы проверить,
-# что карточки помещаются и не обрезаются.
+# Снимает витрину магазина: вкладки героев и страницы товаров.
+
+var lobby: Node = null
+
 
 func _ready() -> void:
-	var scene := load("res://scenes/Lobby.tscn") as PackedScene
-	if scene == null:
-		print("PROBE: lobby load failed")
-		get_tree().quit()
-		return
-	var lobby := scene.instantiate()
+	lobby = (load("res://scenes/Lobby.tscn") as PackedScene).instantiate()
 	add_child(lobby)
+	for i in 20:
+		await get_tree().process_frame
+	lobby.call("_open_shard_shop")
+	for i in 8:
+		await get_tree().process_frame
+	await _shot("shop_fairy")
+	lobby.call("_open_topup_panel")
 	for i in 6:
 		await get_tree().process_frame
-
-	if lobby.has_method("_open_shard_shop"):
-		lobby.call("_open_shard_shop")
-		print("PROBE: shop opened")
+	await _shot("shop_topup")
+	lobby.call("_close_topup_panel")
+	lobby.call("_select_shop_hero", 2)
 	for i in 6:
 		await get_tree().process_frame
-
-	await RenderingServer.frame_post_draw
-	var image := get_viewport().get_texture().get_image()
-	image.save_png("user://shop_probe.png")
-	print("PROBE: saved user://shop_probe.png")
+	await _shot("shop_warrior")
+	lobby.call("_change_shop_page", 1)
+	for i in 6:
+		await get_tree().process_frame
+	await _shot("shop_warrior_page2")
+	lobby.call("_select_shop_hero", 1)
+	lobby.call("_change_shop_page", 1)
+	for i in 6:
+		await get_tree().process_frame
+	await _shot("shop_mage_page2")
+	print("SHOP_PROBE_DONE")
 	get_tree().quit()
+
+
+func _shot(name: String) -> void:
+	await RenderingServer.frame_post_draw
+	DirAccess.make_dir_recursive_absolute("user://ui_shots")
+	get_viewport().get_texture().get_image().save_png("user://ui_shots/%s.png" % name)
+	print("SHOT ", name)
