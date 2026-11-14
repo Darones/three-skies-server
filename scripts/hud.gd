@@ -119,11 +119,14 @@ func _ready() -> void:
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
+	_apply_safe_area(root)
 
 	_build_top(root)
 	_build_kill_feed(root)
 	_build_carrier_panel(root)
 	_build_abilities(root)
+	if _uses_touch_controls():
+		_build_touch_joystick(root)
 	_build_announcement(root)
 	var mini_map := preload("res://scripts/minimap.gd").new() as Control
 	mini_map.name = "MiniMap"
@@ -140,6 +143,42 @@ func _ready() -> void:
 	navigator.call("configure", game)
 	_build_low_health_overlay(root)
 	_build_tutorial_ui(root)
+
+
+func _apply_safe_area(root: Control) -> void:
+	if not (OS.has_feature("mobile") or OS.has_feature("web")):
+		return
+	var screen_size := Vector2(DisplayServer.window_get_size())
+	if screen_size.x <= 0.0 or screen_size.y <= 0.0:
+		return
+	var safe := DisplayServer.get_display_safe_area()
+	var viewport_size := get_viewport().get_visible_rect().size
+	var ratio := viewport_size / screen_size
+	var left := float(safe.position.x) * ratio.x
+	var top := float(safe.position.y) * ratio.y
+	var right := float(screen_size.x - safe.end.x) * ratio.x
+	var bottom := float(screen_size.y - safe.end.y) * ratio.y
+	if left + right + top + bottom <= 0.0:
+		return
+	root.offset_left = left
+	root.offset_top = top
+	root.offset_right = -right
+	root.offset_bottom = -bottom
+
+
+func _build_touch_joystick(root: Control) -> void:
+	var joystick := preload("res://scripts/touch_joystick.gd").new() as Control
+	joystick.name = "TouchJoystick"
+	joystick.anchor_left = 0.02
+	joystick.anchor_top = 1.0
+	joystick.anchor_right = 0.02
+	joystick.anchor_bottom = 1.0
+	joystick.offset_left = 0.0
+	joystick.offset_top = -240.0
+	joystick.offset_right = 240.0
+	joystick.offset_bottom = 0.0
+	joystick.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.add_child(joystick)
 
 
 func _build_low_health_overlay(root: Control) -> void:
@@ -928,7 +967,7 @@ func _build_select(root: Control) -> void:
 
 
 func _uses_touch_controls() -> bool:
-	return OS.has_feature("mobile") or (OS.has_feature("web") and DisplayServer.is_touchscreen_available())
+	return OS.has_feature("mobile") or (OS.has_feature("web") and DisplayServer.is_touchscreen_available()) or OS.get_cmdline_user_args().has("--touch")
 
 
 func _build_shop(root: Control) -> void:
