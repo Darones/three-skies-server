@@ -684,6 +684,52 @@ function seedPoint(hit) {
   return seed;
 }
 
+function screenBrush(event) {
+  if (!heroMesh) return 0;
+  const rect = canvas.getBoundingClientRect();
+  const mouseX = event.clientX - rect.left;
+  const mouseY = event.clientY - rect.top;
+  const pixelRadius = Math.max(16.0, brushRadius * (rect.height / 2.4));
+  const geometry = heroMesh.geometry;
+  const positions = geometry.attributes.position;
+  const index = geometry.index;
+  const triCount = index ? index.count / 3 : positions.count / 3;
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const world = new THREE.Vector3();
+  const projected = new THREE.Vector3();
+  let added = 0;
+  for (let tri = 0; tri < triCount; tri++) {
+    if (marked.has(tri)) continue;
+    const i0 = index ? index.getX(tri * 3) : tri * 3;
+    const i1 = index ? index.getX(tri * 3 + 1) : tri * 3 + 1;
+    const i2 = index ? index.getX(tri * 3 + 2) : tri * 3 + 2;
+    let sumX = 0.0;
+    let sumY = 0.0;
+    let visible = 0;
+    for (const idx of [i0, i1, i2]) {
+      world.fromBufferAttribute(positions, idx);
+      heroMesh.applyBoneTransform(idx, world);
+      world.applyMatrix4(heroMesh.matrixWorld);
+      projected.copy(world).project(camera);
+      if (projected.z > 1.0) continue;
+      sumX += (projected.x * 0.5 + 0.5) * rect.width;
+      sumY += (-projected.y * 0.5 + 0.5) * rect.height;
+      visible += 1;
+    }
+    if (visible < 3) continue;
+    const centroidX = sumX / 3.0;
+    const centroidY = sumY / 3.0;
+    if (Math.hypot(centroidX - mouseX, centroidY - mouseY) <= pixelRadius) {
+      marked.add(tri);
+      added += 1;
+    }
+  }
+  if (added > 0) updateMarkOverlay();
+  return added;
+}
+
 function paintAt(event) {
   if (!brushOn || !heroMesh) return;
   const now = performance.now();
@@ -707,6 +753,11 @@ function paintAt(event) {
     if (screen) hit = { faceIndex: -1, vertexIndex: screen.vertexIndex };
   }
   if (!hit) {
+    const added = screenBrush(event);
+    if (added > 0) {
+      setMarksStatus('Отмечено: ' + marked.size);
+      return;
+    }
     setMarksStatus('Кисть: мимо модели');
     return;
   }

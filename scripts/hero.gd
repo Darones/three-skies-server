@@ -1864,7 +1864,7 @@ func _try_auto_attack(movement_direction: Vector3) -> void:
 	if is_player and game != null and bool(game.get("network_play")):
 		var network_target_id := int(target.peer_id) if "peer_id" in target else 0
 		NetworkManager.send_attack("auto", network_target_id)
-	_play_anim("attack", true)
+	_play_anim("cast" if ranged else "attack", true)
 	_play_weapon_attack_animation()
 	_play_class_attack_sfx()
 	var guaranteed_crit_multiplier := crit_buff_multiplier if crit_buff else 1.0
@@ -2692,7 +2692,7 @@ func _release_crit_shot() -> void:
 		_face(aim.normalized(), 1.0)
 	attack_cd = attack_interval / attack_speed_multiplier
 	attack_anim_time = attack_animation_duration
-	_play_anim("attack", true)
+	_play_anim("cast", true)
 	_play_weapon_attack_animation()
 	_play_class_attack_sfx()
 	var color: Color = CLASS_DATA[hero_class]["color"]
