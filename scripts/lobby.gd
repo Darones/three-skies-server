@@ -552,7 +552,7 @@ func _build_shard_shop() -> void:
 
 	shop_page_label = _make_label("1 / 1", 13, Color(0.62, 0.68, 0.78))
 	layout.add_child(shop_page_label)
-	layout.add_child(_make_label("Крылья надеваются в инвентаре · 100 осколков = 1 голос", 12, Color(0.5, 0.56, 0.66)))
+	layout.add_child(_make_label("Оружие надевается в инвентаре · 100 осколков = 1 голос", 12, Color(0.5, 0.56, 0.66)))
 
 	_build_topup_panel()
 
@@ -566,14 +566,7 @@ func _build_shard_shop() -> void:
 func _shop_items_for(hero_index: int) -> Array:
 	var key := String(SHOP_HERO_TABS[hero_index]["key"])
 	var items: Array = []
-	for wing in SHOP_WING_ITEMS:
-		items.append({
-			"type": "wing",
-			"id": int(wing["id"]),
-			"name": String(wing["name"]),
-			"price": int(wing["price"]),
-			"preview": "res://ui/shop/%s_wing%d.png" % [key, int(wing["id"])],
-		})
+	# Крылья временно убраны из игры — в магазине только оружие.
 	if SHOP_HERO_WEAPON.has(key):
 		var weapon: Dictionary = SHOP_HERO_WEAPON[key]
 		items.append({
@@ -636,13 +629,26 @@ func _refresh_shop() -> void:
 	shop_page = clampi(shop_page, 0, page_count - 1)
 	var start := shop_page * 3
 	var shown := 0
-	for i in range(start, mini(items.size(), start + 3)):
-		shop_cards_row.add_child(_make_shop_card(items[i]))
-		shown += 1
-	for i in range(3 - shown):
-		var spacer := Control.new()
-		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		shop_cards_row.add_child(spacer)
+	if items.is_empty():
+		var empty_card := PanelContainer.new()
+		empty_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		empty_card.add_theme_stylebox_override("panel", _panel_style(Color(0.3, 0.36, 0.48, 0.6), Color(0.055, 0.07, 0.105, 0.9)))
+		var empty_label := _make_label("Для этого героя товаров пока нет", 16, Color(0.6, 0.66, 0.76))
+		empty_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		empty_card.add_child(empty_label)
+		shop_cards_row.add_child(empty_card)
+		for i in range(2):
+			var spacer := Control.new()
+			spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			shop_cards_row.add_child(spacer)
+	else:
+		for i in range(start, mini(items.size(), start + 3)):
+			shop_cards_row.add_child(_make_shop_card(items[i]))
+			shown += 1
+		for i in range(3 - shown):
+			var spacer := Control.new()
+			spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			shop_cards_row.add_child(spacer)
 	if shop_page_label != null:
 		shop_page_label.text = "%d / %d" % [shop_page + 1, page_count]
 
@@ -1143,7 +1149,7 @@ func _build_player_menu() -> void:
 		weapon_inventory_statuses[weapon_id] = weapon_status
 		weapon_inventory_buttons[weapon_id] = weapon_button
 		weapon_inventory_cards[weapon_id] = weapon_card
-	_build_wing_inventory_cards(inventory_grid)
+	# Крылья временно убраны из инвентаря.
 	_refresh_player_menu()
 
 

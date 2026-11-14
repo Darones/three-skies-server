@@ -413,61 +413,15 @@ func _apply_wing_tint(node: Node, tint: Color, emission: float, rim: float) -> v
 
 
 func update_wings() -> void:
-	if not is_player or visual == null:
-		return
-	var character_key: String = ["warrior", "mage", "fairy"][hero_class]
-	var wing_id := MetaProgression.get_equipped_wing(character_key)
-	if wing_id == 0:
-		if wing_attachment != null and is_instance_valid(wing_attachment):
-			wing_attachment.queue_free()
-		if wing_bone_attachment != null and is_instance_valid(wing_bone_attachment):
-			wing_bone_attachment.queue_free()
-		wing_attachment = null
-		wing_bone_attachment = null
-		wing_attachment_fallback = false
-		return
-	if wing_attachment == null or not is_instance_valid(wing_attachment):
-		wing_attachment = Node3D.new()
-		wing_attachment.name = "WingAttachment"
-	_configure_wing_attachment()
-	for old_wing in wing_attachment.get_children():
-		wing_attachment.remove_child(old_wing)
-		old_wing.queue_free()
-
-	var config := _wing_config(wing_id)
-	var wing_scene := load(String(config["path"])) as PackedScene
-	if wing_scene == null:
-		push_warning("Unable to load wing model: %s" % config["path"])
-		return
-	var wing_model_local := wing_scene.instantiate() as Node3D
-	if wing_model_local == null:
-		return
-	wing_model = wing_model_local
-	wing_model_local.name = "Wings3D"
-	wing_attachment.add_child(wing_model_local)
-	wing_model_scale = float(config["scale"])
-	wing_rotation_offset = config["rotation"]
-	wing_world_offset = config["position"] + Vector3(0.0, 0.0, -0.12)
-	_update_wing_transform()
-	var tint: Color = config["tint"]
-	var emission := float(config["emission"])
-	var rim := float(config["rim"])
-	if tint.is_equal_approx(Color.WHITE) and emission <= 0.0 and rim <= 0.0:
-		_set_wing_materials_double_sided(wing_model_local)
-	else:
-		_apply_wing_tint(wing_model_local, tint, emission, rim)
-	var wing_anim_player := _find_animation_player(wing_model)
-	if wing_anim_player != null:
-		var played := false
-		for animation_name in wing_anim_player.get_animation_list():
-			if String(animation_name).to_lower().contains("flap"):
-				wing_anim_player.play(animation_name)
-				played = true
-				break
-		if not played:
-			# резкую демоническую анимацию не играем — только покачивание
-			wing_anim_player.stop()
-	wing_sway_time = 0.0
+	# Крылья временно убраны из игры: у Феи остаются родные, вшитые в модель.
+	if wing_attachment != null and is_instance_valid(wing_attachment):
+		wing_attachment.queue_free()
+	if wing_bone_attachment != null and is_instance_valid(wing_bone_attachment):
+		wing_bone_attachment.queue_free()
+	wing_attachment = null
+	wing_bone_attachment = null
+	wing_model = null
+	wing_attachment_fallback = false
 
 
 func _configure_wing_attachment() -> void:
