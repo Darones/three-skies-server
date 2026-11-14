@@ -546,7 +546,8 @@ func _update_weapon_transform() -> void:
 		deg_to_rad(weapon_rotation_offset.z)
 	))
 	basis = basis.scaled(Vector3.ONE * weapon_base_scale)
-	weapon_instance.global_transform = Transform3D(basis, bone_world.origin + weapon_world_offset)
+	var hand_offset := basis.orthonormalized() * weapon_world_offset
+	weapon_instance.global_transform = Transform3D(basis, bone_world.origin + hand_offset)
 
 
 func _process(delta: float) -> void:

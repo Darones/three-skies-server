@@ -532,8 +532,11 @@ function updateWeaponTransform() {
     THREE.MathUtils.degToRad(config.rot[2]),
     'XYZ'
   );
-  weaponObject.quaternion.copy(boneQuat).multiply(new THREE.Quaternion().setFromEuler(euler));
-  weaponObject.position.copy(bonePos).add(new THREE.Vector3(...config.pos));
+  const eulerQuat = new THREE.Quaternion().setFromEuler(euler);
+  const weaponQuat = boneQuat.clone().multiply(eulerQuat);
+  weaponObject.quaternion.copy(weaponQuat);
+  const offset = new THREE.Vector3(...config.pos).applyQuaternion(weaponQuat);
+  weaponObject.position.copy(bonePos).add(offset);
   weaponObject.scale.setScalar(config.scale);
 }
 
