@@ -5,7 +5,7 @@ const HERO_ART := [
 	"res://ui/portraits/mage_portrait.png",
 	"res://ui/portraits/fairy_portrait.png",
 ]
-const HERO_NAMES := ["Воин", "Маг", "Фея"]
+const HERO_NAMES := ["Воин", "Маг", "Лучница"]
 const CLASS_FRAME_COLORS := {
 	0: Color(0.95, 0.78, 0.36),
 	1: Color(0.45, 0.78, 1.0),
@@ -56,14 +56,14 @@ const SHARD_TOPUP_SCENE := preload("res://scenes/ShardTopupPanel.tscn")
 const SHARD_ICON: Texture2D = preload("res://ui/icons/sky_shard.png")
 const NICKNAME_CHANGE_COST := 100
 const SHOP_WING_ICON: Texture2D = preload("res://assets/ui/generated_wing_shop_icon/img-6adcd384-a1c6-4d03-ab8f-2885c6220fd5-1794244737264-0_1794244737264_rm3v6na1.webp")
-const SHOP_STAFF_ICON: Texture2D = preload("res://ui/icons/weapon_staff.png")
-const SHOP_BOW_ICON: Texture2D = preload("res://ui/icons/weapon_bow.png")
-const SHOP_SWORD_ICON: Texture2D = preload("res://ui/icons/weapon_sword.png")
-const SHOP_GREATSWORD_ICON: Texture2D = preload("res://ui/icons/legendary_greatsword.png")
-const SHOP_LEGENDARY_STAFF_ICON: Texture2D = preload("res://ui/icons/legendary_staff.png")
-const SHOP_LEGENDARY_BOW_ICON: Texture2D = preload("res://ui/icons/legendary_bow.png")
+const SHOP_2H_SWORD_ICON: Texture2D = preload("res://ui/icons/gear_2h_sword.png")
+const SHOP_WAND_ICON: Texture2D = preload("res://ui/icons/gear_wand.png")
+const SHOP_2H_CROSSBOW_ICON: Texture2D = preload("res://ui/icons/gear_2h_crossbow.png")
+const GEAR_1H_SWORD_ICON: Texture2D = preload("res://ui/icons/gear_1h_sword.png")
+const GEAR_STAFF_ICON: Texture2D = preload("res://ui/icons/gear_staff.png")
+const GEAR_1H_CROSSBOW_ICON: Texture2D = preload("res://ui/icons/gear_1h_crossbow.png")
 const SHOP_HERO_TABS := [
-	{"key": "fairy", "class": 2, "name": "Фея", "portrait": "res://ui/portraits/fairy_portrait.png"},
+	{"key": "fairy", "class": 2, "name": "Лучница", "portrait": "res://ui/portraits/fairy_portrait.png"},
 	{"key": "mage", "class": 1, "name": "Маг", "portrait": "res://ui/portraits/mage_portrait.png"},
 	{"key": "warrior", "class": 0, "name": "Воин", "portrait": "res://ui/portraits/warrior_portrait.png"},
 ]
@@ -74,9 +74,9 @@ const SHOP_WING_ITEMS := [
 	{"id": 4, "name": "Демонические крылья", "price": 5000},
 ]
 const SHOP_HERO_WEAPON := {
-	"fairy": {"id": 2, "name": "Легендарный лук", "price": 1500, "icon": SHOP_LEGENDARY_BOW_ICON},
-	"warrior": {"id": 1, "name": "Легендарный меч", "price": 1500, "icon": SHOP_GREATSWORD_ICON},
-	"mage": {"id": 3, "name": "Легендарный посох", "price": 1500, "icon": SHOP_LEGENDARY_STAFF_ICON},
+	"fairy": {"id": 2, "name": "Тяжёлый арбалет", "price": 1500, "icon": SHOP_2H_CROSSBOW_ICON},
+	"warrior": {"id": 1, "name": "Двуручный меч", "price": 1500, "icon": SHOP_2H_SWORD_ICON},
+	"mage": {"id": 3, "name": "Боевой жезл", "price": 1500, "icon": SHOP_WAND_ICON},
 }
 
 var selected_class := 0
@@ -118,8 +118,12 @@ var report_nickname_edit: LineEdit
 var report_reason_option: OptionButton
 var report_status_label: Label
 var report_submit_button: Button
-var menu_hero_portrait: TextureRect
 var menu_hero_name_label: Label
+var preview_viewport: SubViewport
+var preview_root: Node3D
+var preview_hero: HeroUnit
+var preview_class := -1
+var preview_weapon_signature := ""
 var menu_level_label: Label
 var menu_xp_bar: ProgressBar
 var menu_xp_remaining_label: Label
@@ -133,6 +137,11 @@ var wing_inventory_buttons: Dictionary = {}
 var weapon_inventory_statuses: Dictionary = {}
 var weapon_inventory_buttons: Dictionary = {}
 var weapon_inventory_cards: Dictionary = {}
+var default_weapon_card: PanelContainer
+var default_weapon_icon: TextureRect
+var default_weapon_name_label: Label
+var default_weapon_status: Label
+var default_weapon_button: Button
 var nickname_display_label: Label
 var nickname_popup_overlay: ColorRect
 var nickname_popup_status_label: Label
@@ -770,7 +779,30 @@ func _close_shard_shop() -> void:
 func _show_info(message: String) -> void:
 	if info_dialog == null:
 		return
+	info_dialog.title = "Небесные осколки"
 	info_dialog.dialog_text = message
+	info_dialog.popup_centered()
+
+
+func _show_purchase_success(purchase_type: String, item_id: int) -> void:
+	if info_dialog == null:
+		return
+	var item_name := ""
+	if purchase_type == "weapon":
+		for key in SHOP_HERO_WEAPON.keys():
+			var weapon: Dictionary = SHOP_HERO_WEAPON[key]
+			if int(weapon["id"]) == item_id:
+				item_name = String(weapon["name"])
+				break
+	elif purchase_type == "wing":
+		for wing in SHOP_WING_ITEMS:
+			if int(wing["id"]) == item_id:
+				item_name = String(wing["name"])
+				break
+	if item_name.is_empty():
+		item_name = "Предмет"
+	info_dialog.title = "Поздравляем!"
+	info_dialog.dialog_text = "Покупка прошла успешно!\n\n«%s» теперь ваш. Наденьте его в инвентаре." % item_name
 	info_dialog.popup_centered()
 
 
@@ -824,6 +856,17 @@ func _on_weapon_button_pressed(weapon_id: int, price: int) -> void:
 			_show_info("Покупку не удалось отправить.")
 
 
+func _weapon_character_key(weapon_id: int) -> String:
+	match weapon_id:
+		1:
+			return "warrior"
+		2:
+			return "fairy"
+		3:
+			return "mage"
+	return ""
+
+
 func _refresh_weapon_shop() -> void:
 	# показываем только оружие текущего героя: воину меч, фее лук, магу посох
 	var allowed_weapons: Array[int] = []
@@ -853,7 +896,7 @@ func _refresh_weapon_shop() -> void:
 	for weapon_id in weapon_inventory_statuses.keys():
 		var status_label := weapon_inventory_statuses[weapon_id] as Label
 		var owned: bool = weapon_id in MetaProgression.unlocked_weapons
-		var weapon_character := "warrior" if int(weapon_id) == 1 else "fairy"
+		var weapon_character := _weapon_character_key(int(weapon_id))
 		var enabled: bool = MetaProgression.is_weapon_enabled(weapon_character)
 		status_label.text = "Надето" if owned and enabled else ("Куплено" if owned else "В магазине")
 		status_label.add_theme_color_override("font_color", GOLD if owned else Color(0.62, 0.65, 0.72))
@@ -861,13 +904,30 @@ func _refresh_weapon_shop() -> void:
 		if button != null:
 			button.text = "Снять" if owned and enabled else "Надеть"
 			button.disabled = not owned
+	var hero_key: String = ["warrior", "mage", "fairy"][selected_class]
+	var legendary_id := int([1, 3, 2][selected_class])
+	var legendary_owned: bool = legendary_id in MetaProgression.unlocked_weapons
+	var legendary_active: bool = legendary_owned and MetaProgression.is_weapon_enabled(hero_key)
+	var default_active := not legendary_active
+	if default_weapon_icon != null:
+		default_weapon_icon.texture = [GEAR_1H_SWORD_ICON, GEAR_STAFF_ICON, GEAR_1H_CROSSBOW_ICON][selected_class]
+	if default_weapon_status != null:
+		default_weapon_status.text = "Надето" if default_active else "Стандартное"
+		default_weapon_status.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64) if default_active else Color(0.62, 0.65, 0.72))
+	if default_weapon_button != null:
+		default_weapon_button.text = "Надето" if default_active else "Надеть"
+		default_weapon_button.disabled = default_active
+	if default_weapon_card != null:
+		default_weapon_card.add_theme_stylebox_override("panel", _wing_card_style(default_active))
 
 
-func _on_purchase_updated(success: bool, _purchase_type: String, _item_id: int, _new_shards: int) -> void:
+func _on_purchase_updated(success: bool, purchase_type: String, item_id: int, _new_shards: int) -> void:
 	_refresh_wing_shop()
 	_refresh_weapon_shop()
 	_refresh_player_menu()
-	if not success:
+	if success:
+		_show_purchase_success(purchase_type, item_id)
+	else:
 		_show_info("Сервер не подтвердил покупку. Проверь баланс и подключение.")
 
 
@@ -1085,18 +1145,23 @@ func _build_player_menu() -> void:
 	portrait_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	portrait_frame.add_theme_stylebox_override("panel", _panel_style(Color(0.24, 0.27, 0.34), Color(0.01, 0.014, 0.025)))
 	hero_content.add_child(portrait_frame)
-	menu_hero_portrait = TextureRect.new()
-	menu_hero_portrait.name = "SelectedHeroPortrait"
-	menu_hero_portrait.custom_minimum_size = Vector2(0, 280)
-	menu_hero_portrait.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	menu_hero_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	menu_hero_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	var portrait_material := ShaderMaterial.new()
-	portrait_material.shader = preload("res://shaders/ability_icon_mask.gdshader")
-	portrait_material.set_shader_parameter("corner_radius", 0.05)
-	menu_hero_portrait.material = portrait_material
-	menu_hero_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	portrait_frame.add_child(menu_hero_portrait)
+	var preview_container := SubViewportContainer.new()
+	preview_container.name = "SelectedHeroPreview"
+	preview_container.custom_minimum_size = Vector2(0, 280)
+	preview_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	preview_container.stretch = true
+	preview_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait_frame.add_child(preview_container)
+	preview_viewport = SubViewport.new()
+	preview_viewport.name = "HeroPreviewViewport"
+	preview_viewport.own_world_3d = true
+	preview_viewport.transparent_bg = true
+	preview_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	preview_container.add_child(preview_viewport)
+	preview_root = Node3D.new()
+	preview_root.name = "PreviewRoot"
+	preview_viewport.add_child(preview_root)
+	_build_hero_preview_stage()
 
 	var wardrobe_panel := PanelContainer.new()
 	wardrobe_panel.name = "PlayerMenuWardrobe"
@@ -1119,10 +1184,34 @@ func _build_player_menu() -> void:
 	inventory_grid.add_theme_constant_override("h_separation", 8)
 	inventory_grid.add_theme_constant_override("v_separation", 8)
 	wardrobe_content.add_child(inventory_grid)
+	default_weapon_card = PanelContainer.new()
+	default_weapon_card.name = "DefaultWeaponCard"
+	default_weapon_card.custom_minimum_size = Vector2(110, 140)
+	default_weapon_card.add_theme_stylebox_override("panel", _panel_style(Color(0.34, 0.37, 0.44), Color(0.065, 0.072, 0.09, 0.92)))
+	inventory_grid.add_child(default_weapon_card)
+	var default_content := VBoxContainer.new()
+	default_content.add_theme_constant_override("separation", 5)
+	default_weapon_card.add_child(default_content)
+	default_weapon_icon = TextureRect.new()
+	default_weapon_icon.texture = GEAR_1H_SWORD_ICON
+	default_weapon_icon.custom_minimum_size = Vector2(0, 52)
+	default_weapon_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	default_weapon_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	default_weapon_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	default_content.add_child(default_weapon_icon)
+	default_weapon_name_label = _make_label("Стандартное оружие", 12, PALE)
+	default_content.add_child(default_weapon_name_label)
+	default_weapon_status = _make_label("Надето", 12, Color(0.58, 0.9, 0.64))
+	default_content.add_child(default_weapon_status)
+	default_weapon_button = _make_action_button("Надето", false)
+	default_weapon_button.custom_minimum_size = Vector2(0, 28)
+	default_weapon_button.add_theme_font_size_override("font_size", 11)
+	default_weapon_button.pressed.connect(_on_default_weapon_pressed)
+	default_content.add_child(default_weapon_button)
 	var weapon_specs := [
-		{"id": 1, "name": "Легендарный меч", "icon": SHOP_GREATSWORD_ICON},
-		{"id": 2, "name": "Легендарный лук", "icon": SHOP_LEGENDARY_BOW_ICON},
-		{"id": 3, "name": "Легендарный посох", "icon": SHOP_LEGENDARY_STAFF_ICON},
+		{"id": 1, "name": "Двуручный меч", "icon": SHOP_2H_SWORD_ICON},
+		{"id": 2, "name": "Тяжёлый арбалет", "icon": SHOP_2H_CROSSBOW_ICON},
+		{"id": 3, "name": "Боевой жезл", "icon": SHOP_WAND_ICON},
 	]
 	for spec in weapon_specs:
 		var weapon_id: int = spec["id"]
@@ -1155,6 +1244,74 @@ func _build_player_menu() -> void:
 		weapon_inventory_cards[weapon_id] = weapon_card
 	# Крылья временно убраны из инвентаря.
 	_refresh_player_menu()
+
+
+func _build_hero_preview_stage() -> void:
+	if preview_root == null:
+		return
+	var environment := Environment.new()
+	environment.background_mode = Environment.BG_CLEAR_COLOR
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	environment.ambient_light_color = Color(0.6, 0.68, 0.85)
+	environment.ambient_light_energy = 0.7
+	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	var world := WorldEnvironment.new()
+	world.environment = environment
+	preview_root.add_child(world)
+	var key := DirectionalLight3D.new()
+	key.light_color = Color(1.0, 0.93, 0.8)
+	key.light_energy = 1.7
+	key.rotation_degrees = Vector3(-35.0, -30.0, 0.0)
+	key.shadow_enabled = true
+	preview_root.add_child(key)
+	var rim := DirectionalLight3D.new()
+	rim.light_color = Color(0.5, 0.75, 1.0)
+	rim.light_energy = 1.1
+	rim.rotation_degrees = Vector3(-20.0, 150.0, 0.0)
+	preview_root.add_child(rim)
+	var ground := MeshInstance3D.new()
+	var disk := CylinderMesh.new()
+	disk.top_radius = 1.25
+	disk.bottom_radius = 1.25
+	disk.height = 0.03
+	ground.mesh = disk
+	ground.position.y = -0.02
+	var ground_material := StandardMaterial3D.new()
+	ground_material.albedo_color = Color(0.08, 0.09, 0.13)
+	ground_material.roughness = 0.95
+	ground.material_override = ground_material
+	preview_root.add_child(ground)
+	var camera := Camera3D.new()
+	camera.fov = 34.0
+	camera.look_at_from_position(Vector3(0.0, 1.15, 4.0), Vector3(0.0, 1.05, 0.0), Vector3.UP)
+	preview_root.add_child(camera)
+	camera.current = true
+
+
+func _refresh_hero_preview() -> void:
+	if preview_root == null:
+		return
+	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
+	var signature := "%d:%s" % [selected_class, str(MetaProgression.is_weapon_enabled(character_key))]
+	if preview_hero != null and is_instance_valid(preview_hero) and preview_class == selected_class and preview_weapon_signature == signature:
+		return
+	preview_class = selected_class
+	preview_weapon_signature = signature
+	if preview_hero != null and is_instance_valid(preview_hero):
+		preview_hero.queue_free()
+	preview_hero = HeroUnit.new()
+	preview_root.add_child(preview_hero)
+	preview_hero.setup(null, selected_class, 0, false)
+	preview_hero.set_physics_process(false)
+	preview_hero.position = Vector3.ZERO
+	preview_hero.visual.rotation.y = PI
+	preview_hero.health_back.visible = false
+	preview_hero.health_fill.visible = false
+	preview_hero.health_label.visible = false
+	preview_hero.name_label.visible = false
+	var ring := preview_hero.visual.get_node_or_null("TeamRing")
+	if ring != null:
+		ring.visible = false
 
 
 func _build_wing_inventory_cards(inventory_grid: GridContainer) -> void:
@@ -1212,12 +1369,19 @@ func _refresh_wing_inventory() -> void:
 		card.add_theme_stylebox_override("panel", _wing_card_style(is_equipped))
 
 
+func _on_default_weapon_pressed() -> void:
+	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
+	MetaProgression.set_weapon_enabled(character_key, false)
+	_refresh_weapon_shop()
+	_refresh_player_menu()
+
+
 func _on_inventory_weapon_pressed(weapon_id: int) -> void:
 	if not weapon_id in MetaProgression.unlocked_weapons:
 		_open_shard_shop()
 		return
-	var weapon_character := "warrior" if weapon_id == 1 else "fairy"
-	MetaProgression.toggle_weapon(weapon_character)
+	var weapon_character := _weapon_character_key(weapon_id)
+	MetaProgression.set_weapon_enabled(weapon_character, not MetaProgression.is_weapon_enabled(weapon_character))
 	_refresh_weapon_shop()
 	_refresh_player_menu()
 
@@ -1721,7 +1885,7 @@ func _localize_report_error(error: String) -> String:
 
 
 func _refresh_player_menu() -> void:
-	if menu_hero_portrait == null:
+	if preview_root == null:
 		return
 	if nickname_display_label != null:
 		nickname_display_label.text = MetaProgression.player_nickname
@@ -1744,7 +1908,7 @@ func _refresh_player_menu() -> void:
 	var character_level := int(MetaProgression.char_levels.get(character_key, 1))
 	var character_xp := int(MetaProgression.char_xps.get(character_key, 0))
 	menu_hero_name_label.text = HERO_NAMES[selected_class]
-	menu_hero_portrait.texture = load(HERO_ART[selected_class]) as Texture2D
+	_refresh_hero_preview()
 	menu_level_label.text = "Уровень %d — %s" % [character_level, HERO_NAMES[selected_class]]
 	var max_xp := MetaProgression.get_xp_for_next_level(character_key)
 	menu_xp_bar.max_value = max_xp
@@ -2064,6 +2228,7 @@ func _refresh_selection() -> void:
 		avatar.texture = avatar_atlas
 	_refresh_player_profile()
 	_refresh_player_menu()
+	_refresh_weapon_shop()
 
 
 func _refresh_player_profile() -> void:
@@ -2120,13 +2285,13 @@ func _play_level_up_feedback() -> void:
 	add_child(player)
 	player.finished.connect(player.queue_free)
 	player.play()
-	if profile_level_label == null or not is_instance_valid(profile_level_label):
+	if profile_xp_label == null or not is_instance_valid(profile_xp_label):
 		return
-	if not profile_level_label.text.ends_with("НОВЫЙ УРОВЕНЬ!"):
-		profile_level_label.text += "  ✦ НОВЫЙ УРОВЕНЬ!"
+	profile_xp_label.text = "✦ НОВЫЙ УРОВЕНЬ!"
+	profile_xp_label.add_theme_color_override("font_color", GOLD)
 	await get_tree().create_timer(2.6).timeout
-	if is_instance_valid(profile_level_label):
-		profile_level_label.text = profile_level_label.text.replace("  ✦ НОВЫЙ УРОВЕНЬ!", "")
+	if is_instance_valid(profile_xp_label):
+		_refresh_player_profile()
 
 
 func _on_side_card_pressed(slot: int) -> void:

@@ -50,6 +50,7 @@ var gold_label: Label
 var player_panel: PanelContainer
 var player_portrait: TextureRect
 var player_name_label: Label
+var player_team_icon: TextureRect
 var player_hp_bar: ProgressBar
 var player_hp_label: Label
 var player_panel_class := -1
@@ -788,9 +789,20 @@ func _build_player_panel(root: Control) -> void:
 	details.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content.add_child(details)
 
+	var name_row := HBoxContainer.new()
+	name_row.add_theme_constant_override("separation", 6)
+	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	details.add_child(name_row)
 	player_name_label = _make_label("Игрок · Воин Света", 15, Color(0.97, 0.91, 0.79))
 	player_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	details.add_child(player_name_label)
+	player_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_row.add_child(player_name_label)
+	player_team_icon = TextureRect.new()
+	player_team_icon.custom_minimum_size = Vector2(18, 18)
+	player_team_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	player_team_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	player_team_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_row.add_child(player_team_icon)
 
 	var hp_container := Control.new()
 	hp_container.custom_minimum_size = Vector2(0.0, 20.0)
@@ -1016,7 +1028,7 @@ func _build_select(root: Control) -> void:
 	var subtitle := _make_label("Выбери героя света", 22, Color(0.85, 0.9, 1.0))
 	box.add_child(subtitle)
 
-	var classes := ["Воин — врывается и оглушает", "Маг — лечит и держит лозами", "Фея — бьёт издалека и оглушает"]
+	var classes := ["Воин — врывается и оглушает", "Маг — лечит и держит лозами", "Лучница — бьёт издалека и оглушает"]
 	for i in 3:
 		var button := Button.new()
 		button.custom_minimum_size = Vector2(640, 62)
@@ -1206,6 +1218,8 @@ func _update_player_panel() -> void:
 		player_panel_team = player.team
 		var border_color := Color(0.84, 0.68, 0.39, 0.95) if player.team == 0 else Color(0.58, 0.46, 0.78, 0.95)
 		player_panel.add_theme_stylebox_override("panel", _panel_style(border_color, Color(0.035, 0.035, 0.05, 0.3)))
+		if player_team_icon != null:
+			player_team_icon.texture = _team_icon(player.team)
 	player_hp_bar.max_value = maxf(1.0, player.max_health)
 	player_hp_bar.value = clampf(player.health, 0.0, player_hp_bar.max_value)
 	player_hp_label.text = "%d / %d" % [roundi(player.health), roundi(player.max_health)]

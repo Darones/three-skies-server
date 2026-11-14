@@ -5,7 +5,7 @@ const CHARACTER_ART := [
 	"res://ui/portraits/mage_portrait.png",
 	"res://ui/portraits/fairy_portrait.png",
 ]
-const CHARACTER_CLASS_NAMES := ["Воин", "Маг", "Фея"]
+const CHARACTER_CLASS_NAMES := ["Воин", "Маг", "Лучница"]
 const CHARACTER_KEYS := ["warrior", "mage", "fairy"]
 const REPLAY_SCENE := "res://scenes/LoadingScreen.tscn"
 const MENU_SCENE := "res://scenes/Lobby.tscn"

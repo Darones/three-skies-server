@@ -158,7 +158,7 @@ func TestBotStatesReachGuests(t *testing.T) {
 	room := newTestRoom(host, guest)
 	room.bots[2] = &wsBot{
 		id:           -3,
-		name:         "Бот-Фея-3",
+		name:         "Бот-Лучница-3",
 		class:        2,
 		team:         0,
 		x:            0,

@@ -54,14 +54,14 @@ const TUTORIAL_CONTROLLER_SCRIPT: Script = preload("res://scripts/tutorial_contr
 const REMOTE_PLAYER_SCRIPT: Script = preload("res://scripts/remote_player.gd")
 const SHOP_ITEMS := [
 	{"id": "life_amulet", "name": "Амулет Жизни", "effect": "+150 Max HP", "price": 500, "icon": 10},
-	{"id": "revival_talisman", "name": "Талисман Возрождения", "effect": "+10 HP/сек реген", "price": 550, "icon": 2},
-	{"id": "titan_shell", "name": "Панцирь Титана", "effect": "−15% входящего урона", "price": 550, "icon": 12},
+	{"id": "revival_talisman", "name": "Талисман Возрождения", "effect": "+10 HP/сек реген", "price": 450, "icon": 2},
+	{"id": "titan_shell", "name": "Панцирь Титана", "effect": "−15% входящего урона", "price": 450, "icon": 12},
 	{"id": "power_glove", "name": "Перчатка Силы", "effect": "+25 к урону атаки", "price": 500, "icon": 0},
-	{"id": "vampire_fang", "name": "Клык Вампира", "effect": "15% вампиризма", "price": 550, "icon": 4},
-	{"id": "agility_mark", "name": "Знак Ловкости", "effect": "+20% скорости атаки", "price": 500, "icon": 15},
-	{"id": "wind_boots", "name": "Сапоги Ветра", "effect": "+15% скорости бега", "price": 450, "icon": 11},
-	{"id": "hourglass", "name": "Песочные Часы", "effect": "−15% КД скиллов", "price": 550, "icon": 6},
-	{"id": "cleansing_charm", "name": "Оберег Очищения", "effect": "−20% времени станов", "price": 500, "icon": 3},
+	{"id": "vampire_fang", "name": "Клык Вампира", "effect": "15% вампиризма", "price": 500, "icon": 4},
+	{"id": "agility_mark", "name": "Знак Ловкости", "effect": "+20% скорости атаки", "price": 450, "icon": 15},
+	{"id": "wind_boots", "name": "Сапоги Ветра", "effect": "+15% скорости бега", "price": 350, "icon": 11},
+	{"id": "hourglass", "name": "Песочные Часы", "effect": "−15% КД скиллов", "price": 450, "icon": 6},
+	{"id": "cleansing_charm", "name": "Оберег Очищения", "effect": "−20% времени станов", "price": 350, "icon": 3},
 ]
 
 const SHOP_ITEM_TEXTURES := {
@@ -1142,6 +1142,8 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	var enemy_spots: Array[Vector3] = dark_spots if player_team == 0 else light_spots
 	var enemy_team := 1 - player_team
 	player = _spawn_hero(player_class, player_team, true, own_spots[0])
+	if tutorial_mode:
+		spawn_tutorial_dummy()
 	if not tutorial_mode:
 		if network_play:
 			if network_host:
@@ -2206,15 +2208,8 @@ func _update_tutorial_arrow(delta: float) -> void:
 func spawn_tutorial_dummy() -> void:
 	if tutorial_dummy != null and is_instance_valid(tutorial_dummy):
 		return
-	var spawn_position := Vector3(0.0, 0.76, -3.0)
-	if player != null and is_instance_valid(player):
-		var direction := Vector2(-player.global_position.x, -player.global_position.z)
-		if direction.length() < 0.5:
-			direction = Vector2(0.0, -1.0)
-		direction = direction.normalized()
-		spawn_position = player.global_position + Vector3(direction.x, 0.0, direction.y) * 3.0
-		spawn_position.y = 0.76
-	tutorial_dummy = _spawn_hero(HeroUnit.Cls.WARRIOR, 1 - player.team, false, spawn_position)
+	# Манекен сразу стоит в центре арены, а не появляется рядом с игроком.
+	tutorial_dummy = _spawn_hero(HeroUnit.Cls.WARRIOR, 1 - player.team, false, Vector3(0.0, 0.76, 0.0))
 	tutorial_dummy.name = "TrainingDummy"
 	tutorial_dummy.set_display_name("Манекен")
 	tutorial_dummy.tutorial_dummy = true
@@ -2897,7 +2892,7 @@ func _ability_index_from_event(event: InputEventKey) -> int:
 
 func objective_text() -> String:
 	if state == "select":
-		return "Выбери класс — 1 Воин · 2 Маг · 3 Фея"
+		return "Выбери класс — 1 Воин · 2 Маг · 3 Лучница"
 	if state == "over":
 		return ""
 	if crystal_state == "carried" and carrier != null and is_instance_valid(carrier):

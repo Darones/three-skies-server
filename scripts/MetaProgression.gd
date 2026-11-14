@@ -154,6 +154,13 @@ func toggle_weapon(character_key: String) -> void:
 	_save_loadout()
 
 
+func set_weapon_enabled(character_key: String, enabled: bool) -> void:
+	if not weapons_enabled.has(character_key):
+		return
+	weapons_enabled[character_key] = enabled
+	_save_loadout()
+
+
 func register_player(nickname: String) -> void:
 	var clean_nickname := nickname.strip_edges()
 	if player_id > 0 or clean_nickname.is_empty():

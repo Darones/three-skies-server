@@ -131,8 +131,8 @@ const CLASS_DATA := {
 		],
 	},
 	Cls.FAIRY: {
-		"name": "Фея",
-		"title": "Фея-лучница",
+		"name": "Лучница",
+		"title": "Лучница",
 		"hp": 950.0,
 		"speed": 4.5,
 		"range": 11.0,
@@ -148,10 +148,33 @@ const CLASS_DATA := {
 	},
 }
 
+const GEAR_NAMES := [
+	"1H_Sword", "1H_Sword_Offhand", "2H_Sword",
+	"Badge_Shield", "Rectangle_Shield", "Round_Shield", "Spike_Shield",
+	"1H_Wand", "2H_Staff", "Spellbook", "Spellbook_open",
+	"1H_Crossbow", "2H_Crossbow", "Knife", "Knife_Offhand", "Throwable",
+]
+const GEAR_DEFAULT := {
+	Cls.WARRIOR: ["1H_Sword", "Spike_Shield"],
+	Cls.MAGE: ["2H_Staff", "Spellbook"],
+	Cls.FAIRY: ["1H_Crossbow"],
+}
+const GEAR_VARIANT := {
+	Cls.WARRIOR: ["2H_Sword"],
+	Cls.MAGE: ["1H_Wand", "Spellbook"],
+	Cls.FAIRY: ["2H_Crossbow"],
+}
+const GEAR_VARIANT_IDS := {
+	Cls.WARRIOR: 1,
+	Cls.MAGE: 3,
+	Cls.FAIRY: 2,
+}
+
 var game: Node = null
 var team := 0
 var hero_class: int = Cls.WARRIOR
 var is_player := false
+var gear_nodes: Dictionary = {}
 var network_id := 0
 var afk_active := false
 var afk_idle_time := 0.0
@@ -413,7 +436,7 @@ func _apply_wing_tint(node: Node, tint: Color, emission: float, rim: float) -> v
 
 
 func update_wings() -> void:
-	# Крылья временно убраны из игры: у Феи остаются родные, вшитые в модель.
+	# Крылья временно убраны из игры: у Лучницы остаются родные, вшитые в модель.
 	if wing_attachment != null and is_instance_valid(wing_attachment):
 		wing_attachment.queue_free()
 	if wing_bone_attachment != null and is_instance_valid(wing_bone_attachment):
@@ -920,11 +943,12 @@ func set_display_name(value: String) -> void:
 func _build_visual() -> void:
 	var model := _load_model()
 	if model != null:
+		gear_nodes.clear()
 		for child in model.find_children("*", "MeshInstance3D", true, false):
 			var mesh_node := child as MeshInstance3D
-			var mesh_name := mesh_node.name.to_lower()
-			print("HERO: mesh = ", mesh_node.name)
-			if mesh_name.contains("sword") or mesh_name.contains("blade") or mesh_name.contains("weapon") or mesh_name.contains("weapon_bone") or mesh_name.contains("меч"):
+			var mesh_name := String(mesh_node.name)
+			if mesh_name in GEAR_NAMES:
+				gear_nodes[mesh_name] = mesh_node
 				mesh_node.visible = false
 		var holder := Node3D.new()
 		holder.name = "Model"
@@ -933,7 +957,7 @@ func _build_visual() -> void:
 		visual.add_child(holder)
 		_fit_model(holder)
 		anim_player = _find_animation_player(holder)
-		_attach_class_weapon(holder)
+		_apply_gear_selection()
 		_play_anim("idle")
 		return
 	_build_placeholder()
@@ -1010,83 +1034,25 @@ func _find_animation_player(node: Node) -> AnimationPlayer:
 	return null
 
 
-func _attach_class_weapon(holder: Node3D) -> void:
-	var skeleton := _find_skeleton(holder)
-	if skeleton == null:
+func _apply_gear_selection() -> void:
+	if gear_nodes.is_empty():
 		return
-	# KayKit: оружие крепится к handslot.r — у неё уже выставлен поворот кисти
-	var desired_names: Array[String] = ["handslot.r", "hand.r", "RightHand"]
-	var bone_index := -1
-	for desired_bone in desired_names:
-		for index in range(skeleton.get_bone_count()):
-			if String(skeleton.get_bone_name(index)).to_lower() == desired_bone.to_lower():
-				bone_index = index
-				break
-		if bone_index >= 0:
-			break
-	if bone_index < 0:
-		return
-	var weapon_path := ""
-	var weapon_scale := 1.0
-	var hand_offset := Vector3.ZERO
-	var weapon_rotation := Vector3.ZERO
-	match hero_class:
-		Cls.WARRIOR:
-			# простое оружие из пака — базовое, легендарный меч покупается в магазине
-			if 1 in MetaProgression.unlocked_weapons and MetaProgression.is_weapon_enabled("warrior"):
-				weapon_path = "res://assets/weapons/crystal_greatsword_low.glb"
-				weapon_scale = 1.3
-				hand_offset = Vector3.ZERO
-				weapon_rotation = Vector3(0.0, 180.0, 0.0)
-			else:
-				weapon_path = "res://assets/weapons/kaykit/sword_1handed.gltf"
-				weapon_scale = 1.0
-				hand_offset = Vector3(0.0, 0.033, 0.0)
-				weapon_rotation = Vector3(0.0, 180.0, 0.0)
-		Cls.MAGE:
-			if 3 in MetaProgression.unlocked_weapons and MetaProgression.is_weapon_enabled("mage"):
-				weapon_path = "res://assets/weapons/wizards_staff_low.glb"
-				weapon_scale = 1.6
-				hand_offset = Vector3.ZERO
-				weapon_rotation = Vector3(0.0, 180.0, 0.0)
-			else:
-				weapon_path = "res://assets/weapons/kaykit/staff.gltf"
-				weapon_scale = 1.0
-				hand_offset = Vector3.ZERO
-				weapon_rotation = Vector3(0.0, 180.0, 0.0)
-		Cls.FAIRY:
-			if 2 in MetaProgression.unlocked_weapons and MetaProgression.is_weapon_enabled("fairy"):
-				weapon_path = "res://scenes/LegendaryBow.tscn"
-				weapon_scale = 1.5
-				hand_offset = Vector3(-0.45, 0.0, 0.3)
-				weapon_rotation = Vector3(-31.92, 62.8, 63.87)
-			else:
-				weapon_path = "res://assets/weapons/kaykit/crossbow_1handed.gltf"
-				weapon_scale = 1.0
-				hand_offset = Vector3(0.0, -0.0104, -0.1046)
-				weapon_rotation = Vector3(0.0, 90.0, 0.0)
-	var packed_weapon := load(weapon_path) as PackedScene
-	if packed_weapon == null:
-		return
-	weapon_attachment = Node3D.new()
-	weapon_attachment.name = "WeaponAttachment"
-	skeleton.add_child(weapon_attachment)
-	weapon_skeleton = skeleton
-	weapon_bone_index = bone_index
-	weapon_base_scale = weapon_scale
-	weapon_rotation_offset = weapon_rotation
-	weapon_world_offset = hand_offset
-	weapon_instance = packed_weapon.instantiate() as Node3D
-	if weapon_instance == null:
-		weapon_attachment.queue_free()
-		weapon_attachment = null
-		return
-	weapon_instance.name = "EquippedWeapon"
-	weapon_instance.visible = true
-	_disable_weapon_collisions(weapon_instance)
-	weapon_attachment.add_child(weapon_instance)
-	_update_weapon_transform()
-	weapon_anim_player = _find_animation_player(weapon_instance)
+	var selected := _selected_gear()
+	for gear_name in gear_nodes.keys():
+		var gear_node := gear_nodes[gear_name] as MeshInstance3D
+		if gear_node != null and is_instance_valid(gear_node):
+			gear_node.visible = String(gear_name) in selected
+	weapon_attachment = null
+	if not selected.is_empty():
+		weapon_attachment = gear_nodes.get(String(selected[0])) as Node3D
+
+
+func _selected_gear() -> Array:
+	var character_key: String = ["warrior", "mage", "fairy"][hero_class]
+	var variant_id := int(GEAR_VARIANT_IDS.get(hero_class, 0))
+	if variant_id in MetaProgression.unlocked_weapons and MetaProgression.is_weapon_enabled(character_key):
+		return GEAR_VARIANT[hero_class]
+	return GEAR_DEFAULT[hero_class]
 
 
 func _add_weapon_effects(weapon: Node3D) -> void:
@@ -2067,7 +2033,20 @@ func dismiss_shop() -> void:
 		game.set_shop_open(false)
 
 
+func _update_name_color() -> void:
+	if name_label == null or not is_instance_valid(name_label):
+		return
+	var local_team := -1
+	if game != null and is_instance_valid(game) and game.player != null and is_instance_valid(game.player):
+		local_team = int(game.player.team)
+	if local_team >= 0 and team != local_team:
+		name_label.modulate = Color(1.0, 0.32, 0.28)
+	else:
+		name_label.modulate = Color(0.55, 0.9, 1.0) if team == 0 else Color(0.92, 0.66, 1.0)
+
+
 func _update_name_visibility() -> void:
+	_update_name_color()
 	if name_label == null or game == null or not is_instance_valid(game):
 		return
 	if is_player:
@@ -2333,7 +2312,7 @@ func _die() -> void:
 	slow_factor = 0.0
 	set_collision_layer_value(1, false)
 	set_collision_mask_value(1, false)
-	_play_anim("dead", true)
+	_play_anim("death", true)
 	_hide_after_death()
 	if health_label != null:
 		health_label.visible = false

@@ -18,7 +18,7 @@ const SLOT_GROUPS = [
 	},
 	{
 		id: "fairy",
-		title: "Фея",
+		title: "Лучница",
 		slots: [
 			["attack", "Атака"],
 			["skill1", "Оглушающий выстрел"],
