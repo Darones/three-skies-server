@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Анимации героев — Небесные осколки</title>
+<style>
+  :root { --bg:#0b0d13; --panel:#121620; --gold:#e8c56b; --pale:#d9dce6; --muted:#8a90a2; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; overflow:hidden; background:var(--bg); color:var(--pale); font-family:"Segoe UI",system-ui,sans-serif; }
+  #bar {
+    position:absolute; top:0; left:0; right:0; z-index:10;
+    display:flex; flex-wrap:wrap; align-items:center; gap:14px;
+    padding:12px 18px;
+    background:linear-gradient(180deg, rgba(8,10,15,.96), rgba(8,10,15,.82));
+    border-bottom:1px solid #232a3a;
+    backdrop-filter: blur(6px);
+  }
+  #bar .title { font-family:Georgia,serif; color:var(--gold); letter-spacing:1.5px; font-size:20px; margin-right:8px; }
+  label { font-size:12px; color:var(--muted); display:flex; flex-direction:column; gap:3px; }
+  select, button {
+    background:#151a25; color:var(--pale); border:1px solid #2c3446; border-radius:7px;
+    padding:7px 10px; font-size:13px; font-family:inherit; outline:none;
+  }
+  select:focus, button:hover { border-color:#55617a; }
+  button { cursor:pointer; }
+  button.primary { border-color:var(--gold); color:var(--gold); }
+  #speed { width:110px; accent-color:var(--gold); }
+  #status {
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    color:var(--gold); font-size:16px; letter-spacing:1px; z-index:9;
+    text-shadow:0 2px 8px #000; pointer-events:none;
+  }
+  canvas { display:block; width:100%; height:100%; }
+  #hint {
+    position:absolute; left:18px; bottom:14px; z-index:9;
+    font-size:12px; color:#6f7688; line-height:1.5;
+  }
+  #hint b { color:#9aa3b8; font-weight:400; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js",
+    "three/addons/": "./vendor/addons/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="bar">
+  <span class="title">ГЕРОИ</span>
+  <label>Герой<select id="hero">
+    <option value="warrior">Воин</option>
+    <option value="mage">Маг</option>
+    <option value="fairy" selected>Фея</option>
+  </select></label>
+  <label>Анимация<select id="anim"></select></label>
+  <label>Крылья<select id="wings">
+    <option value="0">Нет</option>
+    <option value="1" selected>Белые</option>
+    <option value="2">Золотые</option>
+    <option value="3">Чёрные</option>
+    <option value="4">Демонические</option>
+  </select></label>
+  <label>Оружие<select id="weapon">
+    <option value="none">Нет</option>
+    <option value="sword">Меч</option>
+    <option value="staff">Посох</option>
+    <option value="legendary_bow">Легендарный лук</option>
+    <option value="short_bow">Короткий лук</option>
+  </select></label>
+  <label>Скорость<input id="speed" type="range" min="0.2" max="1.6" step="0.05" value="1"></label>
+  <button id="pause">Пауза</button>
+  <button id="reset" class="primary">Без снаряжения</button>
+</div>
+<div id="status">Загрузка...</div>
+<div id="hint"><b>ЛКМ</b> — вращать · <b>колесо</b> — приблизить · <b>ПКМ</b> — двигать</div>
+<canvas id="scene"></canvas>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const HEROES = {
+  warrior: '/art/generated/warrior/rig.glb',
+  mage: '/art/generated/mage/rig.glb',
+  fairy: '/art/generated/fairy/rig.glb',
+};
+
+const WING_TUNING = {
+  warrior: {
+    1: { pos:[0,0.25,-0.15], rot:[-1.7,0,0], scale:1.0 },
+    2: { pos:[0,0.25,-0.15], rot:[-1.7,0,0], scale:1.0 },
+    3: { pos:[0,0.25,-0.15], rot:[-1.7,0,0], scale:1.0 },
+    4: { pos:[0,-0.68,-0.46], rot:[0,0,0], scale:0.006 },
+  },
+  mage: {
+    1: { pos:[0,0.25,-0.15], rot:[-1.7,0,0], scale:1.0 },
+    2: { pos:[0,0.25,-0.15], rot:[-1.7,0,0], scale:1.0 },
+    3: { pos:[0,0.25,-0.15], rot:[-1.7,0,0], scale:1.0 },
+    4: { pos:[0,-0.77,-0.49], rot:[0,0,0], scale:0.006 },
+  },
+  fairy: {
+    1: { pos:[0,0.25,-0.07], rot:[-1.7,0,0], scale:1.0 },
+    2: { pos:[0,0.25,-0.07], rot:[-1.7,0,0], scale:1.0 },
+    3: { pos:[0,0.25,-0.07], rot:[-1.7,0,0], scale:1.0 },
+    4: { pos:[0,-0.75,-0.15], rot:[16.98,0,0], scale:0.006 },
+  },
+};
+
+const WING_TINTS = {
+  1: [1.0, 1.0, 1.0],
+  2: [1.0, 0.78, 0.34],
+  3: [0.10, 0.09, 0.13],
+  4: [1.0, 1.0, 1.0],
+};
+
+const WEAPONS = {
+  sword: { path:'/addons/low_poly_rpg_items/models/longsword_model.glb', bone:'RightHand', pos:[0.06,0,-0.12], rot:[0,0,-12], scale:0.72 },
+  staff: { path:'/addons/low_poly_rpg_items/models/staff_wizard_model.glb', bone:'RightHand', pos:[0.04,0,-0.1], rot:[0,0,0], scale:0.62 },
+  legendary_bow: { path:'/assets/models/legendary_bow/Elven_Recurve_Bow_legendary.glb', bone:'LeftHand', pos:[-0.06,0,-0.1], rot:[0,0,8], scale:0.82 },
+  short_bow: { path:'/addons/low_poly_rpg_items/models/short_bow_model.glb', bone:'LeftHand', pos:[-0.06,0,-0.1], rot:[0,0,8], scale:0.9 },
+};
+
+const CLIP_ORDER = ['Idle','Run','Walk','Attack','Charged Spell Cast','Dead'];
+const UP = new THREE.Vector3(0,1,0);
+const FIT = 2.15 / 1.7;
+
+const canvas = document.getElementById('scene');
+const statusEl = document.getElementById('status');
+const heroSelect = document.getElementById('hero');
+const animSelect = document.getElementById('anim');
+const wingsSelect = document.getElementById('wings');
+const weaponSelect = document.getElementById('weapon');
+const speedInput = document.getElementById('speed');
+const pauseButton = document.getElementById('pause');
+const resetButton = document.getElementById('reset');
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0d13);
+scene.fog = new THREE.Fog(0x0b0d13, 8, 16);
+
+const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 60);
+camera.position.set(2.4, 1.7, 4.4);
+
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 1.1, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 1.6;
+controls.maxDistance = 9;
+controls.maxPolarAngle = Math.PI * 0.52;
+controls.update();
+
+scene.add(new THREE.HemisphereLight(0x9fb4d8, 0x2a2430, 1.1));
+const key = new THREE.DirectionalLight(0xfff2d0, 2.2);
+key.position.set(-3, 5, 4);
+key.castShadow = true;
+key.shadow.mapSize.set(1024, 1024);
+key.shadow.camera.left = -4; key.shadow.camera.right = 4;
+key.shadow.camera.top = 5; key.shadow.camera.bottom = -1;
+scene.add(key);
+const rim = new THREE.PointLight(0x6fa8ff, 18, 8, 2);
+rim.position.set(1.6, 2.4, -2.6);
+scene.add(rim);
+const fill = new THREE.DirectionalLight(0x9fc0ff, 0.5);
+fill.position.set(3, 2, 2);
+scene.add(fill);
+
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(4.2, 64),
+  new THREE.MeshStandardMaterial({ color:0x151a24, roughness:0.9, metalness:0.05 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+const grid = new THREE.GridHelper(8, 32, 0x2a3348, 0x1a2030);
+grid.position.y = 0.002;
+scene.add(grid);
+
+const loader = new GLTFLoader();
+const clock = new THREE.Clock();
+
+let hero = null;
+let heroKey = 'fairy';
+let heroFit = FIT;
+let mixer = null;
+let clips = [];
+let currentAction = null;
+let bones = {};
+let wingObject = null;
+let wingMixer = null;
+let wingId = 1;
+let wingConfig = null;
+let weaponObject = null;
+let weaponKey = 'none';
+let paused = false;
+let loadingToken = 0;
+
+function setStatus(text) {
+  statusEl.textContent = text || '';
+  statusEl.style.display = text ? 'block' : 'none';
+}
+
+function findBones(root) {
+  const found = {};
+  root.traverse((node) => {
+    if (!node.isBone) return;
+    const name = node.name.toLowerCase();
+    if (name === 'spine02') found.spine = node;
+    if (name === 'righthand') found.righthand = node;
+    if (name === 'lefthand') found.lefthand = node;
+  });
+  return found;
+}
+
+function disposeObject(object) {
+  if (!object) return;
+  object.traverse((node) => {
+    if (node.isMesh) {
+      node.geometry?.dispose();
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      for (const material of materials) {
+        if (!material) continue;
+        for (const value of Object.values(material)) {
+          if (value && value.isTexture) value.dispose();
+        }
+        material.dispose();
+      }
+    }
+  });
+  scene.remove(object);
+}
+
+function clearGear() {
+  if (wingObject) { disposeObject(wingObject); wingObject = null; wingMixer = null; }
+  if (weaponObject) { disposeObject(weaponObject); weaponObject = null; }
+}
+
+function loadHero(key) {
+  heroKey = key;
+  const token = ++loadingToken;
+  clearGear();
+  if (hero) { disposeObject(hero); hero = null; }
+  mixer = null;
+  clips = [];
+  bones = {};
+  animSelect.innerHTML = '';
+  setStatus('Загрузка героя...');
+  loader.load(HEROES[key], (gltf) => {
+    if (token !== loadingToken) return;
+    hero = gltf.scene;
+    hero.traverse((node) => {
+      if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; }
+    });
+    scene.add(hero);
+    const box = new THREE.Box3().setFromObject(hero);
+    const size = box.getSize(new THREE.Vector3());
+    heroFit = 2.15 / Math.max(size.y, 0.01);
+    hero.scale.setScalar(heroFit);
+    hero.position.y = -box.min.y * heroFit;
+    bones = findBones(hero);
+    clips = gltf.animations.slice().sort((a, b) => {
+      const ia = CLIP_ORDER.indexOf(a.name);
+      const ib = CLIP_ORDER.indexOf(b.name);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    });
+    mixer = new THREE.AnimationMixer(hero);
+    for (const clip of clips) {
+      const option = document.createElement('option');
+      option.value = clip.name;
+      option.textContent = clip.name;
+      animSelect.appendChild(option);
+    }
+    const initial = clips.find((c) => c.name === 'Idle') || clips[0];
+    if (initial) {
+      animSelect.value = initial.name;
+      playClip(initial.name);
+    }
+    setStatus('');
+    applyWings();
+    applyWeapon();
+  }, undefined, (error) => {
+    setStatus('Ошибка загрузки: ' + error.message);
+  });
+}
+
+function playClip(name) {
+  if (!mixer) return;
+  mixer.stopAllAction();
+  const clip = clips.find((c) => c.name === name);
+  if (!clip) return;
+  currentAction = mixer.clipAction(clip);
+  currentAction.reset();
+  if (name === 'Dead') {
+    currentAction.setLoop(THREE.LoopOnce, 1);
+    currentAction.clampWhenFinished = true;
+  } else {
+    currentAction.setLoop(THREE.LoopRepeat, Infinity);
+  }
+  currentAction.play();
+}
+
+function applyWings() {
+  if (wingObject) { disposeObject(wingObject); wingObject = null; wingMixer = null; }
+  const id = Number(wingsSelect.value);
+  wingId = id;
+  if (!id) return;
+  const config = WING_TUNING[heroKey]?.[id];
+  if (!config) return;
+  wingConfig = config;
+  const path = id === 4
+    ? '/assets/wings/low_poly_demon_wings_animated.glb'
+    : '/assets/wings/angel_wings_animated.glb';
+  const token = loadingToken;
+  loader.load(path, (gltf) => {
+    if (token !== loadingToken) return;
+    wingObject = gltf.scene;
+    wingObject.traverse((node) => {
+      if (node.isMesh) {
+        node.castShadow = true;
+        node.frustumCulled = false;
+        const materials = Array.isArray(node.material) ? node.material : [node.material];
+        for (const material of materials) {
+          if (!material) continue;
+          material.color?.setRGB(...WING_TINTS[id]);
+        }
+      }
+    });
+    scene.add(wingObject);
+    if (gltf.animations.length) {
+      wingMixer = new THREE.AnimationMixer(wingObject);
+      wingMixer.clipAction(gltf.animations[0]).play();
+    }
+    updateWingTransform();
+  });
+}
+
+function applyWeapon() {
+  if (weaponObject) { disposeObject(weaponObject); weaponObject = null; }
+  const key = weaponSelect.value;
+  weaponKey = key;
+  if (key === 'none') return;
+  const config = WEAPONS[key];
+  if (!config) return;
+  const token = loadingToken;
+  loader.load(config.path, (gltf) => {
+    if (token !== loadingToken) return;
+    weaponObject = gltf.scene;
+    weaponObject.traverse((node) => {
+      if (node.isMesh) { node.castShadow = true; node.frustumCulled = false; }
+    });
+    scene.add(weaponObject);
+    updateWeaponTransform();
+  });
+}
+
+function updateWingTransform() {
+  if (!wingObject || !wingConfig || !bones.spine) return;
+  const bone = bones.spine;
+  bone.updateWorldMatrix(true, false);
+  const bonePos = new THREE.Vector3().setFromMatrixPosition(bone.matrixWorld);
+  const heroQuat = new THREE.Quaternion();
+  hero.getWorldQuaternion(heroQuat);
+  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(heroQuat);
+  forward.y = 0;
+  forward.normalize();
+  const right = new THREE.Vector3().crossVectors(forward, UP).normalize();
+  const basis = new THREE.Matrix4().makeBasis(right, UP, forward);
+  const basisQuat = new THREE.Quaternion().setFromRotationMatrix(basis);
+  const euler = new THREE.Euler(
+    THREE.MathUtils.degToRad(wingConfig.rot[0]),
+    THREE.MathUtils.degToRad(wingConfig.rot[1]),
+    THREE.MathUtils.degToRad(wingConfig.rot[2]),
+    'XYZ'
+  );
+  wingObject.quaternion.copy(basisQuat).multiply(new THREE.Quaternion().setFromEuler(euler));
+  wingObject.position.copy(bonePos).add(new THREE.Vector3(...wingConfig.pos).multiplyScalar(heroFit));
+  wingObject.scale.setScalar(wingConfig.scale * heroFit);
+}
+
+function updateWeaponTransform() {
+  if (!weaponObject || weaponKey === 'none') return;
+  const config = WEAPONS[weaponKey];
+  const bone = bones[config.bone.toLowerCase()];
+  if (!bone) return;
+  bone.updateWorldMatrix(true, false);
+  const bonePos = new THREE.Vector3().setFromMatrixPosition(bone.matrixWorld);
+  const boneQuat = new THREE.Quaternion();
+  const boneScale = new THREE.Vector3();
+  bone.matrixWorld.decompose(new THREE.Vector3(), boneQuat, boneScale);
+  const euler = new THREE.Euler(
+    THREE.MathUtils.degToRad(config.rot[0]),
+    THREE.MathUtils.degToRad(config.rot[1]),
+    THREE.MathUtils.degToRad(config.rot[2]),
+    'XYZ'
+  );
+  weaponObject.quaternion.copy(boneQuat).multiply(new THREE.Quaternion().setFromEuler(euler));
+  weaponObject.position.copy(bonePos).add(new THREE.Vector3(...config.pos));
+  weaponObject.scale.setScalar(config.scale);
+}
+
+function resize() {
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  renderer.setSize(width, height, false);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+resize();
+
+heroSelect.addEventListener('change', () => {
+  loadHero(heroSelect.value);
+});
+animSelect.addEventListener('change', () => playClip(animSelect.value));
+wingsSelect.addEventListener('change', applyWings);
+weaponSelect.addEventListener('change', applyWeapon);
+speedInput.addEventListener('input', () => { mixer && (mixer.timeScale = Number(speedInput.value)); if (wingMixer) wingMixer.timeScale = Number(speedInput.value); });
+pauseButton.addEventListener('click', () => {
+  paused = !paused;
+  pauseButton.textContent = paused ? 'Продолжить' : 'Пауза';
+});
+resetButton.addEventListener('click', () => {
+  wingsSelect.value = '0';
+  weaponSelect.value = 'none';
+  applyWings();
+  applyWeapon();
+});
+
+loadHero('fairy');
+
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = Math.min(clock.getDelta(), 0.05);
+  if (mixer && !paused) mixer.update(delta);
+  if (wingMixer && !paused) wingMixer.update(delta);
+  updateWingTransform();
+  updateWeaponTransform();
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
