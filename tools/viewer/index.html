@@ -141,6 +141,7 @@
     <button id="saveMarks" class="primary">Сохранить метки</button>
     <button id="clearMarks">Очистить</button>
   </div>
+  <button id="testMarks" style="width:100%;margin-top:6px;">Тест: покрасить всё</button>
   <div class="tune-status" id="marksStatus"></div>
   <div class="marks-hint">Включи кисть, покрась лишний лук Феи и нажми «Сохранить метки». Потом я вырежу это в Blender.</div>
 </div>
@@ -535,13 +536,16 @@ function ensureMarkOverlay() {
   markMaterial = new THREE.MeshBasicMaterial({
     color: 0xff3b30,
     transparent: true,
-    opacity: 0.55,
+    opacity: 0.65,
     depthWrite: false,
+    depthTest: false,
     side: THREE.DoubleSide,
     polygonOffset: true,
-    polygonOffsetFactor: -2,
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -4,
   });
   markOverlay = new THREE.SkinnedMesh(markGeometry, markMaterial);
+  markOverlay.renderOrder = 20;
   markOverlay.bind(heroMesh.skeleton, heroMesh.bindMatrix);
   markOverlay.bindMode = heroMesh.bindMode;
   markOverlay.frustumCulled = false;
@@ -587,13 +591,26 @@ function paintAt(event) {
     -((event.clientY - rect.top) / rect.height) * 2 + 1
   );
   raycaster.setFromCamera(ndc, camera);
-  const hits = raycaster.intersectObject(heroMesh, false);
-  if (!hits.length) return;
-  const localHit = heroMesh.worldToLocal(hits[0].point.clone());
+  const hits = raycaster.intersectObject(hero, true);
+  if (!hits.length) {
+    setMarksStatus('Кисть: мимо модели');
+    return;
+  }
+  const hitMesh = hits[0].object;
+  if (!hitMesh.isMesh) {
+    setMarksStatus('Кисть: мимо модели');
+    return;
+  }
+  if (hitMesh !== heroMesh) {
+    heroMesh = hitMesh;
+    marked.clear();
+    ensureMarkOverlay();
+  }
+  const localHit = hitMesh.worldToLocal(hits[0].point.clone());
   const worldScale = new THREE.Vector3();
-  heroMesh.getWorldScale(worldScale);
+  hitMesh.getWorldScale(worldScale);
   const localRadius = brushRadius / Math.max(worldScale.x, 0.0001);
-  const geometry = heroMesh.geometry;
+  const geometry = hitMesh.geometry;
   const positions = geometry.attributes.position;
   const index = geometry.index;
   const triCount = index ? index.count / 3 : positions.count / 3;
@@ -691,6 +708,17 @@ brushSizeNumber.addEventListener('input', () => {
 });
 document.getElementById('clearMarks').addEventListener('click', clearMarks);
 document.getElementById('saveMarks').addEventListener('click', saveMarks);
+document.getElementById('testMarks').addEventListener('click', () => {
+  if (!heroMesh) {
+    setMarksStatus('Модель не найдена', 'err');
+    return;
+  }
+  const index = heroMesh.geometry.index;
+  const count = index ? index.count / 3 : heroMesh.geometry.attributes.position.count / 3;
+  for (let tri = 0; tri < count; tri++) marked.add(tri);
+  updateMarkOverlay();
+  setMarksStatus('Тест: покрашено ' + marked.size + ' треугольников', 'ok');
+});
 
 /* ---------- панель настройки ---------- */
 
