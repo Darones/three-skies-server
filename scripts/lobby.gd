@@ -101,7 +101,11 @@ var shop_hero_buttons: Array[Button] = []
 var shop_selected_hero := 0
 var shop_page := 0
 var topup_panel: PanelContainer
-var info_dialog: AcceptDialog
+var info_overlay: ColorRect
+var info_panel: PanelContainer
+var info_title_label: Label
+var info_message_label: Label
+var info_ok_button: Button
 var shard_amount_label: Label
 var play_button: Button
 var settings_panel: Control
@@ -121,6 +125,7 @@ var report_submit_button: Button
 var menu_hero_name_label: Label
 var preview_viewport: SubViewport
 var preview_root: Node3D
+var preview_camera: Camera3D
 var preview_hero: HeroUnit
 var preview_class := -1
 var preview_weapon_signature := ""
@@ -184,6 +189,7 @@ func _ready() -> void:
 	_build_nickname_popup()
 	_build_rename_confirm()
 	_build_report_form()
+	_build_info_popup()
 	_refresh_wing_shop()
 	_refresh_weapon_shop()
 	_refresh_selection()
@@ -214,6 +220,8 @@ func _ready() -> void:
 		else:
 			MetaProgression.player_nickname = _generate_guest_nickname()
 			MetaProgression.register_player(MetaProgression.player_nickname)
+	elif not MetaProgression.profile_loaded:
+		MetaProgression.load_profile(MetaProgression.player_id)
 	_setup_ui_click_sound()
 	_wire_ui_click_sounds(self)
 
@@ -455,7 +463,7 @@ func _build_shard_shop_button() -> void:
 	balance_row.add_theme_constant_override("separation", 6)
 	shard_amount_label = _make_label(str(MetaProgression.sky_shards), 27, Color(0.43, 0.84, 1.0))
 	balance_row.add_child(shard_amount_label)
-	balance_row.add_child(_shard_icon(26))
+	balance_row.add_child(_shard_icon(30))
 	content.add_child(balance_row)
 	content.add_child(_make_label("Магазин", 16, Color(0.72, 0.77, 0.86)))
 
@@ -502,7 +510,7 @@ func _build_shard_shop() -> void:
 	balance_row.add_theme_constant_override("separation", 6)
 	shop_balance_label = _make_label(str(MetaProgression.sky_shards), 24, Color(0.43, 0.84, 1.0))
 	balance_row.add_child(shop_balance_label)
-	balance_row.add_child(_shard_icon(22))
+	balance_row.add_child(_shard_icon(26))
 	header.add_child(balance_row)
 	var topup_button := _make_action_button("КУПИТЬ ОСКОЛКИ", true)
 	topup_button.name = "TopupButton"
@@ -567,11 +575,6 @@ func _build_shard_shop() -> void:
 	layout.add_child(_make_label("Оружие надевается в инвентаре · 100 осколков = 1 голос", 12, Color(0.5, 0.56, 0.66)))
 
 	_build_topup_panel()
-
-	info_dialog = AcceptDialog.new()
-	info_dialog.title = "Небесный баланс"
-	info_dialog.dialog_text = ""
-	add_child(info_dialog)
 	_refresh_shop()
 
 
@@ -700,12 +703,13 @@ func _make_shop_card(item: Dictionary) -> Control:
 	var owned := _shop_item_owned(item)
 	var pending := MetaProgression.is_purchase_pending(String(item["type"]), int(item["id"]))
 	var affordable := MetaProgression.sky_shards >= int(item["price"])
-	var button_text := "Куплено" if owned else ("Покупка..." if pending else "Купить")
-	var buy_button := _make_action_button(button_text, not owned and affordable)
+	var profile_ready := MetaProgression.profile_loaded
+	var button_text := "Куплено" if owned else ("Покупка..." if pending else ("Загрузка..." if not profile_ready else "Купить"))
+	var buy_button := _make_action_button(button_text, not owned and affordable and profile_ready)
 	buy_button.name = "ShopBuy_%s%d" % [String(item["type"]), int(item["id"])]
 	buy_button.custom_minimum_size = Vector2(0, 40)
 	buy_button.add_theme_font_size_override("font_size", 16)
-	buy_button.disabled = owned or pending
+	buy_button.disabled = owned or pending or not profile_ready
 	buy_button.pressed.connect(_on_shop_item_pressed.bind(item))
 	content.add_child(buy_button)
 	return card
@@ -713,6 +717,9 @@ func _make_shop_card(item: Dictionary) -> Control:
 
 func _on_shop_item_pressed(item: Dictionary) -> void:
 	if _shop_item_owned(item):
+		return
+	if not MetaProgression.profile_loaded:
+		MetaProgression.load_profile(MetaProgression.player_id)
 		return
 	if int(item["price"]) > MetaProgression.sky_shards:
 		_open_topup_panel()
@@ -776,17 +783,69 @@ func _close_shard_shop() -> void:
 	shard_shop_overlay.visible = false
 
 
-func _show_info(message: String) -> void:
-	if info_dialog == null:
+func _build_info_popup() -> void:
+	info_overlay = ColorRect.new()
+	info_overlay.name = "InfoOverlay"
+	info_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	info_overlay.color = Color(0.005, 0.008, 0.018, 0.82)
+	info_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	info_overlay.visible = false
+	info_overlay.z_index = 60
+	add_child(info_overlay)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	info_overlay.add_child(center)
+	info_panel = PanelContainer.new()
+	info_panel.name = "InfoPanel"
+	info_panel.custom_minimum_size = Vector2(560, 0)
+	info_panel.add_theme_stylebox_override("panel", _panel_style(GOLD, Color(0.035, 0.045, 0.07, 0.98)))
+	center.add_child(info_panel)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 34)
+	margin.add_theme_constant_override("margin_right", 34)
+	margin.add_theme_constant_override("margin_top", 26)
+	margin.add_theme_constant_override("margin_bottom", 26)
+	info_panel.add_child(margin)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 14)
+	margin.add_child(content)
+	var ornament := _make_label("✦", 30, GOLD)
+	ornament.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	content.add_child(ornament)
+	info_title_label = _make_label("", 27, GOLD)
+	info_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	info_title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(info_title_label)
+	info_message_label = _make_label("", 18, PALE)
+	info_message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	info_message_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	info_message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info_message_label.custom_minimum_size = Vector2(490, 0)
+	content.add_child(info_message_label)
+	info_ok_button = _make_action_button("Хорошо", true)
+	info_ok_button.custom_minimum_size = Vector2(210, 46)
+	info_ok_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	info_ok_button.add_theme_font_size_override("font_size", 17)
+	info_ok_button.pressed.connect(_hide_info_popup)
+	content.add_child(info_ok_button)
+
+
+func _hide_info_popup() -> void:
+	if info_overlay != null:
+		info_overlay.visible = false
+
+
+func _show_info(message: String, title: String = "Небесные осколки") -> void:
+	if info_overlay == null:
 		return
-	info_dialog.title = "Небесные осколки"
-	info_dialog.dialog_text = message
-	info_dialog.popup_centered()
+	info_title_label.text = title
+	info_message_label.text = message
+	info_overlay.visible = true
+	info_ok_button.grab_focus()
 
 
 func _show_purchase_success(purchase_type: String, item_id: int) -> void:
-	if info_dialog == null:
-		return
 	var item_name := ""
 	if purchase_type == "weapon":
 		for key in SHOP_HERO_WEAPON.keys():
@@ -801,9 +860,10 @@ func _show_purchase_success(purchase_type: String, item_id: int) -> void:
 				break
 	if item_name.is_empty():
 		item_name = "Предмет"
-	info_dialog.title = "Поздравляем!"
-	info_dialog.dialog_text = "Покупка прошла успешно!\n\n«%s» теперь ваш. Наденьте его в инвентаре." % item_name
-	info_dialog.popup_centered()
+	_show_info(
+		"«%s» теперь ваш!\n\nНаденьте его в инвентаре — и оно сразу появится на герое." % item_name,
+		"Поздравляем с покупкой!"
+	)
 
 
 func _on_wing_button_pressed(wing_id: int, price: int) -> void:
@@ -1038,9 +1098,8 @@ func _build_player_menu() -> void:
 	nickname_cost_label = _make_label("Первый ник — бесплатно", 13, Color(0.76, 0.8, 0.89))
 	nickname_cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	nickname_cost_label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	nickname_cost_label.clip_text = true
 	nickname_cost_row.add_child(nickname_cost_label)
-	nickname_cost_icon = _shard_icon(16)
+	nickname_cost_icon = _shard_icon(20)
 	nickname_cost_icon.visible = false
 	nickname_cost_row.add_child(nickname_cost_icon)
 	menu_shard_label = _make_label("Баланс: 0", 13, Color(0.43, 0.84, 1.0))
@@ -1049,7 +1108,7 @@ func _build_player_menu() -> void:
 	cost_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	nickname_cost_row.add_child(cost_spacer)
 	nickname_cost_row.add_child(menu_shard_label)
-	nickname_cost_row.add_child(_shard_icon(16))
+	nickname_cost_row.add_child(_shard_icon(20))
 	var profile_divider := ColorRect.new()
 	profile_divider.custom_minimum_size = Vector2(0, 1)
 	profile_divider.color = Color(GOLD.r, GOLD.g, GOLD.b, 0.32)
@@ -1281,11 +1340,11 @@ func _build_hero_preview_stage() -> void:
 	ground_material.roughness = 0.95
 	ground.material_override = ground_material
 	preview_root.add_child(ground)
-	var camera := Camera3D.new()
-	camera.fov = 34.0
-	camera.look_at_from_position(Vector3(0.0, 1.15, 4.0), Vector3(0.0, 1.05, 0.0), Vector3.UP)
-	preview_root.add_child(camera)
-	camera.current = true
+	preview_camera = Camera3D.new()
+	preview_camera.fov = 34.0
+	preview_camera.look_at_from_position(Vector3(0.0, 1.15, 4.4), Vector3(0.0, 1.05, 0.0), Vector3.UP)
+	preview_root.add_child(preview_camera)
+	preview_camera.current = true
 
 
 func _refresh_hero_preview() -> void:
@@ -1305,6 +1364,11 @@ func _refresh_hero_preview() -> void:
 	preview_hero.set_physics_process(false)
 	preview_hero.position = Vector3.ZERO
 	preview_hero.visual.rotation.y = PI
+	var preview_scale := float([1.0, 0.8, 0.78][selected_class])
+	var preview_distance := float([4.4, 4.8, 4.6][selected_class])
+	preview_hero.scale = Vector3.ONE * preview_scale
+	if preview_camera != null:
+		preview_camera.look_at_from_position(Vector3(0.0, 1.15, preview_distance), Vector3(0.0, 1.05, 0.0), Vector3.UP)
 	preview_hero.health_back.visible = false
 	preview_hero.health_fill.visible = false
 	preview_hero.health_label.visible = false
@@ -1461,7 +1525,7 @@ func _build_nickname_popup() -> void:
 	var popup_cost_row := HBoxContainer.new()
 	popup_cost_row.add_theme_constant_override("separation", 5)
 	popup_cost_row.add_child(nickname_popup_cost_label)
-	nickname_popup_cost_icon = _shard_icon(18)
+	nickname_popup_cost_icon = _shard_icon(22)
 	popup_cost_row.add_child(nickname_popup_cost_icon)
 	content.add_child(popup_cost_row)
 	var buttons := HBoxContainer.new()
@@ -1486,7 +1550,7 @@ func _open_nickname_popup() -> void:
 	nickname_line_edit.text = MetaProgression.player_nickname
 	nickname_popup_status_label.text = ""
 	if MetaProgression.nickname_custom:
-		nickname_popup_cost_label.text = "Смена ника стоит %d" % NICKNAME_CHANGE_COST
+		nickname_popup_cost_label.text = "Смена ника стоит %d осколков" % NICKNAME_CHANGE_COST
 		nickname_popup_cost_label.add_theme_color_override("font_color", Color(0.95, 0.76, 0.38))
 		nickname_popup_cost_icon.visible = true
 	else:
@@ -1893,7 +1957,7 @@ func _refresh_player_menu() -> void:
 		nickname_line_edit.text = MetaProgression.player_nickname
 	if nickname_cost_label != null:
 		if MetaProgression.nickname_custom:
-			nickname_cost_label.text = "Смена ника — %d" % NICKNAME_CHANGE_COST
+			nickname_cost_label.text = "Смена ника — %d осколков" % NICKNAME_CHANGE_COST
 			nickname_cost_label.add_theme_color_override("font_color", Color(0.95, 0.76, 0.38))
 			if nickname_cost_icon != null:
 				nickname_cost_icon.visible = true

@@ -465,7 +465,7 @@ func _build_team_panel(team_index: int) -> void:
 func _build_player_slot(team_index: int, slot_index: int, parent: VBoxContainer) -> Dictionary:
 	var panel := PanelContainer.new()
 	panel.name = 'PlayerSlot_%d' % (slot_index + 1)
-	panel.custom_minimum_size = Vector2(0.0, 62.0)
+	panel.custom_minimum_size = Vector2(0.0, 86.0)
 	panel.add_theme_stylebox_override('panel', _slot_style(team_index, false))
 	parent.add_child(panel)
 	var row := HBoxContainer.new()
@@ -473,7 +473,7 @@ func _build_player_slot(team_index: int, slot_index: int, parent: VBoxContainer)
 	panel.add_child(row)
 	var portrait := TextureRect.new()
 	portrait.name = 'ClassIcon'
-	portrait.custom_minimum_size = Vector2(42.0, 42.0)
+	portrait.custom_minimum_size = Vector2(72.0, 72.0)
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	portrait.visible = false

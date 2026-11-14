@@ -293,6 +293,7 @@ func _build_content() -> void:
 	content.add_child(portrait_panel)
 	var portrait_content := VBoxContainer.new()
 	portrait_content.add_theme_constant_override("separation", 10)
+	portrait_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	portrait_panel.add_child(portrait_content)
 
 	var portrait_frame := PanelContainer.new()
@@ -302,7 +303,12 @@ func _build_content() -> void:
 	portrait_content.add_child(portrait_frame)
 	var portrait := TextureRect.new()
 	portrait.name = "HeroPortrait"
-	portrait.texture = load(CHARACTER_ART[selected_class]) as Texture2D
+	var portrait_source := load(CHARACTER_ART[selected_class]) as Texture2D
+	if portrait_source != null:
+		var portrait_atlas := AtlasTexture.new()
+		portrait_atlas.atlas = portrait_source
+		portrait_atlas.region = Rect2(0.0, portrait_source.get_height() * 0.03, portrait_source.get_width(), portrait_source.get_height() * 0.70)
+		portrait.texture = portrait_atlas
 	portrait.custom_minimum_size = Vector2(0.0, 220.0)
 	portrait.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -377,7 +383,8 @@ func _build_content() -> void:
 
 	double_reward_button = _make_button("", true)
 	double_reward_button.name = "DoubleRewardsButton"
-	double_reward_button.custom_minimum_size = Vector2(0.0, 40.0)
+	double_reward_button.custom_minimum_size = Vector2(420.0, 40.0)
+	double_reward_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	double_reward_button.add_theme_font_size_override("font_size", 16)
 	double_reward_button.add_theme_color_override("font_color", Color(0.18, 0.11, 0.02))
 	double_reward_button.add_theme_color_override("font_hover_color", Color(0.12, 0.075, 0.01))

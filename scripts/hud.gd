@@ -770,11 +770,13 @@ func _build_player_panel(root: Control) -> void:
 
 	var portrait_frame := PanelContainer.new()
 	portrait_frame.custom_minimum_size = Vector2(60.0, 60.0)
+	portrait_frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	portrait_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	portrait_frame.add_theme_stylebox_override("panel", _panel_style(Color(0.92, 0.76, 0.42, 0.75), Color(0.06, 0.05, 0.05, 0.55)))
 	content.add_child(portrait_frame)
 
 	player_portrait = TextureRect.new()
+	player_portrait.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	player_portrait.custom_minimum_size = Vector2(52.0, 52.0)
 	player_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	player_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
@@ -1213,7 +1215,12 @@ func _update_player_panel() -> void:
 	player_name_label.text = "%s · %s %s" % [nickname, HeroUnit.CLASS_DATA[player.hero_class]["name"], faction]
 	if player_panel_class != player.hero_class:
 		player_panel_class = player.hero_class
-		player_portrait.texture = HERO_PORTRAITS[player.hero_class]
+		var portrait_source: Texture2D = HERO_PORTRAITS[player.hero_class]
+		if portrait_source != null:
+			var portrait_atlas := AtlasTexture.new()
+			portrait_atlas.atlas = portrait_source
+			portrait_atlas.region = Rect2(0.0, portrait_source.get_height() * 0.03, portrait_source.get_width(), portrait_source.get_height() * 0.70)
+			player_portrait.texture = portrait_atlas
 	if player_panel_team != player.team:
 		player_panel_team = player.team
 		var border_color := Color(0.84, 0.68, 0.39, 0.95) if player.team == 0 else Color(0.58, 0.46, 0.78, 0.95)
