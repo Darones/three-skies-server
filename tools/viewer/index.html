@@ -2,29 +2,29 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<title>Анимации героев — Небесные осколки</title>
+<title>Тюнер героев — Небесные осколки</title>
 <style>
   :root { --bg:#0b0d13; --panel:#121620; --gold:#e8c56b; --pale:#d9dce6; --muted:#8a90a2; }
   * { box-sizing: border-box; }
   html, body { margin:0; height:100%; overflow:hidden; background:var(--bg); color:var(--pale); font-family:"Segoe UI",system-ui,sans-serif; }
   #bar {
     position:absolute; top:0; left:0; right:0; z-index:10;
-    display:flex; flex-wrap:wrap; align-items:center; gap:14px;
-    padding:12px 18px;
+    display:flex; flex-wrap:wrap; align-items:center; gap:12px;
+    padding:10px 16px;
     background:linear-gradient(180deg, rgba(8,10,15,.96), rgba(8,10,15,.82));
     border-bottom:1px solid #232a3a;
     backdrop-filter: blur(6px);
   }
-  #bar .title { font-family:Georgia,serif; color:var(--gold); letter-spacing:1.5px; font-size:20px; margin-right:8px; }
-  label { font-size:12px; color:var(--muted); display:flex; flex-direction:column; gap:3px; }
-  select, button {
+  #bar .title { font-family:Georgia,serif; color:var(--gold); letter-spacing:1.5px; font-size:19px; margin-right:6px; }
+  label { font-size:11px; color:var(--muted); display:flex; flex-direction:column; gap:2px; }
+  select, button, input[type=number] {
     background:#151a25; color:var(--pale); border:1px solid #2c3446; border-radius:7px;
-    padding:7px 10px; font-size:13px; font-family:inherit; outline:none;
+    padding:6px 9px; font-size:13px; font-family:inherit; outline:none;
   }
-  select:focus, button:hover { border-color:#55617a; }
+  select:focus, button:hover, input[type=number]:focus { border-color:#55617a; }
   button { cursor:pointer; }
   button.primary { border-color:var(--gold); color:var(--gold); }
-  #speed { width:110px; accent-color:var(--gold); }
+  #speed { width:100px; accent-color:var(--gold); }
   #status {
     position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
     color:var(--gold); font-size:16px; letter-spacing:1px; z-index:9;
@@ -32,10 +32,42 @@
   }
   canvas { display:block; width:100%; height:100%; }
   #hint {
-    position:absolute; left:18px; bottom:14px; z-index:9;
+    position:absolute; left:16px; bottom:12px; z-index:9;
     font-size:12px; color:#6f7688; line-height:1.5;
   }
   #hint b { color:#9aa3b8; font-weight:400; }
+  #marks {
+    position:absolute; left:14px; bottom:46px; width:300px; z-index:11;
+    background:linear-gradient(180deg, rgba(18,22,32,.97), rgba(11,14,21,.97));
+    border:1px solid #2a3142; border-radius:12px;
+    padding:12px 14px; box-shadow:0 18px 50px rgba(0,0,0,.45);
+  }
+  .marks-title { font-family:Georgia,serif; color:var(--gold); letter-spacing:1.1px; font-size:14px; }
+  .marks-toggle { display:flex; flex-direction:row; align-items:center; gap:8px; font-size:12px; color:var(--pale); margin:9px 0 7px; }
+  .marks-toggle input { accent-color:var(--gold); }
+  .marks-count { font-size:11px; color:var(--muted); margin:7px 0 0; }
+  .marks-hint { font-size:10px; color:#5f6678; line-height:1.45; margin-top:7px; }
+  #tune {
+    position:absolute; top:74px; right:14px; bottom:14px; width:296px; z-index:11;
+    background:linear-gradient(180deg, rgba(18,22,32,.97), rgba(11,14,21,.97));
+    border:1px solid #2a3142; border-radius:12px;
+    padding:14px; overflow-y:auto;
+    box-shadow:0 18px 50px rgba(0,0,0,.45);
+  }
+  #tune.hidden { display:none; }
+  .tune-title { font-family:Georgia,serif; color:var(--gold); letter-spacing:1.2px; font-size:17px; }
+  .tune-sub { color:var(--muted); font-size:12px; margin:3px 0 12px; }
+  .tune-group { border-top:1px solid #232a3a; padding-top:9px; margin-top:9px; }
+  .tune-group-title { font-size:10px; letter-spacing:1.4px; color:#6f7688; margin-bottom:7px; }
+  .row { display:grid; grid-template-columns:64px 1fr 64px; gap:7px; align-items:center; margin-bottom:6px; }
+  .row span { font-size:11px; color:#8f96a8; }
+  .row input[type=range] { width:100%; accent-color:var(--gold); }
+  .row input[type=number] { width:64px; padding:4px 6px; font-size:12px; text-align:right; }
+  .tune-actions { display:flex; gap:8px; margin-top:14px; }
+  .tune-actions button { flex:1; padding:9px 8px; font-size:13px; }
+  .tune-status { margin-top:8px; font-size:11px; color:#6f7688; min-height:16px; }
+  .tune-status.ok { color:#7ee08a; }
+  .tune-status.err { color:#ff8a80; }
 </style>
 <script type="importmap">
 {
@@ -75,6 +107,43 @@
 </div>
 <div id="status">Загрузка...</div>
 <div id="hint"><b>ЛКМ</b> — вращать · <b>колесо</b> — приблизить · <b>ПКМ</b> — двигать</div>
+<div id="tune" class="hidden">
+  <div class="tune-title">НАСТРОЙКА</div>
+  <div class="tune-sub" id="tuneSub">—</div>
+  <div class="tune-group">
+    <div class="tune-group-title">ПОЛОЖЕНИЕ</div>
+    <div class="row"><span>X</span><input type="range" id="px" min="-1.5" max="1.5" step="0.01"><input type="number" id="pxn" step="0.01"></div>
+    <div class="row"><span>Y</span><input type="range" id="py" min="-1.5" max="1.5" step="0.01"><input type="number" id="pyn" step="0.01"></div>
+    <div class="row"><span>Z</span><input type="range" id="pz" min="-1.5" max="1.5" step="0.01"><input type="number" id="pzn" step="0.01"></div>
+  </div>
+  <div class="tune-group">
+    <div class="tune-group-title">ПОВОРОТ, ГРАДУСЫ</div>
+    <div class="row"><span>X</span><input type="range" id="rx" min="-180" max="180" step="1"><input type="number" id="rxn" step="1"></div>
+    <div class="row"><span>Y</span><input type="range" id="ry" min="-180" max="180" step="1"><input type="number" id="ryn" step="1"></div>
+    <div class="row"><span>Z</span><input type="range" id="rz" min="-180" max="180" step="1"><input type="number" id="rzn" step="1"></div>
+  </div>
+  <div class="tune-group">
+    <div class="tune-group-title">МАСШТАБ</div>
+    <div class="row"><span>Размер</span><input type="range" id="sc" min="0" max="1000" step="1"><input type="number" id="scn" step="0.001"></div>
+  </div>
+  <div class="tune-actions">
+    <button id="saveTune" class="primary">Сохранить</button>
+    <button id="resetTune">Сбросить</button>
+  </div>
+  <div class="tune-status" id="tuneStatus"></div>
+</div>
+<div id="marks">
+  <div class="marks-title">УДАЛЕНИЕ ГЕОМЕТРИИ</div>
+  <label class="marks-toggle"><input type="checkbox" id="brushOn"> Кисть удаления (красить красным)</label>
+  <div class="row"><span>Радиус</span><input type="range" id="brushSize" min="0.02" max="0.3" step="0.01" value="0.08"><input type="number" id="brushSizen" step="0.01" value="0.08"></div>
+  <div class="marks-count" id="marksCount">Отмечено: 0 треугольников</div>
+  <div class="tune-actions">
+    <button id="saveMarks" class="primary">Сохранить метки</button>
+    <button id="clearMarks">Очистить</button>
+  </div>
+  <div class="tune-status" id="marksStatus"></div>
+  <div class="marks-hint">Включи кисть, покрась лишний лук Феи и нажми «Сохранить метки». Потом я вырежу это в Blender.</div>
+</div>
 <canvas id="scene"></canvas>
 
 <script type="module">
@@ -88,7 +157,7 @@ const HEROES = {
   fairy: '/art/generated/fairy/rig.glb',
 };
 
-const WING_TUNING = {
+const DEFAULT_WINGS = {
   warrior: {
     1: { pos:[0,0.25,-0.15], rot:[-1.7,0,0], scale:1.0 },
     2: { pos:[0,0.25,-0.15], rot:[-1.7,0,0], scale:1.0 },
@@ -116,7 +185,7 @@ const WING_TINTS = {
   4: [1.0, 1.0, 1.0],
 };
 
-const WEAPONS = {
+const DEFAULT_WEAPONS = {
   sword: { path:'/addons/low_poly_rpg_items/models/longsword_model.glb', bone:'RightHand', pos:[0.06,0,-0.12], rot:[0,0,-12], scale:0.72 },
   staff: { path:'/addons/low_poly_rpg_items/models/staff_wizard_model.glb', bone:'RightHand', pos:[0.04,0,-0.1], rot:[0,0,0], scale:0.62 },
   legendary_bow: { path:'/assets/models/legendary_bow/Elven_Recurve_Bow_legendary.glb', bone:'LeftHand', pos:[-0.06,0,-0.1], rot:[0,0,8], scale:0.82 },
@@ -126,6 +195,18 @@ const WEAPONS = {
 const CLIP_ORDER = ['Idle','Run','Walk','Attack','Charged Spell Cast','Dead'];
 const UP = new THREE.Vector3(0,1,0);
 const FIT = 2.15 / 1.7;
+const SCALE_MIN = 0.001;
+const SCALE_MAX = 2.0;
+
+function deepCopy(value) { return JSON.parse(JSON.stringify(value)); }
+
+const tuning = {
+  wings: deepCopy(DEFAULT_WINGS),
+  weapons: {},
+};
+for (const [key, config] of Object.entries(DEFAULT_WEAPONS)) {
+  tuning.weapons[key] = { pos: config.pos.slice(), rot: config.rot.slice(), scale: config.scale };
+}
 
 const canvas = document.getElementById('scene');
 const statusEl = document.getElementById('status');
@@ -136,6 +217,9 @@ const weaponSelect = document.getElementById('weapon');
 const speedInput = document.getElementById('speed');
 const pauseButton = document.getElementById('pause');
 const resetButton = document.getElementById('reset');
+const tunePanel = document.getElementById('tune');
+const tuneSub = document.getElementById('tuneSub');
+const tuneStatus = document.getElementById('tuneStatus');
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -200,11 +284,26 @@ let bones = {};
 let wingObject = null;
 let wingMixer = null;
 let wingId = 1;
-let wingConfig = null;
 let weaponObject = null;
 let weaponKey = 'none';
 let paused = false;
 let loadingToken = 0;
+let heroMesh = null;
+let markOverlay = null;
+let markGeometry = null;
+let markMaterial = null;
+let markBaseIndex = null;
+let brushOn = false;
+let brushRadius = 0.08;
+let painting = false;
+let lastPaintAt = 0;
+const marked = new Set();
+const raycaster = new THREE.Raycaster();
+const marksCount = document.getElementById('marksCount');
+const marksStatus = document.getElementById('marksStatus');
+const brushOnInput = document.getElementById('brushOn');
+const brushSizeInput = document.getElementById('brushSize');
+const brushSizeNumber = document.getElementById('brushSizen');
 
 function setStatus(text) {
   statusEl.textContent = text || '';
@@ -266,6 +365,10 @@ function loadHero(key) {
     heroFit = FIT;
     hero.scale.setScalar(heroFit);
     hero.position.y = 0;
+    heroMesh = null;
+    hero.traverse((node) => { if (node.isSkinnedMesh && !heroMesh) heroMesh = node; });
+    clearMarks();
+    ensureMarkOverlay();
     bones = findBones(hero);
     clips = gltf.animations.slice().sort((a, b) => {
       const ia = CLIP_ORDER.indexOf(a.name);
@@ -287,6 +390,7 @@ function loadHero(key) {
     setStatus('');
     applyWings();
     applyWeapon();
+    syncTunePanel();
   }, undefined, (error) => {
     setStatus('Ошибка загрузки: ' + error.message);
   });
@@ -312,10 +416,9 @@ function applyWings() {
   if (wingObject) { disposeObject(wingObject); wingObject = null; wingMixer = null; }
   const id = Number(wingsSelect.value);
   wingId = id;
-  if (!id) return;
-  const config = WING_TUNING[heroKey]?.[id];
-  if (!config) return;
-  wingConfig = config;
+  if (!id) { syncTunePanel(); return; }
+  const config = tuning.wings[heroKey]?.[id];
+  if (!config) { syncTunePanel(); return; }
   const path = id === 4
     ? '/assets/wings/low_poly_demon_wings_animated.glb'
     : '/assets/wings/angel_wings_animated.glb';
@@ -340,6 +443,7 @@ function applyWings() {
       wingMixer.clipAction(gltf.animations[0]).play();
     }
     updateWingTransform();
+    syncTunePanel();
   });
 }
 
@@ -347,9 +451,9 @@ function applyWeapon() {
   if (weaponObject) { disposeObject(weaponObject); weaponObject = null; }
   const key = weaponSelect.value;
   weaponKey = key;
-  if (key === 'none') return;
-  const config = WEAPONS[key];
-  if (!config) return;
+  if (key === 'none') { syncTunePanel(); return; }
+  const config = DEFAULT_WEAPONS[key];
+  if (!config) { syncTunePanel(); return; }
   const token = loadingToken;
   loader.load(config.path, (gltf) => {
     if (token !== loadingToken) return;
@@ -359,11 +463,14 @@ function applyWeapon() {
     });
     scene.add(weaponObject);
     updateWeaponTransform();
+    syncTunePanel();
   });
 }
 
 function updateWingTransform() {
-  if (!wingObject || !wingConfig || !bones.spine) return;
+  if (!wingObject || !bones.spine) return;
+  const config = tuning.wings[heroKey]?.[wingId];
+  if (!config) return;
   const bone = bones.spine;
   bone.updateWorldMatrix(true, false);
   const bonePos = new THREE.Vector3().setFromMatrixPosition(bone.matrixWorld);
@@ -376,20 +483,22 @@ function updateWingTransform() {
   const basis = new THREE.Matrix4().makeBasis(right, UP, forward);
   const basisQuat = new THREE.Quaternion().setFromRotationMatrix(basis);
   const euler = new THREE.Euler(
-    THREE.MathUtils.degToRad(wingConfig.rot[0]),
-    THREE.MathUtils.degToRad(wingConfig.rot[1]),
-    THREE.MathUtils.degToRad(wingConfig.rot[2]),
+    THREE.MathUtils.degToRad(config.rot[0]),
+    THREE.MathUtils.degToRad(config.rot[1]),
+    THREE.MathUtils.degToRad(config.rot[2]),
     'XYZ'
   );
   wingObject.quaternion.copy(basisQuat).multiply(new THREE.Quaternion().setFromEuler(euler));
-  wingObject.position.copy(bonePos).add(new THREE.Vector3(...wingConfig.pos).multiplyScalar(heroFit));
-  wingObject.scale.setScalar(wingConfig.scale * heroFit);
+  wingObject.position.copy(bonePos).add(new THREE.Vector3(...config.pos).multiplyScalar(heroFit));
+  wingObject.scale.setScalar(config.scale * heroFit);
 }
 
 function updateWeaponTransform() {
   if (!weaponObject || weaponKey === 'none') return;
-  const config = WEAPONS[weaponKey];
-  const bone = bones[config.bone.toLowerCase()];
+  const base = DEFAULT_WEAPONS[weaponKey];
+  const config = tuning.weapons[weaponKey];
+  if (!base || !config) return;
+  const bone = bones[base.bone.toLowerCase()];
   if (!bone) return;
   bone.updateWorldMatrix(true, false);
   const bonePos = new THREE.Vector3().setFromMatrixPosition(bone.matrixWorld);
@@ -405,6 +514,371 @@ function updateWeaponTransform() {
   weaponObject.quaternion.copy(boneQuat).multiply(new THREE.Quaternion().setFromEuler(euler));
   weaponObject.position.copy(bonePos).add(new THREE.Vector3(...config.pos));
   weaponObject.scale.setScalar(config.scale);
+}
+
+/* ---------- кисть удаления ---------- */
+
+function ensureMarkOverlay() {
+  if (markOverlay) {
+    markOverlay.parent?.remove(markOverlay);
+    markGeometry?.dispose();
+    markMaterial?.dispose();
+    markOverlay = null;
+    markGeometry = null;
+    markMaterial = null;
+    markBaseIndex = null;
+  }
+  if (!heroMesh) return;
+  markBaseIndex = heroMesh.geometry.index ? Array.from(heroMesh.geometry.index.array) : null;
+  markGeometry = heroMesh.geometry.clone();
+  markGeometry.setIndex([]);
+  markMaterial = new THREE.MeshBasicMaterial({
+    color: 0xff3b30,
+    transparent: true,
+    opacity: 0.55,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+  });
+  markOverlay = new THREE.SkinnedMesh(markGeometry, markMaterial);
+  markOverlay.bind(heroMesh.skeleton, heroMesh.bindMatrix);
+  markOverlay.bindMode = heroMesh.bindMode;
+  markOverlay.frustumCulled = false;
+  markOverlay.position.copy(heroMesh.position);
+  markOverlay.quaternion.copy(heroMesh.quaternion);
+  markOverlay.scale.copy(heroMesh.scale);
+  heroMesh.parent.add(markOverlay);
+  updateMarkOverlay();
+}
+
+function updateMarkOverlay() {
+  if (!markGeometry) return;
+  const indices = [];
+  for (const tri of marked) {
+    for (let k = 0; k < 3; k++) {
+      indices.push(markBaseIndex ? markBaseIndex[tri * 3 + k] : tri * 3 + k);
+    }
+  }
+  markGeometry.setIndex(indices);
+  if (markOverlay) markOverlay.visible = marked.size > 0;
+  marksCount.textContent = 'Отмечено: ' + marked.size + ' треугольников';
+}
+
+function clearMarks() {
+  marked.clear();
+  updateMarkOverlay();
+  setMarksStatus('Метки очищены');
+}
+
+function setMarksStatus(text, kind = '') {
+  marksStatus.textContent = text;
+  marksStatus.className = 'tune-status' + (kind ? ' ' + kind : '');
+}
+
+function paintAt(event) {
+  if (!brushOn || !heroMesh) return;
+  const now = performance.now();
+  if (now - lastPaintAt < 25) return;
+  lastPaintAt = now;
+  const rect = canvas.getBoundingClientRect();
+  const ndc = new THREE.Vector2(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1
+  );
+  raycaster.setFromCamera(ndc, camera);
+  const hits = raycaster.intersectObject(heroMesh, false);
+  if (!hits.length) return;
+  const localHit = heroMesh.worldToLocal(hits[0].point.clone());
+  const worldScale = new THREE.Vector3();
+  heroMesh.getWorldScale(worldScale);
+  const localRadius = brushRadius / Math.max(worldScale.x, 0.0001);
+  const geometry = heroMesh.geometry;
+  const positions = geometry.attributes.position;
+  const index = geometry.index;
+  const triCount = index ? index.count / 3 : positions.count / 3;
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const centroid = new THREE.Vector3();
+  let added = false;
+  for (let tri = 0; tri < triCount; tri++) {
+    if (marked.has(tri)) continue;
+    const i0 = index ? index.getX(tri * 3) : tri * 3;
+    const i1 = index ? index.getX(tri * 3 + 1) : tri * 3 + 1;
+    const i2 = index ? index.getX(tri * 3 + 2) : tri * 3 + 2;
+    a.fromBufferAttribute(positions, i0);
+    b.fromBufferAttribute(positions, i1);
+    c.fromBufferAttribute(positions, i2);
+    centroid.copy(a).add(b).add(c).multiplyScalar(1 / 3);
+    if (centroid.distanceTo(localHit) <= localRadius) {
+      marked.add(tri);
+      added = true;
+    }
+  }
+  if (added) {
+    updateMarkOverlay();
+    setMarksStatus('Отмечено: ' + marked.size);
+  }
+}
+
+async function saveMarks() {
+  if (!marked.size || !heroMesh) {
+    setMarksStatus('Сначала отметь лук кистью', 'err');
+    return;
+  }
+  const positions = heroMesh.geometry.attributes.position;
+  const index = heroMesh.geometry.index;
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const centroid = new THREE.Vector3();
+  const points = [];
+  for (const tri of marked) {
+    const i0 = index ? index.getX(tri * 3) : tri * 3;
+    const i1 = index ? index.getX(tri * 3 + 1) : tri * 3 + 1;
+    const i2 = index ? index.getX(tri * 3 + 2) : tri * 3 + 2;
+    a.fromBufferAttribute(positions, i0);
+    b.fromBufferAttribute(positions, i1);
+    c.fromBufferAttribute(positions, i2);
+    centroid.copy(a).add(b).add(c).multiplyScalar(1 / 3);
+    points.push([round(centroid.x, 4), round(centroid.y, 4), round(centroid.z, 4)]);
+  }
+  const payload = {
+    hero: heroKey,
+    mesh: heroMesh.name || 'char1',
+    radius: brushRadius,
+    triangles: Array.from(marked),
+    points,
+    created: new Date().toISOString(),
+  };
+  setMarksStatus('Сохраняю...');
+  try {
+    const response = await fetch('/save_marks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    setMarksStatus('Сохранено ' + marked.size + ' треугольников', 'ok');
+  } catch (error) {
+    setMarksStatus('Ошибка сохранения: ' + error.message, 'err');
+  }
+}
+
+canvas.addEventListener('pointerdown', (event) => {
+  if (!brushOn || event.button !== 0) return;
+  painting = true;
+  paintAt(event);
+});
+canvas.addEventListener('pointermove', (event) => {
+  if (painting) paintAt(event);
+});
+window.addEventListener('pointerup', () => { painting = false; });
+brushOnInput.addEventListener('change', () => {
+  brushOn = brushOnInput.checked;
+  controls.enabled = !brushOn;
+  canvas.style.cursor = brushOn ? 'crosshair' : 'default';
+  setMarksStatus(brushOn ? 'Кисть включена: крась лук' : '');
+});
+brushSizeInput.addEventListener('input', () => {
+  brushRadius = Number(brushSizeInput.value);
+  brushSizeNumber.value = brushRadius.toFixed(2);
+});
+brushSizeNumber.addEventListener('input', () => {
+  brushRadius = Math.max(0.02, Math.min(0.3, Number(brushSizeNumber.value) || 0.08));
+  brushSizeInput.value = brushRadius;
+});
+document.getElementById('clearMarks').addEventListener('click', clearMarks);
+document.getElementById('saveMarks').addEventListener('click', saveMarks);
+
+/* ---------- панель настройки ---------- */
+
+function currentItem() {
+  const id = Number(wingsSelect.value);
+  if (id) return { kind:'wing', key:String(id), values:tuning.wings[heroKey][id], title:'Крылья', sub: wingsSelect.options[wingsSelect.selectedIndex].text };
+  const key = weaponSelect.value;
+  if (key !== 'none') return { kind:'weapon', key, values:tuning.weapons[key], title:'Оружие', sub: weaponSelect.options[weaponSelect.selectedIndex].text };
+  return null;
+}
+
+function syncTunePanel() {
+  const item = currentItem();
+  if (!item) {
+    tunePanel.classList.add('hidden');
+    return;
+  }
+  tunePanel.classList.remove('hidden');
+  tuneSub.textContent = item.title + ' · ' + item.sub;
+  setField('px', item.values.pos[0]);
+  setField('py', item.values.pos[1]);
+  setField('pz', item.values.pos[2]);
+  setField('rx', item.values.rot[0]);
+  setField('ry', item.values.rot[1]);
+  setField('rz', item.values.rot[2]);
+  setScaleField(item.values.scale);
+}
+
+function setField(name, value) {
+  const slider = document.getElementById(name);
+  const number = document.getElementById(name + 'n');
+  slider.value = value;
+  number.value = round(value, 3);
+}
+
+function setScaleField(value) {
+  const slider = document.getElementById('sc');
+  const number = document.getElementById('scn');
+  slider.value = scaleToSlider(value);
+  number.value = round(value, 4);
+}
+
+function round(value, digits) {
+  const factor = Math.pow(10, digits);
+  return Math.round(value * factor) / factor;
+}
+
+function scaleToSlider(value) {
+  const clamped = Math.max(SCALE_MIN, Math.min(SCALE_MAX, value));
+  const t = (Math.log10(clamped) - Math.log10(SCALE_MIN)) / (Math.log10(SCALE_MAX) - Math.log10(SCALE_MIN));
+  return Math.round(t * 1000);
+}
+
+function sliderToScale(value) {
+  const t = Number(value) / 1000;
+  return Math.pow(10, Math.log10(SCALE_MIN) + t * (Math.log10(SCALE_MAX) - Math.log10(SCALE_MIN)));
+}
+
+function readPanel() {
+  const item = currentItem();
+  if (!item) return null;
+  item.values.pos = [
+    Number(document.getElementById('px').value),
+    Number(document.getElementById('py').value),
+    Number(document.getElementById('pz').value),
+  ];
+  item.values.rot = [
+    Number(document.getElementById('rx').value),
+    Number(document.getElementById('ry').value),
+    Number(document.getElementById('rz').value),
+  ];
+  item.values.scale = sliderToScale(document.getElementById('sc').value);
+  return item;
+}
+
+function onPanelChanged() {
+  const item = readPanel();
+  if (!item) return;
+  document.getElementById('pxn').value = round(item.values.pos[0], 3);
+  document.getElementById('pyn').value = round(item.values.pos[1], 3);
+  document.getElementById('pzn').value = round(item.values.pos[2], 3);
+  document.getElementById('rxn').value = round(item.values.rot[0], 1);
+  document.getElementById('ryn').value = round(item.values.rot[1], 1);
+  document.getElementById('rzn').value = round(item.values.rot[2], 1);
+  document.getElementById('scn').value = round(item.values.scale, 4);
+  if (item.kind === 'wing') updateWingTransform();
+  else updateWeaponTransform();
+  setTuneStatus('');
+}
+
+function setTuneStatus(text, kind = '') {
+  tuneStatus.textContent = text;
+  tuneStatus.className = 'tune-status' + (kind ? ' ' + kind : '');
+}
+
+function bindPanel() {
+  for (const name of ['px','py','pz','rx','ry','rz','sc']) {
+    const slider = document.getElementById(name);
+    const number = document.getElementById(name + 'n');
+    slider.addEventListener('input', () => {
+      if (name === 'sc') number.value = round(sliderToScale(slider.value), 4);
+      else number.value = round(Number(slider.value), 3);
+      onPanelChanged();
+    });
+    number.addEventListener('input', () => {
+      if (name === 'sc') {
+        const value = Math.max(SCALE_MIN, Math.min(SCALE_MAX, Number(number.value) || SCALE_MIN));
+        slider.value = scaleToSlider(value);
+      } else {
+        const min = Number(slider.min);
+        const max = Number(slider.max);
+        const value = Math.max(min, Math.min(max, Number(number.value) || 0));
+        slider.value = value;
+      }
+      onPanelChanged();
+    });
+  }
+}
+
+async function saveTuning() {
+  setTuneStatus('Сохраняю...');
+  try {
+    const response = await fetch('/save', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(tuning),
+    });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    setTuneStatus('Сохранено ' + new Date().toLocaleTimeString('ru-RU'), 'ok');
+  } catch (error) {
+    setTuneStatus('Ошибка сохранения: ' + error.message, 'err');
+  }
+}
+
+function resetCurrent() {
+  const item = currentItem();
+  if (!item) return;
+  if (item.kind === 'wing') {
+    tuning.wings[heroKey][Number(item.key)] = deepCopy(DEFAULT_WINGS[heroKey][Number(item.key)]);
+  } else {
+    tuning.weapons[item.key] = deepCopy({
+      pos: DEFAULT_WEAPONS[item.key].pos,
+      rot: DEFAULT_WEAPONS[item.key].rot,
+      scale: DEFAULT_WEAPONS[item.key].scale,
+    });
+  }
+  syncTunePanel();
+  if (item.kind === 'wing') updateWingTransform();
+  else updateWeaponTransform();
+  setTuneStatus('Сброшено к значениям из игры');
+}
+
+function mergeSaved(data) {
+  if (!data || typeof data !== 'object') return;
+  if (data.wings) {
+    for (const [heroId, wings] of Object.entries(data.wings)) {
+      if (!tuning.wings[heroId]) continue;
+      for (const [wingId, values] of Object.entries(wings)) {
+        const target = tuning.wings[heroId][Number(wingId)];
+        if (!target || !values) continue;
+        if (Array.isArray(values.pos)) target.pos = values.pos.map(Number);
+        if (Array.isArray(values.rot)) target.rot = values.rot.map(Number);
+        if (values.scale != null) target.scale = Number(values.scale);
+      }
+    }
+  }
+  if (data.weapons) {
+    for (const [key, values] of Object.entries(data.weapons)) {
+      if (!tuning.weapons[key] || !values) continue;
+      if (Array.isArray(values.pos)) tuning.weapons[key].pos = values.pos.map(Number);
+      if (Array.isArray(values.rot)) tuning.weapons[key].rot = values.rot.map(Number);
+      if (values.scale != null) tuning.weapons[key].scale = Number(values.scale);
+    }
+  }
+}
+
+async function loadSavedTuning() {
+  try {
+    const response = await fetch('/tuning', { cache:'no-store' });
+    if (!response.ok) return;
+    const data = await response.json();
+    mergeSaved(data);
+    if (wingObject) updateWingTransform();
+    if (weaponObject) updateWeaponTransform();
+    syncTunePanel();
+  } catch {
+    /* сервер без сохранения — просто работаем с defaults */
+  }
 }
 
 function resize() {
@@ -423,7 +897,7 @@ heroSelect.addEventListener('change', () => {
 animSelect.addEventListener('change', () => playClip(animSelect.value));
 wingsSelect.addEventListener('change', applyWings);
 weaponSelect.addEventListener('change', applyWeapon);
-speedInput.addEventListener('input', () => { mixer && (mixer.timeScale = Number(speedInput.value)); if (wingMixer) wingMixer.timeScale = Number(speedInput.value); });
+speedInput.addEventListener('input', () => { if (mixer) mixer.timeScale = Number(speedInput.value); if (wingMixer) wingMixer.timeScale = Number(speedInput.value); });
 pauseButton.addEventListener('click', () => {
   paused = !paused;
   pauseButton.textContent = paused ? 'Продолжить' : 'Пауза';
@@ -434,8 +908,12 @@ resetButton.addEventListener('click', () => {
   applyWings();
   applyWeapon();
 });
+document.getElementById('saveTune').addEventListener('click', saveTuning);
+document.getElementById('resetTune').addEventListener('click', resetCurrent);
+bindPanel();
 
 loadHero('fairy');
+loadSavedTuning();
 
 function animate() {
   requestAnimationFrame(animate);
