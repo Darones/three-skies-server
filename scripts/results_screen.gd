@@ -33,6 +33,10 @@ var ad_in_progress := false
 var double_reward_button: Button
 var shards_reward_label: Label
 var xp_reward_label: Label
+var stats_scroll: ScrollContainer
+var players_scroll: ScrollContainer
+var stats_tab_button: Button
+var players_tab_button: Button
 var ad_button_pulse_tween: Tween
 var victory_player: AudioStreamPlayer
 
@@ -40,24 +44,123 @@ var victory_player: AudioStreamPlayer
 func _build_players_table(parent: VBoxContainer) -> void:
 	var players: Array = get_tree().get_meta("last_match_players", [])
 	if players.is_empty():
+		var empty_label := _make_label("Нет данных о игроках", 16, Color(0.65, 0.68, 0.76))
+		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		parent.add_child(empty_label)
 		return
-	var title := _make_label("ИГРОКИ", 15, GOLD)
-	parent.add_child(title)
-	for entry in players:
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		var entry_name := _make_label(String(entry.get("name", "?")), 13, PALE)
-		entry_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		entry_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		entry_name.clip_text = true
-		row.add_child(entry_name)
-		var kd := _make_label("%d / %d" % [int(entry.get("kills", 0)), int(entry.get("deaths", 0))], 13, Color(0.8, 0.85, 0.95))
-		row.add_child(kd)
-		var damage := _make_label(str(int(entry.get("damage", 0))), 13, Color(1.0, 0.8, 0.5))
-		damage.custom_minimum_size = Vector2(72, 0)
-		damage.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		row.add_child(damage)
-		parent.add_child(row)
+
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 6)
+	header.add_child(_table_cell("ИГРОК", 12, Color(0.55, 0.58, 0.66), 0.0, HORIZONTAL_ALIGNMENT_LEFT))
+	header.add_child(_table_cell("У/С", 12, Color(0.55, 0.58, 0.66), 58.0, HORIZONTAL_ALIGNMENT_CENTER))
+	header.add_child(_table_cell("УРОН", 12, Color(0.55, 0.58, 0.66), 74.0, HORIZONTAL_ALIGNMENT_RIGHT))
+	header.add_child(_table_cell("ОСК.", 12, Color(0.55, 0.58, 0.66), 52.0, HORIZONTAL_ALIGNMENT_RIGHT))
+	parent.add_child(header)
+	parent.add_child(_thin_divider())
+
+	players.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return int(a.get("damage", 0)) > int(b.get("damage", 0))
+	)
+	var best_damage := int(players[0].get("damage", 0))
+	for team in [0, 1]:
+		var team_label := _make_label("СВЕТ" if team == 0 else "ТЬМА", 12, GOLD if team == player_team else Color(0.55, 0.6, 0.7))
+		team_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		parent.add_child(team_label)
+		for entry in players:
+			if int(entry.get("team", 0)) != team:
+				continue
+			parent.add_child(_make_player_row(entry, best_damage))
+
+
+func _make_player_row(entry: Dictionary, best_damage: int) -> Control:
+	var is_self := bool(entry.get("is_player", false))
+	var row_panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.94, 0.78, 0.43, 0.12) if is_self else Color(0.0, 0.0, 0.0, 0.0)
+	style.set_corner_radius_all(5)
+	style.content_margin_left = 6.0
+	style.content_margin_right = 6.0
+	style.content_margin_top = 3.0
+	style.content_margin_bottom = 3.0
+	row_panel.add_theme_stylebox_override("panel", style)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	row_panel.add_child(row)
+
+	var damage := int(entry.get("damage", 0))
+	var name_text := String(entry.get("name", "?"))
+	if damage > 0 and damage == best_damage:
+		name_text = "★ " + name_text
+	var name_cell := _table_cell(name_text, 13, GOLD if is_self else PALE, 0.0, HORIZONTAL_ALIGNMENT_LEFT)
+	name_cell.clip_text = true
+	row.add_child(name_cell)
+	row.add_child(_table_cell("%d/%d" % [int(entry.get("kills", 0)), int(entry.get("deaths", 0))], 13, Color(0.8, 0.85, 0.95), 58.0, HORIZONTAL_ALIGNMENT_CENTER))
+	row.add_child(_table_cell(str(damage), 13, Color(1.0, 0.8, 0.5), 74.0, HORIZONTAL_ALIGNMENT_RIGHT))
+	row.add_child(_table_cell(str(int(entry.get("crystals", 0))), 13, Color(0.43, 0.84, 1.0), 52.0, HORIZONTAL_ALIGNMENT_RIGHT))
+	return row_panel
+
+
+func _table_cell(text: String, font_size: int, color: Color, width: float, align: int) -> Label:
+	var label := _make_label(text, font_size, color)
+	label.horizontal_alignment = align
+	if width <= 0.0:
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	else:
+		label.custom_minimum_size = Vector2(width, 0.0)
+	return label
+
+
+func _thin_divider() -> ColorRect:
+	var divider := ColorRect.new()
+	divider.custom_minimum_size = Vector2(0.0, 1.0)
+	divider.color = Color(0.6, 0.62, 0.69, 0.18)
+	return divider
+
+
+func _make_tab_button(text: String, active: bool) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(0.0, 38.0)
+	button.add_theme_font_override("font", font)
+	button.add_theme_font_size_override("font_size", 18)
+	button.add_theme_color_override("font_color", GOLD if active else Color(0.6, 0.63, 0.71))
+	button.add_theme_color_override("font_hover_color", Color(1.0, 0.94, 0.78))
+	button.add_theme_color_override("font_pressed_color", Color.WHITE)
+	button.add_theme_stylebox_override("normal", _tab_style(active))
+	button.add_theme_stylebox_override("hover", _tab_style(active))
+	button.add_theme_stylebox_override("pressed", _tab_style(active))
+	return button
+
+
+func _tab_style(active: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.16, 0.13, 0.08, 0.9) if active else Color(0.0, 0.0, 0.0, 0.0)
+	style.border_color = GOLD if active else Color(0.42, 0.45, 0.52, 0.55)
+	style.border_width_bottom = 2
+	style.content_margin_left = 14.0
+	style.content_margin_right = 14.0
+	style.content_margin_top = 7.0
+	style.content_margin_bottom = 7.0
+	return style
+
+
+func _switch_result_tab(show_players: bool) -> void:
+	if players_scroll == null or stats_scroll == null:
+		return
+	players_scroll.visible = show_players
+	stats_scroll.visible = not show_players
+	_apply_tab_state(stats_tab_button, not show_players)
+	_apply_tab_state(players_tab_button, show_players)
+
+
+func _apply_tab_state(button: Button, active: bool) -> void:
+	if button == null:
+		return
+	button.add_theme_color_override("font_color", GOLD if active else Color(0.6, 0.63, 0.71))
+	button.add_theme_stylebox_override("normal", _tab_style(active))
+	button.add_theme_stylebox_override("hover", _tab_style(active))
+	button.add_theme_stylebox_override("pressed", _tab_style(active))
 
 
 func _animate_rewards() -> void:
@@ -221,20 +324,33 @@ func _build_content() -> void:
 	stats_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stats_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(stats_panel)
-	var stats_scroll := ScrollContainer.new()
+	var panel_box := VBoxContainer.new()
+	panel_box.name = "StatsPanelBox"
+	panel_box.add_theme_constant_override("separation", 8)
+	stats_panel.add_child(panel_box)
+
+	var tab_row := HBoxContainer.new()
+	tab_row.name = "ResultTabs"
+	tab_row.add_theme_constant_override("separation", 4)
+	panel_box.add_child(tab_row)
+	stats_tab_button = _make_tab_button("СТАТИСТИКА", true)
+	stats_tab_button.pressed.connect(_switch_result_tab.bind(false))
+	tab_row.add_child(stats_tab_button)
+	players_tab_button = _make_tab_button("ИГРОКИ", false)
+	players_tab_button.pressed.connect(_switch_result_tab.bind(true))
+	tab_row.add_child(players_tab_button)
+
+	stats_scroll = ScrollContainer.new()
 	stats_scroll.name = "StatsScroll"
 	stats_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stats_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	stats_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	stats_panel.add_child(stats_scroll)
+	panel_box.add_child(stats_scroll)
 	var stats_content := VBoxContainer.new()
 	stats_content.name = "StatsContent"
 	stats_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stats_content.add_theme_constant_override("separation", 5)
 	stats_scroll.add_child(stats_content)
-	var stats_title := _make_label("СТАТИСТИКА", 24, GOLD)
-	stats_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	stats_content.add_child(stats_title)
 	var divider := ColorRect.new()
 	divider.custom_minimum_size = Vector2(0.0, 1.0)
 	divider.color = Color(GOLD.r, GOLD.g, GOLD.b, 0.35)
@@ -271,7 +387,20 @@ func _build_content() -> void:
 	double_reward_button.add_theme_stylebox_override("pressed", _ad_reward_button_style(true))
 	double_reward_button.pressed.connect(_double_rewards_for_ad)
 	stats_content.add_child(double_reward_button)
-	_build_players_table(stats_content)
+
+	players_scroll = ScrollContainer.new()
+	players_scroll.name = "PlayersScroll"
+	players_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	players_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	players_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	players_scroll.visible = false
+	panel_box.add_child(players_scroll)
+	var players_body := VBoxContainer.new()
+	players_body.name = "PlayersContent"
+	players_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	players_body.add_theme_constant_override("separation", 3)
+	players_scroll.add_child(players_body)
+	_build_players_table(players_body)
 	_refresh_reward_ui()
 	call_deferred("_start_ad_button_pulse")
 
