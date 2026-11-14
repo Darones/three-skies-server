@@ -11,6 +11,9 @@ export.cfg
 build/
 *.tmp
 
+# Performance test reports
+perf_logs/
+
 # OS generated files
 .DS_Store
 Thumbs.db

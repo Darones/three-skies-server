@@ -34,6 +34,9 @@ const ABILITY_SHORT_LABELS := {
 	HeroUnit.Cls.FAIRY: ["СТАН", "КРИТ", "БАФ"],
 }
 
+# Временный отладочный оверлей производительности. Выключить после тестов.
+const PERF_MONITOR_ENABLED := true
+
 
 
 var font: FontFile
@@ -143,6 +146,11 @@ func _ready() -> void:
 	navigator.call("configure", game)
 	_build_low_health_overlay(root)
 	_build_tutorial_ui(root)
+	if PERF_MONITOR_ENABLED:
+		var perf := preload("res://scripts/perf_monitor.gd").new() as Control
+		perf.name = "PerfMonitor"
+		root.add_child(perf)
+		perf.call("configure", game)
 
 
 func _apply_safe_area(root: Control) -> void:
