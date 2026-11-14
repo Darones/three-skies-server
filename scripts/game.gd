@@ -1,4 +1,4 @@
-﻿extends Node3D
+extends Node3D
 
 const MATCH_LENGTH := 600.0
 const RESPAWN_TIME := 8.0
@@ -39,10 +39,10 @@ const CRYSTAL_SCENE: PackedScene = preload("res://assets/models/detail-crystal.g
 const CRYSTAL_MODEL_SCALE := 2.7
 const CRYSTAL_EMISSION_COLOR := Color(0.16, 0.68, 1.0)
 const BOT_CALLSIGNS := [
-	"РўС‘РјРЅС‹Р№ Р›РёСЃ", "РЎРµРІРµСЂРЅС‹Р№ Р’РµС‚РµСЂ", "РўРёС…РёР№ РЁС‚РѕСЂРј", "РСЃРєСЂР°", "РљР°РјРµРЅРЅС‹Р№ РџСѓС‚СЊ",
-	"Р—РІС‘Р·РґРЅС‹Р№ РЎР»РµРґ", "РЎСѓРјСЂР°С‡РЅС‹Р№ РљР»РёРЅРѕРє", "Р‘РµР»С‹Р№ Р’РѕСЂРѕРЅ", "Р›РµС‚РЅРёР№ Р”РѕР¶РґСЊ",
-	"РҐРѕР»РѕРґРЅС‹Р№ Р Р°СЃСЃРІРµС‚", "Р›СѓРЅРЅР°СЏ РўРµРЅСЊ", "РЎС‚Р°Р»СЊРЅРѕР№ Р’РѕР»Рє", "Р’РµС‚РµСЂ РџРµСЂРµРјРµРЅ",
-	"РџРµРїРµР»", "РћРіРЅРµРЅРЅС‹Р№ Р›РёСЃ", "РќРѕС‡РЅР°СЏ РџС‚РёС†Р°",
+	"Тёмный Лис", "Северный Ветер", "Тихий Шторм", "Искра", "Каменный Путь",
+	"Звёздный След", "Сумрачный Клинок", "Белый Ворон", "Летний Дождь",
+	"Холодный Рассвет", "Лунная Тень", "Стальной Волк", "Ветер Перемен",
+	"Пепел", "Огненный Лис", "Ночная Птица",
 ]
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const CLOUD_WALL_SHADER: Shader = preload("res://shaders/cloud_wall.gdshader")
@@ -53,15 +53,15 @@ const GOLD_FOUNTAIN_SCENE: PackedScene = preload("res://assets/gold_fountain/3d_
 const TUTORIAL_CONTROLLER_SCRIPT: Script = preload("res://scripts/tutorial_controller.gd")
 const REMOTE_PLAYER_SCRIPT: Script = preload("res://scripts/remote_player.gd")
 const SHOP_ITEMS := [
-	{"id": "life_amulet", "name": "РђРјСѓР»РµС‚ Р–РёР·РЅРё", "effect": "+150 Max HP", "price": 500, "icon": 10},
-	{"id": "revival_talisman", "name": "РўР°Р»РёСЃРјР°РЅ Р’РѕР·СЂРѕР¶РґРµРЅРёСЏ", "effect": "+10 HP/СЃРµРє СЂРµРіРµРЅ", "price": 550, "icon": 2},
-	{"id": "titan_shell", "name": "РџР°РЅС†РёСЂСЊ РўРёС‚Р°РЅР°", "effect": "в€’15% РІС…РѕРґСЏС‰РµРіРѕ СѓСЂРѕРЅР°", "price": 550, "icon": 12},
-	{"id": "power_glove", "name": "РџРµСЂС‡Р°С‚РєР° РЎРёР»С‹", "effect": "+25 Рє СѓСЂРѕРЅСѓ Р°С‚Р°РєРё", "price": 500, "icon": 0},
-	{"id": "vampire_fang", "name": "РљР»С‹Рє Р’Р°РјРїРёСЂР°", "effect": "15% РІР°РјРїРёСЂРёР·РјР°", "price": 550, "icon": 4},
-	{"id": "agility_mark", "name": "Р—РЅР°Рє Р›РѕРІРєРѕСЃС‚Рё", "effect": "+20% СЃРєРѕСЂРѕСЃС‚Рё Р°С‚Р°РєРё", "price": 500, "icon": 15},
-	{"id": "wind_boots", "name": "РЎР°РїРѕРіРё Р’РµС‚СЂР°", "effect": "+15% СЃРєРѕСЂРѕСЃС‚Рё Р±РµРіР°", "price": 450, "icon": 11},
-	{"id": "hourglass", "name": "РџРµСЃРѕС‡РЅС‹Рµ Р§Р°СЃС‹", "effect": "в€’15% РљР” СЃРєРёР»Р»РѕРІ", "price": 550, "icon": 6},
-	{"id": "cleansing_charm", "name": "РћР±РµСЂРµРі РћС‡РёС‰РµРЅРёСЏ", "effect": "в€’20% РІСЂРµРјРµРЅРё СЃС‚Р°РЅРѕРІ", "price": 500, "icon": 3},
+	{"id": "life_amulet", "name": "Амулет Жизни", "effect": "+150 Max HP", "price": 500, "icon": 10},
+	{"id": "revival_talisman", "name": "Талисман Возрождения", "effect": "+10 HP/сек реген", "price": 550, "icon": 2},
+	{"id": "titan_shell", "name": "Панцирь Титана", "effect": "−15% входящего урона", "price": 550, "icon": 12},
+	{"id": "power_glove", "name": "Перчатка Силы", "effect": "+25 к урону атаки", "price": 500, "icon": 0},
+	{"id": "vampire_fang", "name": "Клык Вампира", "effect": "15% вампиризма", "price": 550, "icon": 4},
+	{"id": "agility_mark", "name": "Знак Ловкости", "effect": "+20% скорости атаки", "price": 500, "icon": 15},
+	{"id": "wind_boots", "name": "Сапоги Ветра", "effect": "+15% скорости бега", "price": 450, "icon": 11},
+	{"id": "hourglass", "name": "Песочные Часы", "effect": "−15% КД скиллов", "price": 550, "icon": 6},
+	{"id": "cleansing_charm", "name": "Оберег Очищения", "effect": "−20% времени станов", "price": 500, "icon": 3},
 ]
 
 const SHOP_ITEM_TEXTURES := {
@@ -351,7 +351,7 @@ func _create_shop_stall() -> void:
 	var title := Label3D.new()
 	title.name = "ShopTitle"
 	title.font = UI_FONT
-	title.text = "РњРђР“РђР—РРќ"
+	title.text = "МАГАЗИН"
 	title.position = Vector3(0.0, 4.15, 1.9)
 	title.font_size = 88
 	title.pixel_size = 0.006
@@ -457,7 +457,7 @@ func _create_gold_fountain() -> void:
 	var title := Label3D.new()
 	title.name = "FountainTitle"
 	title.font = UI_FONT
-	title.text = "Р¤РћРќРўРђРќ"
+	title.text = "ФОНТАН"
 	title.position = Vector3(0.0, 3.7, 0.0)
 	title.font_size = 88
 	title.pixel_size = 0.006
@@ -1169,7 +1169,7 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 			add_child(tutorial_controller)
 			tutorial_controller.call("begin")
 		else:
-			announce("Р‘РѕР№ Р·Р° РѕСЃРєРѕР»РєРё!", Color(1.0, 0.86, 0.55), 2.6)
+			announce("Бой за осколки!", Color(1.0, 0.86, 0.55), 2.6)
 
 
 func _spawn_network_bots(light_spots: Array[Vector3], dark_spots: Array[Vector3]) -> void:
@@ -1185,7 +1185,7 @@ func _spawn_network_bots(light_spots: Array[Vector3], dark_spots: Array[Vector3]
 		var bot := _spawn_hero(bot_class, bot_team, false, spots[spot_index])
 		bot.network_id = int(entry.get("id", 0))
 		var bot_name := String(entry.get("name", "")).strip_edges()
-		if bot_name.is_empty() or bot_name.begins_with("РРіСЂРѕРє"):
+		if bot_name.is_empty() or bot_name.begins_with("Игрок"):
 			bot_name = _next_bot_callsign()
 		if not bot_name.is_empty():
 			bot.set_display_name(bot_name)
@@ -1216,7 +1216,7 @@ func _next_bot_callsign() -> String:
 		if not used_bot_callsigns.has(String(callsign)):
 			available.append(String(callsign))
 	if available.is_empty():
-		return "РџСѓС‚РЅРёРє%d" % (used_bot_callsigns.size() + 1)
+		return "Путник%d" % (used_bot_callsigns.size() + 1)
 	var callsign := available[randi_range(0, available.size() - 1)]
 	used_bot_callsigns.append(callsign)
 	return callsign
@@ -1448,7 +1448,7 @@ func _update_camera(delta: float) -> void:
 			death_camera_active = true
 			camera_pos = camera.global_position
 			death_camera_last_distance = camera_distance
-			var camera_hint := "РќР°Р±Р»СЋРґРµРЅРёРµ: СЃРІР°Р№Рї вЂ” РєР°РјРµСЂР°" if _uses_touch_controls() else "РќР°Р±Р»СЋРґРµРЅРёРµ: WASD вЂ” РєР°РјРµСЂР°, РєРѕР»РµСЃРёРєРѕ вЂ” Р·СѓРј"
+			var camera_hint := "Наблюдение: свайп — камера" if _uses_touch_controls() else "Наблюдение: WASD — камера, колесико — зум"
 			announce(camera_hint, Color(0.82, 0.9, 1.0), 4.0)
 
 		if not is_equal_approx(camera_distance, death_camera_last_distance):
@@ -1473,7 +1473,7 @@ func _update_camera(delta: float) -> void:
 			camera_pos = camera.global_position + pan_direction * 16.0 * delta
 			camera.global_position = camera_pos
 
-		# РєР°РјРµСЂР° РЅР°Р±Р»СЋРґР°С‚РµР»СЏ РЅРµ РґРѕР»Р¶РЅР° СѓРµР·Р¶Р°С‚СЊ Р·Р° Р°СЂРµРЅСѓ
+		# камера наблюдателя не должна уезжать за арену
 		camera_pos = _clamp_death_camera(camera.global_position)
 		camera.global_position = camera_pos
 		return
@@ -1559,7 +1559,7 @@ func _update_match(delta: float) -> void:
 		if match_time <= 0.0:
 			if score[0] == score[1]:
 				sudden_death = true
-				announce("Р РµС€Р°СЋС‰РёР№ РѕСЃРєРѕР»РѕРє!", Color(1.0, 0.75, 0.35), 3.0)
+				announce("Решающий осколок!", Color(1.0, 0.75, 0.35), 3.0)
 			else:
 				end_match(score[0] > score[1])
 				return
@@ -1568,7 +1568,7 @@ func _update_match(delta: float) -> void:
 	shell_timer = shell_cycle_timer
 	if shell_phase == "idle" and shell_cycle_timer <= SHELL_WARNING_TIME:
 		shell_phase = "warning"
-		announce("РћР±РѕР»РѕС‡РєР° РїСЂРѕР±СѓР¶РґР°РµС‚СЃСЏ вЂ” 10 СЃРµРєСѓРЅРґ!", Color(0.78, 0.6, 1.0), 2.4)
+		announce("Оболочка пробуждается — 10 секунд!", Color(0.78, 0.6, 1.0), 2.4)
 	if shell_phase == "warning":
 		if shell_cycle_timer <= 0.0:
 			_spawn_shell()
@@ -1578,7 +1578,7 @@ func _update_match(delta: float) -> void:
 			shell.despawn()
 			shell = null
 			shell_phase = "idle"
-			announce("РћР±РѕР»РѕС‡РєР° СѓС€Р»Р° РІ С‚РµРЅСЊ", Color(0.7, 0.7, 0.8), 1.6)
+			announce("Оболочка ушла в тень", Color(0.7, 0.7, 0.8), 1.6)
 
 
 func _spawn_shell() -> void:
@@ -1597,7 +1597,7 @@ func _spawn_shell() -> void:
 	shell_window = SHELL_WINDOW
 	shell_cycle_timer = SHELL_SPAWN_INTERVAL
 	shell_timer = shell_cycle_timer
-	announce("РћР±РѕР»РѕС‡РєР° Р·РґРµСЃСЊ", Color(0.85, 0.62, 1.0), 2.6)
+	announce("Оболочка здесь", Color(0.85, 0.62, 1.0), 2.6)
 	play_sfx("thunder", -3.0)
 	shake(0.6)
 	burst(Vector3(0.0, 1.2, 0.0), Color(0.8, 0.5, 1.0), 44)
@@ -1626,7 +1626,7 @@ func on_shell_died(s: SkyShell, source: Node = null) -> void:
 	play_sfx("shell_destroyed", -3.0)
 	shake(0.8)
 	spawn_crystal(pos, true)
-	announce("РћР±РѕР»РѕС‡РєР° РїР°Р»Р°! РћСЃРєРѕР»РѕРє СЃРІРѕР±РѕРґРµРЅ", Color(0.8, 0.95, 1.0), 2.4)
+	announce("Оболочка пала! Осколок свободен", Color(0.8, 0.95, 1.0), 2.4)
 	s.retire(0.5)
 	shell = null
 	shell_phase = "idle"
@@ -1792,7 +1792,7 @@ func _update_crystal(delta: float) -> void:
 				altar_ring.position = Vector3(0.0, 0.02 - crystal_node.global_position.y, 0.0)
 				altar_ring.scale = Vector3.ONE
 			crystal_timer = 0.0
-			announce("РћСЃРєРѕР»РѕРє РІРµСЂРЅСѓР»СЃСЏ Рє Р°Р»С‚Р°СЂСЋ", Color(0.75, 0.9, 1.0), 1.8)
+			announce("Осколок вернулся к алтарю", Color(0.75, 0.9, 1.0), 1.8)
 		if state == "live" and pickup_delay <= 0.0:
 			_try_pickup()
 	elif crystal_state == "carried" and carrier != null and is_instance_valid(carrier):
@@ -1829,9 +1829,9 @@ func _try_pickup() -> void:
 		crystal_state = "carried"
 		play_sfx("shard_pickup", -6.0)
 		if best == player:
-			announce("РћСЃРєРѕР»РѕРє Сѓ С‚РµР±СЏ! РќРµСЃРё РЅР° Р±Р°Р·Сѓ", Color(0.75, 1.0, 0.85), 2.0)
+			announce("Осколок у тебя! Неси на базу", Color(0.75, 1.0, 0.85), 2.0)
 		else:
-			announce("%s РЅРµСЃС‘С‚ РѕСЃРєРѕР»РѕРє %s" % [best.display_name, "Рє СЃРІРµС‚Сѓ" if best.team == 0 else "РІРѕ С‚СЊРјСѓ"], Color(0.85, 0.85, 0.95), 1.6)
+			announce("%s несёт осколок %s" % [best.display_name, "к свету" if best.team == 0 else "во тьму"], Color(0.85, 0.85, 0.95), 1.6)
 
 
 func _deliver(h: HeroUnit) -> void:
@@ -1864,8 +1864,8 @@ func _deliver(h: HeroUnit) -> void:
 		crystal_node.queue_free()
 		crystal_node = null
 	play_sfx("shard_delivery", -5.0)
-	var team_name := "РЎРІРµС‚" if h.team == 0 else "РўСЊРјР°"
-	announce("РћСЃРєРѕР»РѕРє РЅР° Р±Р°Р·Рµ: %s  %d : %d" % [team_name, score[0], score[1]], Color(1.0, 0.9, 0.6), 2.6)
+	var team_name := "Свет" if h.team == 0 else "Тьма"
+	announce("Осколок на базе: %s  %d : %d" % [team_name, score[0], score[1]], Color(1.0, 0.9, 0.6), 2.6)
 	if network_play:
 		NetworkManager.send_match_event("shard_delivered", h.team)
 		shell_phase = "idle"
@@ -1900,9 +1900,9 @@ func on_hero_died(h: HeroUnit) -> void:
 	h.match_deaths += 1
 	if h == carrier or h.carrying:
 		drop_crystal(h.global_position)
-		announce("РћСЃРєРѕР»РѕРє РІС‹Р±РёС‚!", Color(1.0, 0.7, 0.4), 1.8)
+		announce("Осколок выбит!", Color(1.0, 0.7, 0.4), 1.8)
 	if h == player:
-		announce("РўС‹ РїР°Р». Р’РѕР·СЂРѕР¶РґРµРЅРёРµ С‡РµСЂРµР· %d" % int(ceil(h.respawn_timer)), Color(1.0, 0.5, 0.45), 2.2)
+		announce("Ты пал. Возрождение через %d" % int(ceil(h.respawn_timer)), Color(1.0, 0.5, 0.45), 2.2)
 
 
 func record_hero_damage(target: HeroUnit, source: Node, damage: float, killed: bool) -> void:
@@ -1921,7 +1921,7 @@ func record_hero_damage(target: HeroUnit, source: Node, damage: float, killed: b
 	if killed:
 		p_kills += 1
 		award_gold(50)
-		announce("РўС‹ СѓР±РёР» %s  +50 Р·РѕР»РѕС‚Р°" % target.display_name, Color(1.0, 0.85, 0.35), 1.8)
+		announce("Ты убил %s  +50 золота" % target.display_name, Color(1.0, 0.85, 0.35), 1.8)
 
 
 func on_hero_respawned(h: HeroUnit) -> void:
@@ -1950,7 +1950,7 @@ func end_match(team_zero_won: bool) -> void:
 	player_won = team_zero_won if player_team == 0 else not team_zero_won
 	var player_place := _get_player_place()
 	var player_is_mvp := _is_player_mvp()
-	result_text = "РџРћР‘Р•Р”Рђ" if player_won else "РџРћР РђР–Р•РќРР•"
+	result_text = "ПОБЕДА" if player_won else "ПОРАЖЕНИЕ"
 	get_tree().set_meta("last_match_won", player_won)
 	get_tree().set_meta("last_match_score", score.duplicate())
 	get_tree().set_meta("last_match_team", player_team)
@@ -2207,7 +2207,7 @@ func spawn_tutorial_dummy() -> void:
 		spawn_position.y = 0.76
 	tutorial_dummy = _spawn_hero(HeroUnit.Cls.WARRIOR, 1 - player.team, false, spawn_position)
 	tutorial_dummy.name = "TrainingDummy"
-	tutorial_dummy.set_display_name("РњР°РЅРµРєРµРЅ")
+	tutorial_dummy.set_display_name("Манекен")
 	tutorial_dummy.tutorial_dummy = true
 	tutorial_dummy.max_health = 1000.0
 	tutorial_dummy.health = 1000.0
@@ -2657,7 +2657,7 @@ func _setup_network_play() -> void:
 	for player_id in snapshot.keys():
 		_on_remote_player_joined(int(player_id), snapshot[player_id])
 	if not NetworkManager.is_server_connected() and not NetworkManager.is_connecting():
-		announce("РЎРµС‚РµРІРѕР№ СЃРµСЂРІРµСЂ РЅРµРґРѕСЃС‚СѓРїРµРЅ вЂ” РёРіСЂР° СЃ Р±РѕС‚Р°РјРё", Color(1.0, 0.72, 0.4), 3.0)
+		announce("Сетевой сервер недоступен — игра с ботами", Color(1.0, 0.72, 0.4), 3.0)
 
 
 func _on_remote_player_joined(player_id: int, info: Dictionary) -> void:
@@ -2692,7 +2692,7 @@ func _on_remote_player_state(player_id: int, position: Vector3, rotation_y: floa
 	if remote == null or not is_instance_valid(remote):
 		_on_remote_player_joined(player_id, {
 			"id": player_id,
-			"name": "РРіСЂРѕРє %d" % player_id,
+			"name": "Игрок %d" % player_id,
 			"class": 0,
 			"team": 0,
 			"has_state": true,
@@ -2799,7 +2799,7 @@ func _on_match_score_updated(score_0: int, score_1: int, server_sudden_death: bo
 		return
 	if server_sudden_death and not sudden_death:
 		sudden_death = true
-		announce("Р РµС€Р°СЋС‰РёР№ РѕСЃРєРѕР»РѕРє!", Color(1.0, 0.75, 0.35), 3.0)
+		announce("Решающий осколок!", Color(1.0, 0.75, 0.35), 3.0)
 
 
 func _on_match_event_received(event: String, _team: int) -> void:
@@ -2807,7 +2807,7 @@ func _on_match_event_received(event: String, _team: int) -> void:
 		return
 	if event == "sudden_death" and not sudden_death:
 		sudden_death = true
-		announce("Р РµС€Р°СЋС‰РёР№ РѕСЃРєРѕР»РѕРє!", Color(1.0, 0.75, 0.35), 3.0)
+		announce("Решающий осколок!", Color(1.0, 0.75, 0.35), 3.0)
 
 
 func _on_network_match_finished(winning_team: int) -> void:
@@ -2823,7 +2823,7 @@ func _on_network_disconnected() -> void:
 		if remote != null and is_instance_valid(remote):
 			remote.queue_free()
 	remote_players.clear()
-	announce("РЎРѕРµРґРёРЅРµРЅРёРµ СЃ СЃРµСЂРІРµСЂРѕРј РїРѕС‚РµСЂСЏРЅРѕ", Color(1.0, 0.55, 0.4), 3.0)
+	announce("Соединение с сервером потеряно", Color(1.0, 0.55, 0.4), 3.0)
 
 
 func _exit_tree() -> void:
@@ -2888,20 +2888,20 @@ func _ability_index_from_event(event: InputEventKey) -> int:
 
 func objective_text() -> String:
 	if state == "select":
-		return "Р’С‹Р±РµСЂРё РєР»Р°СЃСЃ вЂ” 1 Р’РѕРёРЅ В· 2 РњР°Рі В· 3 Р¤РµСЏ"
+		return "Выбери класс — 1 Воин · 2 Маг · 3 Фея"
 	if state == "over":
 		return ""
 	if crystal_state == "carried" and carrier != null and is_instance_valid(carrier):
-		var who := "РўС‹ РЅРµСЃС‘С€СЊ РѕСЃРєРѕР»РѕРє вЂ” РЅР° Р±Р°Р·Сѓ!" if carrier == player else "%s РЅРµСЃС‘С‚ РѕСЃРєРѕР»РѕРє" % carrier.display_name
+		var who := "Ты несёшь осколок — на базу!" if carrier == player else "%s несёт осколок" % carrier.display_name
 		return who
 	if crystal_state == "ground":
-		return "РћСЃРєРѕР»РѕРє СЃРІРѕР±РѕРґРµРЅ вЂ” РїРѕРґР±РµСЂРё РµРіРѕ"
+		return "Осколок свободен — подбери его"
 	match shell_phase:
 		"warning":
-			return "РћР±РѕР»РѕС‡РєР° РїСЂРѕР±СѓР¶РґР°РµС‚СЃСЏ: %d" % int(ceil(shell_timer))
+			return "Оболочка пробуждается: %d" % int(ceil(shell_timer))
 		"active":
-			return "Р Р°Р·Р±РµР№ РћР±РѕР»РѕС‡РєСѓ: %d" % int(ceil(shell_window))
-	return "РћР±РѕР»РѕС‡РєР° РїРѕСЏРІРёС‚СЃСЏ С‡РµСЂРµР· %d" % int(ceil(shell_timer))
+			return "Разбей Оболочку: %d" % int(ceil(shell_window))
+	return "Оболочка появится через %d" % int(ceil(shell_timer))
 
 
 func debug_state() -> Dictionary:
@@ -2921,5 +2921,3 @@ func debug_state() -> Dictionary:
 	if shell != null and is_instance_valid(shell):
 		info["shell_hp"] = int(shell.health)
 	return info
-
-
