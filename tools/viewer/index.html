@@ -565,6 +565,8 @@ function ensureMarkOverlay() {
   markOverlay.quaternion.copy(heroMesh.quaternion);
   markOverlay.scale.copy(heroMesh.scale);
   heroMesh.parent.add(markOverlay);
+  heroMesh.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 1000);
+  heroMesh.frustumCulled = false;
   updateMarkOverlay();
 }
 
@@ -644,7 +646,7 @@ function screenSpaceHit(event) {
   const world = new THREE.Vector3();
   const projected = new THREE.Vector3();
   let bestDistance = 60.0;
-  let bestLocal = null;
+  let bestIndex = -1;
   for (let i = 0; i < positions.count; i++) {
     local.fromBufferAttribute(positions, i);
     heroMesh.applyBoneTransform(i, local);
@@ -656,11 +658,30 @@ function screenSpaceHit(event) {
     const distance = Math.hypot(screenX - mouseX, screenY - mouseY);
     if (distance < bestDistance) {
       bestDistance = distance;
-      bestLocal = local.clone();
+      bestIndex = i;
     }
   }
-  if (!bestLocal) return null;
-  return { localPoint: bestLocal, faceIndex: -1 };
+  if (bestIndex < 0) return null;
+  return { vertexIndex: bestIndex };
+}
+
+function seedPoint(hit) {
+  const geometry = heroMesh.geometry;
+  const positions = geometry.attributes.position;
+  const index = geometry.index;
+  const seed = new THREE.Vector3();
+  if (hit.faceIndex >= 0) {
+    const i0 = index ? index.getX(hit.faceIndex * 3) : hit.faceIndex * 3;
+    const i1 = index ? index.getX(hit.faceIndex * 3 + 1) : hit.faceIndex * 3 + 1;
+    const i2 = index ? index.getX(hit.faceIndex * 3 + 2) : hit.faceIndex * 3 + 2;
+    seed.fromBufferAttribute(positions, i0);
+    seed.add(new THREE.Vector3().fromBufferAttribute(positions, i1));
+    seed.add(new THREE.Vector3().fromBufferAttribute(positions, i2));
+    seed.multiplyScalar(1 / 3);
+  } else if (hit.vertexIndex >= 0) {
+    seed.fromBufferAttribute(positions, hit.vertexIndex);
+  }
+  return seed;
 }
 
 function paintAt(event) {
@@ -674,12 +695,22 @@ function paintAt(event) {
     -((event.clientY - rect.top) / rect.height) * 2 + 1
   );
   raycaster.setFromCamera(ndc, camera);
-  const hit = raycastHero(raycaster) || screenSpaceHit(event);
+  let hit = null;
+  const hits = raycaster.intersectObject(heroMesh, false);
+  if (hits.length) hit = { faceIndex: hits[0].faceIndex, vertexIndex: -1 };
+  if (!hit) {
+    const custom = raycastHero(raycaster);
+    if (custom) hit = { faceIndex: custom.faceIndex, vertexIndex: -1 };
+  }
+  if (!hit) {
+    const screen = screenSpaceHit(event);
+    if (screen) hit = { faceIndex: -1, vertexIndex: screen.vertexIndex };
+  }
   if (!hit) {
     setMarksStatus('Кисть: мимо модели');
     return;
   }
-  const localHit = hit.localPoint;
+  const localHit = seedPoint(hit);
   const worldScale = new THREE.Vector3();
   heroMesh.getWorldScale(worldScale);
   const localRadius = brushRadius / Math.max(worldScale.x, 0.0001);
