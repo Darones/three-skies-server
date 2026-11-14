@@ -263,11 +263,9 @@ function loadHero(key) {
       if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; }
     });
     scene.add(hero);
-    const box = new THREE.Box3().setFromObject(hero);
-    const size = box.getSize(new THREE.Vector3());
-    heroFit = 2.15 / Math.max(size.y, 0.01);
+    heroFit = FIT;
     hero.scale.setScalar(heroFit);
-    hero.position.y = -box.min.y * heroFit;
+    hero.position.y = 0;
     bones = findBones(hero);
     clips = gltf.animations.slice().sort((a, b) => {
       const ia = CLIP_ORDER.indexOf(a.name);
