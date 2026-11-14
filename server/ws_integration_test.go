@@ -147,7 +147,7 @@ func TestWebSocketBotSyncAndServerValidation(t *testing.T) {
 		}
 		hub.mu.Lock()
 		if room := hub.rooms[hostJoined.RoomID]; room != nil {
-			room.lastDelivery = time.Time{}
+			room.lastDelivery = [2]time.Time{}
 		}
 		hub.mu.Unlock()
 	}

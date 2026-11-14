@@ -29,7 +29,7 @@ const (
 
 	matchLength      = 10 * time.Minute
 	crystalsToWin    = 3
-	deliveryLockout  = 2 * time.Second
+	deliveryLockout  = 500 * time.Millisecond
 	botStateBotLimit = roomSlots
 )
 
@@ -65,7 +65,7 @@ type wsRoom struct {
 	resultSaved  bool
 	score        [2]int
 	suddenDeath  bool
-	lastDelivery time.Time
+	lastDelivery [2]time.Time
 }
 
 type wsBot struct {
@@ -475,7 +475,7 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 	room.score = [2]int{}
 	room.suddenDeath = false
 	room.resultSaved = false
-	room.lastDelivery = time.Time{}
+	room.lastDelivery = [2]time.Time{}
 	if room.hostID == 0 {
 		for index := 0; index < roomSlots; index++ {
 			if player := room.players[index]; player != nil {
@@ -923,13 +923,13 @@ func (h *wsHub) handleMatchEvent(client *wsClient, message wsIncoming) {
 			h.mu.Unlock()
 			return
 		}
-		if !room.lastDelivery.IsZero() && time.Since(room.lastDelivery) < deliveryLockout {
+		if !room.lastDelivery[team].IsZero() && time.Since(room.lastDelivery[team]) < deliveryLockout {
 			score0, score1, sudden := room.score[0], room.score[1], room.suddenDeath
 			h.mu.Unlock()
 			client.sendJSON(wsOutgoing{Type: "match_score", Score0: score0, Score1: score1, SuddenDeath: sudden})
 			return
 		}
-		room.lastDelivery = time.Now()
+		room.lastDelivery[team] = time.Now()
 		room.score[team]++
 		score0, score1, sudden := room.score[0], room.score[1], room.suddenDeath
 		winner := -1

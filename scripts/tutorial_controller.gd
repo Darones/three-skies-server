@@ -44,6 +44,11 @@ func begin() -> void:
 func process(delta: float) -> void:
 	if completed or game.player == null or not is_instance_valid(game.player):
 		return
+	if game.crystal_state == "carried" and game.carrier == game.player and stage != "deliver_crystal" and stage != "complete":
+		stage = "deliver_crystal"
+		_point_to(_own_base_position(), OBJECTIVE_CRYSTAL)
+		game.hud.call("show_tutorial_hint", "Неси Осколок на свою базу")
+		return
 	if stage == "reach_center":
 		if Vector2(game.player.global_position.x, game.player.global_position.z).length() <= 5.0:
 			_start_ability_training()

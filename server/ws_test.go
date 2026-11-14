@@ -242,7 +242,7 @@ func TestServerDeterminesWinnerFromDeliveries(t *testing.T) {
 
 	for delivery := 0; delivery < crystalsToWin; delivery++ {
 		hub.mu.Lock()
-		room.lastDelivery = time.Time{}
+		room.lastDelivery = [2]time.Time{}
 		hub.mu.Unlock()
 		hub.handleMatchEvent(first, wsIncoming{Event: "shard_delivered", Team: 0})
 	}
@@ -258,6 +258,26 @@ func TestServerDeterminesWinnerFromDeliveries(t *testing.T) {
 	}
 	if !finished {
 		t.Fatalf("match_finished with winning team 0 not broadcast: %+v", messages)
+	}
+}
+
+func TestDeliveriesFromBothTeamsWithinLockoutBothCount(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	first := newTestClient(1, 0, 0, 0)
+	second := newTestClient(2, 1, 0, 0)
+	room := newTestRoom(first, second)
+	hub.rooms[room.id] = room
+
+	hub.handleMatchEvent(first, wsIncoming{Event: "shard_delivered", Team: 0})
+	hub.handleMatchEvent(second, wsIncoming{Event: "shard_delivered", Team: 1})
+	if room.score[0] != 1 || room.score[1] != 1 {
+		t.Fatalf("deliveries from both teams must count, got %v", room.score)
+	}
+
+	// Повторное событие той же команды в пределах блокировки не должно начислять очко
+	hub.handleMatchEvent(first, wsIncoming{Event: "shard_delivered", Team: 0})
+	if room.score[0] != 1 {
+		t.Fatalf("duplicate delivery must be ignored, got %v", room.score)
 	}
 }
 
