@@ -197,6 +197,7 @@ func _ready() -> void:
 	final_shards = 5 if player_won and player_is_mvp else 3 if player_won or player_is_mvp else 1
 	final_xp = kills * 10 + shells_destroyed * 25 + crystals_delivered * 25 + (50 if player_won else 20)
 	MetaProgression.record_match_result(player_won, player_place, match_stats, final_xp, final_shards)
+	AdManager.register_battle_completed()
 	_grant_match_reward_to_server(final_shards)
 	if not rewards_committed:
 		MetaProgression.add_character_xp(CHARACTER_KEYS[selected_class], final_xp)
