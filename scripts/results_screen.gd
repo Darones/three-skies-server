@@ -30,6 +30,9 @@ var final_xp := 0
 var rewards_doubled := false
 var rewards_committed := false
 var ad_in_progress := false
+var leaving_results := false
+var replay_button: Button
+var menu_button: Button
 var double_reward_button: Button
 var shards_reward_label: Label
 var xp_reward_label: Label
@@ -180,6 +183,7 @@ func _animate_rewards() -> void:
 
 func _ready() -> void:
 	font = UI_FONT
+	AdManager.begin_results()
 	if not AdManager.rewarded_ad_completed.is_connected(_on_rewarded_ad_completed):
 		AdManager.rewarded_ad_completed.connect(_on_rewarded_ad_completed)
 	selected_class = clampi(int(get_tree().get_meta("selected_class", 0)), 0, 2)
@@ -197,7 +201,6 @@ func _ready() -> void:
 	final_shards = 5 if player_won and player_is_mvp else 3 if player_won or player_is_mvp else 1
 	final_xp = kills * 10 + shells_destroyed * 25 + crystals_delivered * 25 + (50 if player_won else 20)
 	MetaProgression.record_match_result(player_won, player_place, match_stats, final_xp, final_shards)
-	AdManager.register_battle_completed()
 	_grant_match_reward_to_server(final_shards)
 	if not rewards_committed:
 		MetaProgression.add_character_xp(CHARACTER_KEYS[selected_class], final_xp)
@@ -459,12 +462,14 @@ func _build_buttons() -> void:
 	retry_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	retry_button.pressed.connect(_open_replay)
 	button_row.add_child(retry_button)
-	var menu_button := _make_button("В ЛОББИ", false)
-	menu_button.name = "MenuButton"
-	menu_button.custom_minimum_size = Vector2(180.0, 54.0)
-	menu_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	menu_button.pressed.connect(_open_menu)
-	button_row.add_child(menu_button)
+	replay_button = retry_button
+	var lobby_button := _make_button("В ЛОББИ", false)
+	lobby_button.name = "MenuButton"
+	lobby_button.custom_minimum_size = Vector2(180.0, 54.0)
+	lobby_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	lobby_button.pressed.connect(_open_menu)
+	button_row.add_child(lobby_button)
+	menu_button = lobby_button
 
 
 func _make_panel(border_color: Color) -> PanelContainer:
@@ -547,10 +552,30 @@ func _button_style(primary: bool, hovered: bool) -> StyleBoxFlat:
 
 
 func _open_replay() -> void:
+	if leaving_results or ad_in_progress:
+		return
+	leaving_results = true
+	if replay_button != null:
+		replay_button.disabled = true
+	if menu_button != null:
+		menu_button.disabled = true
+	if AdManager.can_show_interstitial_after_results() and replay_button != null:
+		replay_button.text = "Реклама..."
+	await AdManager.maybe_show_interstitial_after_results()
 	_change_scene(REPLAY_SCENE)
 
 
 func _open_menu() -> void:
+	if leaving_results or ad_in_progress:
+		return
+	leaving_results = true
+	if replay_button != null:
+		replay_button.disabled = true
+	if menu_button != null:
+		menu_button.disabled = true
+	if AdManager.can_show_interstitial_after_results() and menu_button != null:
+		menu_button.text = "Реклама..."
+	await AdManager.maybe_show_interstitial_after_results()
 	_change_scene(MENU_SCENE)
 
 

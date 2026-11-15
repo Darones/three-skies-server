@@ -341,16 +341,6 @@ func _transition_when_ready() -> void:
 	await get_tree().create_timer(1.1).timeout
 	if not is_inside_tree():
 		return
-	# Межуровневая реклама: не раньше 5-го боя, не после rewarded и не две подряд.
-	if AdManager.can_show_interstitial():
-		var previous_hint := connection_hint.text
-		search_label.text = 'Реклама...'
-		connection_hint.text = ''
-		await AdManager.show_interstitial_ad()
-		if not is_inside_tree():
-			return
-		search_label.text = 'Матч найден!'
-		connection_hint.text = previous_hint
 	while not load_failed and match_scene == null:
 		_poll_match_scene_load()
 		if match_scene == null and not load_failed:
