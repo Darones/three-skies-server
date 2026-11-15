@@ -968,66 +968,6 @@ mesh = SubResource("TorusMesh_ebg2g")
 
 [node name="Ruins" type="Node3D" parent="Arena" unique_id=143552669]
 
-[node name="@MeshInstance3D@25536" type="MeshInstance3D" parent="Arena/Ruins" unique_id=1652066019]
-transform = Transform3D(0.90854096, 0.0954915, -0.40673664, -0.104528464, 0.9945219, 0, 0.4045085, 0.042515557, 0.9135454, -15, 0.45, 2)
-material_override = SubResource("StandardMaterial3D_q8u5g")
-mesh = SubResource("BoxMesh_1xgkc")
-
-[node name="_MeshInstance3D_25536Collision" type="StaticBody3D" parent="Arena/Ruins/@MeshInstance3D@25536" unique_id=481649089]
-
-[node name="Shape" type="CollisionShape3D" parent="Arena/Ruins/@MeshInstance3D@25536/_MeshInstance3D_25536Collision" unique_id=233473447]
-shape = SubResource("BoxShape3D_vcsgt")
-
-[node name="@MeshInstance3D@25537" type="MeshInstance3D" parent="Arena/Ruins" unique_id=1120028459]
-transform = Transform3D(0.90854096, -0.0954915, 0.40673664, 0.104528464, 0.9945219, 0, -0.4045085, 0.042515557, 0.9135454, 15, 0.45, 2)
-material_override = SubResource("StandardMaterial3D_q8u5g")
-mesh = SubResource("BoxMesh_x1gp3")
-
-[node name="_MeshInstance3D_25537Collision" type="StaticBody3D" parent="Arena/Ruins/@MeshInstance3D@25537" unique_id=644485687]
-
-[node name="Shape" type="CollisionShape3D" parent="Arena/Ruins/@MeshInstance3D@25537/_MeshInstance3D_25537Collision" unique_id=396869666]
-shape = SubResource("BoxShape3D_c01mt")
-
-[node name="RuinColumn_WestRear" type="MeshInstance3D" parent="Arena/Ruins" unique_id=606699068]
-transform = Transform3D(0.9961947, 0.08715574, 0, -0.08715574, 0.9961947, 0, 0, 0, 1, -15, 0.85, -1.1)
-material_override = SubResource("StandardMaterial3D_lhr70")
-mesh = SubResource("CylinderMesh_wp0k4")
-
-[node name="RuinColumn_WestRearCollision" type="StaticBody3D" parent="Arena/Ruins/RuinColumn_WestRear" unique_id=1118596263]
-
-[node name="Shape" type="CollisionShape3D" parent="Arena/Ruins/RuinColumn_WestRear/RuinColumn_WestRearCollision" unique_id=2091676939]
-shape = SubResource("CylinderShape3D_nxtc6")
-
-[node name="RuinColumn_WestFront" type="MeshInstance3D" parent="Arena/Ruins" unique_id=298888517]
-transform = Transform3D(0.99254614, -0.12186935, 0, 0.12186935, 0.99254614, 0, 0, 0, 1, -15, 0.6, 5)
-material_override = SubResource("StandardMaterial3D_lhr70")
-mesh = SubResource("CylinderMesh_bjd11")
-
-[node name="RuinColumn_WestFrontCollision" type="StaticBody3D" parent="Arena/Ruins/RuinColumn_WestFront" unique_id=1431904925]
-
-[node name="Shape" type="CollisionShape3D" parent="Arena/Ruins/RuinColumn_WestFront/RuinColumn_WestFrontCollision" unique_id=1536628153]
-shape = SubResource("CylinderShape3D_jlsqs")
-
-[node name="RuinColumn_EastRear" type="MeshInstance3D" parent="Arena/Ruins" unique_id=1760901115]
-transform = Transform3D(0.9975641, -0.06975647, 0, 0.06975647, 0.9975641, 0, 0, 0, 1, 15, 1.1, -1.1)
-material_override = SubResource("StandardMaterial3D_lhr70")
-mesh = SubResource("CylinderMesh_qmy6f")
-
-[node name="RuinColumn_EastRearCollision" type="StaticBody3D" parent="Arena/Ruins/RuinColumn_EastRear" unique_id=1102057924]
-
-[node name="Shape" type="CollisionShape3D" parent="Arena/Ruins/RuinColumn_EastRear/RuinColumn_EastRearCollision" unique_id=1398284529]
-shape = SubResource("CylinderShape3D_q8u5g")
-
-[node name="RuinColumn_EastFront" type="MeshInstance3D" parent="Arena/Ruins" unique_id=9093285]
-transform = Transform3D(0.99026805, 0.1391731, 0, -0.1391731, 0.99026805, 0, 0, 0, 1, 15, 0.8, 5)
-material_override = SubResource("StandardMaterial3D_lhr70")
-mesh = SubResource("CylinderMesh_mwfav")
-
-[node name="RuinColumn_EastFrontCollision" type="StaticBody3D" parent="Arena/Ruins/RuinColumn_EastFront" unique_id=2125134168]
-
-[node name="Shape" type="CollisionShape3D" parent="Arena/Ruins/RuinColumn_EastFront/RuinColumn_EastFrontCollision" unique_id=1518728351]
-shape = SubResource("CylinderShape3D_lhr70")
-
 [node name="Bases" type="Node3D" parent="Arena" unique_id=816486613]
 
 [node name="LightBase" type="Node3D" parent="Arena/Bases" unique_id=2013851626]
@@ -1037,36 +977,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 28)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.09, 0)
 material_override = SubResource("StandardMaterial3D_q8u5g")
 mesh = SubResource("CylinderMesh_le2d2")
-
-[node name="@MeshInstance3D@25539" type="MeshInstance3D" parent="Arena/Bases/LightBase" unique_id=1039803668]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.22, 0)
-material_override = SubResource("StandardMaterial3D_gexia")
-mesh = SubResource("TorusMesh_fun0h")
-
-[node name="@MeshInstance3D@25540" type="MeshInstance3D" parent="Arena/Bases/LightBase" unique_id=1780119549]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.45, 0.95, 0)
-material_override = SubResource("StandardMaterial3D_oqdxe")
-mesh = SubResource("CylinderMesh_4pmbt")
-
-[node name="@MeshInstance3D@25541" type="MeshInstance3D" parent="Arena/Bases/LightBase" unique_id=1781587345]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3751256, 0.95, 4.2322016)
-material_override = SubResource("StandardMaterial3D_4pegn")
-mesh = SubResource("CylinderMesh_iarty")
-
-[node name="@MeshInstance3D@25542" type="MeshInstance3D" parent="Arena/Bases/LightBase" unique_id=1565669300]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.6001256, 0.95, 2.6156445)
-material_override = SubResource("StandardMaterial3D_tcd68")
-mesh = SubResource("CylinderMesh_3mhcn")
-
-[node name="@MeshInstance3D@25543" type="MeshInstance3D" parent="Arena/Bases/LightBase" unique_id=418408643]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.6001256, 0.95, -2.6156445)
-material_override = SubResource("StandardMaterial3D_nc5fr")
-mesh = SubResource("CylinderMesh_3fqo2")
-
-[node name="@MeshInstance3D@25544" type="MeshInstance3D" parent="Arena/Bases/LightBase" unique_id=994787618]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3751256, 0.95, -4.2322016)
-material_override = SubResource("StandardMaterial3D_nlgwl")
-mesh = SubResource("CylinderMesh_csdio")
 
 [node name="@OmniLight3D@25545" type="OmniLight3D" parent="Arena/Bases/LightBase" unique_id=78265652]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.4, 0)
@@ -1081,36 +991,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -28)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.09, 0)
 material_override = SubResource("StandardMaterial3D_q8u5g")
 mesh = SubResource("CylinderMesh_p6l88")
-
-[node name="@MeshInstance3D@25547" type="MeshInstance3D" parent="Arena/Bases/DarkBase" unique_id=1259674646]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.22, 0)
-material_override = SubResource("StandardMaterial3D_57f5r")
-mesh = SubResource("TorusMesh_84vju")
-
-[node name="@MeshInstance3D@25548" type="MeshInstance3D" parent="Arena/Bases/DarkBase" unique_id=430595723]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.45, 0.95, 0)
-material_override = SubResource("StandardMaterial3D_ps7y1")
-mesh = SubResource("CylinderMesh_4c8xy")
-
-[node name="@MeshInstance3D@25549" type="MeshInstance3D" parent="Arena/Bases/DarkBase" unique_id=141917796]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3751256, 0.95, 4.2322016)
-material_override = SubResource("StandardMaterial3D_jhuvt")
-mesh = SubResource("CylinderMesh_smcir")
-
-[node name="@MeshInstance3D@25550" type="MeshInstance3D" parent="Arena/Bases/DarkBase" unique_id=2101625846]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.6001256, 0.95, 2.6156445)
-material_override = SubResource("StandardMaterial3D_2eo8w")
-mesh = SubResource("CylinderMesh_t7hiy")
-
-[node name="@MeshInstance3D@25551" type="MeshInstance3D" parent="Arena/Bases/DarkBase" unique_id=450799337]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.6001256, 0.95, -2.6156445)
-material_override = SubResource("StandardMaterial3D_13nov")
-mesh = SubResource("CylinderMesh_yg7m7")
-
-[node name="@MeshInstance3D@25552" type="MeshInstance3D" parent="Arena/Bases/DarkBase" unique_id=449721278]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3751256, 0.95, -4.2322016)
-material_override = SubResource("StandardMaterial3D_7ovee")
-mesh = SubResource("CylinderMesh_7figm")
 
 [node name="@OmniLight3D@25553" type="OmniLight3D" parent="Arena/Bases/DarkBase" unique_id=1685417108]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.4, 0)

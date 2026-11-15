@@ -45,7 +45,6 @@ var font: FontFile
 var score_label: Label
 var timer_label: Label
 var shell_timer_label: Label
-var respawn_label: Label
 var gold_label: Label
 var player_panel: PanelContainer
 var player_portrait: TextureRect
@@ -597,10 +596,6 @@ func _build_top(root: Control) -> void:
 	box.add_child(shell_timer_label)
 	shell_timer_label.visible = false
 
-	respawn_label = _make_label("", 32, Color(1.0, 0.38, 0.28))
-	respawn_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	respawn_label.visible = false
-	box.add_child(respawn_label)
 	_build_player_panel(root)
 	if OS.has_feature("mobile"):
 		pause_button = Button.new()
@@ -1381,7 +1376,7 @@ func _process(_delta: float) -> void:
 		var is_respawning: bool = game.state == "live" and game.player != null and is_instance_valid(game.player) and game.player.dead
 		center_respawn_label.visible = is_respawning
 		if is_respawning:
-			center_respawn_label.text = "Возрождение"
+			center_respawn_label.text = "Возрождение\n%d" % int(ceil(maxf(0.0, float(game.player.respawn_timer))))
 			center_respawn_label.modulate.a = 1.0
 	var match_time_left: float = maxf(0.0, game.match_time)
 	var match_minutes := floori(match_time_left / 60.0)
@@ -1404,11 +1399,6 @@ func _process(_delta: float) -> void:
 
 	if game.player != null:
 		var p = game.player
-		respawn_label.visible = p.dead
-		if p.dead:
-			respawn_label.text = "Возрождение: %d" % int(ceil(maxf(0.0, p.respawn_timer)))
-		else:
-			respawn_label.text = ""
 		for i in 3:
 			var data: Dictionary = HeroUnit.CLASS_DATA[p.hero_class]["abilities"][i]
 			ability_name_labels[i].text = str(ABILITY_SHORT_LABELS[p.hero_class][i])
@@ -1420,7 +1410,8 @@ func _process(_delta: float) -> void:
 			ability_wipes[i].set_progress(progress)
 			_set_ability_ready(i, cd <= 0.01)
 	else:
-		respawn_label.visible = false
+		if center_respawn_label != null:
+			center_respawn_label.visible = false
 
 	if game.state == "over":
 		end_panel.visible = true

@@ -6,7 +6,7 @@ const FLOOR_DARK_TEX := "res://art/textures/obsidian_rock/img-6adcd384-a1c6-4d03
 const SLATE_DIR := "res://art/textures/slate_floor"
 const GLOWING_TREE_SCENE := preload("res://scenes/GlowingFantasyTree.tscn")
 const BUSH_SCENE: PackedScene = preload("res://assets/kaykit_arena/forest/Bush_4_B_Color1.gltf")
-const BUSH_TARGET_HEIGHT := 1.7
+const BUSH_TARGET_HEIGHT := 2.3
 const BUSH_PAIR_HALF_SPACING := 1.5
 const NAVIGATION_SOURCE_GROUP := "navigation_mesh_source_group"
 
@@ -44,12 +44,6 @@ const KAYKIT_ROCK_SCENES: Array[PackedScene] = [
 	preload("res://assets/kaykit_arena/forest/Rock_2_B_Color1.gltf"),
 	preload("res://assets/kaykit_arena/forest/Rock_3_A_Color1.gltf"),
 	preload("res://assets/kaykit_arena/forest/Rock_3_B_Color1.gltf"),
-]
-const KAYKIT_GRASS_SCENES: Array[PackedScene] = [
-	preload("res://assets/kaykit_arena/forest/Grass_1_A_Color1.gltf"),
-	preload("res://assets/kaykit_arena/forest/Grass_1_B_Color1.gltf"),
-	preload("res://assets/kaykit_arena/forest/Grass_2_A_Color1.gltf"),
-	preload("res://assets/kaykit_arena/forest/Grass_2_B_Color1.gltf"),
 ]
 const KAYKIT_COIN_STACK_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/coin_stack_large.glb")
 const KAYKIT_BARREL_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/barrel_large.glb")
@@ -603,7 +597,8 @@ static func ensure_arena_features(arena_root: Node3D) -> void:
 		_ensure_fence_collision(island)
 		island.add_to_group("navigation_mesh_source_group", true)
 	if ruins != null:
-		_ensure_ruin_columns(ruins)
+		for child in ruins.get_children():
+			child.queue_free()
 	_add_ground_overlay(arena_root)
 	_ensure_boundary_wall_style(arena_root)
 	_ensure_forest_lighting(arena_root)
@@ -1356,70 +1351,7 @@ static func _add_kaykit_structures(decor: Node3D) -> void:
 		for side in [-1.0, 1.0]:
 			var pos := Vector3(side * 5.8, 0.0, base_z + front * 5.8)
 			_add_kaykit_torch(decor, pos, 1.7, true)
-	# Руины: обломки и упавшие колонны KayKit.
-	for side in [-1.0, 1.0]:
-		var fallen := _kaykit_scene(decor, KAYKIT_PILLAR_SCENE, Vector3(side * 28.0, 0.7, -10.0), 12.0 * side, 0.8, "RuinFallenColumn_%s" % str(side))
-		if fallen != null:
-			fallen.rotation_degrees.z = 74.0
-			_add_pillar_collision(fallen, 1.0, 4.0)
-
-
-static func _add_grass_tufts(parent: Node3D) -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 424242
-	for variant_index in 2:
-		var scene: PackedScene = KAYKIT_GRASS_SCENES[variant_index]
-		if scene == null:
-			continue
-		var source := scene.instantiate() as Node3D
-		if source == null:
-			continue
-		parent.add_child(source)
-		var specs: Array[Dictionary] = []
-		var bounds := AABB()
-		var found := false
-		var pending: Array[Node] = [source]
-		while not pending.is_empty():
-			var current: Node = pending.pop_back()
-			if current is MeshInstance3D:
-				var mesh_instance := current as MeshInstance3D
-				if mesh_instance.mesh != null:
-					var local_transform := source.global_transform.affine_inverse() * mesh_instance.global_transform
-					var mesh_bounds := _transform_aabb(mesh_instance.get_aabb(), local_transform)
-					bounds = mesh_bounds if not found else bounds.merge(mesh_bounds)
-					found = true
-					specs.append({"mesh": mesh_instance.mesh, "transform": local_transform})
-			for child in current.get_children():
-				pending.append(child)
-		parent.remove_child(source)
-		source.free()
-		if not found or specs.is_empty():
-			continue
-		var transforms: Array[Transform3D] = []
-		var target := 110
-		var guard := 0
-		while transforms.size() < target and guard < target * 30:
-			guard += 1
-			var x := rng.randf_range(-GRASS_HALF_X + 3.0, GRASS_HALF_X - 3.0)
-			var z := rng.randf_range(-GRASS_HALF_Z + 3.0, GRASS_HALF_Z - 3.0)
-			if Vector2(x, z).length() < PLAZA_RADIUS + 0.8:
-				continue
-			var instance_scale := rng.randf_range(0.85, 1.7)
-			var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * instance_scale)
-			var pos := Vector3(x, 0.08 - bounds.position.y * instance_scale, z)
-			transforms.append(Transform3D(basis, pos))
-		for spec in specs:
-			var multi_mesh := MultiMesh.new()
-			multi_mesh.transform_format = MultiMesh.TRANSFORM_3D
-			multi_mesh.mesh = spec["mesh"]
-			multi_mesh.instance_count = transforms.size()
-			var batch := MultiMeshInstance3D.new()
-			batch.name = "GrassTufts_%d_%s" % [variant_index, str(spec["mesh"]).get_slice(":", 0)]
-			batch.multimesh = multi_mesh
-			batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			parent.add_child(batch)
-			for instance_index in transforms.size():
-				multi_mesh.set_instance_transform(instance_index, transforms[instance_index] * spec["transform"])
+	# Руины и упавшие колонны убраны: внутри арены не должно быть каменных обломков.
 
 
 static func _add_decor(decor: Node3D, _mat_rock: StandardMaterial3D) -> void:
@@ -1475,7 +1407,6 @@ static func _add_decor(decor: Node3D, _mat_rock: StandardMaterial3D) -> void:
 		_add_kaykit_rock(decor, pos, rock_scale, i)
 		_occupy(pos, 1.2 * rock_scale)
 
-	_add_grass_tufts(decor)
 	_add_kaykit_structures(decor)
 
 
