@@ -5,10 +5,71 @@ const FLOOR_LIGHT_TEX := "res://art/textures/temple_floor/img-6adcd384-a1c6-4d03
 const FLOOR_DARK_TEX := "res://art/textures/obsidian_rock/img-6adcd384-a1c6-4d03-ab8f-2885c6220fd5-1793744225681-0_1793744225682_zroihsmf.png"
 const SLATE_DIR := "res://art/textures/slate_floor"
 const GLOWING_TREE_SCENE := preload("res://scenes/GlowingFantasyTree.tscn")
-const BUSH_SCENE: PackedScene = preload("res://assets/models/small_stylised_bush.glb")
-const BUSH_TARGET_HEIGHT := 3.6
+const BUSH_SCENE: PackedScene = preload("res://assets/kaykit_arena/forest/Bush_4_B_Color1.gltf")
+const BUSH_TARGET_HEIGHT := 1.7
 const BUSH_PAIR_HALF_SPACING := 1.5
 const NAVIGATION_SOURCE_GROUP := "navigation_mesh_source_group"
+
+# Реальные границы игровой площадки в мировых координатах.
+# Island в Main.tscn отмасштабирован вдвое, поэтому локальные HALF_X/HALF_Z
+# относятся только к геометрии острова, а декор живёт в мировых координатах.
+const ARENA_HALF_X := 52.0
+const ARENA_HALF_Z := 37.0
+const PLAZA_RADIUS := 17.0
+const GRASS_HALF_X := 100.0
+const GRASS_HALF_Z := 80.0
+const SHOP_POINT := Vector3(-40.0, 0.0, 0.0)
+const FOUNTAIN_POINT := Vector3(37.0, 0.0, 0.0)
+
+const KAYKIT_TREE_SCENES: Array[PackedScene] = [
+	preload("res://assets/kaykit_arena/forest/Tree_1_A_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Tree_1_B_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Tree_1_C_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Tree_2_A_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Tree_2_B_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Tree_2_C_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Tree_3_A_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Tree_3_B_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Tree_3_C_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Tree_4_A_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Tree_4_B_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Tree_4_C_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Tree_Bare_1_A_Color1.gltf"),
+]
+const KAYKIT_ROCK_SCENES: Array[PackedScene] = [
+	preload("res://assets/kaykit_arena/forest/Rock_1_A_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Rock_1_B_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Rock_1_C_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Rock_2_A_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Rock_2_B_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Rock_3_A_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Rock_3_B_Color1.gltf"),
+]
+const KAYKIT_GRASS_SCENES: Array[PackedScene] = [
+	preload("res://assets/kaykit_arena/forest/Grass_1_A_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Grass_1_B_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Grass_2_A_Color1.gltf"),
+	preload("res://assets/kaykit_arena/forest/Grass_2_B_Color1.gltf"),
+]
+const KAYKIT_COIN_STACK_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/coin_stack_large.glb")
+const KAYKIT_BARREL_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/barrel_large.glb")
+const KAYKIT_CRATES_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/crates_stacked.glb")
+const KAYKIT_PILLAR_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/pillar.glb")
+const KAYKIT_PILLAR_DECORATED_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/pillar_decorated.glb")
+const KAYKIT_BANNER_BLUE_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/banner_blue.glb")
+const KAYKIT_BANNER_RED_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/banner_red.glb")
+const KAYKIT_BANNER_BLUE_PATTERN_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/banner_patternA_blue.glb")
+const KAYKIT_BANNER_RED_PATTERN_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/banner_patternA_red.glb")
+const KAYKIT_TORCH_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/torch_lit.glb")
+const KAYKIT_CANDLE_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/candle_triple.glb")
+const KAYKIT_RUBBLE_LARGE_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/rubble_large.glb")
+const KAYKIT_RUBBLE_HALF_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/rubble_half.glb")
+const KAYKIT_WELL_SCENE: PackedScene = preload("res://assets/kaykit_arena/medieval/building_well_green.gltf")
+const KAYKIT_GOLD_BARS_SCENE: PackedScene = preload("res://assets/kaykit_arena/resource/Gold_Bars.gltf")
+const KAYKIT_GOLD_NUGGETS_SCENE: PackedScene = preload("res://assets/kaykit_arena/resource/Gold_Nuggets.gltf")
+const KAYKIT_WOOD_LOGS_SCENE: PackedScene = preload("res://assets/kaykit_arena/resource/Wood_Log_Stack.gltf")
+const KAYKIT_TEXTILES_SCENE: PackedScene = preload("res://assets/kaykit_arena/resource/Textiles_A.gltf")
+const KAYKIT_POT_SCENE: PackedScene = preload("res://assets/kaykit_arena/restaurant/pot_A.gltf")
 
 const HALF_X := 27.0
 const HALF_Z := 19.5
@@ -141,6 +202,357 @@ static func build_floor_mesh(mat_light: StandardMaterial3D, mat_dark: StandardMa
 	return mesh
 
 
+static func plaza_material() -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	var tex := load(FLOOR_LIGHT_TEX) as Texture2D
+	if tex != null:
+		mat.albedo_texture = tex
+	mat.albedo_color = Color(0.72, 0.68, 0.6)
+	mat.roughness = 0.9
+	mat.uv1_triplanar = true
+	mat.uv1_scale = Vector3(0.09, 0.09, 0.09)
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	return mat
+
+
+static func grass_material() -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 1.0
+	mat.metallic = 0.0
+	mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return mat
+
+
+static func stone_trim_material() -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.4, 0.41, 0.37)
+	mat.roughness = 0.92
+	return mat
+
+
+static func _build_circle_mesh(radius: float, segments: int) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_normal(Vector3.UP)
+	for i in segments:
+		var a0 := TAU * float(i) / float(segments)
+		var a1 := TAU * float(i + 1) / float(segments)
+		var p0 := Vector3(cos(a0) * radius, 0.0, sin(a0) * radius)
+		var p1 := Vector3(cos(a1) * radius, 0.0, sin(a1) * radius)
+		st.set_uv(Vector2(0.5, 0.5))
+		st.add_vertex(Vector3.ZERO)
+		st.set_uv(Vector2(p0.x, p0.z) * 0.09 + Vector2(0.5, 0.5))
+		st.add_vertex(p0)
+		st.set_uv(Vector2(p1.x, p1.z) * 0.09 + Vector2(0.5, 0.5))
+		st.add_vertex(p1)
+	var mesh := ArrayMesh.new()
+	st.commit(mesh)
+	return mesh
+
+
+static func _build_annulus_mesh(inner: float, outer: float, segments: int) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_normal(Vector3.UP)
+	for i in segments:
+		var a0 := TAU * float(i) / float(segments)
+		var a1 := TAU * float(i + 1) / float(segments)
+		var i0 := Vector3(cos(a0) * inner, 0.0, sin(a0) * inner)
+		var i1 := Vector3(cos(a1) * inner, 0.0, sin(a1) * inner)
+		var o0 := Vector3(cos(a0) * outer, 0.0, sin(a0) * outer)
+		var o1 := Vector3(cos(a1) * outer, 0.0, sin(a1) * outer)
+		for p in [i0, o0, o1, i0, o1, i1]:
+			st.set_uv(Vector2(p.x, p.z) * 0.09 + Vector2(0.5, 0.5))
+			st.add_vertex(p)
+	var mesh := ArrayMesh.new()
+	st.commit(mesh)
+	return mesh
+
+
+static func _grass_color(x: float, z: float) -> Color:
+	var dark := Color(0.08, 0.17, 0.06)
+	var light := Color(0.16, 0.29, 0.1)
+	var shade := clampf(0.5 + 0.3 * sin(x * 0.21 + z * 0.17) + 0.18 * sin(x * 0.53 - z * 0.37) + 0.08 * sin(x * 1.3 + z * 1.1), 0.0, 1.0)
+	return dark.lerp(light, shade)
+
+
+static func _build_grass_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_smooth_group(-1)
+	var step := 2.0
+	var x := -GRASS_HALF_X
+	while x < GRASS_HALF_X - 0.01:
+		var z := -GRASS_HALF_Z
+		while z < GRASS_HALF_Z - 0.01:
+			var x1 := x + step
+			var z1 := z + step
+			var cx := (x + x1) * 0.5
+			var cz := (z + z1) * 0.5
+			if Vector2(cx, cz).length() >= PLAZA_RADIUS - 0.5:
+				var a := Vector3(x, _floor_height(x, z) + 0.13, z)
+				var b := Vector3(x1, _floor_height(x1, z) + 0.13, z)
+				var c := Vector3(x1, _floor_height(x1, z1) + 0.13, z1)
+				var d := Vector3(x, _floor_height(x, z1) + 0.13, z1)
+				for p in [a, b, c, a, c, d]:
+					st.set_color(_grass_color(p.x, p.z))
+					st.set_uv(Vector2(p.x, p.z) * 0.12)
+					st.add_vertex(p)
+			z += step
+		x += step
+	st.generate_normals()
+	var mesh := ArrayMesh.new()
+	st.commit(mesh)
+	return mesh
+
+
+static func _add_path(parent: Node3D, from: Vector3, to: Vector3, width: float, mat: StandardMaterial3D) -> void:
+	var direction := to - from
+	if direction.length() < 0.1:
+		return
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(width, direction.length())
+	var path := MeshInstance3D.new()
+	path.name = "Path"
+	path.mesh = plane
+	path.material_override = mat
+	path.position = Vector3((from.x + to.x) * 0.5, 0.16, (from.z + to.z) * 0.5)
+	path.rotation.y = atan2(direction.x, direction.z)
+	path.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(path)
+
+
+static func _add_ground_overlay(arena_root: Node3D) -> void:
+	if arena_root.get_node_or_null("GroundOverlay") != null:
+		return
+	var overlay := Node3D.new()
+	overlay.name = "GroundOverlay"
+	arena_root.add_child(overlay)
+	var plaza_mat := plaza_material()
+	var trim_mat := stone_trim_material()
+
+	var ground_body := StaticBody3D.new()
+	ground_body.name = "GroundOverlayCollision"
+	ground_body.collision_layer = 1
+	ground_body.collision_mask = 1
+	var ground_shape := CollisionShape3D.new()
+	var ground_box := BoxShape3D.new()
+	ground_box.size = Vector3(ARENA_HALF_X * 2.0, 0.26, ARENA_HALF_Z * 2.0)
+	ground_shape.shape = ground_box
+	ground_body.add_child(ground_shape)
+	overlay.add_child(ground_body)
+
+	var grass := MeshInstance3D.new()
+	grass.name = "Grass"
+	grass.mesh = _build_grass_mesh()
+	grass.material_override = grass_material()
+	grass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	overlay.add_child(grass)
+
+	var plaza := MeshInstance3D.new()
+	plaza.name = "Plaza"
+	plaza.mesh = _build_circle_mesh(PLAZA_RADIUS, 64)
+	plaza.material_override = plaza_mat
+	plaza.position.y = 0.15
+	plaza.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	overlay.add_child(plaza)
+
+	var border := MeshInstance3D.new()
+	border.name = "PlazaBorder"
+	border.mesh = _build_annulus_mesh(PLAZA_RADIUS - 0.55, PLAZA_RADIUS + 0.55, 64)
+	border.material_override = trim_mat
+	border.position.y = 0.17
+	border.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	overlay.add_child(border)
+
+	var altar_ring := MeshInstance3D.new()
+	altar_ring.name = "AltarRing"
+	altar_ring.mesh = _build_annulus_mesh(6.5, 7.0, 48)
+	altar_ring.material_override = trim_mat
+	altar_ring.position.y = 0.17
+	altar_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	overlay.add_child(altar_ring)
+
+	_add_path(overlay, Vector3(0.0, 0.0, PLAZA_RADIUS - 0.4), Vector3(0.0, 0.0, 23.0), 4.6, plaza_mat)
+	_add_path(overlay, Vector3(0.0, 0.0, -PLAZA_RADIUS + 0.4), Vector3(0.0, 0.0, -23.0), 4.6, plaza_mat)
+	_add_path(overlay, Vector3(-PLAZA_RADIUS + 0.4, 0.0, 0.0), Vector3(SHOP_POINT.x + 6.0, 0.0, 0.0), 4.6, plaza_mat)
+	_add_path(overlay, Vector3(PLAZA_RADIUS - 0.4, 0.0, 0.0), Vector3(FOUNTAIN_POINT.x - 5.0, 0.0, 0.0), 4.6, plaza_mat)
+
+	for pad_spec in [
+		{"pos": SHOP_POINT, "radius": 5.0},
+		{"pos": FOUNTAIN_POINT, "radius": 4.4},
+	]:
+		var pad := MeshInstance3D.new()
+		pad.name = "StonePad"
+		var cylinder := CylinderMesh.new()
+		cylinder.top_radius = pad_spec["radius"]
+		cylinder.bottom_radius = pad_spec["radius"] + 0.25
+		cylinder.height = 0.14
+		cylinder.radial_segments = 40
+		pad.mesh = cylinder
+		pad.material_override = plaza_mat
+		pad.position = pad_spec["pos"] + Vector3(0.0, 0.09, 0.0)
+		pad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		overlay.add_child(pad)
+
+
+static func _ensure_boundary_wall_style(arena_root: Node3D) -> void:
+	var island := arena_root.get_node_or_null("Island") as Node3D
+	if island != null:
+		for wall_name in ["BoundaryWall_North", "BoundaryWall_South", "BoundaryWall_East", "BoundaryWall_West"]:
+			var old_wall := island.get_node_or_null(wall_name) as MeshInstance3D
+			if old_wall != null:
+				old_wall.visible = false
+	if arena_root.get_node_or_null("ForestWalls") != null:
+		return
+	var walls := Node3D.new()
+	walls.name = "ForestWalls"
+	arena_root.add_child(walls)
+	var wall_mat := StandardMaterial3D.new()
+	wall_mat.albedo_color = Color(0.36, 0.37, 0.33)
+	wall_mat.roughness = 0.95
+	var cap_mat := StandardMaterial3D.new()
+	cap_mat.albedo_color = Color(0.5, 0.5, 0.44)
+	cap_mat.roughness = 0.9
+	var pilaster_mat := StandardMaterial3D.new()
+	pilaster_mat.albedo_color = Color(0.29, 0.3, 0.27)
+	pilaster_mat.roughness = 0.95
+	var specs := [
+		{"center": Vector3(0.0, 0.6, ARENA_HALF_Z), "size": Vector3(ARENA_HALF_X * 2.0, 1.2, 1.2), "axis": "x", "length": ARENA_HALF_X * 2.0},
+		{"center": Vector3(0.0, 0.6, -ARENA_HALF_Z), "size": Vector3(ARENA_HALF_X * 2.0, 1.2, 1.2), "axis": "x", "length": ARENA_HALF_X * 2.0},
+		{"center": Vector3(ARENA_HALF_X, 0.6, 0.0), "size": Vector3(1.2, 1.2, ARENA_HALF_Z * 2.0), "axis": "z", "length": ARENA_HALF_Z * 2.0},
+		{"center": Vector3(-ARENA_HALF_X, 0.6, 0.0), "size": Vector3(1.2, 1.2, ARENA_HALF_Z * 2.0), "axis": "z", "length": ARENA_HALF_Z * 2.0},
+	]
+	for spec in specs:
+		var wall := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = spec["size"]
+		wall.mesh = box
+		wall.material_override = wall_mat
+		wall.position = spec["center"]
+		wall.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		walls.add_child(wall)
+		var cap := MeshInstance3D.new()
+		var cap_box := BoxMesh.new()
+		var wall_size: Vector3 = spec["size"]
+		cap_box.size = Vector3(
+			wall_size.x + (0.3 if spec["axis"] == "z" else 0.0),
+			0.18,
+			wall_size.z + (0.3 if spec["axis"] == "x" else 0.0)
+		)
+		cap.mesh = cap_box
+		cap.material_override = cap_mat
+		cap.position = spec["center"] + Vector3(0.0, 0.69, 0.0)
+		walls.add_child(cap)
+		for i in range(-4, 5):
+			var offset := float(i) * (float(spec["length"]) / 10.0)
+			var pil_position: Vector3 = spec["center"]
+			if spec["axis"] == "x":
+				pil_position.x += offset
+			else:
+				pil_position.z += offset
+			pil_position.y = 0.66
+			var pilaster := MeshInstance3D.new()
+			var pilaster_box := BoxMesh.new()
+			pilaster_box.size = Vector3(0.55, 1.34, 1.46) if spec["axis"] == "x" else Vector3(1.46, 1.34, 0.55)
+			pilaster.mesh = pilaster_box
+			pilaster.material_override = pilaster_mat
+			pilaster.position = pil_position
+			walls.add_child(pilaster)
+	var torch_positions := [
+		Vector3(-ARENA_HALF_X + 2.0, 0.0, ARENA_HALF_Z - 2.0),
+		Vector3(ARENA_HALF_X - 2.0, 0.0, ARENA_HALF_Z - 2.0),
+		Vector3(-ARENA_HALF_X + 2.0, 0.0, -ARENA_HALF_Z + 2.0),
+		Vector3(ARENA_HALF_X - 2.0, 0.0, -ARENA_HALF_Z + 2.0),
+		Vector3(0.0, 0.0, ARENA_HALF_Z - 2.0),
+		Vector3(0.0, 0.0, -ARENA_HALF_Z + 2.0),
+		Vector3(-ARENA_HALF_X + 2.0, 0.0, 0.0),
+		Vector3(ARENA_HALF_X - 2.0, 0.0, 0.0),
+	]
+	for i in torch_positions.size():
+		_add_kaykit_torch(walls, torch_positions[i], 1.8, i < 4)
+
+
+static func _ensure_forest_lighting(arena_root: Node3D) -> void:
+	var world_env := arena_root.get_node_or_null("Stage/WorldEnvironment") as WorldEnvironment
+	if world_env != null and world_env.environment != null:
+		var env := world_env.environment.duplicate() as Environment
+		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		env.ambient_light_color = Color(0.52, 0.6, 0.74)
+		env.ambient_light_energy = 0.45
+		env.tonemap_exposure = 0.85
+		env.fog_enabled = true
+		env.fog_light_color = Color(0.045, 0.06, 0.13)
+		env.fog_density = 0.055
+		env.fog_depth_begin = 28.0
+		env.fog_depth_end = 100.0
+		if env.sky != null:
+			var sky := env.sky.duplicate() as Sky
+			if sky.sky_material is ProceduralSkyMaterial:
+				var sky_mat := sky.sky_material.duplicate() as ProceduralSkyMaterial
+				sky_mat.sky_top_color = Color(0.03, 0.12, 0.28)
+				sky_mat.sky_horizon_color = Color(0.16, 0.66, 0.72)
+				sky_mat.ground_horizon_color = Color(0.08, 0.34, 0.36)
+				sky_mat.ground_bottom_color = Color(0.02, 0.06, 0.12)
+				sky.sky_material = sky_mat
+			env.sky = sky
+		world_env.environment = env
+	var sun := arena_root.get_node_or_null("Stage/Sun") as DirectionalLight3D
+	if sun != null:
+		sun.light_color = Color(1.0, 0.95, 0.88)
+		sun.light_energy = 1.0
+		sun.rotation_degrees = Vector3(-52.0, 28.0, 0.0)
+	var dark_fill := arena_root.get_node_or_null("Stage/DarkFill") as DirectionalLight3D
+	if dark_fill != null:
+		dark_fill.light_energy = 0.2
+
+
+static func _ensure_altar_and_ruins_style(arena_root: Node3D) -> void:
+	var marble := marble_material()
+	var gold := gold_material()
+	var altar := arena_root.get_node_or_null("Altar") as Node3D
+	if altar != null:
+		for spec in [["Pedestal", marble], ["AltarDisc", marble], ["PedestalCrown", gold]]:
+			var mesh_instance := altar.get_node_or_null(str(spec[0])) as MeshInstance3D
+			if mesh_instance != null:
+				mesh_instance.material_override = spec[1]
+	var ruins := arena_root.get_node_or_null("Ruins") as Node3D
+	if ruins != null:
+		for child in ruins.get_children():
+			if child is MeshInstance3D:
+				(child as MeshInstance3D).material_override = marble
+
+
+static func _ensure_base_style(arena_root: Node3D) -> void:
+	var specs := [
+		["LightBase", Color(0.55, 0.85, 1.0)],
+		["DarkBase", Color(0.68, 0.32, 1.0)],
+	]
+	for spec in specs:
+		var base := arena_root.get_node_or_null("Bases/%s" % str(spec[0])) as Node3D
+		if base == null or base.get_node_or_null("TeamRing") != null:
+			continue
+		var ring := MeshInstance3D.new()
+		ring.name = "TeamRing"
+		var torus := TorusMesh.new()
+		torus.inner_radius = 4.7
+		torus.outer_radius = 4.95
+		torus.rings = 48
+		torus.ring_segments = 8
+		ring.mesh = torus
+		ring.material_override = crystal_material(spec[1])
+		ring.position.y = 0.24
+		ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		base.add_child(ring)
+		for child in base.get_children():
+			if child is OmniLight3D:
+				(child as OmniLight3D).light_energy = 1.0
+				(child as OmniLight3D).omni_range = 8.0
+
+
 static func build(root: Node3D) -> void:
 	var mat_light := floor_light_material()
 	var mat_dark := floor_dark_material()
@@ -194,6 +606,11 @@ static func ensure_arena_features(arena_root: Node3D) -> void:
 		island.add_to_group("navigation_mesh_source_group", true)
 	if ruins != null:
 		_ensure_ruin_columns(ruins)
+	_add_ground_overlay(arena_root)
+	_ensure_boundary_wall_style(arena_root)
+	_ensure_forest_lighting(arena_root)
+	_ensure_altar_and_ruins_style(arena_root)
+	_ensure_base_style(arena_root)
 	_rebuild_decor(arena_root)
 	_ensure_decor_collisions(arena_root)
 	_ensure_navigation_region(arena_root)
@@ -776,10 +1193,18 @@ static func _add_base(bases: Node3D, z: float, color: Color, mat_rock: StandardM
 	platform.position = Vector3(0.0, 0.09, 0.0)
 	base.add_child(platform)
 
-	var ring := FxUtils.soft_ground_glow(9.0, Color(color.r, color.g, color.b, 0.45), 0.0, 0.22)
-	ring.name = "BaseGlow"
-	ring.position = Vector3(0.0, 0.2, 0.0)
-	base.add_child(ring)
+	var team_ring := MeshInstance3D.new()
+	team_ring.name = "TeamRing"
+	var torus := TorusMesh.new()
+	torus.inner_radius = 4.7
+	torus.outer_radius = 4.95
+	torus.rings = 48
+	torus.ring_segments = 8
+	team_ring.mesh = torus
+	team_ring.material_override = crystal_material(color)
+	team_ring.position.y = 0.24
+	team_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	base.add_child(team_ring)
 
 
 	for i in 5:
@@ -798,69 +1223,249 @@ static func _add_base(bases: Node3D, z: float, color: Color, mat_rock: StandardM
 	var light := OmniLight3D.new()
 	light.position = Vector3(0.0, 2.4, 0.0)
 	light.light_color = color
-	light.light_energy = 2.2
-	light.omni_range = 12.0
+	light.light_energy = 1.0
+	light.omni_range = 8.0
 	base.add_child(light)
 
 
-static func _add_decor(decor: Node3D, mat_rock: StandardMaterial3D) -> void:
-	var light_green := StandardMaterial3D.new()
-	light_green.albedo_color = Color(0.26, 0.42, 0.34)
-	light_green.roughness = 0.9
-	var light_green2 := StandardMaterial3D.new()
-	light_green2.albedo_color = Color(0.42, 0.5, 0.3)
-	light_green2.roughness = 0.9
-	var dark_foliage := StandardMaterial3D.new()
-	dark_foliage.albedo_color = Color(0.2, 0.13, 0.3)
-	dark_foliage.roughness = 0.95
-	var trunk := StandardMaterial3D.new()
-	trunk.albedo_color = Color(0.16, 0.13, 0.14)
-	trunk.roughness = 0.95
+static func _kaykit_scene(parent: Node3D, scene: PackedScene, pos: Vector3, rot_y: float, scale_factor: float, node_name := "") -> Node3D:
+	if scene == null:
+		return null
+	var node := scene.instantiate() as Node3D
+	if node == null:
+		return null
+	if not node_name.is_empty():
+		node.name = node_name
+	node.position = pos
+	node.rotation_degrees.y = rot_y
+	node.scale = Vector3.ONE * scale_factor
+	parent.add_child(node)
+	return node
 
-	# РґРµСЂРµРІСЊСЏ РїРѕ СЃР°РјРѕРјСѓ РєСЂР°СЋ Р°СЂРµРЅС‹, СЂРѕРІРЅС‹Рј С€Р°РіРѕРј
-	var tree_count := 12
-	for i in tree_count:
-		var ang := TAU * float(i) / float(tree_count) + 0.17
-		var radius := 0.90 + 0.03 * sin(float(i) * 2.1)
-		var p := _shape_point(ang, radius)
-		var pos := Vector3(p.x, -0.9, p.y)
-		var scale_factor := 0.88 + 0.18 * sin(float(i) * 1.7)
-		if not _is_free(pos, 1.6 * scale_factor, 4.0):
+
+static func _add_kaykit_tree(parent: Node3D, pos: Vector3, scale_factor: float, index: int) -> void:
+	if KAYKIT_TREE_SCENES.is_empty():
+		return
+	var scene: PackedScene = KAYKIT_TREE_SCENES[index % KAYKIT_TREE_SCENES.size()]
+	var tree := _kaykit_scene(parent, scene, pos, float(index) * 47.0, scale_factor, "KayKitTree_%02d" % index)
+	if tree == null:
+		return
+	var visibility_body := StaticBody3D.new()
+	visibility_body.name = "VisibilityOccluder"
+	visibility_body.collision_layer = 2
+	visibility_body.collision_mask = 0
+	var visibility_shape := CollisionShape3D.new()
+	var visibility_capsule := CapsuleShape3D.new()
+	visibility_capsule.radius = 1.2
+	visibility_capsule.height = 5.5
+	visibility_shape.shape = visibility_capsule
+	visibility_shape.position = Vector3(0.0, 2.75, 0.0)
+	visibility_body.add_child(visibility_shape)
+	tree.add_child(visibility_body)
+
+
+static func _add_kaykit_rock(parent: Node3D, pos: Vector3, size: float, index: int) -> void:
+	if KAYKIT_ROCK_SCENES.is_empty():
+		return
+	var scene: PackedScene = KAYKIT_ROCK_SCENES[index % KAYKIT_ROCK_SCENES.size()]
+	_kaykit_scene(parent, scene, pos, float(index) * 63.0, size, "KayKitRock_%02d" % index)
+
+
+static func _add_kaykit_torch(parent: Node3D, pos: Vector3, scale_factor := 1.0, with_light := true) -> void:
+	var torch := _kaykit_scene(parent, KAYKIT_TORCH_SCENE, pos, 0.0, scale_factor, "KayKitTorch")
+	if torch == null:
+		return
+	if not with_light:
+		return
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.64, 0.3)
+	light.light_energy = 1.8
+	light.omni_range = 7.0
+	light.position = Vector3(0.0, 1.6, 0.0)
+	torch.add_child(light)
+
+
+static func _world_shape_point(ang: float, scale: float) -> Vector2:
+	var wobble := 1.0 + 0.05 * sin(ang * 3.0 + 0.4) + 0.04 * sin(ang * 5.0 + 1.2) + 0.025 * sin(ang * 9.0 + 2.4)
+	return Vector2(cos(ang) * ARENA_HALF_X * scale * wobble, sin(ang) * ARENA_HALF_Z * scale * wobble)
+
+
+static func _add_kaykit_structures(decor: Node3D) -> void:
+	if decor == null:
+		return
+	_add_crystal_cluster(decor, Vector3(0.0, 0.5, 0.0), Color(0.4, 0.75, 1.0), 2.8, "AltarCrystal")
+	# Алтарь: кольцо резных колонн, знамёна и свечи на площадке.
+	for i in 8:
+		var ang := TAU * float(i) / 8.0 + PI / 8.0
+		var pos := Vector3(cos(ang) * 7.4, 0.0, sin(ang) * 7.4)
+		_kaykit_scene(decor, KAYKIT_PILLAR_DECORATED_SCENE, pos, rad_to_deg(-ang) + 90.0, 0.95, "AltarPillar_%02d" % i)
+	for i in 4:
+		var ang := TAU * float(i) / 4.0 + PI / 8.0
+		var pos := Vector3(cos(ang) * 12.5, 0.0, sin(ang) * 12.5)
+		var banner_scene: PackedScene = KAYKIT_BANNER_BLUE_PATTERN_SCENE if i % 2 == 0 else KAYKIT_BANNER_BLUE_SCENE
+		_kaykit_scene(decor, banner_scene, pos, rad_to_deg(-ang) + 90.0, 0.85, "AltarBanner_%02d" % i)
+	for i in 4:
+		var ang := TAU * float(i) / 4.0
+		var pos := Vector3(cos(ang) * 4.4, 0.16, sin(ang) * 4.4)
+		_kaykit_scene(decor, KAYKIT_CANDLE_SCENE, pos, 0.0, 1.4, "AltarCandle_%02d" % i)
+	for i in 4:
+		var ang := TAU * float(i) / 4.0 + PI / 4.0
+		var pos := Vector3(cos(ang) * 11.8, 0.0, sin(ang) * 11.8)
+		_add_kaykit_torch(decor, pos, 1.6, false)
+	# Базы: колонны, знамёна, флаги и факелы в цветах команды.
+	for team in [0, 1]:
+		var base_z := 28.0 if team == 0 else -28.0
+		var front := -1.0 if team == 0 else 1.0
+		var banner_scene: PackedScene = KAYKIT_BANNER_BLUE_SCENE if team == 0 else KAYKIT_BANNER_RED_SCENE
+		var banner_pattern: PackedScene = KAYKIT_BANNER_BLUE_PATTERN_SCENE if team == 0 else KAYKIT_BANNER_RED_PATTERN_SCENE
+		var team_color := Color(0.55, 0.85, 1.0) if team == 0 else Color(0.68, 0.32, 1.0)
+		for i in 6:
+			var ang := TAU * float(i) / 6.0
+			var pos := Vector3(cos(ang) * 7.2, 0.0, base_z + sin(ang) * 7.2)
+			_kaykit_scene(decor, KAYKIT_PILLAR_SCENE, pos, rad_to_deg(-ang) + 90.0, 0.8, "BasePillar_%d_%02d" % [team, i])
+		for i in 4:
+			var ang := TAU * float(i) / 4.0 + PI / 6.0
+			var pos := Vector3(cos(ang) * 6.0, 0.0, base_z + sin(ang) * 6.0)
+			_kaykit_scene(decor, banner_scene if i % 2 == 0 else banner_pattern, pos, rad_to_deg(-ang) + 90.0, 0.95, "BaseBanner_%d_%02d" % [team, i])
+		_add_crystal_cluster(decor, Vector3(0.0, 2.2, base_z), team_color, 1.6, "BaseCrystal_%d" % team)
+		_kaykit_scene(decor, banner_pattern, Vector3(0.0, 0.0, base_z - front * 6.2), 180.0 if team == 0 else 0.0, 1.25, "BaseBackBanner_%d" % team)
+		for side in [-1.0, 1.0]:
+			var pos := Vector3(side * 5.8, 0.0, base_z + front * 5.8)
+			_add_kaykit_torch(decor, pos, 1.7, true)
+	# Руины: обломки и упавшие колонны KayKit.
+	for side in [-1.0, 1.0]:
+		_kaykit_scene(decor, KAYKIT_RUBBLE_LARGE_SCENE, Vector3(side * 30.0, 0.0, 6.0), 90.0 * side, 1.1, "RuinRubble_%s" % str(side))
+		_kaykit_scene(decor, KAYKIT_RUBBLE_HALF_SCENE, Vector3(side * 30.0, 0.0, 10.0), 30.0 * side, 1.0, "RuinRubbleHalf_%s" % str(side))
+		var fallen := _kaykit_scene(decor, KAYKIT_PILLAR_SCENE, Vector3(side * 28.0, 0.7, -10.0), 12.0 * side, 0.8, "RuinFallenColumn_%s" % str(side))
+		if fallen != null:
+			fallen.rotation_degrees.z = 74.0
+
+
+static func _add_grass_tufts(parent: Node3D) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 424242
+	for variant_index in 2:
+		var scene: PackedScene = KAYKIT_GRASS_SCENES[variant_index]
+		if scene == null:
 			continue
-		if p.y > 0.0:
-			_add_glowing_tree(decor, pos, scale_factor, i)
-		else:
-			_add_tree(decor, pos, scale_factor, true, trunk, light_green, light_green2, dark_foliage)
-		_occupy(pos, 1.6 * scale_factor)
+		var source := scene.instantiate() as Node3D
+		if source == null:
+			continue
+		parent.add_child(source)
+		var specs: Array[Dictionary] = []
+		var bounds := AABB()
+		var found := false
+		var pending: Array[Node] = [source]
+		while not pending.is_empty():
+			var current: Node = pending.pop_back()
+			if current is MeshInstance3D:
+				var mesh_instance := current as MeshInstance3D
+				if mesh_instance.mesh != null:
+					var local_transform := source.global_transform.affine_inverse() * mesh_instance.global_transform
+					var mesh_bounds := _transform_aabb(mesh_instance.get_aabb(), local_transform)
+					bounds = mesh_bounds if not found else bounds.merge(mesh_bounds)
+					found = true
+					specs.append({"mesh": mesh_instance.mesh, "transform": local_transform})
+			for child in current.get_children():
+				pending.append(child)
+		parent.remove_child(source)
+		source.free()
+		if not found or specs.is_empty():
+			continue
+		var transforms: Array[Transform3D] = []
+		var target := 110
+		var guard := 0
+		while transforms.size() < target and guard < target * 30:
+			guard += 1
+			var x := rng.randf_range(-GRASS_HALF_X + 3.0, GRASS_HALF_X - 3.0)
+			var z := rng.randf_range(-GRASS_HALF_Z + 3.0, GRASS_HALF_Z - 3.0)
+			if Vector2(x, z).length() < PLAZA_RADIUS + 0.8:
+				continue
+			var instance_scale := rng.randf_range(0.85, 1.7)
+			var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * instance_scale)
+			var pos := Vector3(x, 0.08 - bounds.position.y * instance_scale, z)
+			transforms.append(Transform3D(basis, pos))
+		for spec in specs:
+			var multi_mesh := MultiMesh.new()
+			multi_mesh.transform_format = MultiMesh.TRANSFORM_3D
+			multi_mesh.mesh = spec["mesh"]
+			multi_mesh.instance_count = transforms.size()
+			var batch := MultiMeshInstance3D.new()
+			batch.name = "GrassTufts_%d_%s" % [variant_index, str(spec["mesh"]).get_slice(":", 0)]
+			batch.multimesh = multi_mesh
+			batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			parent.add_child(batch)
+			for instance_index in transforms.size():
+				multi_mesh.set_instance_transform(instance_index, transforms[instance_index] * spec["transform"])
 
-	# РєР°РјРЅРё СЃСЂРµРґРЅРёРј РєРѕР»СЊС†РѕРј
-	var rock_count := 9
+
+static func _add_decor(decor: Node3D, _mat_rock: StandardMaterial3D) -> void:
+	# Лес кольцом снаружи стены: игровая площадка остаётся свободной.
+	var tree_count := 24
+	for i in tree_count:
+		var ang := TAU * float(i) / float(tree_count) + 0.11
+		var radius := 1.07 + 0.09 * sin(float(i) * 1.7) + 0.035 * sin(float(i) * 3.1)
+		var p := _world_shape_point(ang, radius)
+		var pos := Vector3(p.x, 0.0, p.y)
+		var scale_factor := 1.0 + 0.3 * sin(float(i) * 1.3 + 0.4)
+		if not _is_free(pos, 2.8 * scale_factor, 1.5):
+			continue
+		_add_kaykit_tree(decor, pos, scale_factor, i)
+		_occupy(pos, 2.8 * scale_factor)
+
+	# Второе, внешнее кольцо леса: плотная стена деревьев за стеной.
+	var outer_count := 22
+	for i in outer_count:
+		var ang := TAU * float(i) / float(outer_count) + 0.37
+		var radius := 1.34 + 0.08 * sin(float(i) * 2.1)
+		var p := _world_shape_point(ang, radius)
+		var pos := Vector3(p.x, 0.0, p.y)
+		var scale_factor := 1.1 + 0.35 * sin(float(i) * 1.7 + 1.2)
+		if not _is_free(pos, 3.2 * scale_factor, 1.0):
+			continue
+		_add_kaykit_tree(decor, pos, scale_factor, i + 100)
+		_occupy(pos, 3.2 * scale_factor)
+
+	# Дальний горизонт: высокая стена леса, скрывающая край острова.
+	var horizon_count := 28
+	for i in horizon_count:
+		var ang := TAU * float(i) / float(horizon_count) + 0.23
+		var radius := 1.58 + 0.09 * sin(float(i) * 1.9)
+		var p := _world_shape_point(ang, radius)
+		var pos := Vector3(p.x, 0.0, p.y)
+		var scale_factor := 1.0 + 0.35 * sin(float(i) * 1.1 + 0.7)
+		if not _is_free(pos, 3.6 * scale_factor, 1.0):
+			continue
+		_add_kaykit_tree(decor, pos, scale_factor, i + 200)
+		_occupy(pos, 3.6 * scale_factor)
+
+	# Камни и валуны по внешнему кольцу.
+	var rock_count := 14
 	for i in rock_count:
 		var ang := TAU * float(i) / float(rock_count) + 0.42
-		var radius := 0.58 + 0.13 * sin(float(i) * 2.7)
-		var p := _shape_point(ang, radius)
-		var pos := Vector3(p.x, 0.28, p.y)
-		var rock_scale := 1.05 + 0.22 * sin(float(i) * 1.3)
-		if not _is_free(pos, rock_scale * 0.9, 2.5):
+		var radius := 1.12 + 0.11 * sin(float(i) * 2.7)
+		var p := _world_shape_point(ang, radius)
+		var pos := Vector3(p.x, 0.0, p.y)
+		var rock_scale := 1.7 + 0.7 * sin(float(i) * 1.3)
+		if not _is_free(pos, 1.2 * rock_scale, 1.0):
 			continue
-		_add_rock(decor, pos, rock_scale, mat_rock)
-		_occupy(pos, rock_scale * 0.9)
+		_add_kaykit_rock(decor, pos, rock_scale, i)
+		_occupy(pos, 1.2 * rock_scale)
 
-	# РєСЂРёСЃС‚Р°Р»Р»С‹ РјРµР¶РґСѓ РєР°РјРЅСЏРјРё
-	var crystal_count := 6
-	var crystal_colors := [Color(0.68, 0.34, 1.0), Color(0.4, 0.75, 1.0), Color(0.5, 0.3, 1.0)]
+	# Кристаллы у кромки площади: светящиеся ориентиры, не мешают бою.
+	var crystal_count := 4
+	var crystal_colors := [Color(0.55, 0.35, 0.9), Color(0.35, 0.65, 1.0), Color(0.5, 0.4, 0.95), Color(0.75, 0.45, 0.9)]
 	for i in crystal_count:
 		var ang := TAU * float(i) / float(crystal_count) + 0.95
-		var radius := 0.30 + 0.08 * cos(float(i) * 1.9)
-		var p := _shape_point(ang, radius)
-		var pos := Vector3(p.x, 0.0, p.y)
-		var crystal_scale := 1.15 + 0.18 * sin(float(i))
-		if not _is_free(pos, crystal_scale, 1.5):
+		var radius := 19.5 + 1.2 * sin(float(i) * 1.9)
+		var pos := Vector3(cos(ang) * radius, 0.0, sin(ang) * radius)
+		var crystal_scale := 0.95 + 0.15 * sin(float(i))
+		if not _is_free(pos, crystal_scale, 1.0):
 			continue
 		_add_crystal_cluster(decor, pos, crystal_colors[i % crystal_colors.size()], crystal_scale)
 		_occupy(pos, crystal_scale)
-
-	# РїР»Р°РІР°СЋС‰РёРµ РєР°РјРЅРё СѓР±СЂР°РЅС‹: РІ РёРіСЂРµ РѕРЅРё С‡РёС‚Р°Р»РёСЃСЊ РєР°Рє Р»РµС‚Р°СЋС‰РёРµ РіР»С‹Р±С‹
+	_add_grass_tufts(decor)
+	_add_kaykit_structures(decor)
 
 
 static func _add_tree(parent: Node3D, pos: Vector3, scale_factor: float, dark: bool, trunk_mat: StandardMaterial3D, green_mat: StandardMaterial3D, gold_mat: StandardMaterial3D, dark_mat: StandardMaterial3D) -> void:
@@ -1011,20 +1616,36 @@ static func add_bushes(arena: Node3D) -> void:
 	var bushes := Node3D.new()
 	bushes.name = "Bushes"
 	arena.add_child(bushes)
-	var spots: Array[Vector3] = []
-	var bush_zones := 5
-	for i in bush_zones:
-		var ang := TAU * float(i) / float(bush_zones) + 0.6
-		var p := _shape_point(ang, 0.52)
-		spots.append(Vector3(p.x, 0.0, p.y))
+	var spots: Array[Vector3] = [
+		Vector3(30.0, 0.0, 14.0),
+		Vector3(-16.0, 0.0, 24.0),
+		Vector3(-34.0, 0.0, -12.0),
+		Vector3(12.0, 0.0, -25.0),
+		Vector3(32.0, 0.0, -18.0),
+	]
 	for index in spots.size():
 		var zone := Area3D.new()
 		zone.name = "BushZone_%02d" % (index + 1)
-		zone.position = _place_inside(spots[index])
+		zone.position = spots[index]
 		_occupy(zone.position, 3.4)
 		zone.collision_layer = 0
 		zone.collision_mask = 1
 		bushes.add_child(zone)
+		var patch := MeshInstance3D.new()
+		patch.name = "BushPatch"
+		var patch_mesh := CylinderMesh.new()
+		patch_mesh.top_radius = 3.4
+		patch_mesh.bottom_radius = 3.4
+		patch_mesh.height = 0.02
+		patch_mesh.radial_segments = 24
+		patch.mesh = patch_mesh
+		var patch_material := StandardMaterial3D.new()
+		patch_material.albedo_color = Color(0.07, 0.16, 0.06)
+		patch_material.roughness = 1.0
+		patch.material_override = patch_material
+		patch.position = Vector3(0.0, 0.145, 0.0)
+		patch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		zone.add_child(patch)
 		var detection := CollisionShape3D.new()
 		detection.name = "StealthRange"
 		detection.position = Vector3(0.0, 1.5, 0.0)
@@ -1081,7 +1702,14 @@ static func rebuild_bush_visuals(bushes_root: Node3D) -> void:
 	bushes_root.add_child(visual_root)
 	if bushes_root.owner != null:
 		_assign_owner_recursive(visual_root, bushes_root.owner)
-	var instance_count := zones.size() * 2
+	var cluster_offsets: Array[Vector2] = [
+		Vector2(0.0, 0.0),
+		Vector2(1.35, 0.7),
+		Vector2(-1.15, 0.85),
+		Vector2(0.35, -1.35),
+	]
+	var cluster_scales: Array[float] = [1.0, 0.86, 0.92, 0.78]
+	var instance_count := zones.size() * cluster_offsets.size()
 	for mesh_spec in mesh_specs:
 		var multi_mesh := MultiMesh.new()
 		multi_mesh.transform_format = MultiMesh.TRANSFORM_3D
@@ -1092,14 +1720,15 @@ static func rebuild_bush_visuals(bushes_root: Node3D) -> void:
 		mesh_batch.multimesh = multi_mesh
 		visual_root.add_child(mesh_batch)
 		var instance_index := 0
-		for zone in zones:
-			var radial := Vector3(zone.position.x, 0.0, zone.position.z).normalized()
-			var tangent := Vector3(-radial.z, 0.0, radial.x)
-			var pair_sides: Array[float] = [-1.0, 1.0]
-			for side in pair_sides:
-				var plant_position: Vector3 = zone.position + tangent * BUSH_PAIR_HALF_SPACING * side
-				plant_position.y = -model_bounds.position.y * visual_scale
-				var placement := Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * visual_scale), plant_position)
+		for zone_index in zones.size():
+			var zone := zones[zone_index]
+			for slot in cluster_offsets.size():
+				var offset := cluster_offsets[slot]
+				var instance_scale := visual_scale * cluster_scales[slot]
+				var plant_position := zone.position + Vector3(offset.x, 0.0, offset.y)
+				plant_position.y = -model_bounds.position.y * instance_scale
+				var basis := Basis(Vector3.UP, float(zone_index) * 1.7 + float(slot) * 2.1).scaled(Vector3.ONE * instance_scale)
+				var placement := Transform3D(basis, plant_position)
 				multi_mesh.set_instance_transform(instance_index, placement * mesh_spec["transform"])
 				instance_index += 1
 	if bushes_root.owner != null:

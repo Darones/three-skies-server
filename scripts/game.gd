@@ -49,7 +49,6 @@ const CLOUD_WALL_SHADER: Shader = preload("res://shaders/cloud_wall.gdshader")
 const FOG_OF_WAR_SHADER_PATH := "res://shaders/fog_of_war.gdshader"
 const FOG_VIEW_RADIUS := 10.0
 const SHOP_STALL_SCENE: PackedScene = preload("res://assets/shop_stall/3d_4f92fe433b084100af7a1d7f_1790958942025.glb")
-const GOLD_FOUNTAIN_SCENE: PackedScene = preload("res://assets/gold_fountain/3d_aeb9c9ced6384164aff32ae5_1790300466128.glb")
 const TUTORIAL_CONTROLLER_SCRIPT: Script = preload("res://scripts/tutorial_controller.gd")
 const REMOTE_PLAYER_SCRIPT: Script = preload("res://scripts/remote_player.gd")
 const SHOP_ITEMS := [
@@ -235,19 +234,16 @@ func _soften_baked_base_rings() -> void:
 			if not child is MeshInstance3D:
 				continue
 			var mesh_instance := child as MeshInstance3D
-			# Опускаем низкие диски базы, чтобы кольцо бафа было выше площадки.
 			if mesh_instance.mesh is CylinderMesh:
 				var cylinder := mesh_instance.mesh as CylinderMesh
 				if cylinder.height < 0.5:
-					mesh_instance.position.y -= 0.35
-			if not mesh_instance.mesh is TorusMesh:
-				continue
-			var color: Color = config["color"]
-			var glow := FxUtils.soft_ground_glow(9.0, Color(color.r, color.g, color.b, 0.45), 0.0, 0.22)
-			glow.name = "BaseGlow"
-			glow.position = mesh_instance.position - Vector3(0.0, 0.2, 0.0)
-			base.add_child(glow)
-			mesh_instance.queue_free()
+					var platform_material := StandardMaterial3D.new()
+					var base_color: Color = config["color"]
+					platform_material.albedo_color = Color(0.3, 0.32, 0.36).lerp(base_color, 0.15)
+					platform_material.roughness = 0.9
+					mesh_instance.material_override = platform_material
+			elif mesh_instance.mesh is TorusMesh and mesh_instance.name != "TeamRing":
+				mesh_instance.queue_free()
 	# Центральный алтарь: опускаем диск, чтобы кольцо кристалла не пересекалось с полом.
 	var altar_disc := get_node_or_null("Arena/Altar/AltarDisc") as MeshInstance3D
 	if altar_disc != null:
@@ -256,8 +252,8 @@ func _soften_baked_base_rings() -> void:
 
 func _create_base_shield_domes() -> void:
 	var shield_configs := [
-		{"path": "Arena/Bases/LightBase", "color": Color(0.42, 0.72, 1.0, 0.065)},
-		{"path": "Arena/Bases/DarkBase", "color": Color(0.72, 0.46, 0.92, 0.065)},
+		{"path": "Arena/Bases/LightBase", "color": Color(0.42, 0.72, 1.0, 0.012)},
+		{"path": "Arena/Bases/DarkBase", "color": Color(0.72, 0.46, 0.92, 0.012)},
 	]
 	for shield_config in shield_configs:
 		var base := get_node_or_null(String(shield_config["path"])) as Node3D
@@ -275,6 +271,9 @@ func _create_base_shield_domes() -> void:
 		material.albedo_color = shield_config["color"]
 		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		material.roughness = 0.9
+		material.rim_enabled = true
+		material.rim = 0.25
+		material.rim_tint = 0.35
 		dome.material_override = material
 		dome.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		dome.position.y = 0.15
@@ -290,14 +289,14 @@ func _create_floating_clouds() -> void:
 	arena.add_child(clouds)
 	var cloud_material := ShaderMaterial.new()
 	cloud_material.shader = CLOUD_WALL_SHADER
-	cloud_material.set_shader_parameter("cloud_tint", Color(0.78, 0.9, 0.97, 0.22))
+	cloud_material.set_shader_parameter("cloud_tint", Color(0.78, 0.9, 0.97, 0.18))
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var segment_count := 64
-	var ring_radius_x := 28.9
-	var ring_radius_z := 20.9
-	var wall_bottom := -14.0
-	var wall_top := 3.0
+	var segment_count := 72
+	var ring_radius_x := 60.0
+	var ring_radius_z := 44.0
+	var wall_bottom := -16.0
+	var wall_top := 4.0
 	for index in segment_count:
 		var u0 := float(index) / float(segment_count)
 		var u1 := float(index + 1) / float(segment_count)
@@ -336,41 +335,60 @@ func _create_shop_stall() -> void:
 
 	var shop := Node3D.new()
 	shop.name = "ShopStall"
-	shop.position = Vector3(-40.0, 0.0, 0.0)
-	shop.scale = Vector3.ONE * 5.0
+	shop.position = SHOP_INTERACTION_POINT
+	shop.rotation_degrees.y = 90.0
 	parent.add_child(shop)
 
 	var stall_model := SHOP_STALL_SCENE.instantiate() as Node3D
 	stall_model.name = "MarketStallModel"
 	shop.add_child(stall_model)
+	var model_bounds := _model_aabb_local(stall_model)
+	var model_scale := 4.0 / maxf(model_bounds.size.y, 0.01)
+	stall_model.scale = Vector3.ONE * model_scale
+	stall_model.position.y = -model_bounds.position.y * model_scale
 	_disable_mesh_shadows(stall_model)
-	_add_shop_collision(shop)
+	_add_box_collision(shop, Vector3(4.6, 3.4, 3.6), "ShopCollision")
 
 	var sign := MeshInstance3D.new()
 	sign.name = "ShopSign"
 	var sign_mesh := BoxMesh.new()
-	sign_mesh.size = Vector3(2.7, 0.65, 0.14)
+	sign_mesh.size = Vector3(3.6, 0.82, 0.14)
 	sign.mesh = sign_mesh
 	var sign_material := StandardMaterial3D.new()
 	sign_material.albedo_color = Color(0.18, 0.085, 0.045)
 	sign_material.roughness = 0.9
 	sign.material_override = sign_material
-	sign.position = Vector3(0.0, 3.65, 1.82)
+	sign.position = Vector3(0.0, 3.0, 2.25)
 	sign.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	shop.add_child(sign)
 	var title := Label3D.new()
 	title.name = "ShopTitle"
 	title.font = UI_FONT
 	title.text = "МАГАЗИН"
-	title.position = Vector3(0.0, 4.15, 1.9)
-	title.font_size = 88
+	title.position = Vector3(0.0, 3.0, 2.34)
+	title.font_size = 80
 	title.pixel_size = 0.006
-	title.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	title.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 	title.modulate = Color(1.0, 0.82, 0.48)
 	title.outline_size = 9
 	title.outline_modulate = Color(0.045, 0.03, 0.02, 0.95)
 	title.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	shop.add_child(title)
+
+	_add_kaykit_prop(shop, ArenaKit.KAYKIT_CRATES_SCENE, Vector3(-2.6, 0.0, -1.5), 0.7, 18.0)
+	_add_kaykit_prop(shop, ArenaKit.KAYKIT_CRATES_SCENE, Vector3(2.7, 0.0, -1.3), 0.55, -24.0)
+	_add_kaykit_prop(shop, ArenaKit.KAYKIT_BARREL_SCENE, Vector3(2.5, 0.0, 1.4), 0.65, 0.0)
+	_add_kaykit_prop(shop, ArenaKit.KAYKIT_WOOD_LOGS_SCENE, Vector3(-2.8, 0.0, 1.5), 0.75, 90.0)
+	_add_kaykit_prop(shop, ArenaKit.KAYKIT_TEXTILES_SCENE, Vector3(0.0, 0.6, -1.9), 0.9, 0.0)
+	_add_kaykit_prop(shop, ArenaKit.KAYKIT_POT_SCENE, Vector3(2.9, 0.0, 0.3), 0.65, 0.0)
+
+	var light := OmniLight3D.new()
+	light.name = "ShopWarmLight"
+	light.light_color = Color(1.0, 0.78, 0.46)
+	light.light_energy = 1.4
+	light.omni_range = 9.0
+	light.position = Vector3(0.0, 3.0, 0.0)
+	shop.add_child(light)
 
 
 func _disable_mesh_shadows(node: Node) -> void:
@@ -379,18 +397,49 @@ func _disable_mesh_shadows(node: Node) -> void:
 	for child in node.get_children():
 		_disable_mesh_shadows(child)
 
-func _add_shop_collision(parent: Node3D) -> void:
+func _add_box_collision(parent: Node3D, size: Vector3, collision_name: String) -> void:
 	var body := StaticBody3D.new()
-	body.name = "ShopCollision"
+	body.name = collision_name
 	body.collision_layer = 1
 	body.collision_mask = 1
 	var collision_shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(1.0, 0.9, 0.8)
+	box.size = size
 	collision_shape.shape = box
-	collision_shape.position = Vector3(0.0, 0.45, 0.0)
+	collision_shape.position = Vector3(0.0, size.y * 0.5, 0.0)
 	body.add_child(collision_shape)
 	parent.add_child(body)
+
+
+func _model_aabb_local(root: Node3D) -> AABB:
+	var result := AABB()
+	var found := false
+	var inverse := root.global_transform.affine_inverse()
+	var stack: Array[Node] = [root]
+	while not stack.is_empty():
+		var current: Node = stack.pop_back()
+		if current is MeshInstance3D and (current as MeshInstance3D).mesh != null:
+			var mesh_instance := current as MeshInstance3D
+			var box := inverse * mesh_instance.global_transform * mesh_instance.get_aabb()
+			result = box if not found else result.merge(box)
+			found = true
+		for child in current.get_children():
+			stack.append(child)
+	return result
+
+
+func _add_kaykit_prop(parent: Node3D, scene: PackedScene, pos: Vector3, scale_factor: float, rot_y: float) -> Node3D:
+	if scene == null:
+		return null
+	var node := scene.instantiate() as Node3D
+	if node == null:
+		return null
+	node.position = pos
+	node.rotation_degrees.y = rot_y
+	node.scale = Vector3.ONE * scale_factor
+	parent.add_child(node)
+	_disable_mesh_shadows(node)
+	return node
 
 
 func _create_ambient_decor(arena_root: Node3D) -> void:
@@ -452,23 +501,44 @@ func _create_gold_fountain() -> void:
 	gold_fountain = Node3D.new()
 	gold_fountain.name = "GoldFountain"
 	gold_fountain.position = Vector3(37.0, 0.0, 0.0)
-	gold_fountain.scale = Vector3.ONE * 5.0
 	parent.add_child(gold_fountain)
 
-	var imported_model := GOLD_FOUNTAIN_SCENE.instantiate() as Node3D
-	if imported_model != null:
-		imported_model.name = "StoneFountainModel"
-		gold_fountain.add_child(imported_model)
-		_add_model_collision(gold_fountain, imported_model, "FountainCollision")
+	var well_model := ArenaKit.KAYKIT_WELL_SCENE.instantiate() as Node3D
+	if well_model != null:
+		well_model.name = "StoneFountainModel"
+		gold_fountain.add_child(well_model)
+		var well_bounds := _model_aabb_local(well_model)
+		var well_scale := 4.2 / maxf(well_bounds.size.y, 0.01)
+		well_model.scale = Vector3.ONE * well_scale
+		well_model.position.y = -well_bounds.position.y * well_scale
+		_disable_mesh_shadows(well_model)
 	else:
 		_build_primitive_fountain(gold_fountain)
-		_add_model_collision(gold_fountain, gold_fountain, "FountainCollision")
+	_add_box_collision(gold_fountain, Vector3(3.4, 3.0, 3.4), "FountainCollision")
+
+	_add_kaykit_prop(gold_fountain, ArenaKit.KAYKIT_GOLD_BARS_SCENE, Vector3(-1.4, 0.1, 1.4), 1.3, 22.0)
+	_add_kaykit_prop(gold_fountain, ArenaKit.KAYKIT_GOLD_NUGGETS_SCENE, Vector3(1.5, 0.1, 1.2), 1.2, -18.0)
+	for i in 4:
+		var angle := TAU * float(i) / 4.0 + 0.4
+		_add_kaykit_prop(gold_fountain, ArenaKit.KAYKIT_COIN_STACK_SCENE, Vector3(cos(angle) * 2.0, 0.1, sin(angle) * 2.0), 1.2, float(i) * 33.0)
+
+	var fountain_light := OmniLight3D.new()
+	fountain_light.name = "FountainGoldLight"
+	fountain_light.light_color = Color(1.0, 0.78, 0.35)
+	fountain_light.light_energy = 1.6
+	fountain_light.omni_range = 8.0
+	fountain_light.position = Vector3(0.0, 1.6, 0.0)
+	gold_fountain.add_child(fountain_light)
+	var fountain_glow := FxUtils.soft_ground_glow(6.0, Color(1.0, 0.82, 0.35, 0.35), 0.0, 0.2)
+	fountain_glow.name = "FountainGlow"
+	fountain_glow.position = Vector3(0.0, 0.2, 0.0)
+	gold_fountain.add_child(fountain_glow)
 
 	var title := Label3D.new()
 	title.name = "FountainTitle"
 	title.font = UI_FONT
 	title.text = "ФОНТАН"
-	title.position = Vector3(0.0, 3.7, 0.0)
+	title.position = Vector3(0.0, 4.9, 0.0)
 	title.font_size = 88
 	title.pixel_size = 0.006
 	title.billboard = BaseMaterial3D.BILLBOARD_ENABLED
