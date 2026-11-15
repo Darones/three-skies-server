@@ -5,8 +5,8 @@ const ARENA_HALF_X := 52.0
 const ARENA_HALF_Z := 37.0
 const MAP_FONT: Font = preload("res://assets/fonts/Philosopher-Regular.ttf")
 
-const PANEL_COLOR := Color(0.018, 0.025, 0.045, 0.4)
-const ARENA_COLOR := Color(0.09, 0.13, 0.19, 0.96)
+const PANEL_COLOR := Color(0.035, 0.035, 0.05, 0.3)
+const ARENA_COLOR := Color(0.06, 0.09, 0.14, 0.08)
 const ARENA_LINE := Color(0.58, 0.66, 0.78, 0.8)
 const ALLY_COLOR := Color(0.2, 0.92, 0.46, 1.0)
 const ENEMY_COLOR := Color(1.0, 0.2, 0.23, 1.0)
@@ -43,12 +43,12 @@ func configure(game_instance: Node) -> void:
 	anchor_top = 1.0
 	anchor_right = 0.5
 	anchor_bottom = 1.0
-	# Карта в 1.5 раза больше: масштабируем весь Control, включая маркеры.
-	scale = Vector2(1.5, 1.5)
-	offset_left = -99.0
-	offset_top = -216.0
-	offset_right = 33.0
-	offset_bottom = -84.0
+	# Прежний компактный размер; прозрачность как у таблички с ником.
+	scale = Vector2.ONE
+	offset_left = -66.0
+	offset_top = -144.0
+	offset_right = 66.0
+	offset_bottom = -12.0
 
 
 func _process(delta: float) -> void:

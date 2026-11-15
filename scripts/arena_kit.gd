@@ -62,8 +62,6 @@ const KAYKIT_BANNER_BLUE_PATTERN_SCENE: PackedScene = preload("res://assets/kayk
 const KAYKIT_BANNER_RED_PATTERN_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/banner_patternA_red.glb")
 const KAYKIT_TORCH_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/torch_lit.glb")
 const KAYKIT_CANDLE_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/candle_triple.glb")
-const KAYKIT_RUBBLE_LARGE_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/rubble_large.glb")
-const KAYKIT_RUBBLE_HALF_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/rubble_half.glb")
 const KAYKIT_WELL_SCENE: PackedScene = preload("res://assets/kaykit_arena/medieval/building_well_green.gltf")
 const KAYKIT_GOLD_BARS_SCENE: PackedScene = preload("res://assets/kaykit_arena/resource/Gold_Bars.gltf")
 const KAYKIT_GOLD_NUGGETS_SCENE: PackedScene = preload("res://assets/kaykit_arena/resource/Gold_Nuggets.gltf")
@@ -1243,6 +1241,23 @@ static func _kaykit_scene(parent: Node3D, scene: PackedScene, pos: Vector3, rot_
 	return node
 
 
+static func _add_pillar_collision(node: Node3D, radius: float, height: float) -> void:
+	if node == null or node.get_node_or_null("PillarCollision") != null:
+		return
+	var body := StaticBody3D.new()
+	body.name = "PillarCollision"
+	body.collision_layer = 1
+	body.collision_mask = 1
+	var shape := CollisionShape3D.new()
+	var cylinder := CylinderShape3D.new()
+	cylinder.radius = radius
+	cylinder.height = height
+	shape.shape = cylinder
+	shape.position = Vector3(0.0, height * 0.5, 0.0)
+	body.add_child(shape)
+	node.add_child(body)
+
+
 static func _add_kaykit_tree(parent: Node3D, pos: Vector3, scale_factor: float, index: int) -> void:
 	if KAYKIT_TREE_SCENES.is_empty():
 		return
@@ -1290,6 +1305,15 @@ static func _world_shape_point(ang: float, scale: float) -> Vector2:
 	return Vector2(cos(ang) * ARENA_HALF_X * scale * wobble, sin(ang) * ARENA_HALF_Z * scale * wobble)
 
 
+static func _perimeter_point(ang: float, margin_x: float, margin_z: float) -> Vector2:
+	var dir := Vector2(cos(ang), sin(ang))
+	var half_x := ARENA_HALF_X + margin_x
+	var half_z := ARENA_HALF_Z + margin_z
+	var tx := half_x / maxf(absf(dir.x), 0.001)
+	var tz := half_z / maxf(absf(dir.y), 0.001)
+	return dir * minf(tx, tz)
+
+
 static func _add_kaykit_structures(decor: Node3D) -> void:
 	if decor == null:
 		return
@@ -1298,7 +1322,8 @@ static func _add_kaykit_structures(decor: Node3D) -> void:
 	for i in 8:
 		var ang := TAU * float(i) / 8.0 + PI / 8.0
 		var pos := Vector3(cos(ang) * 7.4, 0.0, sin(ang) * 7.4)
-		_kaykit_scene(decor, KAYKIT_PILLAR_DECORATED_SCENE, pos, rad_to_deg(-ang) + 90.0, 0.95, "AltarPillar_%02d" % i)
+		var pillar := _kaykit_scene(decor, KAYKIT_PILLAR_DECORATED_SCENE, pos, rad_to_deg(-ang) + 90.0, 0.95, "AltarPillar_%02d" % i)
+		_add_pillar_collision(pillar, 1.0, 4.0)
 	for i in 4:
 		var ang := TAU * float(i) / 4.0 + PI / 8.0
 		var pos := Vector3(cos(ang) * 12.5, 0.0, sin(ang) * 12.5)
@@ -1318,27 +1343,25 @@ static func _add_kaykit_structures(decor: Node3D) -> void:
 		var front := -1.0 if team == 0 else 1.0
 		var banner_scene: PackedScene = KAYKIT_BANNER_BLUE_SCENE if team == 0 else KAYKIT_BANNER_RED_SCENE
 		var banner_pattern: PackedScene = KAYKIT_BANNER_BLUE_PATTERN_SCENE if team == 0 else KAYKIT_BANNER_RED_PATTERN_SCENE
-		var team_color := Color(0.55, 0.85, 1.0) if team == 0 else Color(0.68, 0.32, 1.0)
 		for i in 6:
 			var ang := TAU * float(i) / 6.0
 			var pos := Vector3(cos(ang) * 7.2, 0.0, base_z + sin(ang) * 7.2)
-			_kaykit_scene(decor, KAYKIT_PILLAR_SCENE, pos, rad_to_deg(-ang) + 90.0, 0.8, "BasePillar_%d_%02d" % [team, i])
+			var pillar := _kaykit_scene(decor, KAYKIT_PILLAR_SCENE, pos, rad_to_deg(-ang) + 90.0, 0.8, "BasePillar_%d_%02d" % [team, i])
+			_add_pillar_collision(pillar, 1.0, 4.0)
 		for i in 4:
 			var ang := TAU * float(i) / 4.0 + PI / 6.0
 			var pos := Vector3(cos(ang) * 6.0, 0.0, base_z + sin(ang) * 6.0)
 			_kaykit_scene(decor, banner_scene if i % 2 == 0 else banner_pattern, pos, rad_to_deg(-ang) + 90.0, 0.95, "BaseBanner_%d_%02d" % [team, i])
-		_add_crystal_cluster(decor, Vector3(0.0, 2.2, base_z), team_color, 1.6, "BaseCrystal_%d" % team)
 		_kaykit_scene(decor, banner_pattern, Vector3(0.0, 0.0, base_z - front * 6.2), 180.0 if team == 0 else 0.0, 1.25, "BaseBackBanner_%d" % team)
 		for side in [-1.0, 1.0]:
 			var pos := Vector3(side * 5.8, 0.0, base_z + front * 5.8)
 			_add_kaykit_torch(decor, pos, 1.7, true)
 	# Руины: обломки и упавшие колонны KayKit.
 	for side in [-1.0, 1.0]:
-		_kaykit_scene(decor, KAYKIT_RUBBLE_LARGE_SCENE, Vector3(side * 30.0, 0.0, 6.0), 90.0 * side, 1.1, "RuinRubble_%s" % str(side))
-		_kaykit_scene(decor, KAYKIT_RUBBLE_HALF_SCENE, Vector3(side * 30.0, 0.0, 10.0), 30.0 * side, 1.0, "RuinRubbleHalf_%s" % str(side))
 		var fallen := _kaykit_scene(decor, KAYKIT_PILLAR_SCENE, Vector3(side * 28.0, 0.7, -10.0), 12.0 * side, 0.8, "RuinFallenColumn_%s" % str(side))
 		if fallen != null:
 			fallen.rotation_degrees.z = 74.0
+			_add_pillar_collision(fallen, 1.0, 4.0)
 
 
 static func _add_grass_tufts(parent: Node3D) -> void:
@@ -1404,10 +1427,10 @@ static func _add_decor(decor: Node3D, _mat_rock: StandardMaterial3D) -> void:
 	var tree_count := 24
 	for i in tree_count:
 		var ang := TAU * float(i) / float(tree_count) + 0.11
-		var radius := 1.07 + 0.09 * sin(float(i) * 1.7) + 0.035 * sin(float(i) * 3.1)
-		var p := _world_shape_point(ang, radius)
+		var margin := 3.6 + 1.2 * sin(float(i) * 1.7)
+		var p := _perimeter_point(ang, margin, margin)
 		var pos := Vector3(p.x, 0.0, p.y)
-		var scale_factor := 1.0 + 0.3 * sin(float(i) * 1.3 + 0.4)
+		var scale_factor := 1.1 + 0.3 * sin(float(i) * 1.3 + 0.4)
 		if not _is_free(pos, 2.8 * scale_factor, 1.5):
 			continue
 		_add_kaykit_tree(decor, pos, scale_factor, i)
@@ -1417,8 +1440,8 @@ static func _add_decor(decor: Node3D, _mat_rock: StandardMaterial3D) -> void:
 	var outer_count := 22
 	for i in outer_count:
 		var ang := TAU * float(i) / float(outer_count) + 0.37
-		var radius := 1.34 + 0.08 * sin(float(i) * 2.1)
-		var p := _world_shape_point(ang, radius)
+		var margin := 9.0 + 1.5 * sin(float(i) * 2.1)
+		var p := _perimeter_point(ang, margin, margin)
 		var pos := Vector3(p.x, 0.0, p.y)
 		var scale_factor := 1.1 + 0.35 * sin(float(i) * 1.7 + 1.2)
 		if not _is_free(pos, 3.2 * scale_factor, 1.0):
@@ -1430,8 +1453,8 @@ static func _add_decor(decor: Node3D, _mat_rock: StandardMaterial3D) -> void:
 	var horizon_count := 28
 	for i in horizon_count:
 		var ang := TAU * float(i) / float(horizon_count) + 0.23
-		var radius := 1.58 + 0.09 * sin(float(i) * 1.9)
-		var p := _world_shape_point(ang, radius)
+		var margin := 18.0 + 2.0 * sin(float(i) * 1.9)
+		var p := _perimeter_point(ang, margin, margin)
 		var pos := Vector3(p.x, 0.0, p.y)
 		var scale_factor := 1.0 + 0.35 * sin(float(i) * 1.1 + 0.7)
 		if not _is_free(pos, 3.6 * scale_factor, 1.0):
@@ -1443,8 +1466,8 @@ static func _add_decor(decor: Node3D, _mat_rock: StandardMaterial3D) -> void:
 	var rock_count := 14
 	for i in rock_count:
 		var ang := TAU * float(i) / float(rock_count) + 0.42
-		var radius := 1.12 + 0.11 * sin(float(i) * 2.7)
-		var p := _world_shape_point(ang, radius)
+		var margin := 5.0 + 1.5 * sin(float(i) * 2.7)
+		var p := _perimeter_point(ang, margin, margin)
 		var pos := Vector3(p.x, 0.0, p.y)
 		var rock_scale := 1.7 + 0.7 * sin(float(i) * 1.3)
 		if not _is_free(pos, 1.2 * rock_scale, 1.0):
@@ -1452,18 +1475,6 @@ static func _add_decor(decor: Node3D, _mat_rock: StandardMaterial3D) -> void:
 		_add_kaykit_rock(decor, pos, rock_scale, i)
 		_occupy(pos, 1.2 * rock_scale)
 
-	# Кристаллы у кромки площади: светящиеся ориентиры, не мешают бою.
-	var crystal_count := 4
-	var crystal_colors := [Color(0.55, 0.35, 0.9), Color(0.35, 0.65, 1.0), Color(0.5, 0.4, 0.95), Color(0.75, 0.45, 0.9)]
-	for i in crystal_count:
-		var ang := TAU * float(i) / float(crystal_count) + 0.95
-		var radius := 19.5 + 1.2 * sin(float(i) * 1.9)
-		var pos := Vector3(cos(ang) * radius, 0.0, sin(ang) * radius)
-		var crystal_scale := 0.95 + 0.15 * sin(float(i))
-		if not _is_free(pos, crystal_scale, 1.0):
-			continue
-		_add_crystal_cluster(decor, pos, crystal_colors[i % crystal_colors.size()], crystal_scale)
-		_occupy(pos, crystal_scale)
 	_add_grass_tufts(decor)
 	_add_kaykit_structures(decor)
 

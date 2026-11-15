@@ -242,6 +242,8 @@ func _soften_baked_base_rings() -> void:
 					platform_material.albedo_color = Color(0.3, 0.32, 0.36).lerp(base_color, 0.15)
 					platform_material.roughness = 0.9
 					mesh_instance.material_override = platform_material
+				else:
+					mesh_instance.queue_free()
 			elif mesh_instance.mesh is TorusMesh and mesh_instance.name != "TeamRing":
 				mesh_instance.queue_free()
 	# Центральный алтарь: опускаем диск, чтобы кольцо кристалла не пересекалось с полом.

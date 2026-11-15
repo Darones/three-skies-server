@@ -56,6 +56,7 @@ var player_hp_label: Label
 var player_panel_class := -1
 var player_panel_team := -1
 var announce_label: Label
+var center_respawn_label: Label
 var ability_buttons: Array[Button] = []
 var icon_class := -1
 var ability_wipes: Array[AbilityCooldownWipe] = []
@@ -133,6 +134,7 @@ func _ready() -> void:
 	if _uses_touch_controls():
 		_build_touch_joystick(root)
 	_build_announcement(root)
+	_build_respawn_label(root)
 	var mini_map := preload("res://scripts/minimap.gd").new() as Control
 	mini_map.name = "MiniMap"
 	mini_map.call("configure", game)
@@ -999,6 +1001,26 @@ func _build_announcement(root: Control) -> void:
 	root.add_child(announce_label)
 
 
+func _build_respawn_label(root: Control) -> void:
+	center_respawn_label = _make_label("Возрождение", 34, Color(1.0, 0.86, 0.55))
+	center_respawn_label.anchor_left = 0.5
+	center_respawn_label.anchor_top = 0.5
+	center_respawn_label.anchor_right = 0.5
+	center_respawn_label.anchor_bottom = 0.5
+	center_respawn_label.offset_left = -260.0
+	center_respawn_label.offset_top = -44.0
+	center_respawn_label.offset_right = 260.0
+	center_respawn_label.offset_bottom = 44.0
+	center_respawn_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	center_respawn_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	center_respawn_label.add_theme_color_override("font_outline_color", Color(0.03, 0.02, 0.02, 0.95))
+	center_respawn_label.add_theme_constant_override("outline_size", 8)
+	center_respawn_label.modulate.a = 0.0
+	center_respawn_label.visible = false
+	center_respawn_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(center_respawn_label)
+
+
 func _build_select(root: Control) -> void:
 	select_panel = Control.new()
 	select_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -1355,6 +1377,12 @@ func _process(_delta: float) -> void:
 		pause_button.visible = game.state == "live"
 	update_gold()
 	_update_player_panel()
+	if center_respawn_label != null:
+		var is_respawning: bool = game.state == "live" and game.player != null and is_instance_valid(game.player) and game.player.dead
+		center_respawn_label.visible = is_respawning
+		if is_respawning:
+			center_respawn_label.text = "Возрождение"
+			center_respawn_label.modulate.a = 1.0
 	var match_time_left: float = maxf(0.0, game.match_time)
 	var match_minutes := floori(match_time_left / 60.0)
 	var match_seconds := int(match_time_left) % 60
