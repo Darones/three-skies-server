@@ -1621,7 +1621,7 @@ func _has_clear_vision(space_state: PhysicsDirectSpaceState3D, from: Vector3, to
 
 
 func _is_small_vision_blocker(node: Node) -> bool:
-	if String(node.name) == "CrystalCollision":
+	if String(node.name) == "CrystalCollision" or String(node.name) == "ShellNavBlocker":
 		return true
 	var parent := node.get_parent()
 	return parent != null and String(parent.name) == "Decor"
@@ -2292,6 +2292,9 @@ func _update_tutorial_arrow(delta: float) -> void:
 
 func spawn_tutorial_dummy() -> void:
 	if tutorial_dummy != null and is_instance_valid(tutorial_dummy):
+		tutorial_dummy.max_health = 1000.0
+		tutorial_dummy.health = 1000.0
+		tutorial_dummy._update_health_display()
 		return
 	# Манекен сразу стоит в центре арены, а не появляется рядом с игроком.
 	tutorial_dummy = _spawn_hero(HeroUnit.Cls.WARRIOR, 1 - player.team, false, Vector3(0.0, 0.15, 0.0))

@@ -829,6 +829,7 @@ func _build_info_popup() -> void:
 	info_message_label.custom_minimum_size = Vector2(490, 0)
 	content.add_child(info_message_label)
 	info_ok_button = _make_action_button("Хорошо", true)
+	info_ok_button.focus_mode = Control.FOCUS_ALL
 	info_ok_button.custom_minimum_size = Vector2(210, 46)
 	info_ok_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	info_ok_button.add_theme_font_size_override("font_size", 17)
