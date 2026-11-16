@@ -24,9 +24,9 @@ var carrier_bar: ProgressBar = null
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const SETTINGS_PANEL_SCRIPT := preload("res://scripts/settings_panel.gd")
 const HERO_PORTRAITS := {
-	HeroUnit.Cls.WARRIOR: preload("res://ui/portraits/warrior_portrait.png"),
-	HeroUnit.Cls.MAGE: preload("res://ui/portraits/mage_portrait.png"),
-	HeroUnit.Cls.FAIRY: preload("res://ui/portraits/fairy_portrait.png"),
+	HeroUnit.Cls.WARRIOR: preload("res://assets/ui/heroes/warrior_face.webp"),
+	HeroUnit.Cls.MAGE: preload("res://assets/ui/heroes/mage_face.webp"),
+	HeroUnit.Cls.FAIRY: preload("res://assets/ui/heroes/archer_face.webp"),
 }
 
 const ABILITY_SHORT_LABELS := {
@@ -1234,10 +1234,7 @@ func _update_player_panel() -> void:
 		player_panel_class = player.hero_class
 		var portrait_source: Texture2D = HERO_PORTRAITS[player.hero_class]
 		if portrait_source != null:
-			var portrait_atlas := AtlasTexture.new()
-			portrait_atlas.atlas = portrait_source
-			portrait_atlas.region = Rect2(0.0, portrait_source.get_height() * 0.03, portrait_source.get_width(), portrait_source.get_height() * 0.70)
-			player_portrait.texture = portrait_atlas
+			player_portrait.texture = portrait_source
 	if player_panel_team != player.team:
 		player_panel_team = player.team
 		var border_color := Color(0.84, 0.68, 0.39, 0.95) if player.team == 0 else Color(0.58, 0.46, 0.78, 0.95)

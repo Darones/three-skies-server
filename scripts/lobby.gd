@@ -1,9 +1,9 @@
 extends Control
 
-const HERO_ART := [
-	"res://ui/portraits/warrior_portrait.png",
-	"res://ui/portraits/mage_portrait.png",
-	"res://ui/portraits/fairy_portrait.png",
+const HERO_FACE := [
+	"res://assets/ui/heroes/warrior_face.webp",
+	"res://assets/ui/heroes/mage_face.webp",
+	"res://assets/ui/heroes/archer_face.webp",
 ]
 const HERO_CARD_ART := [
 	"res://assets/ui/heroes/warrior_keyart.webp",
@@ -2289,12 +2289,9 @@ func _refresh_selection() -> void:
 		else:
 			card_images[slot].modulate = Color(0.62, 0.65, 0.72, 1.0)
 			card_names[slot].add_theme_color_override("font_color", Color(0.72, 0.75, 0.82))
-	var avatar_source := load(HERO_ART[selected_class]) as Texture2D
+	var avatar_source := load(HERO_FACE[selected_class]) as Texture2D
 	if avatar_source != null:
-		var avatar_atlas := AtlasTexture.new()
-		avatar_atlas.atlas = avatar_source
-		avatar_atlas.region = Rect2(0.0, 0.0, avatar_source.get_width(), avatar_source.get_height() * 0.42)
-		avatar.texture = avatar_atlas
+		avatar.texture = avatar_source
 	_refresh_player_profile()
 	_refresh_player_menu()
 	_refresh_weapon_shop()
