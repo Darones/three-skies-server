@@ -244,6 +244,8 @@ func _soften_baked_base_rings() -> void:
 					mesh_instance.material_override = platform_material
 				else:
 					mesh_instance.queue_free()
+			elif mesh_instance.mesh is PrismMesh:
+				mesh_instance.queue_free()
 			elif mesh_instance.mesh is TorusMesh and mesh_instance.name != "TeamRing":
 				mesh_instance.queue_free()
 	# Центральный алтарь: опускаем диск, чтобы кольцо кристалла не пересекалось с полом.
@@ -689,7 +691,7 @@ func _spawn_gold_coin(gold_value: int = 1, tutorial_spawn: bool = false) -> void
 	var coin_angle := randf_range(0.0, TAU)
 	var coin_radius := randf_range(0.35, 1.0) if tutorial_spawn else GOLD_COIN_SPAWN_BASE_RADIUS + randf_range(0.0, GOLD_COIN_SPAWN_EXTRA_RADIUS)
 	var coin_center: Vector3 = player.global_position if tutorial_spawn and player != null else gold_fountain.global_position
-	var spawn_position := coin_center + Vector3(cos(coin_angle) * coin_radius, 0.09, sin(coin_angle) * coin_radius)
+	var spawn_position := coin_center + Vector3(cos(coin_angle) * coin_radius, 0.45, sin(coin_angle) * coin_radius)
 	coin.global_position = clamp_to_arena(spawn_position)
 	coin.set_meta("gold_value", gold_value)
 	gold_coins.append(coin)
@@ -2292,7 +2294,7 @@ func spawn_tutorial_dummy() -> void:
 	if tutorial_dummy != null and is_instance_valid(tutorial_dummy):
 		return
 	# Манекен сразу стоит в центре арены, а не появляется рядом с игроком.
-	tutorial_dummy = _spawn_hero(HeroUnit.Cls.WARRIOR, 1 - player.team, false, Vector3(0.0, 0.76, 0.0))
+	tutorial_dummy = _spawn_hero(HeroUnit.Cls.WARRIOR, 1 - player.team, false, Vector3(0.0, 0.15, 0.0))
 	tutorial_dummy.name = "TrainingDummy"
 	tutorial_dummy.set_display_name("Манекен")
 	tutorial_dummy.tutorial_dummy = true

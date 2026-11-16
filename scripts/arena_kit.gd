@@ -518,6 +518,21 @@ static func _ensure_altar_and_ruins_style(arena_root: Node3D) -> void:
 				(child as MeshInstance3D).material_override = marble
 
 
+static func _ensure_altar_clear(arena_root: Node3D) -> void:
+	var altar := arena_root.get_node_or_null("Altar") as Node3D
+	if altar != null:
+		for node_name in ["Pedestal", "PedestalCrown", "PedestalCollision"]:
+			var node := altar.get_node_or_null(str(node_name))
+			if node != null:
+				node.queue_free()
+	var decor := arena_root.get_node_or_null("Decor") as Node3D
+	if decor != null:
+		for child in decor.get_children():
+			var child_name := String(child.name)
+			if child_name == "AltarCrystal" or child_name.begins_with("CrystalCluster"):
+				child.queue_free()
+
+
 static func _ensure_base_style(arena_root: Node3D) -> void:
 	var specs := [
 		["LightBase", Color(0.55, 0.85, 1.0)],
@@ -603,6 +618,7 @@ static func ensure_arena_features(arena_root: Node3D) -> void:
 	_ensure_boundary_wall_style(arena_root)
 	_ensure_forest_lighting(arena_root)
 	_ensure_altar_and_ruins_style(arena_root)
+	_ensure_altar_clear(arena_root)
 	_ensure_base_style(arena_root)
 	_rebuild_decor(arena_root)
 	_ensure_decor_collisions(arena_root)
@@ -1312,7 +1328,6 @@ static func _perimeter_point(ang: float, margin_x: float, margin_z: float) -> Ve
 static func _add_kaykit_structures(decor: Node3D) -> void:
 	if decor == null:
 		return
-	_add_crystal_cluster(decor, Vector3(0.0, 0.5, 0.0), Color(0.4, 0.75, 1.0), 2.8, "AltarCrystal")
 	# Алтарь: кольцо резных колонн, знамёна и свечи на площадке.
 	for i in 8:
 		var ang := TAU * float(i) / 8.0 + PI / 8.0
@@ -1573,21 +1588,6 @@ static func add_bushes(arena: Node3D) -> void:
 		zone.collision_layer = 0
 		zone.collision_mask = 1
 		bushes.add_child(zone)
-		var patch := MeshInstance3D.new()
-		patch.name = "BushPatch"
-		var patch_mesh := CylinderMesh.new()
-		patch_mesh.top_radius = 3.4
-		patch_mesh.bottom_radius = 3.4
-		patch_mesh.height = 0.02
-		patch_mesh.radial_segments = 24
-		patch.mesh = patch_mesh
-		var patch_material := StandardMaterial3D.new()
-		patch_material.albedo_color = Color(0.07, 0.16, 0.06)
-		patch_material.roughness = 1.0
-		patch.material_override = patch_material
-		patch.position = Vector3(0.0, 0.145, 0.0)
-		patch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		zone.add_child(patch)
 		var detection := CollisionShape3D.new()
 		detection.name = "StealthRange"
 		detection.position = Vector3(0.0, 1.5, 0.0)

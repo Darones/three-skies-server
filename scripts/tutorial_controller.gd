@@ -35,7 +35,7 @@ func begin() -> void:
 	game.hud.call(
 		"show_tutorial_card",
 		"Добро пожаловать!",
-		"Цель игры — разбить Оболочку, подобрать Осколок и донести его до базы.\n\n%s В этом обучении ты не можешь погибнуть." % controls_hint,
+		"Цель игры — подобрать Осколок и донести его до базы.\n\n%s В этом обучении ты не можешь погибнуть." % controls_hint,
 		"Продолжить",
 		Callable(self, "_continue_intro")
 	)
@@ -96,10 +96,11 @@ func on_ability_used(index: int) -> void:
 		game.hud.call("show_tutorial_hint", "Нажми «%s»" % _ability_name(expected_ability))
 		return
 	game.call("remove_tutorial_dummy")
-	stage = "go_fountain"
+	stage = "pick_crystal"
 	game.hud.call("set_tutorial_ability", -1)
-	_point_to(_fountain_position(), OBJECTIVE_GOLD)
-	game.hud.call("show_tutorial_hint", "Сходи к фонтану и собери %d монет" % COINS_TO_COLLECT)
+	game.call("spawn_crystal", Vector3.ZERO, true)
+	_point_to(_crystal_position(), OBJECTIVE_CRYSTAL)
+	game.hud.call("show_tutorial_hint", "Возьми осколок")
 
 
 func on_coin_collected() -> void:
@@ -137,7 +138,7 @@ func on_shell_destroyed() -> void:
 		return
 	stage = "pick_crystal"
 	_point_to(_crystal_position(), OBJECTIVE_CRYSTAL)
-	game.hud.call("show_tutorial_hint", "Подбери появившийся Осколок")
+	game.hud.call("show_tutorial_hint", "Возьми осколок")
 
 
 func on_delivery() -> void:
