@@ -5,6 +5,11 @@ const HERO_ART := [
 	"res://ui/portraits/mage_portrait.png",
 	"res://ui/portraits/fairy_portrait.png",
 ]
+const HERO_CARD_ART := [
+	"res://assets/ui/heroes/warrior_keyart.webp",
+	"res://assets/ui/heroes/mage_keyart.webp",
+	"res://assets/ui/heroes/archer_keyart.webp",
+]
 const HERO_NAMES := ["Воин", "Маг", "Лучница"]
 const CLASS_FRAME_COLORS := {
 	0: Color(0.95, 0.78, 0.36),
@@ -2269,7 +2274,7 @@ func _refresh_selection() -> void:
 	for slot in range(3):
 		var hero_class: int = slot_classes[slot]
 		var frame_color: Color = CLASS_FRAME_COLORS.get(hero_class, GOLD)
-		var texture := load(HERO_ART[hero_class]) as Texture2D
+		var texture := load(HERO_CARD_ART[hero_class]) as Texture2D
 		card_images[slot].texture = texture
 		card_names[slot].text = HERO_NAMES[hero_class]
 		for style_name in ["normal", "hover", "pressed"]:
