@@ -1347,22 +1347,16 @@ static func _add_kaykit_structures(decor: Node3D) -> void:
 		var ang := TAU * float(i) / 4.0 + PI / 4.0
 		var pos := Vector3(cos(ang) * 11.8, 0.0, sin(ang) * 11.8)
 		_add_kaykit_torch(decor, pos, 1.6, false)
-	# Базы: колонны, знамёна, флаги и факелы в цветах команды.
+	# Базы: колонны и факелы в цветах команды.
 	for team in [0, 1]:
 		var base_z := 28.0 if team == 0 else -28.0
 		var front := -1.0 if team == 0 else 1.0
-		var banner_scene: PackedScene = KAYKIT_BANNER_BLUE_SCENE if team == 0 else KAYKIT_BANNER_RED_SCENE
-		var banner_pattern: PackedScene = KAYKIT_BANNER_BLUE_PATTERN_SCENE if team == 0 else KAYKIT_BANNER_RED_PATTERN_SCENE
 		for i in 6:
 			var ang := TAU * float(i) / 6.0
 			var pos := Vector3(cos(ang) * 7.2, 0.0, base_z + sin(ang) * 7.2)
 			var pillar := _kaykit_scene(decor, KAYKIT_PILLAR_SCENE, pos, rad_to_deg(-ang) + 90.0, 0.8, "BasePillar_%d_%02d" % [team, i])
 			_add_pillar_collision(pillar, 1.0, 4.0)
-		for i in 4:
-			var ang := TAU * float(i) / 4.0 + PI / 6.0
-			var pos := Vector3(cos(ang) * 6.0, 0.0, base_z + sin(ang) * 6.0)
-			_kaykit_scene(decor, banner_scene if i % 2 == 0 else banner_pattern, pos, rad_to_deg(-ang) + 90.0, 0.95, "BaseBanner_%d_%02d" % [team, i])
-		_kaykit_scene(decor, banner_pattern, Vector3(0.0, 0.0, base_z - front * 6.2), 180.0 if team == 0 else 0.0, 1.25, "BaseBackBanner_%d" % team)
+		# Знамёна баз убраны: их полотнища вблизи камеры читались как серые треугольники.
 		for side in [-1.0, 1.0]:
 			var pos := Vector3(side * 5.8, 0.0, base_z + front * 5.8)
 			_add_kaykit_torch(decor, pos, 1.7, true)
