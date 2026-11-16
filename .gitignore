@@ -36,3 +36,7 @@ Thumbs.db
 server/*.exe
 tools/icon_picker/
 
+# Generated image sources (shop icons are processed into assets/ui/shop)
+generated_images/
+__pycache__/
+

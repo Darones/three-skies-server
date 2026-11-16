@@ -64,7 +64,15 @@ const SHOP_ITEMS := [
 ]
 
 const SHOP_ITEM_TEXTURES := {
-	"vampire_fang": preload("res://assets/ui/icon/128/012.png"),
+	"life_amulet": preload("res://assets/ui/shop/life_amulet.webp"),
+	"revival_talisman": preload("res://assets/ui/shop/revival_talisman.webp"),
+	"titan_shell": preload("res://assets/ui/shop/titan_shell.webp"),
+	"power_glove": preload("res://assets/ui/shop/power_glove.webp"),
+	"vampire_fang": preload("res://assets/ui/shop/vampire_fang.webp"),
+	"agility_mark": preload("res://assets/ui/shop/agility_mark.webp"),
+	"wind_boots": preload("res://assets/ui/shop/wind_boots.webp"),
+	"hourglass": preload("res://assets/ui/shop/hourglass.webp"),
+	"cleansing_charm": preload("res://assets/ui/shop/cleansing_charm.webp"),
 }
 const MUSIC_PATH := "res://audio/music/dread/6adcd384-a1c6-4d03-ab8f-2885c6220fd5_music_dark_fantasy_arena_battle_them__1793744175999.mp3"
 const AMBIENT_PATH := "res://audio/ambient/arena_wind.wav"

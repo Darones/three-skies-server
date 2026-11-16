@@ -95,7 +95,6 @@ var heartbeat_second := -1.0
 const GOLD := Color(0.96, 0.82, 0.52)
 const PALE := Color(0.86, 0.9, 1.0)
 const DARK_BG := Color(0.05, 0.05, 0.09, 0.78)
-const SHOP_ICON_SHEET: Texture2D = preload("res://assets/shop_icons/e1689879_126a_4ed4_bbba_c3530a6fb655_asset-e1689879-1790940004841-0_1790940004843_4y4cl4qj.png")
 const HEARTBEAT_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/hits_impacts/deep_sub_impact.wav")
 const ABILITY_ICONS := [
 	[
@@ -1173,7 +1172,7 @@ func _build_shop(root: Control) -> void:
 
 		var icon := TextureRect.new()
 		var custom_texture: Texture2D = game.get_shop_item_texture(item_id) if game != null else null
-		icon.texture = custom_texture if custom_texture != null else _shop_icon(int(item["icon"]))
+		icon.texture = custom_texture
 		icon.custom_minimum_size = Vector2(50.0, 50.0)
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -1203,18 +1202,6 @@ func _build_shop(root: Control) -> void:
 		grid.add_child(button)
 		shop_buttons[item_id] = button
 	update_shop()
-
-
-func _shop_icon(index: int) -> Texture2D:
-	var atlas := AtlasTexture.new()
-	atlas.atlas = SHOP_ICON_SHEET
-	var stride := 256.0
-	var inset := 50.0
-	var cell_size := 206.0
-	var column := index % 4
-	var row := floori(float(index) / 4.0)
-	atlas.region = Rect2(float(column) * stride + inset, float(row) * stride + inset, cell_size, cell_size)
-	return atlas
 
 
 func _update_player_panel() -> void:

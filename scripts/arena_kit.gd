@@ -466,6 +466,8 @@ static func _ensure_boundary_wall_style(arena_root: Node3D) -> void:
 	]
 	for i in torch_positions.size():
 		_add_kaykit_torch(walls, torch_positions[i], 1.8, i < 4)
+	# Стена и её факелы за периметром: тени не попадают в игровую зону.
+	_disable_shadows(walls)
 
 
 static func _ensure_forest_lighting(arena_root: Node3D) -> void:
@@ -497,6 +499,9 @@ static func _ensure_forest_lighting(arena_root: Node3D) -> void:
 		sun.light_color = Color(1.0, 0.95, 0.88)
 		sun.light_energy = 1.0
 		sun.rotation_degrees = Vector3(-52.0, 28.0, 0.0)
+		# Для вида сверху двух каскадов теней достаточно: меньше draw calls в shadow pass.
+		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+		sun.directional_shadow_max_distance = 90.0
 	var dark_fill := arena_root.get_node_or_null("Stage/DarkFill") as DirectionalLight3D
 	if dark_fill != null:
 		dark_fill.light_energy = 0.2
@@ -1269,6 +1274,15 @@ static func _add_pillar_collision(node: Node3D, radius: float, height: float) ->
 	node.add_child(body)
 
 
+static func _disable_shadows(node: Node) -> void:
+	if node == null:
+		return
+	if node is GeometryInstance3D:
+		(node as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for child in node.get_children():
+		_disable_shadows(child)
+
+
 static func _add_kaykit_tree(parent: Node3D, pos: Vector3, scale_factor: float, index: int) -> void:
 	if KAYKIT_TREE_SCENES.is_empty():
 		return
@@ -1276,6 +1290,8 @@ static func _add_kaykit_tree(parent: Node3D, pos: Vector3, scale_factor: float, 
 	var tree := _kaykit_scene(parent, scene, pos, float(index) * 47.0, scale_factor, "KayKitTree_%02d" % index)
 	if tree == null:
 		return
+	# Деревья стоят за стеной: их тени не попадают на арену, а shadow pass стоит дорого.
+	_disable_shadows(tree)
 	var visibility_body := StaticBody3D.new()
 	visibility_body.name = "VisibilityOccluder"
 	visibility_body.collision_layer = 2
@@ -1294,13 +1310,15 @@ static func _add_kaykit_rock(parent: Node3D, pos: Vector3, size: float, index: i
 	if KAYKIT_ROCK_SCENES.is_empty():
 		return
 	var scene: PackedScene = KAYKIT_ROCK_SCENES[index % KAYKIT_ROCK_SCENES.size()]
-	_kaykit_scene(parent, scene, pos, float(index) * 63.0, size, "KayKitRock_%02d" % index)
+	var rock := _kaykit_scene(parent, scene, pos, float(index) * 63.0, size, "KayKitRock_%02d" % index)
+	_disable_shadows(rock)
 
 
 static func _add_kaykit_torch(parent: Node3D, pos: Vector3, scale_factor := 1.0, with_light := true) -> void:
 	var torch := _kaykit_scene(parent, KAYKIT_TORCH_SCENE, pos, 0.0, scale_factor, "KayKitTorch")
 	if torch == null:
 		return
+	_disable_shadows(torch)
 	if not with_light:
 		return
 	var light := OmniLight3D.new()
@@ -1338,11 +1356,13 @@ static func _add_kaykit_structures(decor: Node3D) -> void:
 		var ang := TAU * float(i) / 4.0 + PI / 8.0
 		var pos := Vector3(cos(ang) * 12.5, 0.0, sin(ang) * 12.5)
 		var banner_scene: PackedScene = KAYKIT_BANNER_BLUE_PATTERN_SCENE if i % 2 == 0 else KAYKIT_BANNER_BLUE_SCENE
-		_kaykit_scene(decor, banner_scene, pos, rad_to_deg(-ang) + 90.0, 0.85, "AltarBanner_%02d" % i)
+		var banner := _kaykit_scene(decor, banner_scene, pos, rad_to_deg(-ang) + 90.0, 0.85, "AltarBanner_%02d" % i)
+		_disable_shadows(banner)
 	for i in 4:
 		var ang := TAU * float(i) / 4.0
 		var pos := Vector3(cos(ang) * 4.4, 0.16, sin(ang) * 4.4)
-		_kaykit_scene(decor, KAYKIT_CANDLE_SCENE, pos, 0.0, 1.4, "AltarCandle_%02d" % i)
+		var candle := _kaykit_scene(decor, KAYKIT_CANDLE_SCENE, pos, 0.0, 1.4, "AltarCandle_%02d" % i)
+		_disable_shadows(candle)
 	for i in 4:
 		var ang := TAU * float(i) / 4.0 + PI / 4.0
 		var pos := Vector3(cos(ang) * 11.8, 0.0, sin(ang) * 11.8)
@@ -1654,6 +1674,7 @@ static func rebuild_bush_visuals(bushes_root: Node3D) -> void:
 		var mesh_batch := MultiMeshInstance3D.new()
 		mesh_batch.name = "%sBatch" % mesh_spec["name"]
 		mesh_batch.multimesh = multi_mesh
+		mesh_batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		visual_root.add_child(mesh_batch)
 		var instance_index := 0
 		for zone_index in zones.size():
