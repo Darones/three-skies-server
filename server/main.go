@@ -262,7 +262,26 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	mux.HandleFunc("/buy_wing", service.handleBuyWing)
 	mux.HandleFunc("/buy_weapon", service.handleBuyWeapon)
 	mux.HandleFunc("/match_reward", service.handleMatchReward)
-	return databaseGate(mux, service)
+	return cors(databaseGate(mux, service))
+}
+
+// cors lets the browser client run from another origin (local test server,
+// static hosting, a store page) while the API stays on its own domain.
+func cors(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if origin := r.Header.Get("Origin"); origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Add("Vary", "Origin")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			w.Header().Set("Access-Control-Max-Age", "86400")
+		}
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // databaseGate keeps the container alive when the database is down: health and

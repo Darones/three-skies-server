@@ -1073,7 +1073,7 @@ func _uses_touch_controls() -> bool:
 
 
 func _mobile_ui() -> bool:
-	return OS.has_feature("mobile") or OS.get_cmdline_user_args().has("--mobile")
+	return OS.has_feature("mobile") or (OS.has_feature("web") and DisplayServer.is_touchscreen_available()) or OS.get_cmdline_user_args().has("--mobile")
 
 
 func _build_shop(root: Control) -> void:
