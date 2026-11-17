@@ -1686,7 +1686,8 @@ func _spawn_shell() -> void:
 		shell_pool = s
 	if tutorial_mode:
 		s.max_health = 1000.0
-	s.activate(self, Vector3(0.0, 0.16, 0.0))
+	var shell_y := 0.16 if tutorial_mode else 0.45
+	s.activate(self, Vector3(0.0, shell_y, 0.0))
 	shell = s
 	shell_phase = "active"
 	shell_window = SHELL_WINDOW
@@ -1695,8 +1696,8 @@ func _spawn_shell() -> void:
 	announce("Оболочка здесь", Color(0.85, 0.62, 1.0), 2.6)
 	play_sfx("thunder", -3.0)
 	shake(0.6)
-	burst(Vector3(0.0, 1.2, 0.0), Color(0.8, 0.5, 1.0), 44)
-	ring_fx(Vector3(0.0, 0.2, 0.0), Color(0.8, 0.5, 1.0), 8.0)
+	burst(Vector3(0.0, shell_y + 1.2, 0.0), Color(0.8, 0.5, 1.0), 44)
+	ring_fx(Vector3(0.0, shell_y + 0.05, 0.0), Color(0.8, 0.5, 1.0), 8.0)
 
 
 func on_shell_died(s: SkyShell, source: Node = null) -> void:

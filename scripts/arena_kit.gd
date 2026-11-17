@@ -524,8 +524,11 @@ static func _ensure_altar_and_ruins_style(arena_root: Node3D) -> void:
 
 
 static func _ensure_altar_clear(arena_root: Node3D) -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	var tutorial_mode := tree != null and bool(tree.get_meta("tutorial_mode", false))
 	var altar := arena_root.get_node_or_null("Altar") as Node3D
-	if altar != null:
+	if altar != null and tutorial_mode:
+		# В обучении центр должен быть пустым: манекен стоит на площади.
 		for node_name in ["Pedestal", "PedestalCrown", "PedestalCollision"]:
 			var node := altar.get_node_or_null(str(node_name))
 			if node != null:
