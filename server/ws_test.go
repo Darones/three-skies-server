@@ -304,3 +304,57 @@ func TestMatchTimeoutAwardsHigherScore(t *testing.T) {
 		t.Fatalf("expected winning team 0, got %+v", messages)
 	}
 }
+
+func TestDisconnectReplacesHumanWithBot(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	host := newTestClient(1, 0, 5, 7)
+	guest := newTestClient(2, 1, 0, 3)
+	room := newTestRoom(host, guest)
+	hub.rooms[room.id] = room
+	hub.clients[host.id] = host
+	hub.clients[guest.id] = guest
+
+	host.name = "Даронес"
+	host.class = 2
+	host.team = 0
+	host.maxHP = 950
+	host.hp = 123
+	host.attackDamage = 60
+	host.hasState = true
+
+	hub.removeClient(host)
+
+	if room.players[0] != nil {
+		t.Fatal("disconnected human slot should be empty")
+	}
+	if room.bots[0] == nil {
+		t.Fatal("disconnected human should be replaced by a bot")
+	}
+	bot := room.bots[0]
+	if bot.id != -1 || bot.name != "Даронес" || bot.class != 2 || bot.team != 0 {
+		t.Fatalf("unexpected replacement bot: %+v", bot)
+	}
+	if bot.x != 5 || bot.z != 7 || bot.hp != 123 || !bot.alive {
+		t.Fatalf("replacement bot lost player state: %+v", bot)
+	}
+	if room.hostID != guest.id {
+		t.Fatalf("expected host migration to guest, got %d", room.hostID)
+	}
+	messages := collectMessages(t, guest)
+	types := make([]string, 0, len(messages))
+	for _, message := range messages {
+		types = append(types, message.Type)
+	}
+	want := []string{"player_left", "host_changed", "bot_roster"}
+	if len(types) != len(want) {
+		t.Fatalf("expected messages %v, got %v", want, types)
+	}
+	for index := range want {
+		if types[index] != want[index] {
+			t.Fatalf("expected messages %v, got %v", want, types)
+		}
+	}
+	if len(messages[2].Bots) != 1 || messages[2].Bots[0].ID != -1 {
+		t.Fatalf("bot_roster missing replacement bot: %+v", messages[2].Bots)
+	}
+}

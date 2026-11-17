@@ -2757,6 +2757,10 @@ func _setup_network_play() -> void:
 		NetworkManager.remote_stats_updated.connect(_on_remote_stats_updated)
 	if not NetworkManager.bot_state_updated.is_connected(_on_bot_state_updated):
 		NetworkManager.bot_state_updated.connect(_on_bot_state_updated)
+	if not NetworkManager.bot_roster_received.is_connected(_on_bot_roster_received):
+		NetworkManager.bot_roster_received.connect(_on_bot_roster_received)
+	if not NetworkManager.host_changed.is_connected(_on_network_host_changed):
+		NetworkManager.host_changed.connect(_on_network_host_changed)
 	if not NetworkManager.attack_denied.is_connected(_on_attack_denied):
 		NetworkManager.attack_denied.connect(_on_attack_denied)
 	if not NetworkManager.match_score_updated.is_connected(_on_match_score_updated):
@@ -2897,6 +2901,61 @@ func _on_bot_state_updated(bot_id: int, info: Dictionary) -> void:
 		remote = remote_players.get(bot_id)
 	if remote != null and is_instance_valid(remote):
 		remote.apply_bot_state(info)
+
+
+func _on_network_host_changed(new_host_id: int) -> void:
+	network_host = NetworkManager.is_host
+	print("[NET] host changed -> ", new_host_id, " local_host=", network_host)
+
+
+func _on_bot_roster_received(bots: Array) -> void:
+	if not network_play:
+		return
+	for entry in bots:
+		if not entry is Dictionary:
+			continue
+		var bot_id := int(entry.get("id", 0))
+		if bot_id >= 0:
+			continue
+		if network_host:
+			if network_bots.has(bot_id):
+				var existing = network_bots[bot_id]
+				if existing != null and is_instance_valid(existing):
+					continue
+			var remote = remote_players.get(bot_id)
+			if remote != null:
+				_on_remote_player_left(bot_id)
+			_spawn_network_bot_from_info(entry)
+		elif not remote_players.has(bot_id):
+			_on_remote_player_joined(bot_id, entry)
+
+
+func _spawn_network_bot_from_info(info: Dictionary) -> HeroUnit:
+	var bot_id := int(info.get("id", 0))
+	var bot_class := clampi(int(info.get("class", 0)), 0, 2)
+	var bot_team := clampi(int(info.get("team", 0)), 0, 1)
+	var pos := Vector3(
+		float(info.get("x", 0.0)),
+		float(info.get("y", 0.76)),
+		float(info.get("z", 0.0))
+	)
+	if pos.length_squared() < 0.01:
+		pos = Vector3(0.0, 0.76, 28.0 if bot_team == 0 else -28.0)
+	var bot := _spawn_hero(bot_class, bot_team, false, pos)
+	bot.network_id = bot_id
+	var bot_name := String(info.get("name", "")).strip_edges()
+	if bot_name.is_empty() or bot_name.begins_with("Игрок"):
+		bot_name = _next_bot_callsign()
+	bot.set_display_name(bot_name)
+	var max_hp := maxf(float(info.get("max_hp", bot.max_health)), 1.0)
+	bot.max_health = max_hp
+	bot.health = clampf(float(info.get("hp", max_hp)), 1.0, max_hp)
+	bot.attack_damage = maxf(float(info.get("attack_damage", bot.attack_damage)), 0.0)
+	bot.rotation.y = float(info.get("rotation", 0.0))
+	bot._update_health_display()
+	network_bots[bot_id] = bot
+	NetworkManager.register_bot(bot)
+	return bot
 
 
 func _on_attack_denied(target_id: int, skill: String, reason: String) -> void:

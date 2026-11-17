@@ -15,6 +15,7 @@ signal remote_respawn_received(player_id: int, position: Vector3, rotation: floa
 signal remote_heal_received(source_id: int, target_id: int, amount: float)
 signal remote_stats_updated(player_id: int, max_hp: float, hp: float, attack_damage: float)
 signal bot_state_updated(bot_id: int, info: Dictionary)
+signal bot_roster_received(bots: Array)
 signal attack_denied(target_id: int, skill: String, reason: String)
 signal match_started(room_id: int, host_id: int, players: Array)
 signal match_finished(winning_team: int)
@@ -414,6 +415,8 @@ func _handle_message(text: String) -> void:
 			match_finished.emit(int(message.get("winning_team", 0)))
 		"bot_states":
 			_handle_bot_states(message)
+		"bot_roster":
+			_handle_bot_roster(message)
 		"attack_denied":
 			attack_denied.emit(
 				int(message.get("target_id", 0)),
@@ -578,38 +581,52 @@ func _handle_bot_states(message: Dictionary) -> void:
 	if not bots is Array:
 		return
 	for entry in bots:
-		if not entry is Dictionary:
-			continue
-		var bot_id := int(entry.get("id", 0))
-		if bot_id >= 0:
-			continue
-		var info: Dictionary = remote_players.get(bot_id, _make_remote_info(entry))
-		info["bot"] = true
-		if entry.has("name"):
-			var bot_name := String(entry.get("name", "")).strip_edges()
-			if not bot_name.is_empty():
-				info["name"] = bot_name
-		if entry.has("class"):
-			info["class"] = clampi(int(entry.get("class", 0)), 0, 2)
-		if entry.has("team"):
-			info["team"] = clampi(int(entry.get("team", 0)), 0, 1)
-		info["position"] = Vector3(
-			float(entry.get("x", 0.0)),
-			float(entry.get("y", 0.0)),
-			float(entry.get("z", 0.0))
-		)
-		info["rotation"] = float(entry.get("rotation", 0.0))
-		info["has_state"] = true
-		info["alive"] = bool(entry.get("alive", true))
-		info["max_hp"] = maxf(float(entry.get("max_hp", 0.0)), 0.0)
-		info["hp"] = maxf(float(entry.get("hp", 0.0)), 0.0)
-		info["attack_damage"] = maxf(float(entry.get("attack_damage", 0.0)), 0.0)
-		info["animation"] = String(entry.get("animation", ""))
-		var is_new := not remote_players.has(bot_id)
-		remote_players[bot_id] = info
-		if is_new:
-			remote_player_joined.emit(bot_id, info)
-		bot_state_updated.emit(bot_id, info.duplicate(true))
+		if entry is Dictionary:
+			_apply_bot_snapshot(entry)
+
+
+func _handle_bot_roster(message: Dictionary) -> void:
+	var bots: Variant = message.get("bots", [])
+	if not bots is Array:
+		return
+	if not is_host:
+		for entry in bots:
+			if entry is Dictionary:
+				_apply_bot_snapshot(entry)
+	bot_roster_received.emit(bots)
+
+
+func _apply_bot_snapshot(entry: Dictionary) -> void:
+	var bot_id := int(entry.get("id", 0))
+	if bot_id >= 0:
+		return
+	var info: Dictionary = remote_players.get(bot_id, _make_remote_info(entry))
+	info["bot"] = true
+	if entry.has("name"):
+		var bot_name := String(entry.get("name", "")).strip_edges()
+		if not bot_name.is_empty():
+			info["name"] = bot_name
+	if entry.has("class"):
+		info["class"] = clampi(int(entry.get("class", 0)), 0, 2)
+	if entry.has("team"):
+		info["team"] = clampi(int(entry.get("team", 0)), 0, 1)
+	info["position"] = Vector3(
+		float(entry.get("x", 0.0)),
+		float(entry.get("y", 0.0)),
+		float(entry.get("z", 0.0))
+	)
+	info["rotation"] = float(entry.get("rotation", 0.0))
+	info["has_state"] = true
+	info["alive"] = bool(entry.get("alive", true))
+	info["max_hp"] = maxf(float(entry.get("max_hp", 0.0)), 0.0)
+	info["hp"] = maxf(float(entry.get("hp", 0.0)), 0.0)
+	info["attack_damage"] = maxf(float(entry.get("attack_damage", 0.0)), 0.0)
+	info["animation"] = String(entry.get("animation", ""))
+	var is_new := not remote_players.has(bot_id)
+	remote_players[bot_id] = info
+	if is_new:
+		remote_player_joined.emit(bot_id, info)
+	bot_state_updated.emit(bot_id, info.duplicate(true))
 
 
 func _handle_attack(message: Dictionary) -> void:

@@ -244,12 +244,17 @@ func (h *wsHub) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 func (h *wsHub) removeClient(client *wsClient) {
 	var roomID int64
 	var hostChanged *wsOutgoing
+	var botRoster *wsOutgoing
 	h.mu.Lock()
 	delete(h.clients, client.id)
 	room := h.rooms[client.roomID]
 	if room != nil {
 		slot := roomSlotOf(room, client)
 		if slot >= 0 {
+			if room.state == "live" {
+				room.bots[slot] = botFromClient(client, slot)
+				botRoster = &wsOutgoing{Type: "bot_roster", RoomID: room.id, Bots: botSnapshotsLocked(room)}
+			}
 			room.players[slot] = nil
 			room.humanCount--
 		}
@@ -282,9 +287,62 @@ func (h *wsHub) removeClient(client *wsClient) {
 	client.close()
 	if roomID != 0 {
 		h.broadcastRoom(roomID, client.id, wsOutgoing{Type: "player_left", ID: client.id})
+		if hostChanged != nil {
+			h.broadcastRoom(roomID, 0, *hostChanged)
+		}
+		if botRoster != nil {
+			h.broadcastRoom(roomID, 0, *botRoster)
+		}
 	}
-	if hostChanged != nil && roomID != 0 {
-		h.broadcastRoom(roomID, 0, *hostChanged)
+}
+
+func botFromClient(client *wsClient, slot int) *wsBot {
+	class := clampClass(client.class)
+	maxHP := client.maxHP
+	if maxHP <= 0 {
+		maxHP = classBaseHP[class]
+	}
+	hp := client.hp
+	if hp <= 0 || hp > maxHP {
+		hp = maxHP
+	}
+	damage := client.attackDamage
+	if damage <= 0 {
+		damage = classBaseDamage[class]
+	}
+	x, y, z, rotation := client.x, client.y, client.z, client.rotation
+	if !client.hasState {
+		x = float64((slot%3)-1) * 2.0
+		y = 0.76
+		z = 27.5
+		rotation = 0.0
+		if slot/3 == 1 {
+			z = -27.5
+			rotation = math.Pi
+		}
+	}
+	if y <= 0 {
+		y = 0.76
+	}
+	name := client.name
+	if name == "" {
+		name = fmt.Sprintf("Игрок %d", client.id)
+	}
+	return &wsBot{
+		id:           -int64(slot + 1),
+		name:         name,
+		class:        class,
+		team:         slot / 3,
+		x:            x,
+		y:            y,
+		z:            z,
+		rotation:     rotation,
+		maxHP:        maxHP,
+		hp:           hp,
+		attackDamage: damage,
+		alive:        true,
+		hasState:     true,
+		lastAttacks:  make(map[string]time.Time),
 	}
 }
 
@@ -1484,7 +1542,9 @@ func (c *wsClient) trySend(data []byte) {
 func (c *wsClient) close() {
 	c.closeOnce.Do(func() {
 		close(c.done)
-		_ = c.conn.Close()
+		if c.conn != nil {
+			_ = c.conn.Close()
+		}
 	})
 }
 
