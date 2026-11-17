@@ -285,10 +285,10 @@ static func _build_grass_mesh() -> ArrayMesh:
 			var cx := (x + x1) * 0.5
 			var cz := (z + z1) * 0.5
 			if Vector2(cx, cz).length() >= PLAZA_RADIUS - 0.5:
-				var a := Vector3(x, _floor_height(x, z) + 0.13, z)
-				var b := Vector3(x1, _floor_height(x1, z) + 0.13, z)
-				var c := Vector3(x1, _floor_height(x1, z1) + 0.13, z1)
-				var d := Vector3(x, _floor_height(x, z1) + 0.13, z1)
+				var a := Vector3(x, _floor_height(x, z) + 0.08, z)
+				var b := Vector3(x1, _floor_height(x1, z) + 0.08, z)
+				var c := Vector3(x1, _floor_height(x1, z1) + 0.08, z1)
+				var d := Vector3(x, _floor_height(x, z1) + 0.08, z1)
 				for p in [a, b, c, a, c, d]:
 					st.set_color(_grass_color(p.x, p.z))
 					st.set_uv(Vector2(p.x, p.z) * 0.12)
