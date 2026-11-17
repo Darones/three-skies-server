@@ -631,6 +631,7 @@ static func ensure_arena_features(arena_root: Node3D) -> void:
 	_rebuild_decor(arena_root)
 	_ensure_decor_collisions(arena_root)
 	_ensure_navigation_region(arena_root)
+	_hide_legacy_island_visuals(arena_root)
 
 
 static var _occupied: Array = []
@@ -647,6 +648,18 @@ static func _is_free(p: Vector3, radius: float, extra: float) -> bool:
 
 static func _occupy(p: Vector3, radius: float) -> void:
 	_occupied.append({"pos": p, "radius": radius})
+
+
+static func _hide_legacy_island_visuals(arena_root: Node3D) -> void:
+	# Старые Floor/Cliffs/стены острова заменены GroundOverlay и ForestWalls.
+	# Скрываем их вместе с тенями, иначе сквозь траву проступают тёмные камни.
+	var island := arena_root.get_node_or_null("Island") as Node3D
+	if island == null:
+		return
+	for node in island.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		mi.visible = false
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 static func _rebuild_decor(arena_root: Node3D) -> void:
