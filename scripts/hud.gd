@@ -1046,7 +1046,7 @@ func _build_select(root: Control) -> void:
 	var subtitle := _make_label("Выбери героя света", 22, Color(0.85, 0.9, 1.0))
 	box.add_child(subtitle)
 
-	var classes := ["Воин — врывается и оглушает", "Маг — лечит и держит лозами", "Лучница — бьёт издалека и оглушает"]
+	var classes := ["Воин — врывается и оглушает", "Маг — лечит и держит лозами", "Арбалетчица — бьёт издалека и оглушает"]
 	for i in 3:
 		var button := Button.new()
 		button.custom_minimum_size = Vector2(640, 62)

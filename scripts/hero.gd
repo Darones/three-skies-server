@@ -131,8 +131,8 @@ const CLASS_DATA := {
 		],
 	},
 	Cls.FAIRY: {
-		"name": "Лучница",
-		"title": "Лучница",
+		"name": "Арбалетчица",
+		"title": "Арбалетчица",
 		"hp": 950.0,
 		"speed": 4.5,
 		"range": 11.0,

@@ -2997,7 +2997,7 @@ func _ability_index_from_event(event: InputEventKey) -> int:
 
 func objective_text() -> String:
 	if state == "select":
-		return "Выбери класс — 1 Воин · 2 Маг · 3 Лучница"
+		return "Выбери класс — 1 Воин · 2 Маг · 3 Арбалетчица"
 	if state == "over":
 		return ""
 	if crystal_state == "carried" and carrier != null and is_instance_valid(carrier):

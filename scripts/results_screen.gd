@@ -3,9 +3,9 @@ extends Control
 const CHARACTER_ART := [
 	"res://ui/portraits/warrior_portrait.png",
 	"res://ui/portraits/mage_portrait.png",
-	"res://ui/portraits/fairy_portrait.png",
+	"res://assets/ui/heroes/archer_keyart.webp",
 ]
-const CHARACTER_CLASS_NAMES := ["Воин", "Маг", "Лучница"]
+const CHARACTER_CLASS_NAMES := ["Воин", "Маг", "Арбалетчица"]
 const CHARACTER_KEYS := ["warrior", "mage", "fairy"]
 const REPLAY_SCENE := "res://scenes/LoadingScreen.tscn"
 const MENU_SCENE := "res://scenes/Lobby.tscn"

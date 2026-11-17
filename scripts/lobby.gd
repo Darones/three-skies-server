@@ -10,7 +10,7 @@ const HERO_CARD_ART := [
 	"res://assets/ui/heroes/mage_keyart.webp",
 	"res://assets/ui/heroes/archer_keyart.webp",
 ]
-const HERO_NAMES := ["Воин", "Маг", "Лучница"]
+const HERO_NAMES := ["Воин", "Маг", "Арбалетчица"]
 const CLASS_FRAME_COLORS := {
 	0: Color(0.95, 0.78, 0.36),
 	1: Color(0.45, 0.78, 1.0),
@@ -68,7 +68,7 @@ const GEAR_1H_SWORD_ICON: Texture2D = preload("res://ui/icons/gear_1h_sword.png"
 const GEAR_STAFF_ICON: Texture2D = preload("res://ui/icons/gear_staff.png")
 const GEAR_1H_CROSSBOW_ICON: Texture2D = preload("res://ui/icons/gear_1h_crossbow.png")
 const SHOP_HERO_TABS := [
-	{"key": "fairy", "class": 2, "name": "Лучница", "portrait": "res://ui/portraits/fairy_portrait.png"},
+	{"key": "fairy", "class": 2, "name": "Арбалетчица", "portrait": "res://assets/ui/heroes/archer_face.webp"},
 	{"key": "mage", "class": 1, "name": "Маг", "portrait": "res://ui/portraits/mage_portrait.png"},
 	{"key": "warrior", "class": 0, "name": "Воин", "portrait": "res://ui/portraits/warrior_portrait.png"},
 ]
