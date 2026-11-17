@@ -29,7 +29,7 @@ var reset_dialog: ConfirmationDialog
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	mobile_layout = OS.has_feature("mobile")
+	mobile_layout = OS.has_feature("mobile") or OS.get_cmdline_user_args().has("--mobile")
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	visible = false
 	_build_panel()

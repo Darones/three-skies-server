@@ -95,7 +95,7 @@ func _place_panel() -> void:
 	anchor_right = 0.0
 	anchor_bottom = 1.0
 	var bottom := -12.0
-	if OS.has_feature("mobile") or OS.has_feature("web") or OS.get_cmdline_user_args().has("--touch"):
+	if OS.has_feature("mobile") or OS.has_feature("web") or OS.get_cmdline_user_args().has("--touch") or OS.get_cmdline_user_args().has("--mobile"):
 		bottom = -264.0
 	offset_left = 12.0
 	offset_right = 278.0

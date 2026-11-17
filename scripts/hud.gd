@@ -570,9 +570,9 @@ func _build_top(root: Control) -> void:
 	var box := VBoxContainer.new()
 	box.name = "MatchInfo"
 	box.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	box.offset_left = -380.0 if OS.has_feature("mobile") else -360.0
+	box.offset_left = -380.0 if _mobile_ui() else -360.0
 	box.offset_top = 20.0
-	box.offset_right = -74.0 if OS.has_feature("mobile") else -20.0
+	box.offset_right = -74.0 if _mobile_ui() else -20.0
 	box.offset_bottom = 142.0
 	box.add_theme_constant_override("separation", 2)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -596,7 +596,7 @@ func _build_top(root: Control) -> void:
 	shell_timer_label.visible = false
 
 	_build_player_panel(root)
-	if OS.has_feature("mobile"):
+	if _mobile_ui():
 		pause_button = Button.new()
 		pause_button.name = "MobilePauseButton"
 		pause_button.text = "☰"
@@ -835,7 +835,7 @@ func _build_player_panel(root: Control) -> void:
 
 
 func _build_abilities(root: Control) -> void:
-	var is_mobile := OS.has_feature("mobile")
+	var is_mobile := _mobile_ui()
 	var row: Control
 	if is_mobile:
 		row = Control.new()
@@ -938,7 +938,7 @@ func _ability_style(_is_ready: bool, hovered: bool) -> StyleBoxFlat:
 	style.bg_color = base_color.lightened(0.12) if hovered else base_color
 	style.border_color = Color(0.45, 0.55, 0.7, 0.9)
 	style.set_border_width_all(2)
-	style.set_corner_radius_all(14 if OS.has_feature("mobile") else 12)
+	style.set_corner_radius_all(14 if _mobile_ui() else 12)
 	style.content_margin_left = 2.0
 	style.content_margin_right = 2.0
 	style.content_margin_top = 2.0
@@ -1067,7 +1067,11 @@ func _build_select(root: Control) -> void:
 
 
 func _uses_touch_controls() -> bool:
-	return OS.has_feature("mobile") or (OS.has_feature("web") and DisplayServer.is_touchscreen_available()) or OS.get_cmdline_user_args().has("--touch")
+	return OS.has_feature("mobile") or (OS.has_feature("web") and DisplayServer.is_touchscreen_available()) or OS.get_cmdline_user_args().has("--touch") or OS.get_cmdline_user_args().has("--mobile")
+
+
+func _mobile_ui() -> bool:
+	return OS.has_feature("mobile") or OS.get_cmdline_user_args().has("--mobile")
 
 
 func _build_shop(root: Control) -> void:
@@ -1077,6 +1081,7 @@ func _build_shop(root: Control) -> void:
 	shop_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	shop_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	shop_dim.visible = false
+	shop_dim.z_index = 20
 	root.add_child(shop_dim)
 
 	shop_panel = PanelContainer.new()
@@ -1092,6 +1097,7 @@ func _build_shop(root: Control) -> void:
 	shop_panel.custom_minimum_size = Vector2.ZERO
 	shop_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.68, 0.53, 0.29, 0.95), Color(0.035, 0.04, 0.065, 0.94)))
 	shop_panel.visible = false
+	shop_panel.z_index = 21
 	root.add_child(shop_panel)
 
 	var layout := VBoxContainer.new()
@@ -1386,7 +1392,7 @@ func _process(_delta: float) -> void:
 		for i in 3:
 			var data: Dictionary = HeroUnit.CLASS_DATA[p.hero_class]["abilities"][i]
 			ability_name_labels[i].text = str(ABILITY_SHORT_LABELS[p.hero_class][i])
-			if OS.has_feature("mobile"):
+			if _mobile_ui():
 				ability_key_labels[i].text = str(ABILITY_SHORT_LABELS[p.hero_class][i])
 			var cd: float = p.ability_cds[i]
 			var cooldown_length := maxf(0.001, float(data["cd"]) * (1.0 - p.cooldown_reduction))

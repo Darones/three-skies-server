@@ -2152,7 +2152,7 @@ func _open_results_screen() -> void:
 
 
 func _uses_touch_controls() -> bool:
-	return OS.has_feature("mobile") or (OS.has_feature("web") and DisplayServer.is_touchscreen_available())
+	return OS.has_feature("mobile") or (OS.has_feature("web") and DisplayServer.is_touchscreen_available()) or OS.get_cmdline_user_args().has("--mobile")
 
 
 func announce(text: String, color: Color, duration := 2.0) -> void:
