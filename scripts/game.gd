@@ -1345,10 +1345,14 @@ func nearest_gold_coin(from_position: Vector3) -> Node3D:
 
 
 func bot_has_affordable_shop_item(bot: HeroUnit) -> bool:
-	if bot == null or not is_instance_valid(bot) or bot.is_player:
+	if bot == null or not is_instance_valid(bot):
 		return false
+	if bot.is_player and not bot.afk_active:
+		return false
+	var wallet := gold if bot.is_player else bot.bot_gold
+	var purchased: Array = purchased_shop_items if bot.is_player else bot.bot_purchased_shop_items
 	for item in SHOP_ITEMS:
-		if String(item["id"]) not in bot.bot_purchased_shop_items and bot.bot_gold >= int(item["price"]):
+		if String(item["id"]) not in purchased and wallet >= int(item["price"]):
 			return true
 	return false
 
@@ -1358,21 +1362,29 @@ func bot_shop_goal() -> Vector3:
 
 
 func purchase_bot_shop_item(bot: HeroUnit) -> bool:
-	if state != "live" or bot == null or not is_instance_valid(bot) or bot.is_player or bot.dead:
+	if state != "live" or bot == null or not is_instance_valid(bot) or bot.dead:
+		return false
+	if bot.is_player and not bot.afk_active:
 		return false
 	if not is_hero_near_shop(bot):
 		return false
 	for item in SHOP_ITEMS:
 		var item_id := String(item["id"])
 		var price := int(item["price"])
-		if item_id in bot.bot_purchased_shop_items or bot.bot_gold < price:
-			continue
-		if not bot.apply_shop_item(item_id):
-			return false
-		bot.bot_gold -= price
-		bot.match_gold_spent += price
-		bot.bot_purchased_shop_items.append(item_id)
-		return true
+		if bot.is_player:
+			if item_id in purchased_shop_items or gold < price:
+				continue
+			if buy_item(item_id, true):
+				return true
+		else:
+			if item_id in bot.bot_purchased_shop_items or bot.bot_gold < price:
+				continue
+			if not bot.apply_shop_item(item_id):
+				return false
+			bot.bot_gold -= price
+			bot.match_gold_spent += price
+			bot.bot_purchased_shop_items.append(item_id)
+			return true
 	return false
 
 
@@ -1409,8 +1421,12 @@ func is_shop_item_available(item_id: String) -> bool:
 	return bool(tutorial_controller.call("can_buy_item", item_id))
 
 
-func buy_item(item_id: String) -> bool:
-	if not shop_open or player == null or item_id in purchased_shop_items:
+func buy_item(item_id: String, from_afk := false) -> bool:
+	if player == null or item_id in purchased_shop_items:
+		return false
+	if not shop_open and not from_afk:
+		return false
+	if from_afk and (state != "live" or not player.afk_active or not is_hero_near_shop(player)):
 		return false
 	if tutorial_mode and (tutorial_controller == null or not bool(tutorial_controller.call("can_buy_item", item_id))):
 		return false
