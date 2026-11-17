@@ -70,6 +70,7 @@ var shop_panel: PanelContainer
 var shop_dim: ColorRect
 var shop_buttons: Dictionary = {}
 var ability_row: Control
+var touch_joystick: Control
 var announce_tween: Tween
 var pause_button: Button
 var pause_overlay: Control
@@ -188,6 +189,7 @@ func _build_touch_joystick(root: Control) -> void:
 	joystick.offset_right = 240.0
 	joystick.offset_bottom = 0.0
 	joystick.mouse_filter = Control.MOUSE_FILTER_STOP
+	touch_joystick = joystick
 	root.add_child(joystick)
 
 
@@ -1041,7 +1043,7 @@ func _build_select(root: Control) -> void:
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	select_panel.add_child(box)
 
-	var title := _make_label("ОСКОЛКИ НЕБА", 56, GOLD)
+	var title := _make_label("НЕБЕСНЫЕ ОСКОЛКИ", 56, GOLD)
 	box.add_child(title)
 	var subtitle := _make_label("Выбери героя света", 22, Color(0.85, 0.9, 1.0))
 	box.add_child(subtitle)
@@ -1355,6 +1357,8 @@ func _process(_delta: float) -> void:
 	_update_low_health_vignette(_delta)
 	if game == null:
 		return
+	if touch_joystick != null:
+		touch_joystick.visible = game.state != "select"
 	if game.player != null and is_instance_valid(game.player) and game.player.hero_class != icon_class:
 		icon_class = game.player.hero_class
 		_refresh_ability_icons(icon_class)
