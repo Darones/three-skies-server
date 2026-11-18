@@ -358,3 +358,49 @@ func TestDisconnectReplacesHumanWithBot(t *testing.T) {
 		t.Fatalf("bot_roster missing replacement bot: %+v", messages[2].Bots)
 	}
 }
+
+func TestMatchmakingRestartsBotTimerForEachJoin(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	first := newTestClient(1, 0, 0, 0)
+	second := newTestClient(2, 0, 0, 0)
+	third := newTestClient(3, 0, 0, 0)
+
+	hub.joinMatchmaking(first, wsIncoming{PlayerID: 101, Name: "First", Class: 0})
+	hub.mu.Lock()
+	roomID := first.roomID
+	room := hub.rooms[roomID]
+	firstTimer := room.fillTimer
+	hub.mu.Unlock()
+	if roomID == 0 || room == nil || firstTimer == nil {
+		t.Fatal("first player did not create a waiting room with a bot timer")
+	}
+
+	hub.joinMatchmaking(second, wsIncoming{PlayerID: 102, Name: "Second", Class: 1})
+	hub.mu.Lock()
+	secondTimer := room.fillTimer
+	hub.mu.Unlock()
+	if second.roomID != roomID {
+		t.Fatalf("second player joined room %d, want %d", second.roomID, roomID)
+	}
+	if secondTimer == firstTimer {
+		t.Fatal("bot timer was not restarted for the second player")
+	}
+
+	hub.joinMatchmaking(third, wsIncoming{PlayerID: 103, Name: "Third", Class: 2})
+	hub.mu.Lock()
+	thirdTimer := room.fillTimer
+	humans := room.humanCount
+	if thirdTimer != nil {
+		thirdTimer.Stop()
+	}
+	hub.mu.Unlock()
+	if third.roomID != roomID {
+		t.Fatalf("third player joined room %d, want %d", third.roomID, roomID)
+	}
+	if thirdTimer == secondTimer {
+		t.Fatal("bot timer was not restarted for the third player")
+	}
+	if humans != 3 {
+		t.Fatalf("expected 3 humans in one room, got %d", humans)
+	}
+}

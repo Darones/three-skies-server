@@ -22,10 +22,11 @@ const (
 	wsMaxMessageSize = 16384
 	wsSendBuffer     = 64
 
-	roomSlots        = 6
-	// Временное значение для тестов: боты заполняют комнату через 15 секунд.
-	// Перед релизом вернуть 30 * time.Second.
-	roomBotFillDelay = 15 * time.Second
+	roomSlots = 6
+	// Боты заполняют комнату через 30 секунд после последнего живого игрока.
+	// Таймер перезапускается на каждом входе, чтобы друзья, зашедшие с
+	// разницей в 10-25 секунд (телефон/ПК/загрузка), попали в одну комнату.
+	roomBotFillDelay = 30 * time.Second
 
 	matchLength      = 10 * time.Minute
 	crystalsToWin    = 3
@@ -383,8 +384,14 @@ func (h *wsHub) joinMatchmaking(client *wsClient, message wsIncoming) {
 	if room.hostID == 0 {
 		room.hostID = client.id
 	}
-	if room.fillTimer == nil && room.humanCount < roomSlots {
+	if room.humanCount < roomSlots {
+		// Restart the bot-fill countdown on every human join. Without this,
+		// a player joining a few seconds after the first one could land in
+		// a room that already started with bots, and everyone got split.
 		roomID := room.id
+		if room.fillTimer != nil {
+			room.fillTimer.Stop()
+		}
 		room.fillTimer = time.AfterFunc(roomBotFillDelay, func() { h.startRoom(roomID) })
 	}
 
