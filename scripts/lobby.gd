@@ -229,6 +229,18 @@ func _ready() -> void:
 		MetaProgression.load_profile(MetaProgression.player_id)
 	_setup_ui_click_sound()
 	_wire_ui_click_sounds(self)
+	if OS.get_cmdline_user_args().has("--auto-play"):
+		_auto_play_after_delay()
+	if OS.get_cmdline_user_args().has("--shop-lobby-preview"):
+		_open_shard_shop()
+	if OS.get_cmdline_user_args().has("--settings-preview"):
+		_open_settings()
+
+
+func _auto_play_after_delay() -> void:
+	await get_tree().create_timer(1.0).timeout
+	if is_inside_tree():
+		_start_battle()
 
 
 func _setup_ui_click_sound() -> void:
@@ -403,12 +415,12 @@ func _build_player_profile() -> void:
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(info)
 	profile_name_label = _make_label("Игрок", 24, PALE)
-	profile_name_label.add_theme_font_size_override("font_size", 24)
+	profile_name_label.add_theme_font_size_override("font_size", _fs(24))
 	profile_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_name_label.clip_text = true
 	info.add_child(profile_name_label)
 	profile_level_label = _make_label("Уровень 1", 16, Color(0.7, 0.75, 0.84))
-	profile_level_label.add_theme_font_size_override("font_size", 16)
+	profile_level_label.add_theme_font_size_override("font_size", _fs(16))
 	profile_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	info.add_child(profile_level_label)
 	experience_bar = ProgressBar.new()
@@ -433,10 +445,11 @@ func _build_player_profile() -> void:
 	var xp_row := HBoxContainer.new()
 	xp_row.add_theme_constant_override("separation", 4)
 	xp_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	xp_row.visible = not DeviceProfile.mobile_ui
 	info.add_child(xp_row)
 	profile_xp_label = _make_label("", 11, Color(0.62, 0.7, 0.82))
 	profile_xp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	profile_xp_label.add_theme_font_size_override("font_size", 11)
+	profile_xp_label.add_theme_font_size_override("font_size", _fs(11))
 	profile_xp_label.clip_text = false
 	profile_xp_label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	xp_row.add_child(profile_xp_label)
@@ -470,7 +483,7 @@ func _build_shard_shop_button() -> void:
 	balance_row.add_child(shard_amount_label)
 	balance_row.add_child(_shard_icon(30))
 	content.add_child(balance_row)
-	content.add_child(_make_label("Магазин", 16, Color(0.72, 0.77, 0.86)))
+	content.add_child(_make_label("Магазин", 20 if DeviceProfile.mobile_ui else 16, Color(0.72, 0.77, 0.86)))
 
 
 func _build_shard_shop() -> void:
@@ -485,10 +498,16 @@ func _build_shard_shop() -> void:
 
 	shop_panel = PanelContainer.new()
 	shop_panel.name = "ShardShopPanel"
-	shop_panel.anchor_left = 0.11
-	shop_panel.anchor_top = 0.09
-	shop_panel.anchor_right = 0.89
-	shop_panel.anchor_bottom = 0.91
+	if DeviceProfile.mobile_ui:
+		shop_panel.anchor_left = 0.04
+		shop_panel.anchor_top = 0.05
+		shop_panel.anchor_right = 0.96
+		shop_panel.anchor_bottom = 0.95
+	else:
+		shop_panel.anchor_left = 0.11
+		shop_panel.anchor_top = 0.09
+		shop_panel.anchor_right = 0.89
+		shop_panel.anchor_bottom = 0.91
 	shop_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.78, 0.62, 0.32), Color(0.035, 0.045, 0.07, 0.98)))
 	shard_shop_overlay.add_child(shop_panel)
 
@@ -520,12 +539,12 @@ func _build_shard_shop() -> void:
 	var topup_button := _make_action_button("КУПИТЬ ОСКОЛКИ", true)
 	topup_button.name = "TopupButton"
 	topup_button.custom_minimum_size = Vector2(230, 46)
-	topup_button.add_theme_font_size_override("font_size", 16)
+	topup_button.add_theme_font_size_override("font_size", _fs(16))
 	topup_button.pressed.connect(_open_topup_panel)
 	header.add_child(topup_button)
 	var close_button := _make_action_button("×", false)
 	close_button.custom_minimum_size = Vector2(46, 46)
-	close_button.add_theme_font_size_override("font_size", 24)
+	close_button.add_theme_font_size_override("font_size", _fs(24))
 	close_button.pressed.connect(_close_shard_shop)
 	header.add_child(close_button)
 
@@ -545,7 +564,7 @@ func _build_shard_shop() -> void:
 		tab_button.custom_minimum_size = Vector2(210, 58)
 		tab_button.focus_mode = Control.FOCUS_NONE
 		tab_button.add_theme_font_override("font", font)
-		tab_button.add_theme_font_size_override("font_size", 18)
+		tab_button.add_theme_font_size_override("font_size", _fs(18))
 		tab_button.add_theme_constant_override("icon_max_width", 44)
 		tab_button.pressed.connect(_select_shop_hero.bind(i))
 		tabs.add_child(tab_button)
@@ -559,7 +578,7 @@ func _build_shard_shop() -> void:
 	var left_button := _make_action_button("‹", false)
 	left_button.custom_minimum_size = Vector2(34, 34)
 	left_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	left_button.add_theme_font_size_override("font_size", 20)
+	left_button.add_theme_font_size_override("font_size", _fs(20))
 	left_button.pressed.connect(_change_shop_page.bind(-1))
 	cards_area.add_child(left_button)
 	shop_cards_row = HBoxContainer.new()
@@ -571,7 +590,7 @@ func _build_shard_shop() -> void:
 	var right_button := _make_action_button("›", false)
 	right_button.custom_minimum_size = Vector2(34, 34)
 	right_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	right_button.add_theme_font_size_override("font_size", 20)
+	right_button.add_theme_font_size_override("font_size", _fs(20))
 	right_button.pressed.connect(_change_shop_page.bind(1))
 	cards_area.add_child(right_button)
 
@@ -687,7 +706,7 @@ func _make_shop_card(item: Dictionary) -> Control:
 		preview.texture = item["icon"] as Texture2D
 	else:
 		preview.texture = load(String(item["preview"])) as Texture2D
-	preview.custom_minimum_size = Vector2(0, 210)
+	preview.custom_minimum_size = Vector2(0, 120 if DeviceProfile.mobile_ui else 210)
 	preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -713,7 +732,7 @@ func _make_shop_card(item: Dictionary) -> Control:
 	var buy_button := _make_action_button(button_text, not owned and affordable and profile_ready)
 	buy_button.name = "ShopBuy_%s%d" % [String(item["type"]), int(item["id"])]
 	buy_button.custom_minimum_size = Vector2(0, 40)
-	buy_button.add_theme_font_size_override("font_size", 16)
+	buy_button.add_theme_font_size_override("font_size", _fs(16))
 	buy_button.disabled = owned or pending or not profile_ready
 	buy_button.pressed.connect(_on_shop_item_pressed.bind(item))
 	content.add_child(buy_button)
@@ -832,7 +851,7 @@ func _build_info_popup() -> void:
 	info_ok_button.focus_mode = Control.FOCUS_ALL
 	info_ok_button.custom_minimum_size = Vector2(210, 46)
 	info_ok_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	info_ok_button.add_theme_font_size_override("font_size", 17)
+	info_ok_button.add_theme_font_size_override("font_size", _fs(17))
 	info_ok_button.pressed.connect(_hide_info_popup)
 	content.add_child(info_ok_button)
 
@@ -1053,12 +1072,12 @@ func _build_player_menu() -> void:
 	var report_button := _make_action_button("Пожаловаться", false)
 	report_button.name = "ReportPlayerButton"
 	report_button.custom_minimum_size = Vector2(150, 44)
-	report_button.add_theme_font_size_override("font_size", 14)
+	report_button.add_theme_font_size_override("font_size", _fs(14))
 	report_button.pressed.connect(_open_report_form)
 	header.add_child(report_button)
 	var close_button := _make_action_button("×", false)
 	close_button.custom_minimum_size = Vector2(46, 44)
-	close_button.add_theme_font_size_override("font_size", 25)
+	close_button.add_theme_font_size_override("font_size", _fs(25))
 	close_button.pressed.connect(_close_player_menu)
 	header.add_child(close_button)
 
@@ -1092,7 +1111,7 @@ func _build_player_menu() -> void:
 	var change_nickname_button := _make_action_button("Сменить ник", false)
 	change_nickname_button.name = "NicknameChangeButton"
 	change_nickname_button.custom_minimum_size = Vector2(140, 42)
-	change_nickname_button.add_theme_font_size_override("font_size", 14)
+	change_nickname_button.add_theme_font_size_override("font_size", _fs(14))
 	change_nickname_button.pressed.connect(_open_nickname_popup)
 	nickname_row.add_child(change_nickname_button)
 	nickname_status_label = _make_label("", 15, Color(0.58, 0.9, 0.64))
@@ -1167,7 +1186,7 @@ func _build_player_menu() -> void:
 		var tab_button := _make_action_button(String(tab_def[1]), false)
 		tab_button.custom_minimum_size = Vector2(0, 28)
 		tab_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		tab_button.add_theme_font_size_override("font_size", 13)
+		tab_button.add_theme_font_size_override("font_size", _fs(13))
 		tab_button.pressed.connect(_set_stats_tab.bind(String(tab_def[0])))
 		stats_tabs.add_child(tab_button)
 		stats_tab_buttons[String(tab_def[0])] = tab_button
@@ -1194,7 +1213,7 @@ func _build_player_menu() -> void:
 	var previous_hero_button := _make_action_button("◀", false)
 	previous_hero_button.name = "PreviousHeroButton"
 	previous_hero_button.custom_minimum_size = Vector2(46, 40)
-	previous_hero_button.add_theme_font_size_override("font_size", 19)
+	previous_hero_button.add_theme_font_size_override("font_size", _fs(19))
 	previous_hero_button.pressed.connect(_cycle_selected_hero.bind(-1))
 	hero_selector.add_child(previous_hero_button)
 	menu_hero_name_label = _make_label("Воин", 20, PALE)
@@ -1203,7 +1222,7 @@ func _build_player_menu() -> void:
 	var next_hero_button := _make_action_button("▶", false)
 	next_hero_button.name = "NextHeroButton"
 	next_hero_button.custom_minimum_size = Vector2(46, 40)
-	next_hero_button.add_theme_font_size_override("font_size", 19)
+	next_hero_button.add_theme_font_size_override("font_size", _fs(19))
 	next_hero_button.pressed.connect(_cycle_selected_hero.bind(1))
 	hero_selector.add_child(next_hero_button)
 	var portrait_frame := PanelContainer.new()
@@ -1270,7 +1289,7 @@ func _build_player_menu() -> void:
 	default_content.add_child(default_weapon_status)
 	default_weapon_button = _make_action_button("Надето", false)
 	default_weapon_button.custom_minimum_size = Vector2(0, 28)
-	default_weapon_button.add_theme_font_size_override("font_size", 11)
+	default_weapon_button.add_theme_font_size_override("font_size", _fs(11))
 	default_weapon_button.pressed.connect(_on_default_weapon_pressed)
 	default_content.add_child(default_weapon_button)
 	var weapon_specs := [
@@ -1301,7 +1320,7 @@ func _build_player_menu() -> void:
 		var weapon_button := _make_action_button("Купить", false)
 		weapon_button.name = "WeaponInventoryButton%d" % weapon_id
 		weapon_button.custom_minimum_size = Vector2(0, 28)
-		weapon_button.add_theme_font_size_override("font_size", 11)
+		weapon_button.add_theme_font_size_override("font_size", _fs(11))
 		weapon_button.pressed.connect(_on_inventory_weapon_pressed.bind(weapon_id))
 		weapon_content.add_child(weapon_button)
 		weapon_inventory_statuses[weapon_id] = weapon_status
@@ -1410,7 +1429,7 @@ func _build_wing_inventory_cards(inventory_grid: GridContainer) -> void:
 		var button := _make_action_button("Купить", false)
 		button.name = "WingInventoryButton%d" % wing_id
 		button.custom_minimum_size = Vector2(0, 28)
-		button.add_theme_font_size_override("font_size", 11)
+		button.add_theme_font_size_override("font_size", _fs(11))
 		button.pressed.connect(_on_inventory_wing_pressed.bind(wing_id))
 		content.add_child(button)
 		wing_inventory_cards[wing_id] = card
@@ -1501,7 +1520,7 @@ func _build_nickname_popup() -> void:
 	header.add_child(title)
 	var close_button := _make_action_button("×", false)
 	close_button.custom_minimum_size = Vector2(42, 40)
-	close_button.add_theme_font_size_override("font_size", 22)
+	close_button.add_theme_font_size_override("font_size", _fs(22))
 	close_button.pressed.connect(_close_nickname_popup)
 	header.add_child(close_button)
 	var hint := _make_label("Никнейм видят все игроки. От 3 до 12 символов.", 15, Color(0.76, 0.8, 0.89))
@@ -1519,7 +1538,7 @@ func _build_nickname_popup() -> void:
 	nickname_line_edit.focus_mode = Control.FOCUS_ALL
 	nickname_line_edit.caret_blink = true
 	nickname_line_edit.add_theme_font_override("font", font)
-	nickname_line_edit.add_theme_font_size_override("font_size", 20)
+	nickname_line_edit.add_theme_font_size_override("font_size", _fs(20))
 	nickname_line_edit.text_submitted.connect(_on_nickname_submitted)
 	content.add_child(nickname_line_edit)
 	nickname_popup_status_label = _make_label("", 15, Color(0.58, 0.9, 0.64))
@@ -1540,12 +1559,12 @@ func _build_nickname_popup() -> void:
 	content.add_child(buttons)
 	var cancel_button := _make_action_button("Отмена", false)
 	cancel_button.custom_minimum_size = Vector2(150, 46)
-	cancel_button.add_theme_font_size_override("font_size", 17)
+	cancel_button.add_theme_font_size_override("font_size", _fs(17))
 	cancel_button.pressed.connect(_close_nickname_popup)
 	buttons.add_child(cancel_button)
 	var save_button := _make_action_button("Сохранить", true)
 	save_button.custom_minimum_size = Vector2(170, 46)
-	save_button.add_theme_font_size_override("font_size", 17)
+	save_button.add_theme_font_size_override("font_size", _fs(17))
 	save_button.pressed.connect(_save_player_nickname)
 	buttons.add_child(save_button)
 
@@ -1787,12 +1806,12 @@ func _build_rename_confirm() -> void:
 	content.add_child(buttons)
 	var cancel_button := _make_action_button("Отмена", false)
 	cancel_button.custom_minimum_size = Vector2(150, 46)
-	cancel_button.add_theme_font_size_override("font_size", 17)
+	cancel_button.add_theme_font_size_override("font_size", _fs(17))
 	cancel_button.pressed.connect(_close_rename_confirm)
 	buttons.add_child(cancel_button)
 	var confirm_button := _make_action_button("Сменить", true)
 	confirm_button.custom_minimum_size = Vector2(150, 46)
-	confirm_button.add_theme_font_size_override("font_size", 17)
+	confirm_button.add_theme_font_size_override("font_size", _fs(17))
 	confirm_button.pressed.connect(_confirm_rename)
 	buttons.add_child(confirm_button)
 
@@ -1851,7 +1870,7 @@ func _build_report_form() -> void:
 	header.add_child(title)
 	var close_button := _make_action_button("×", false)
 	close_button.custom_minimum_size = Vector2(42, 40)
-	close_button.add_theme_font_size_override("font_size", 22)
+	close_button.add_theme_font_size_override("font_size", _fs(22))
 	close_button.pressed.connect(_close_report_form)
 	header.add_child(close_button)
 	var nickname_label := _make_label("Ник игрока", 15, PALE)
@@ -1871,7 +1890,7 @@ func _build_report_form() -> void:
 	report_reason_option.name = "ReportReason"
 	report_reason_option.custom_minimum_size = Vector2(0, 42)
 	report_reason_option.add_theme_font_override("font", font)
-	report_reason_option.add_theme_font_size_override("font_size", 15)
+	report_reason_option.add_theme_font_size_override("font_size", _fs(15))
 	report_reason_option.add_item("Оскорбительный ник")
 	report_reason_option.add_item("Читы / нечестная игра")
 	report_reason_option.add_item("Другое")
@@ -1886,13 +1905,13 @@ func _build_report_form() -> void:
 	content.add_child(buttons)
 	var cancel_button := _make_action_button("Отмена", false)
 	cancel_button.custom_minimum_size = Vector2(150, 46)
-	cancel_button.add_theme_font_size_override("font_size", 17)
+	cancel_button.add_theme_font_size_override("font_size", _fs(17))
 	cancel_button.pressed.connect(_close_report_form)
 	buttons.add_child(cancel_button)
 	report_submit_button = _make_action_button("Отправить", true)
 	report_submit_button.name = "ReportSubmit"
 	report_submit_button.custom_minimum_size = Vector2(150, 46)
-	report_submit_button.add_theme_font_size_override("font_size", 17)
+	report_submit_button.add_theme_font_size_override("font_size", _fs(17))
 	report_submit_button.pressed.connect(_submit_report)
 	buttons.add_child(report_submit_button)
 
@@ -2089,23 +2108,24 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 	card.anchor_right = 0.5
 	card.anchor_bottom = 0.5
 	var card_width := 260.0 if is_center else 160.0
-	var card_height := 400.0 if is_center else 260.0
+	var card_height := 400.0 if is_center else (250.0 if DeviceProfile.mobile_ui else 260.0)
 	var footer_height := 46.0 if is_center else 38.0
 	var frame_color: Color = CLASS_FRAME_COLORS.get(slot_classes[slot], GOLD)
 	card.custom_minimum_size = Vector2(card_width, card_height)
+	var mobile := DeviceProfile.mobile_ui
 	if is_center:
 		card.offset_left = -130.0
-		card.offset_top = -140.0
+		card.offset_top = -180.0 if mobile else -140.0
 		card.offset_right = 130.0
-		card.offset_bottom = 260.0
+		card.offset_bottom = 220.0 if mobile else 260.0
 		card.z_index = 2
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	else:
 		var side_offset := -310.0 if slot == 0 else 150.0
 		card.offset_left = side_offset
-		card.offset_top = -135.0
+		card.offset_top = -170.0 if mobile else -135.0
 		card.offset_right = side_offset + 160.0
-		card.offset_bottom = 125.0
+		card.offset_bottom = 80.0 if mobile else 125.0
 		card.z_index = 1
 	card.add_theme_stylebox_override("normal", _card_style(is_center, false, frame_color))
 	card.add_theme_stylebox_override("hover", _card_style(is_center, not is_center, frame_color))
@@ -2143,7 +2163,8 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 	footer.add_theme_stylebox_override("panel", _card_footer_style(frame_color))
 	card.add_child(footer)
 
-	var name_label := _make_label("", 20 if is_center else 15, PALE)
+	var name_size := 22 if is_center else (20 if DeviceProfile.mobile_ui else 15)
+	var name_label := _make_label("", name_size, PALE)
 	name_label.name = "HeroName%d" % slot
 	name_label.anchor_left = 0.0
 	name_label.anchor_top = 0.0
@@ -2185,7 +2206,7 @@ func _build_actions() -> void:
 	play_button.offset_right = -45.0
 	play_button.offset_bottom = -108.0
 	play_button.custom_minimum_size = Vector2(300.0, 72.0)
-	play_button.add_theme_font_size_override("font_size", 26)
+	play_button.add_theme_font_size_override("font_size", _fs(26))
 	play_button.add_theme_color_override("font_color", Color(0.16, 0.1, 0.02))
 	play_button.add_theme_color_override("font_hover_color", Color(0.1, 0.06, 0.01))
 	play_button.add_theme_color_override("font_pressed_color", Color(0.1, 0.06, 0.01))
@@ -2208,7 +2229,7 @@ func _build_actions() -> void:
 	tutorial_button.offset_right = -45.0
 	tutorial_button.offset_bottom = -28.0
 	tutorial_button.custom_minimum_size = Vector2(300.0, 72.0)
-	tutorial_button.add_theme_font_size_override("font_size", 22)
+	tutorial_button.add_theme_font_size_override("font_size", _fs(22))
 	tutorial_button.pressed.connect(_start_tutorial)
 	add_child(tutorial_button)
 	_refresh_tutorial_button()
@@ -2235,7 +2256,7 @@ func _build_actions() -> void:
 	gear_icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	gear_icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	gear_icon.add_theme_font_override("font", font)
-	gear_icon.add_theme_font_size_override("font_size", 28)
+	gear_icon.add_theme_font_size_override("font_size", _fs(28))
 	gear_icon.add_theme_color_override("font_color", PALE)
 	gear_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	settings_button.add_child(gear_icon)
@@ -2333,7 +2354,10 @@ func _refresh_player_profile() -> void:
 			var next_level_xp := MetaProgression.get_xp_for_next_level(character_key)
 			var remaining := maxi(0, next_level_xp - character_xp)
 			var reward := MetaProgression.get_shard_reward_for_level(character_level + 1)
-			profile_xp_label.text = "До уровня: %d XP · %d" % [remaining, reward]
+			if DeviceProfile.mobile_ui:
+				profile_xp_label.text = "%d XP · %d" % [remaining, reward]
+			else:
+				profile_xp_label.text = "До уровня: %d XP · %d" % [remaining, reward]
 	if MetaProgression.consume_level_up_for(character_key):
 		profile_level_label.add_theme_color_override('font_color', GOLD)
 		profile_level_label.add_theme_color_override('font_shadow_color', Color(1.0, 0.68, 0.12, 0.95))
@@ -2495,7 +2519,7 @@ func _make_action_button(text: String, primary: bool) -> Button:
 	button.custom_minimum_size = Vector2(190, 54)
 	button.focus_mode = Control.FOCUS_NONE
 	button.add_theme_font_override("font", font)
-	button.add_theme_font_size_override("font_size", 20)
+	button.add_theme_font_size_override("font_size", _fs(20))
 	button.add_theme_color_override("font_color", GOLD if primary else PALE)
 	button.add_theme_color_override("font_hover_color", Color.WHITE)
 	button.add_theme_stylebox_override("normal", _action_style(primary, false))
@@ -2607,7 +2631,7 @@ func _make_label(text: String, size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
 	label.add_theme_font_override("font", font)
-	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_font_size_override("font_size", _fs(size))
 	label.add_theme_color_override("font_color", color)
 	label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.7))
 	label.add_theme_constant_override("shadow_offset_x", 1)
@@ -2616,3 +2640,9 @@ func _make_label(text: String, size: int, color: Color) -> Label:
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
+
+
+func _fs(size: int) -> int:
+	if DeviceProfile.mobile_ui:
+		return maxi(size, 18)
+	return size

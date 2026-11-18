@@ -187,7 +187,7 @@ func _add_back_button() -> void:
 	back_button.offset_top = -28.0
 	back_button.offset_bottom = 28.0
 	back_button.add_theme_font_override('font', FONT)
-	back_button.add_theme_font_size_override('font_size', 20)
+	back_button.add_theme_font_size_override('font_size', _fs(20))
 	back_button.pressed.connect(func() -> void: get_tree().change_scene_to_file('res://scenes/Lobby.tscn'))
 	add_child(back_button)
 
@@ -529,7 +529,7 @@ func _make_label(text: String, font_size: int, color: Color) -> Label:
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.add_theme_font_override('font', FONT)
-	label.add_theme_font_size_override('font_size', font_size)
+	label.add_theme_font_size_override('font_size', _fs(font_size))
 	label.add_theme_color_override('font_color', color)
 	label.add_theme_color_override('font_shadow_color', Color(0.01, 0.01, 0.02, 0.8))
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -541,3 +541,9 @@ const TIPS := [
 	'\u0415\u0441\u043b\u0438 \u043d\u043e\u0441\u0438\u043b\u044c\u0449\u0438\u043a \u041a\u0440\u0438\u0441\u0442\u0430\u043b\u043b\u0430 \u043f\u043e\u0433\u0438\u0431\u043d\u0435\u0442, \u041a\u0440\u0438\u0441\u0442\u0430\u043b\u043b \u0443\u043f\u0430\u0434\u0435\u0442 \u043d\u0430 \u0437\u0435\u043c\u043b\u044e. \u0421\u043a\u043e\u0440\u0435\u0435 \u043f\u043e\u0434\u0431\u0435\u0440\u0438\u0442\u0435 \u0435\u0433\u043e!',
 ]
 
+
+
+func _fs(size: int) -> int:
+	if DeviceProfile.mobile_ui:
+		return maxi(size, 18)
+	return size

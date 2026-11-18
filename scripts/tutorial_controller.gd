@@ -254,7 +254,7 @@ func _save_completion() -> void:
 
 
 func _uses_touch_controls() -> bool:
-	return OS.has_feature("mobile") or (OS.has_feature("web") and DisplayServer.is_touchscreen_available()) or OS.get_cmdline_user_args().has("--mobile")
+	return DeviceProfile.touch_controls
 
 
 func _ability_name(index: int) -> String:

@@ -126,7 +126,7 @@ func _make_tab_button(text: String, active: bool) -> Button:
 	button.focus_mode = Control.FOCUS_NONE
 	button.custom_minimum_size = Vector2(0.0, 38.0)
 	button.add_theme_font_override("font", font)
-	button.add_theme_font_size_override("font_size", 18)
+	button.add_theme_font_size_override("font_size", _fs(18))
 	button.add_theme_color_override("font_color", GOLD if active else Color(0.6, 0.63, 0.71))
 	button.add_theme_color_override("font_hover_color", Color(1.0, 0.94, 0.78))
 	button.add_theme_color_override("font_pressed_color", Color.WHITE)
@@ -252,47 +252,49 @@ void fragment() {
 
 
 func _build_header() -> void:
+	var mobile := DeviceProfile.mobile_ui
 	var title_color := GOLD if player_won else Color(0.9, 0.3, 0.29)
-	var title := _make_label("ПОБЕДА" if player_won else "ПОРАЖЕНИЕ", 68, title_color)
+	var title := _make_label("ПОБЕДА" if player_won else "ПОРАЖЕНИЕ", 44 if mobile else 68, title_color)
 	title.name = "ResultTitle"
 	title.anchor_left = 0.08
-	title.anchor_top = 0.035
+	title.anchor_top = 0.015 if mobile else 0.035
 	title.anchor_right = 0.92
-	title.anchor_bottom = 0.145
+	title.anchor_bottom = 0.105 if mobile else 0.145
 	add_child(title)
 
 	var subtitle_text := "ИТОГИ МАТЧА  ·  СВЕТ %d : %d ТЬМА" % [int(score[0]), int(score[1])]
-	var subtitle := _make_label(subtitle_text, 17, Color(0.76, 0.78, 0.84))
+	var subtitle := _make_label(subtitle_text, 18 if mobile else 17, Color(0.76, 0.78, 0.84))
 	subtitle.name = "MatchSummary"
 	subtitle.anchor_left = 0.08
-	subtitle.anchor_top = 0.137
+	subtitle.anchor_top = 0.105 if mobile else 0.137
 	subtitle.anchor_right = 0.92
-	subtitle.anchor_bottom = 0.18
+	subtitle.anchor_bottom = 0.145 if mobile else 0.18
 	add_child(subtitle)
 
 	var placement_text := "ВЫ ЛУЧШИЙ ИГРОК МАТЧА!" if player_is_mvp else "ВАШЕ МЕСТО: %d" % player_place
-	var placement := _make_label(placement_text, 29, GOLD if player_is_mvp else PALE)
+	var placement := _make_label(placement_text, 26 if mobile else 29, GOLD if player_is_mvp else PALE)
 	placement.name = "PlayerPlacement"
 	placement.anchor_left = 0.08
-	placement.anchor_top = 0.184
+	placement.anchor_top = 0.148 if mobile else 0.184
 	placement.anchor_right = 0.92
-	placement.anchor_bottom = 0.238
+	placement.anchor_bottom = 0.198 if mobile else 0.238
 	add_child(placement)
 
 
 func _build_content() -> void:
+	var mobile := DeviceProfile.mobile_ui
 	var content := HBoxContainer.new()
 	content.name = "ResultsContent"
-	content.anchor_left = 0.12
-	content.anchor_top = 0.27
-	content.anchor_right = 0.88
-	content.anchor_bottom = 0.755
-	content.add_theme_constant_override("separation", 30)
+	content.anchor_left = 0.05 if mobile else 0.12
+	content.anchor_top = 0.20 if mobile else 0.27
+	content.anchor_right = 0.95 if mobile else 0.88
+	content.anchor_bottom = 0.74 if mobile else 0.755
+	content.add_theme_constant_override("separation", 16 if mobile else 30)
 	add_child(content)
 
 	var portrait_panel := _make_panel(Color(0.43, 0.39, 0.3, 0.9))
 	portrait_panel.name = "PortraitPanel"
-	portrait_panel.custom_minimum_size = Vector2(350.0, 0.0)
+	portrait_panel.custom_minimum_size = Vector2(280.0 if DeviceProfile.mobile_ui else 350.0, 0.0)
 	portrait_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(portrait_panel)
 	var portrait_content := VBoxContainer.new()
@@ -313,7 +315,7 @@ func _build_content() -> void:
 		portrait_atlas.atlas = portrait_source
 		portrait_atlas.region = Rect2(0.0, portrait_source.get_height() * 0.03, portrait_source.get_width(), portrait_source.get_height() * 0.70)
 		portrait.texture = portrait_atlas
-	portrait.custom_minimum_size = Vector2(0.0, 220.0)
+	portrait.custom_minimum_size = Vector2(0.0, 130.0 if DeviceProfile.mobile_ui else 220.0)
 	portrait.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -387,9 +389,9 @@ func _build_content() -> void:
 
 	double_reward_button = _make_button("", true)
 	double_reward_button.name = "DoubleRewardsButton"
-	double_reward_button.custom_minimum_size = Vector2(420.0, 40.0)
+	double_reward_button.custom_minimum_size = Vector2(300.0 if DeviceProfile.mobile_ui else 420.0, 40.0)
 	double_reward_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	double_reward_button.add_theme_font_size_override("font_size", 16)
+	double_reward_button.add_theme_font_size_override("font_size", _fs(16))
 	double_reward_button.add_theme_color_override("font_color", Color(0.18, 0.11, 0.02))
 	double_reward_button.add_theme_color_override("font_hover_color", Color(0.12, 0.075, 0.01))
 	double_reward_button.add_theme_color_override("font_pressed_color", Color(0.12, 0.075, 0.01))
@@ -447,14 +449,15 @@ func _make_stat_row(label_text: String, value_text: String) -> Control:
 
 
 func _build_buttons() -> void:
+	var mobile := DeviceProfile.mobile_ui
 	var button_row := HBoxContainer.new()
 	button_row.name = "ActionButtons"
-	button_row.anchor_left = 0.235
-	button_row.anchor_top = 0.81
-	button_row.anchor_right = 0.765
-	button_row.anchor_bottom = 0.94
+	button_row.anchor_left = 0.18 if mobile else 0.235
+	button_row.anchor_top = 0.78 if mobile else 0.81
+	button_row.anchor_right = 0.82 if mobile else 0.765
+	button_row.anchor_bottom = 0.90 if mobile else 0.94
 	button_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	button_row.add_theme_constant_override("separation", 24)
+	button_row.add_theme_constant_override("separation", 16 if mobile else 24)
 	add_child(button_row)
 	var retry_button := _make_button("ИГРАТЬ СНОВА", true)
 	retry_button.name = "ReplayButton"
@@ -508,7 +511,7 @@ func _make_label(text: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
 	label.add_theme_font_override("font", font)
-	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_font_size_override("font_size", _fs(font_size))
 	label.add_theme_color_override("font_color", color)
 	label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.72))
 	label.add_theme_constant_override("shadow_offset_x", 1)
@@ -525,7 +528,7 @@ func _make_button(text: String, primary: bool) -> Button:
 	button.custom_minimum_size = Vector2(210.0, 54.0)
 	button.focus_mode = Control.FOCUS_NONE
 	button.add_theme_font_override("font", font)
-	button.add_theme_font_size_override("font_size", 17)
+	button.add_theme_font_size_override("font_size", _fs(17))
 	button.add_theme_color_override("font_color", GOLD if primary else PALE)
 	button.add_theme_color_override("font_hover_color", Color(1.0, 0.94, 0.78))
 	button.add_theme_color_override("font_pressed_color", Color.WHITE)
@@ -714,3 +717,9 @@ func _change_scene(scene_path: String) -> void:
 	var error := get_tree().change_scene_to_file(scene_path)
 	if error != OK:
 		push_error("Failed to open %s: %s" % [scene_path, error_string(error)])
+
+
+func _fs(size: int) -> int:
+	if DeviceProfile.mobile_ui:
+		return maxi(size, 18)
+	return size

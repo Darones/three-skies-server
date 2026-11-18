@@ -361,7 +361,7 @@ func _layout_tutorial_hint(shop_open: bool) -> void:
 		tutorial_hint.offset_top = 0.0
 		tutorial_hint.offset_right = 0.0
 		tutorial_hint.offset_bottom = 0.0
-		tutorial_hint.add_theme_font_size_override("font_size", 19)
+		tutorial_hint.add_theme_font_size_override("font_size", _fs(19))
 		tutorial_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		tutorial_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		tutorial_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -374,7 +374,7 @@ func _layout_tutorial_hint(shop_open: bool) -> void:
 		tutorial_hint.offset_top = 0.0
 		tutorial_hint.offset_right = 0.0
 		tutorial_hint.offset_bottom = 48.0
-		tutorial_hint.add_theme_font_size_override("font_size", 24)
+		tutorial_hint.add_theme_font_size_override("font_size", _fs(24))
 		tutorial_hint.autowrap_mode = TextServer.AUTOWRAP_OFF
 		tutorial_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		tutorial_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -409,7 +409,7 @@ func _make_label(text: String, size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
 	label.add_theme_font_override("font", font)
-	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_font_size_override("font_size", _fs(size))
 	label.add_theme_color_override("font_color", color)
 	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.65))
 	label.add_theme_constant_override("shadow_offset_x", 2)
@@ -432,7 +432,7 @@ func _build_carrier_panel(root: Control) -> void:
 	carrier_label = Label.new()
 	carrier_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	carrier_label.add_theme_font_override("font", UI_FONT)
-	carrier_label.add_theme_font_size_override("font_size", 15)
+	carrier_label.add_theme_font_size_override("font_size", _fs(15))
 	carrier_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.55))
 	carrier_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.8))
 	carrier_panel.add_child(carrier_label)
@@ -554,7 +554,7 @@ func _make_feed_name(text: String, team: int) -> Label:
 	var label := Label.new()
 	label.text = text
 	label.add_theme_font_override("font", UI_FONT)
-	label.add_theme_font_size_override("font_size", 15)
+	label.add_theme_font_size_override("font_size", _fs(15))
 	var color := Color(0.82, 0.74, 0.6)
 	if team == 0:
 		color = Color(1.0, 0.9, 0.7)
@@ -601,16 +601,16 @@ func _build_top(root: Control) -> void:
 	if _mobile_ui():
 		pause_button = Button.new()
 		pause_button.name = "MobilePauseButton"
-		pause_button.text = "☰"
+		pause_button.text = "II"
 		pause_button.tooltip_text = "Пауза"
-		pause_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-		pause_button.offset_left = -64.0
+		pause_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		pause_button.offset_left = 362.0
 		pause_button.offset_top = 20.0
-		pause_button.offset_right = -20.0
-		pause_button.offset_bottom = 64.0
+		pause_button.offset_right = 426.0
+		pause_button.offset_bottom = 84.0
 		pause_button.focus_mode = Control.FOCUS_NONE
 		pause_button.add_theme_font_override("font", font)
-		pause_button.add_theme_font_size_override("font_size", 23)
+		pause_button.add_theme_font_size_override("font_size", _fs(30))
 		pause_button.add_theme_color_override("font_color", GOLD)
 		pause_button.add_theme_stylebox_override("normal", _pause_button_style(false))
 		pause_button.add_theme_stylebox_override("hover", _pause_button_style(true))
@@ -624,7 +624,7 @@ func _pause_button_style(hovered: bool) -> StyleBoxFlat:
 	style.bg_color = Color(0.07, 0.09, 0.13, 0.93) if not hovered else Color(0.12, 0.16, 0.22, 1.0)
 	style.border_color = Color(0.46, 0.54, 0.69, 0.9) if not hovered else Color(0.95, 0.76, 0.38)
 	style.set_border_width_all(2)
-	style.set_corner_radius_all(22)
+	style.set_corner_radius_all(32)
 	return style
 
 
@@ -688,7 +688,7 @@ func _pause_action_button(text: String, primary: bool) -> Button:
 	button.custom_minimum_size = Vector2(300.0, 50.0)
 	button.focus_mode = Control.FOCUS_NONE
 	button.add_theme_font_override("font", font)
-	button.add_theme_font_size_override("font_size", 20)
+	button.add_theme_font_size_override("font_size", _fs(20))
 	button.add_theme_color_override("font_color", GOLD if primary else PALE)
 	button.add_theme_stylebox_override("normal", _panel_style(Color(0.8, 0.65, 0.37, 0.72), Color(0.07, 0.09, 0.13, 0.93)))
 	button.add_theme_stylebox_override("hover", _panel_style(Color(0.95, 0.76, 0.38), Color(0.12, 0.16, 0.22, 1.0)))
@@ -1069,11 +1069,11 @@ func _build_select(root: Control) -> void:
 
 
 func _uses_touch_controls() -> bool:
-	return OS.has_feature("mobile") or (OS.has_feature("web") and DisplayServer.is_touchscreen_available()) or OS.get_cmdline_user_args().has("--touch") or OS.get_cmdline_user_args().has("--mobile")
+	return DeviceProfile.touch_controls
 
 
 func _mobile_ui() -> bool:
-	return OS.has_feature("mobile") or (OS.has_feature("web") and DisplayServer.is_touchscreen_available()) or OS.get_cmdline_user_args().has("--mobile")
+	return DeviceProfile.mobile_ui
 
 
 func _build_shop(root: Control) -> void:
@@ -1123,7 +1123,7 @@ func _build_shop(root: Control) -> void:
 	close_button.offset_top = 0.0
 	close_button.offset_right = 0.0
 	close_button.offset_bottom = 30.0
-	close_button.add_theme_font_size_override("font_size", 24)
+	close_button.add_theme_font_size_override("font_size", _fs(24))
 	close_button.add_theme_color_override("font_color", PALE)
 	close_button.add_theme_color_override("font_hover_color", Color.WHITE)
 	close_button.add_theme_stylebox_override("normal", _panel_style(Color(0.62, 0.49, 0.29, 0.75), Color(0.07, 0.075, 0.11, 0.9)))
@@ -1412,3 +1412,9 @@ func _process(_delta: float) -> void:
 		end_title.text = game.result_text
 		end_title.add_theme_color_override("font_color", Color(0.85, 1.0, 0.7) if game.player_won else Color(1.0, 0.55, 0.5))
 		end_score.text = "Свет — %d:%d — Тьма" % [game.score[0], game.score[1]]
+
+
+func _fs(size: int) -> int:
+	if DeviceProfile.mobile_ui:
+		return maxi(size, 18)
+	return size

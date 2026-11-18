@@ -24,6 +24,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+DeviceProfile="*res://scripts/device_profile.gd"
 NetworkClient="*res://scripts/network_client.gd"
 NetworkManager="*res://scripts/network_manager.gd"
 MetaProgression="*res://scripts/MetaProgression.gd"
@@ -127,6 +128,7 @@ rendering_method.mobile="forward_plus"
 
 [rendering]
 
+textures/vram_compression/import_etc2_astc=true
 renderer/rendering_method.mobile="forward_plus"
 textures/default_filters/anisotropic_filtering_level=4.0
 anti_aliasing/quality/screen_space_aa=1.0

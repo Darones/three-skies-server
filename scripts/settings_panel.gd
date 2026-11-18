@@ -29,7 +29,7 @@ var reset_dialog: ConfirmationDialog
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	mobile_layout = OS.has_feature("mobile") or OS.get_cmdline_user_args().has("--mobile")
+	mobile_layout = DeviceProfile.mobile_ui
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	visible = false
 	_build_panel()
@@ -90,7 +90,7 @@ func _build_panel() -> void:
 	header.add_child(title)
 	var back_button := _make_button("←", false)
 	back_button.custom_minimum_size = Vector2(48.0, 42.0)
-	back_button.add_theme_font_size_override("font_size", 22)
+	back_button.add_theme_font_size_override("font_size", _fs(22))
 	back_button.pressed.connect(_on_back_pressed)
 	header.add_child(back_button)
 
@@ -134,7 +134,7 @@ func _build_panel() -> void:
 		vibration_toggle.name = "VibrationToggle"
 		vibration_toggle.text = "Вибрация"
 		vibration_toggle.add_theme_font_override("font", UI_FONT)
-		vibration_toggle.add_theme_font_size_override("font_size", 16)
+		vibration_toggle.add_theme_font_size_override("font_size", _fs(16))
 		vibration_toggle.toggled.connect(_on_vibration_toggled)
 		layout.add_child(vibration_toggle)
 	elif not mobile_layout:
@@ -174,7 +174,7 @@ func _make_label(text: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
 	label.add_theme_font_override("font", UI_FONT)
-	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_font_size_override("font_size", _fs(font_size))
 	label.add_theme_color_override("font_color", color)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
@@ -185,7 +185,7 @@ func _make_button(text: String, primary: bool) -> Button:
 	button.text = text
 	button.focus_mode = Control.FOCUS_NONE
 	button.add_theme_font_override("font", UI_FONT)
-	button.add_theme_font_size_override("font_size", 17)
+	button.add_theme_font_size_override("font_size", _fs(17))
 	button.add_theme_color_override("font_color", Color(0.95, 0.76, 0.38) if primary else Color(0.9, 0.92, 0.98))
 	button.add_theme_stylebox_override("normal", _button_style(primary, false))
 	button.add_theme_stylebox_override("hover", _button_style(primary, true))
@@ -280,7 +280,7 @@ func _build_credits_overlay() -> void:
 	header.add_child(title)
 	var close_button := _make_button("×", false)
 	close_button.custom_minimum_size = Vector2(44, 40)
-	close_button.add_theme_font_size_override("font_size", 22)
+	close_button.add_theme_font_size_override("font_size", _fs(22))
 	close_button.pressed.connect(_close_credits)
 	header.add_child(close_button)
 	var text_edit := TextEdit.new()
@@ -291,7 +291,7 @@ func _build_credits_overlay() -> void:
 	text_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	text_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
 	text_edit.add_theme_font_override("font", UI_FONT)
-	text_edit.add_theme_font_size_override("font_size", 15)
+	text_edit.add_theme_font_size_override("font_size", _fs(15))
 	text_edit.add_theme_color_override("font_color", Color(0.88, 0.9, 0.96))
 	text_edit.add_theme_stylebox_override("normal", _text_edit_style())
 	layout.add_child(text_edit)
@@ -496,3 +496,9 @@ func _on_back_pressed() -> void:
 	listening_action = ""
 	_save_value("audio", "master_volume", current_volume)
 	back_requested.emit()
+
+
+func _fs(size: int) -> int:
+	if DeviceProfile.mobile_ui:
+		return maxi(size, 18)
+	return size

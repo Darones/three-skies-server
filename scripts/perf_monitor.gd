@@ -25,12 +25,16 @@ var memory_max := 0.0
 var spikes := 0
 
 var panel: PanelContainer
+var toggle_button: Button
+var full_box: VBoxContainer
 var fps_label: Label
 var frame_label: Label
 var draw_label: Label
 var nodes_label: Label
 var memory_label: Label
 var time_label: Label
+var collapsed := false
+var fps_value := 0
 
 
 func configure(game_node: Node) -> void:
@@ -41,8 +45,9 @@ func _ready() -> void:
 	started_at = Time.get_datetime_string_from_system()
 	started_ms = Time.get_ticks_msec()
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	collapsed = DeviceProfile.mobile_ui
 	_build_ui()
-	_place_panel()
+	_apply_collapsed()
 	set_process(true)
 
 
@@ -56,17 +61,33 @@ func _build_ui() -> void:
 	box.add_theme_constant_override("separation", 1)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(box)
-	fps_label = _make_line(box, Color(0.55, 1.0, 0.6))
-	frame_label = _make_line(box, Color(0.75, 0.9, 1.0))
-	draw_label = _make_line(box, Color(0.85, 0.85, 0.95))
-	nodes_label = _make_line(box, Color(0.75, 0.8, 0.9))
-	memory_label = _make_line(box, Color(0.8, 0.85, 0.95))
-	time_label = _make_line(box, Color(0.95, 0.82, 0.5))
+	toggle_button = Button.new()
+	toggle_button.name = "PerfToggle"
+	toggle_button.flat = true
+	toggle_button.focus_mode = Control.FOCUS_NONE
+	toggle_button.mouse_filter = Control.MOUSE_FILTER_STOP
+	toggle_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	toggle_button.add_theme_font_size_override("font_size", 18 if DeviceProfile.mobile_ui else 12)
+	toggle_button.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6))
+	toggle_button.add_theme_color_override("font_hover_color", Color(0.8, 1.0, 0.85))
+	toggle_button.add_theme_color_override("font_pressed_color", Color(1.0, 0.9, 0.6))
+	toggle_button.pressed.connect(_toggle_collapsed)
+	box.add_child(toggle_button)
+	full_box = VBoxContainer.new()
+	full_box.add_theme_constant_override("separation", 1)
+	full_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(full_box)
+	fps_label = _make_line(full_box, Color(0.55, 1.0, 0.6))
+	frame_label = _make_line(full_box, Color(0.75, 0.9, 1.0))
+	draw_label = _make_line(full_box, Color(0.85, 0.85, 0.95))
+	nodes_label = _make_line(full_box, Color(0.75, 0.8, 0.9))
+	memory_label = _make_line(full_box, Color(0.8, 0.85, 0.95))
+	time_label = _make_line(full_box, Color(0.95, 0.82, 0.5))
 
 
 func _make_line(parent: VBoxContainer, color: Color) -> Label:
 	var label := Label.new()
-	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_font_size_override("font_size", 14 if DeviceProfile.mobile_ui else 12)
 	label.add_theme_color_override("font_color", color)
 	label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
 	label.add_theme_constant_override("shadow_offset_x", 1)
@@ -90,17 +111,46 @@ func _panel_style() -> StyleBoxFlat:
 
 
 func _place_panel() -> void:
+	if DeviceProfile.mobile_ui:
+		anchor_left = 0.0
+		anchor_top = 0.0
+		anchor_right = 0.0
+		anchor_bottom = 0.0
+		offset_left = 20.0
+		offset_top = 104.0
+		offset_right = 130.0 if collapsed else 286.0
+		offset_bottom = 138.0 if collapsed else 226.0
+		return
 	anchor_left = 0.0
 	anchor_top = 1.0
 	anchor_right = 0.0
 	anchor_bottom = 1.0
 	var bottom := -12.0
-	if OS.has_feature("mobile") or OS.has_feature("web") or OS.get_cmdline_user_args().has("--touch") or OS.get_cmdline_user_args().has("--mobile"):
-		bottom = -264.0
 	offset_left = 12.0
-	offset_right = 278.0
-	offset_top = bottom - 122.0
+	offset_right = 120.0 if collapsed else 278.0
+	offset_top = bottom - (32.0 if collapsed else 122.0)
 	offset_bottom = bottom
+
+
+func _apply_collapsed() -> void:
+	if full_box != null:
+		full_box.visible = not collapsed
+	_update_toggle_text()
+	_place_panel()
+
+
+func _toggle_collapsed() -> void:
+	collapsed = not collapsed
+	_apply_collapsed()
+
+
+func _update_toggle_text() -> void:
+	if toggle_button == null:
+		return
+	if collapsed:
+		toggle_button.text = "FPS %d" % fps_value
+	else:
+		toggle_button.text = "FPS %d  v" % fps_value
 
 
 func _process(delta: float) -> void:
@@ -141,6 +191,8 @@ func _process(delta: float) -> void:
 
 
 func _update_labels(fps: float, frame_ms: float, draw: int, nodes: int, memory: float, physics_ms: float) -> void:
+	fps_value = int(fps)
+	_update_toggle_text()
 	var average := fps_sum / maxf(fps_count, 1.0)
 	fps_label.text = "FPS %d  мин %d  ср %d" % [int(fps), int(fps_min), int(average)]
 	fps_label.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6) if fps >= 50.0 else (Color(1.0, 0.85, 0.4) if fps >= 30.0 else Color(1.0, 0.45, 0.4)))

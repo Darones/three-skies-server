@@ -189,6 +189,9 @@ func _ready() -> void:
 		camera.name = "Camera3D"
 		add_child(camera)
 	camera.fov = 46.0
+	camera_distance = DeviceProfile.camera_distance
+	min_zoom_distance = DeviceProfile.min_zoom_distance
+	max_zoom_distance = DeviceProfile.max_zoom_distance
 	camera_pos = camera.global_position
 	if get_node_or_null("Arena") == null:
 		var arena := Node3D.new()
@@ -227,6 +230,8 @@ func _ready() -> void:
 			call_deferred("start_match", selected_class, selected_team)
 	if network_play:
 		_setup_network_play()
+	if OS.get_cmdline_user_args().has("--shop-preview"):
+		hud.call("set_shop_open", true)
 
 
 func _soften_baked_base_rings() -> void:
@@ -2152,7 +2157,7 @@ func _open_results_screen() -> void:
 
 
 func _uses_touch_controls() -> bool:
-	return OS.has_feature("mobile") or (OS.has_feature("web") and DisplayServer.is_touchscreen_available()) or OS.get_cmdline_user_args().has("--mobile")
+	return DeviceProfile.touch_controls
 
 
 func announce(text: String, color: Color, duration := 2.0) -> void:

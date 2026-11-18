@@ -13,7 +13,7 @@ var touch_device := false
 
 
 func _ready() -> void:
-	touch_device = OS.has_feature("mobile") or DisplayServer.is_touchscreen_available()
+	touch_device = DeviceProfile.touch_controls
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	queue_redraw()
 

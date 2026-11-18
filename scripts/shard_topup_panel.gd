@@ -57,7 +57,7 @@ func _build() -> void:
 	close_button.custom_minimum_size = Vector2(42, 42)
 	close_button.focus_mode = Control.FOCUS_NONE
 	close_button.add_theme_font_override("font", UI_FONT)
-	close_button.add_theme_font_size_override("font_size", 24)
+	close_button.add_theme_font_size_override("font_size", _fs(24))
 	close_button.add_theme_color_override("font_color", PALE)
 	close_button.add_theme_color_override("font_hover_color", Color.WHITE)
 	close_button.add_theme_stylebox_override("normal", _secondary_button_style(false))
@@ -112,7 +112,7 @@ func _build() -> void:
 	pay_button.custom_minimum_size = Vector2(0, 54)
 	pay_button.focus_mode = Control.FOCUS_NONE
 	pay_button.add_theme_font_override("font", UI_FONT)
-	pay_button.add_theme_font_size_override("font_size", 21)
+	pay_button.add_theme_font_size_override("font_size", _fs(21))
 	pay_button.add_theme_color_override("font_color", Color(0.18, 0.11, 0.02))
 	pay_button.add_theme_color_override("font_hover_color", Color(0.12, 0.075, 0.01))
 	pay_button.add_theme_color_override("font_pressed_color", Color(0.12, 0.075, 0.01))
@@ -174,7 +174,7 @@ func _make_label(text: String, size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
 	label.add_theme_font_override("font", UI_FONT)
-	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_font_size_override("font_size", _fs(size))
 	label.add_theme_color_override("font_color", color)
 	label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.72))
 	label.add_theme_constant_override("shadow_offset_x", 1)
@@ -229,3 +229,9 @@ func _secondary_button_style(hovered: bool) -> StyleBoxFlat:
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(9)
 	return style
+
+
+func _fs(size: int) -> int:
+	if DeviceProfile.mobile_ui:
+		return maxi(size, 18)
+	return size
