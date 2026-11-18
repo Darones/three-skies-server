@@ -277,6 +277,7 @@ var health_back: MeshInstance3D
 var health_fill: MeshInstance3D
 var health_label: Label3D
 var name_label: Label3D
+var name_plate: Sprite3D
 var occluded_from_player := false
 var carry_light: OmniLight3D
 var bush_zones: Array[Area3D] = []
@@ -908,25 +909,61 @@ func _build_health_label() -> void:
 	health_label.font = UI_FONT
 	health_label.position = Vector3(0.0, 2.65, 0.0)
 	health_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	health_label.font_size = 42
-	health_label.pixel_size = 0.005
-	health_label.outline_size = 5
-	health_label.outline_modulate = Color(0.02, 0.03, 0.05, 0.92)
-	health_label.modulate = Color(0.93, 1.0, 0.95, 0.96)
+	health_label.no_depth_test = true
+	health_label.font_size = 46
+	health_label.pixel_size = 0.0055
+	health_label.outline_size = 9
+	health_label.outline_modulate = Color(0.02, 0.03, 0.05, 0.96)
+	health_label.modulate = Color(0.95, 1.0, 0.97, 0.98)
+
+
+static var _name_plate_cache: Texture2D = null
+
+func _name_plate_texture() -> Texture2D:
+	if _name_plate_cache != null:
+		return _name_plate_cache
+	var width := 160
+	var height := 64
+	var radius := 14.0
+	var image := Image.create(width, height, false, Image.FORMAT_RGBA8)
+	image.fill(Color(0.0, 0.0, 0.0, 0.0))
+	for y in height:
+		for x in width:
+			var cx := clampf(float(x), radius, float(width - 1) - radius)
+			var cy := clampf(float(y), radius, float(height - 1) - radius)
+			var distance := Vector2(float(x) - cx, float(y) - cy).length()
+			if distance > radius:
+				continue
+			if distance > radius - 2.0:
+				image.set_pixel(x, y, Color(0.55, 0.68, 0.85, 0.55))
+			else:
+				image.set_pixel(x, y, Color(0.015, 0.025, 0.045, 0.66))
+	_name_plate_cache = ImageTexture.create_from_image(image)
+	return _name_plate_cache
 
 
 func _build_name_label() -> void:
+	name_plate = Sprite3D.new()
+	name_plate.name = "NamePlate"
+	name_plate.texture = _name_plate_texture()
+	name_plate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	name_plate.no_depth_test = true
+	name_plate.render_priority = -1
+	name_plate.pixel_size = 0.014
+	name_plate.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	name_plate.position = Vector3(0.0, 2.72, 0.0)
+	add_child(name_plate)
 	name_label = Label3D.new()
 	name_label.name = "NameLabel"
 	name_label.text = display_name
 	name_label.font = UI_FONT
-	name_label.font_size = 44
+	name_label.font_size = 46
 	name_label.pixel_size = 0.006
 	name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	name_label.no_depth_test = true
 	name_label.modulate = Color(0.55, 0.9, 1.0) if team == 0 else Color(0.92, 0.66, 1.0)
-	name_label.outline_size = 6
-	name_label.outline_modulate = Color(0.02, 0.03, 0.06, 0.95)
+	name_label.outline_size = 8
+	name_label.outline_modulate = Color(0.02, 0.03, 0.06, 0.98)
 	name_label.position = Vector3(0.0, 3.0, 0.0)
 	add_child(name_label)
 
@@ -2077,12 +2114,16 @@ func _update_name_visibility() -> void:
 		return
 	if is_player:
 		name_label.visible = true
+		if name_plate != null:
+			name_plate.visible = true
 		return
 	var player_team := -1
 	if game.player != null and is_instance_valid(game.player):
 		player_team = int(game.player.team)
 	if team == player_team:
 		name_label.visible = true
+		if name_plate != null:
+			name_plate.visible = true
 		if blessing_rune != null and is_instance_valid(blessing_rune):
 			blessing_rune.visible = true
 		return
@@ -2096,6 +2137,8 @@ func _update_name_visibility() -> void:
 			nearest = minf(nearest, global_position.distance_to(other.global_position))
 		visible_to_enemy = nearest <= 12.0
 	name_label.visible = visible_to_enemy
+	if name_plate != null:
+		name_plate.visible = visible_to_enemy
 	if blessing_rune != null and is_instance_valid(blessing_rune):
 		blessing_rune.visible = visible_to_enemy
 

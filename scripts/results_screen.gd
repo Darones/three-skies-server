@@ -1,8 +1,8 @@
 extends Control
 
 const CHARACTER_ART := [
-	"res://ui/portraits/warrior_portrait.png",
-	"res://ui/portraits/mage_portrait.png",
+	"res://assets/ui/heroes/warrior_keyart.webp",
+	"res://assets/ui/heroes/mage_keyart.webp",
 	"res://assets/ui/heroes/archer_keyart.webp",
 ]
 const CHARACTER_CLASS_NAMES := ["Воин", "Маг", "Арбалетчица"]
@@ -311,14 +311,13 @@ func _build_content() -> void:
 	portrait.name = "HeroPortrait"
 	var portrait_source := load(CHARACTER_ART[selected_class]) as Texture2D
 	if portrait_source != null:
-		var portrait_atlas := AtlasTexture.new()
-		portrait_atlas.atlas = portrait_source
-		portrait_atlas.region = Rect2(0.0, portrait_source.get_height() * 0.03, portrait_source.get_width(), portrait_source.get_height() * 0.70)
-		portrait.texture = portrait_atlas
+		# Full 2D key art: the old atlas cropped only the top 70% and used
+		# a 3D-render portrait, which read as a model rather than game art.
+		portrait.texture = portrait_source
 	portrait.custom_minimum_size = Vector2(0.0, 130.0 if DeviceProfile.mobile_ui else 220.0)
 	portrait.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	portrait.clip_contents = true
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	portrait_frame.add_child(portrait)

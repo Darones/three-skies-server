@@ -15,6 +15,9 @@ var touch_device := false
 func _ready() -> void:
 	touch_device = DeviceProfile.touch_controls
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	# Invisible but fully functional: modern mobile controls use the whole
+	# lower-left area as a stick without drawing a base or knob.
+	modulate = Color(1.0, 1.0, 1.0, 0.0)
 	queue_redraw()
 
 

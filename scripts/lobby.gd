@@ -69,8 +69,8 @@ const GEAR_STAFF_ICON: Texture2D = preload("res://ui/icons/gear_staff.png")
 const GEAR_1H_CROSSBOW_ICON: Texture2D = preload("res://ui/icons/gear_1h_crossbow.png")
 const SHOP_HERO_TABS := [
 	{"key": "fairy", "class": 2, "name": "Арбалетчица", "portrait": "res://assets/ui/heroes/archer_face.webp"},
-	{"key": "mage", "class": 1, "name": "Маг", "portrait": "res://ui/portraits/mage_portrait.png"},
-	{"key": "warrior", "class": 0, "name": "Воин", "portrait": "res://ui/portraits/warrior_portrait.png"},
+	{"key": "mage", "class": 1, "name": "Маг", "portrait": "res://assets/ui/heroes/mage_face.webp"},
+	{"key": "warrior", "class": 0, "name": "Воин", "portrait": "res://assets/ui/heroes/warrior_face.webp"},
 ]
 const SHOP_WING_ITEMS := [
 	{"id": 1, "name": "Белые крылья", "price": 500},

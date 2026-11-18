@@ -112,14 +112,16 @@ func _panel_style() -> StyleBoxFlat:
 
 func _place_panel() -> void:
 	if DeviceProfile.mobile_ui:
-		anchor_left = 0.0
+		# Top-center, just under the pause button, so the badge never
+		# overlaps the player card or the match score.
+		anchor_left = 0.5
 		anchor_top = 0.0
-		anchor_right = 0.0
+		anchor_right = 0.5
 		anchor_bottom = 0.0
-		offset_left = 20.0
-		offset_top = 104.0
-		offset_right = 130.0 if collapsed else 286.0
-		offset_bottom = 138.0 if collapsed else 226.0
+		offset_left = -100.0 if collapsed else -138.0
+		offset_right = 100.0 if collapsed else 138.0
+		offset_top = 86.0
+		offset_bottom = 122.0 if collapsed else 222.0
 		return
 	anchor_left = 0.0
 	anchor_top = 1.0
