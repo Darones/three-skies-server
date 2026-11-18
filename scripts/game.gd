@@ -240,12 +240,14 @@ func _apply_mobile_quality() -> void:
 		return
 	if DeviceProfile.quality_override == "full":
 		return
+	Engine.physics_ticks_per_second = 30
+	Engine.max_physics_steps_per_frame = 4
 	var viewport := get_viewport()
 	if viewport != null:
 		# The phone renders the 3D scene below native resolution; the UI is
 		# still sharp and the difference is invisible on a small screen.
 		if DeviceProfile.quality_override != "noscale":
-			viewport.scaling_3d_scale = 0.7
+			viewport.scaling_3d_scale = 0.6
 		viewport.msaa_3d = Viewport.MSAA_DISABLED
 		viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
 	for node in find_children("*", "WorldEnvironment", true, false):

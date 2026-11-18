@@ -918,7 +918,7 @@ func _build_health_label() -> void:
 		health_label.name = "HealthLabel"
 		add_child(health_label)
 	health_label.font = UI_FONT
-	health_label.position = Vector3(0.0, 2.58, 0.0)
+	health_label.position = Vector3(0.0, 2.56, 0.0)
 	health_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	health_label.no_depth_test = true
 	health_label.font_size = 34
@@ -961,9 +961,9 @@ func _build_name_label() -> void:
 		name_plate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		name_plate.no_depth_test = true
 		name_plate.render_priority = -1
-		name_plate.pixel_size = 0.0085
+		name_plate.pixel_size = 0.0075
 		name_plate.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
-		name_plate.position = Vector3(0.0, 2.7, 0.0)
+		name_plate.position = Vector3(0.0, 2.68, 0.0)
 		add_child(name_plate)
 	name_label = Label3D.new()
 	name_label.name = "NameLabel"
@@ -976,7 +976,7 @@ func _build_name_label() -> void:
 	name_label.modulate = Color(0.55, 0.9, 1.0) if team == 0 else Color(0.92, 0.66, 1.0)
 	name_label.outline_size = 5
 	name_label.outline_modulate = Color(0.02, 0.03, 0.06, 0.98)
-	name_label.position = Vector3(0.0, 2.9, 0.0)
+	name_label.position = Vector3(0.0, 2.88, 0.0)
 	add_child(name_label)
 
 
@@ -2133,9 +2133,12 @@ func _update_name_visibility() -> void:
 	if game.player != null and is_instance_valid(game.player):
 		player_team = int(game.player.team)
 	if team == player_team:
-		name_label.visible = true
+		# Allies clutter the screen at the spawn; their names are on the
+		# minimap, so only the local player keeps a floating nameplate.
+		var show_ally_name := is_player
+		name_label.visible = show_ally_name
 		if name_plate != null:
-			name_plate.visible = true
+			name_plate.visible = show_ally_name
 		if blessing_rune != null and is_instance_valid(blessing_rune):
 			blessing_rune.visible = true
 		return
