@@ -231,16 +231,26 @@ func _ready() -> void:
 	_wire_ui_click_sounds(self)
 	if OS.get_cmdline_user_args().has("--auto-play"):
 		_auto_play_after_delay()
+	if OS.get_cmdline_user_args().has("--auto-tutorial"):
+		_auto_tutorial_after_delay()
 	if OS.get_cmdline_user_args().has("--shop-lobby-preview"):
 		_open_shard_shop()
 	if OS.get_cmdline_user_args().has("--settings-preview"):
 		_open_settings()
+	if OS.get_cmdline_user_args().has("--topup-preview"):
+		_open_topup_panel()
 
 
 func _auto_play_after_delay() -> void:
 	await get_tree().create_timer(1.0).timeout
 	if is_inside_tree():
 		_start_battle()
+
+
+func _auto_tutorial_after_delay() -> void:
+	await get_tree().create_timer(1.0).timeout
+	if is_inside_tree():
+		_start_tutorial()
 
 
 func _setup_ui_click_sound() -> void:
