@@ -94,6 +94,21 @@ def patch_vk_bridge() -> None:
     print("VK_BRIDGE patched")
 
 
+def patch_splash() -> None:
+    splash = ROOT / "ui" / "splash.jpg"
+    if not splash.exists():
+        print("SPLASH skipped")
+        return
+    shutil.copy2(splash, OUT_DIR / "index_splash.jpg")
+    html_path = OUT_DIR / "index.html"
+    html = html_path.read_text(encoding="utf-8")
+    html = html.replace('src="index.png"', 'src="index_splash.jpg"')
+    html = html.replace("background-color: #242424;", "background-color: #070a12;")
+    html = html.replace("background-color: black;", "background-color: #070a12;")
+    html_path.write_text(html, encoding="utf-8", newline="")
+    print("SPLASH patched")
+
+
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     if BACKUP.exists():
@@ -138,6 +153,7 @@ def main() -> None:
 
     bust_pck()
     patch_vk_bridge()
+    patch_splash()
 
     print("FILES")
     total = 0

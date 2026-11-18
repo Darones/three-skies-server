@@ -21,6 +21,9 @@ config/description="3D-РёРіСЂР° РЅР° Godot 4 вЂ” РўСЂРё Р
 run/main_scene="res://scenes/Lobby.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 config/icon="res://icon.svg"
+boot_splash/bg_color=Color(0.02, 0.03, 0.055, 1)
+boot_splash/fullsize=false
+boot_splash/image="res://ui/splash.png"
 
 [autoload]
 

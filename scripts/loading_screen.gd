@@ -47,6 +47,10 @@ func _ready() -> void:
 		_start_network_flow()
 	else:
 		_use_bot_fallback()
+	# Warm up battle VFX while the search screen is visible.
+	var preloader := preload('res://scripts/vfx_preloader.gd').new()
+	preloader.name = 'VfxPreloader'
+	add_child(preloader)
 	search_label.text = '\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432...'
 	if network_flow:
 		search_label.text = '\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432 \u00b7 \u0441\u0442\u0430\u0440\u0442 \u0447\u0435\u0440\u0435\u0437 %d \u0441\u0435\u043a' % int(NETWORK_WAIT_SECONDS)

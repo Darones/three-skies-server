@@ -93,7 +93,7 @@ func on_ability_used(index: int) -> void:
 	expected_ability += 1
 	if expected_ability < 3:
 		game.hud.call("set_tutorial_ability", expected_ability)
-		game.hud.call("show_tutorial_hint", "Нажми «%s»" % _ability_name(expected_ability))
+		game.hud.call("show_tutorial_hint", _ability_hint(expected_ability))
 		return
 	game.call("remove_tutorial_dummy")
 	stage = "go_fountain"
@@ -227,7 +227,15 @@ func _start_ability_training() -> void:
 	if game.tutorial_dummy != null and is_instance_valid(game.tutorial_dummy):
 		_point_to(game.tutorial_dummy.global_position, OBJECTIVE_GOLD)
 	game.hud.call("set_tutorial_ability", expected_ability)
-	game.hud.call("show_tutorial_hint", "Нажми «%s»" % _ability_name(0))
+	game.hud.call("show_tutorial_hint", _ability_hint(0))
+	game.hud.call("show_tutorial_press_hint", expected_ability)
+
+
+func _ability_hint(index: int) -> String:
+	var name := _ability_name(index)
+	if _uses_touch_controls():
+		return "Нажми мигающую кнопку «%s» справа" % name
+	return "Нажми «%s» — клавиша %d (или Num %d)" % [name, index + 1, index + 1]
 
 
 func return_to_lobby() -> void:

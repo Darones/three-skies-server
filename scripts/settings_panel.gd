@@ -113,21 +113,6 @@ func _build_panel() -> void:
 	volume_slider.value_changed.connect(_on_volume_changed)
 	volume_row.add_child(volume_slider)
 
-	layout.add_child(_make_label("ИГРА", 17, Color(0.9, 0.92, 0.98)))
-	var credits_button := _make_button("Авторы и лицензии", false)
-	credits_button.name = "CreditsButton"
-	credits_button.custom_minimum_size = Vector2(0.0, 42.0)
-	credits_button.pressed.connect(_open_credits)
-	layout.add_child(credits_button)
-	var reset_button := _make_danger_button("Сбросить общий прогресс")
-	reset_button.name = "ResetProgressButton"
-	reset_button.custom_minimum_size = Vector2(0.0, 42.0)
-	reset_button.pressed.connect(_confirm_reset_progress)
-	layout.add_child(reset_button)
-	var reset_hint := _make_label("Удалит сохранения, прогресс и кэш игры.", 13, Color(0.7, 0.74, 0.82))
-	reset_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	layout.add_child(reset_hint)
-
 	var show_haptics := mobile_layout and not OS.has_feature("web")
 	if show_haptics:
 		vibration_toggle = CheckButton.new()
@@ -149,6 +134,22 @@ func _build_panel() -> void:
 	close_button.custom_minimum_size = Vector2(0.0, 46.0)
 	close_button.pressed.connect(_on_back_pressed)
 	layout.add_child(close_button)
+
+	# Footer: deliberately tiny and low-contrast so these rare actions are
+	# not pressed by accident. Placed below the Back button.
+	var footer := VBoxContainer.new()
+	footer.name = "SettingsFooter"
+	footer.add_theme_constant_override("separation", 2)
+	footer.alignment = BoxContainer.ALIGNMENT_CENTER
+	layout.add_child(footer)
+	var credits_link := _make_flat_link("Авторы и лицензии", Color(0.58, 0.63, 0.72), 12 if mobile_layout else 11)
+	credits_link.name = "CreditsButton"
+	credits_link.pressed.connect(_open_credits)
+	footer.add_child(credits_link)
+	var reset_link := _make_flat_link("Сбросить общий прогресс", Color(0.66, 0.27, 0.25), 12 if mobile_layout else 11)
+	reset_link.name = "ResetProgressButton"
+	reset_link.pressed.connect(_confirm_reset_progress)
+	footer.add_child(reset_link)
 
 
 func _build_binding_row(parent: VBoxContainer, action: String, label_text: String) -> void:
@@ -190,6 +191,23 @@ func _make_button(text: String, primary: bool) -> Button:
 	button.add_theme_stylebox_override("normal", _button_style(primary, false))
 	button.add_theme_stylebox_override("hover", _button_style(primary, true))
 	button.add_theme_stylebox_override("pressed", _button_style(primary, true))
+	return button
+
+
+func _make_flat_link(text: String, color: Color, font_size: int) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.flat = true
+	button.focus_mode = Control.FOCUS_NONE
+	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	button.add_theme_font_override("font", UI_FONT)
+	button.add_theme_font_size_override("font_size", font_size)
+	button.add_theme_color_override("font_color", color)
+	button.add_theme_color_override("font_hover_color", color.lightened(0.25))
+	button.add_theme_color_override("font_pressed_color", color)
+	var empty := StyleBoxEmpty.new()
+	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+		button.add_theme_stylebox_override(state, empty)
 	return button
 
 

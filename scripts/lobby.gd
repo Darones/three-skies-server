@@ -61,9 +61,10 @@ const SHARD_TOPUP_SCENE := preload("res://scenes/ShardTopupPanel.tscn")
 const SHARD_ICON: Texture2D = preload("res://ui/icons/sky_shard.png")
 const NICKNAME_CHANGE_COST := 100
 const SHOP_WING_ICON: Texture2D = preload("res://assets/ui/generated_wing_shop_icon/img-6adcd384-a1c6-4d03-ab8f-2885c6220fd5-1794244737264-0_1794244737264_rm3v6na1.webp")
-const SHOP_2H_SWORD_ICON: Texture2D = preload("res://ui/icons/gear_2h_sword.png")
+const SHOP_2H_SWORD_ICON: Texture2D = preload("res://ui/icons/legendary_greatsword.png")
 const SHOP_WAND_ICON: Texture2D = preload("res://ui/icons/gear_wand.png")
-const SHOP_2H_CROSSBOW_ICON: Texture2D = preload("res://ui/icons/gear_2h_crossbow.png")
+const SHOP_STAFF_ICON: Texture2D = preload("res://ui/icons/legendary_staff.png")
+const SHOP_2H_CROSSBOW_ICON: Texture2D = preload("res://assets/ui/shop/weapon_crossbow_2d.png")
 const GEAR_1H_SWORD_ICON: Texture2D = preload("res://ui/icons/gear_1h_sword.png")
 const GEAR_STAFF_ICON: Texture2D = preload("res://ui/icons/gear_staff.png")
 const GEAR_1H_CROSSBOW_ICON: Texture2D = preload("res://ui/icons/gear_1h_crossbow.png")
@@ -81,7 +82,7 @@ const SHOP_WING_ITEMS := [
 const SHOP_HERO_WEAPON := {
 	"fairy": {"id": 2, "name": "Тяжёлый арбалет", "price": 1500, "icon": SHOP_2H_CROSSBOW_ICON},
 	"warrior": {"id": 1, "name": "Двуручный меч", "price": 1500, "icon": SHOP_2H_SWORD_ICON},
-	"mage": {"id": 3, "name": "Посох волшебника", "price": 1500, "icon": GEAR_STAFF_ICON},
+	"mage": {"id": 3, "name": "Посох волшебника", "price": 1500, "icon": SHOP_STAFF_ICON},
 }
 
 var selected_class := 0
@@ -1547,9 +1548,12 @@ func _build_nickname_popup() -> void:
 	nickname_line_edit.mouse_filter = Control.MOUSE_FILTER_STOP
 	nickname_line_edit.focus_mode = Control.FOCUS_ALL
 	nickname_line_edit.caret_blink = true
+	nickname_line_edit.virtual_keyboard_enabled = true
 	nickname_line_edit.add_theme_font_override("font", font)
 	nickname_line_edit.add_theme_font_size_override("font_size", _fs(20))
 	nickname_line_edit.text_submitted.connect(_on_nickname_submitted)
+	nickname_line_edit.focus_entered.connect(_show_nickname_keyboard)
+	nickname_line_edit.gui_input.connect(_on_nickname_input)
 	content.add_child(nickname_line_edit)
 	nickname_popup_status_label = _make_label("", 15, Color(0.58, 0.9, 0.64))
 	nickname_popup_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -1594,9 +1598,38 @@ func _open_nickname_popup() -> void:
 		nickname_popup_cost_icon.visible = false
 	nickname_popup_overlay.visible = true
 	nickname_line_edit.call_deferred("grab_focus")
+	if DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
+		# Opening the popup is a real tap, so this is the right moment to
+		# raise the soft keyboard on Android/iOS webviews.
+		_show_nickname_keyboard()
+
+
+func _on_nickname_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+		_show_nickname_keyboard()
+	elif event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
+		_show_nickname_keyboard()
+
+
+func _show_nickname_keyboard() -> void:
+	if nickname_line_edit == null or not is_instance_valid(nickname_line_edit):
+		return
+	if not DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
+		return
+	nickname_line_edit.grab_focus()
+	DisplayServer.virtual_keyboard_show(
+		nickname_line_edit.text,
+		Rect2(),
+		DisplayServer.KEYBOARD_TYPE_DEFAULT,
+		nickname_line_edit.max_length,
+		nickname_line_edit.caret_column,
+		nickname_line_edit.caret_column
+	)
 
 
 func _close_nickname_popup() -> void:
+	if DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
+		DisplayServer.virtual_keyboard_hide()
 	if nickname_popup_overlay != null:
 		nickname_popup_overlay.visible = false
 	if nickname_line_edit != null:

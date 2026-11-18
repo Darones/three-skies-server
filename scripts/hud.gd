@@ -85,6 +85,8 @@ var tutorial_hint: Label
 var tutorial_primary_action := Callable()
 var tutorial_secondary_action := Callable()
 var tutorial_ability_index := -1
+var tutorial_press_label: Label
+var tutorial_pulse := 0.0
 var low_health_overlay: ColorRect
 var low_health_material: ShaderMaterial
 var vignette_time := 0.0
@@ -317,6 +319,16 @@ func _build_tutorial_ui(root: Control) -> void:
 	tutorial_hint.z_index = 40
 	tutorial_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(tutorial_hint)
+
+	tutorial_press_label = _make_label("", 18, Color(1.0, 0.92, 0.55))
+	tutorial_press_label.name = "TutorialPressHint"
+	tutorial_press_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tutorial_press_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tutorial_press_label.add_theme_stylebox_override("normal", _panel_style(Color(1.0, 0.9, 0.5, 0.9), Color(0.03, 0.04, 0.07, 0.9)))
+	tutorial_press_label.z_index = 45
+	tutorial_press_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tutorial_press_label.visible = false
+	root.add_child(tutorial_press_label)
 
 
 func show_tutorial_card(title_text: String, body_text: String, button_text: String, action: Callable) -> void:
@@ -970,7 +982,7 @@ func _refresh_ability_button_style(index: int) -> void:
 	for style_name in ["normal", "hover", "pressed"]:
 		var style := _ability_style(ability_ready[index], style_name != "normal")
 		if index == tutorial_ability_index:
-			style.border_color = Color(1.0, 0.9, 0.48, 1.0)
+			style.border_color = Color(1.0, 0.9, 0.48, 0.35 + 0.65 * tutorial_pulse)
 			style.set_border_width_all(5)
 		ability_buttons[index].add_theme_stylebox_override(style_name, style)
 
@@ -982,6 +994,39 @@ func set_tutorial_ability(index: int) -> void:
 	tutorial_ability_index = index
 	_refresh_ability_button_style(previous)
 	_refresh_ability_button_style(tutorial_ability_index)
+	show_tutorial_press_hint(index)
+
+
+func show_tutorial_press_hint(index: int) -> void:
+	if tutorial_press_label == null:
+		return
+	if index < 0 or index >= ability_buttons.size():
+		tutorial_press_label.visible = false
+		return
+	if _uses_touch_controls():
+		tutorial_press_label.text = "НАЖМИ"
+	else:
+		tutorial_press_label.text = "НАЖМИ %d  ·  Num %d" % [index + 1, index + 1]
+	tutorial_press_label.visible = true
+
+
+func _update_tutorial_press_hint() -> void:
+	if tutorial_press_label == null:
+		return
+	var index := tutorial_ability_index
+	if index < 0 or index >= ability_buttons.size() or not tutorial_press_label.visible:
+		tutorial_press_label.visible = false
+		return
+	var button := ability_buttons[index]
+	if not button.is_visible_in_tree():
+		tutorial_press_label.visible = false
+		return
+	tutorial_pulse = 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.008)
+	_refresh_ability_button_style(index)
+	tutorial_press_label.modulate.a = 0.55 + 0.45 * tutorial_pulse
+	var width := maxf(150.0, button.size.x + 40.0)
+	tutorial_press_label.size = Vector2(width, 30.0)
+	tutorial_press_label.global_position = button.global_position + Vector2((button.size.x - width) * 0.5, -38.0)
 
 
 func _build_announcement(root: Control) -> void:
@@ -1361,6 +1406,7 @@ func show_announcement(text: String, color: Color, duration: float) -> void:
 
 func _process(_delta: float) -> void:
 	_update_low_health_vignette(_delta)
+	_update_tutorial_press_hint()
 	if game == null:
 		return
 	if touch_joystick != null:
