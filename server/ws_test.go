@@ -478,3 +478,33 @@ func TestBotStatesCannotHealAliveBot(t *testing.T) {
 		t.Fatalf("host packet healed a damaged bot back to %v", room.bots[0].hp)
 	}
 }
+
+func TestLobbyStateBroadcastsPlayersImmediately(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	first := newTestClient(1, 0, 0, 0)
+	second := newTestClient(2, 0, 0, 0)
+
+	hub.joinMatchmaking(first, wsIncoming{PlayerID: 201, Name: "First", Class: 0})
+	firstMessages := collectMessages(t, first)
+	if len(firstMessages) != 2 || firstMessages[0].Type != "room_joined" || firstMessages[1].Type != "lobby_state" {
+		t.Fatalf("expected room_joined + lobby_state, got %+v", firstMessages)
+	}
+	if len(firstMessages[1].MatchPlayers) != 1 {
+		t.Fatalf("lobby_state should show the first player, got %+v", firstMessages[1].MatchPlayers)
+	}
+	if firstMessages[1].StartsInMS <= 0 {
+		t.Fatalf("lobby_state must carry a positive countdown, got %d", firstMessages[1].StartsInMS)
+	}
+
+	hub.joinMatchmaking(second, wsIncoming{PlayerID: 202, Name: "Second", Class: 1})
+	update := collectMessages(t, first)
+	if len(update) != 1 || update[0].Type != "lobby_state" {
+		t.Fatalf("existing client should get a lobby update, got %+v", update)
+	}
+	if len(update[0].MatchPlayers) != 2 {
+		t.Fatalf("lobby update should show both players, got %+v", update[0].MatchPlayers)
+	}
+	if update[0].StartsInMS < 25000 {
+		t.Fatalf("join should reset the countdown, got %d ms", update[0].StartsInMS)
+	}
+}
