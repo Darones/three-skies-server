@@ -61,6 +61,7 @@ type wsRoom struct {
 	humanCount   int
 	hostID       int64
 	state        string
+	startsAt     time.Time
 	fillTimer    *time.Timer
 	finishTimer  *time.Timer
 	resultSaved  bool
@@ -197,6 +198,7 @@ type wsOutgoing struct {
 	AttackDamage float64         `json:"attack_damage,omitempty"`
 	WinningTeam  int             `json:"winning_team,omitempty"`
 	MatchPlayers []wsMatchPlayer `json:"match_players,omitempty"`
+	StartsInMS   int64           `json:"starts_in_ms,omitempty"`
 	Bots         []wsBotSnapshot `json:"bots,omitempty"`
 	Score0       int             `json:"score_0,omitempty"`
 	Score1       int             `json:"score_1,omitempty"`
@@ -248,6 +250,7 @@ func (h *wsHub) removeClient(client *wsClient) {
 	var roomID int64
 	var hostChanged *wsOutgoing
 	var botRoster *wsOutgoing
+	var lobbyState *wsOutgoing
 	h.mu.Lock()
 	delete(h.clients, client.id)
 	room := h.rooms[client.roomID]
@@ -283,6 +286,14 @@ func (h *wsHub) removeClient(client *wsClient) {
 			delete(h.rooms, room.id)
 		} else {
 			roomID = room.id
+			if room.state == "waiting" {
+				lobbyState = &wsOutgoing{
+					Type:         "lobby_state",
+					RoomID:       room.id,
+					StartsInMS:   maxInt64(0, time.Until(room.startsAt).Milliseconds()),
+					MatchPlayers: lobbyPlayersLocked(room),
+				}
+			}
 		}
 	}
 	h.mu.Unlock()
@@ -295,6 +306,9 @@ func (h *wsHub) removeClient(client *wsClient) {
 		}
 		if botRoster != nil {
 			h.broadcastRoom(roomID, 0, *botRoster)
+		}
+		if lobbyState != nil {
+			h.broadcastRoom(roomID, 0, *lobbyState)
 		}
 	}
 }
@@ -383,6 +397,7 @@ func (h *wsHub) joinMatchmaking(client *wsClient, message wsIncoming) {
 	client.joined = true
 	room.players[slot] = client
 	room.humanCount++
+	room.startsAt = time.Now().Add(roomBotFillDelay)
 	if room.hostID == 0 {
 		room.hostID = client.id
 	}
@@ -405,6 +420,13 @@ func (h *wsHub) joinMatchmaking(client *wsClient, message wsIncoming) {
 	roomID := room.id
 	hostID := room.hostID
 	team := client.team
+	lobbyMessage := wsOutgoing{
+		Type:         "lobby_state",
+		RoomID:       roomID,
+		StartsInMS:   maxInt64(0, time.Until(room.startsAt).Milliseconds()),
+		MatchPlayers: lobbyPlayersLocked(room),
+	}
+	lobbyClients := roomClientsLocked(room, 0)
 	h.mu.Unlock()
 
 	if len(startClients) > 0 {
@@ -420,6 +442,7 @@ func (h *wsHub) joinMatchmaking(client *wsClient, message wsIncoming) {
 		Team:   team,
 		Slot:   slot,
 	})
+	h.sendToClients(lobbyClients, lobbyMessage)
 }
 
 func (h *wsHub) findRoomLocked(_ int) (*wsRoom, int) {
@@ -1402,6 +1425,34 @@ func roomClientsLocked(room *wsRoom, exceptID int64) []*wsClient {
 		}
 	}
 	return clients
+}
+
+func lobbyPlayersLocked(room *wsRoom) []wsMatchPlayer {
+	players := make([]wsMatchPlayer, 0, room.humanCount)
+	for slot := 0; slot < roomSlots; slot++ {
+		player := room.players[slot]
+		if player == nil {
+			continue
+		}
+		players = append(players, wsMatchPlayer{
+			ID:           player.id,
+			Name:         player.name,
+			Class:        clampClass(player.class),
+			Team:         slot / 3,
+			Slot:         slot,
+			MaxHP:        player.maxHP,
+			HP:           player.hp,
+			AttackDamage: player.attackDamage,
+		})
+	}
+	return players
+}
+
+func maxInt64(a int64, b int64) int64 {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func findRoomPlayerLocked(room *wsRoom, playerID int64) *wsClient {
