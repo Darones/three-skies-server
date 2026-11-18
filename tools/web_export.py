@@ -106,6 +106,9 @@ def patch_splash() -> None:
     html = html.replace("background-color: #242424;", "background-color: #070a12;")
     html = html.replace("background-color: black;", "background-color: #070a12;")
     html_path.write_text(html, encoding="utf-8", newline="")
+    # The exported index.png is the default boot splash and is no longer
+    # referenced by the patched HTML; keep the build small.
+    (OUT_DIR / "index.png").unlink(missing_ok=True)
     print("SPLASH patched")
 
 
