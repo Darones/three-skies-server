@@ -20,7 +20,7 @@ const (
 	wsPongWait       = 60 * time.Second
 	wsPingPeriod     = (wsPongWait * 9) / 10
 	wsMaxMessageSize = 16384
-	wsSendBuffer     = 64
+	wsSendBuffer     = 256
 
 	roomSlots = 6
 	// Боты заполняют комнату через 30 секунд после последнего живого игрока.
@@ -113,6 +113,7 @@ type wsClient struct {
 	hp           float64
 	attackDamage float64
 	lastAttacks  map[string]time.Time
+	lastSync     time.Time
 }
 
 type wsIncoming struct {
@@ -192,6 +193,7 @@ type wsOutgoing struct {
 	Amount       float64         `json:"amount,omitempty"`
 	MaxHP        float64         `json:"max_hp,omitempty"`
 	HP           float64         `json:"hp,omitempty"`
+	Alive        bool            `json:"alive"`
 	AttackDamage float64         `json:"attack_damage,omitempty"`
 	WinningTeam  int             `json:"winning_team,omitempty"`
 	MatchPlayers []wsMatchPlayer `json:"match_players,omitempty"`
@@ -659,15 +661,32 @@ func (h *wsHub) updateState(client *wsClient, message wsIncoming) {
 	client.rotation = message.Rotation
 	client.hasState = true
 	targets := roomClientsLocked(room, client.id)
+	syncDue := time.Since(client.lastSync) >= time.Second
+	if syncDue {
+		client.lastSync = time.Now()
+	}
+	syncMessage := wsOutgoing{
+		Type:   "sync",
+		ID:     client.id,
+		RoomID: room.id,
+		HP:     client.hp,
+		MaxHP:  client.maxHP,
+		Alive:  client.alive,
+	}
+	roomID := room.id
 	h.mu.Unlock()
 	h.sendToClients(targets, wsOutgoing{
 		Type:     "state",
 		ID:       client.id,
+		RoomID:   roomID,
 		X:        client.x,
 		Y:        client.y,
 		Z:        client.z,
 		Rotation: client.rotation,
 	})
+	if syncDue {
+		client.sendJSON(syncMessage)
+	}
 }
 
 func (h *wsHub) relayAttack(client *wsClient, message wsIncoming) {
@@ -713,7 +732,16 @@ func (h *wsHub) relayStats(client *wsClient, message wsIncoming) {
 		return
 	}
 	client.maxHP = message.MaxHP
-	client.hp = hp
+	// The server owns HP after the match starts. A stale client packet may
+	// only restore HP (respawn/shop), never lower it; otherwise a client that
+	// missed a damage message could poison everyone with 0 HP.
+	if hp > client.hp {
+		client.hp = math.Min(hp, client.maxHP)
+	}
+	if client.hp > client.maxHP {
+		client.hp = client.maxHP
+	}
+	hp = client.hp
 	client.attackDamage = message.AttackDamage
 	room := h.rooms[client.roomID]
 	var targets []*wsClient
@@ -886,8 +914,6 @@ func (h *wsHub) relayBotStates(client *wsClient, message wsIncoming) {
 					bot.deadSince = now
 				}
 			}
-		case hp > bot.hp && now.Sub(bot.lastDamaged) >= 500*time.Millisecond:
-			bot.hp = hp
 		}
 		changed = true
 	}
@@ -1114,6 +1140,7 @@ func (h *wsHub) finishMatchLocked(room *wsRoom) []matchResultPlayer {
 }
 
 func denyAttack(client *wsClient, targetID int64, skill string, reason string) {
+	log.Printf("attack denied client=%d target=%d skill=%s reason=%s hp=%.0f alive=%v", client.id, targetID, skill, reason, client.hp, client.alive)
 	client.sendJSON(wsOutgoing{
 		Type:     "attack_denied",
 		ID:       client.id,
@@ -1285,7 +1312,9 @@ func inAttackRange(source *wsCombatant, target *wsCombatant, skill string) bool 
 		return false
 	}
 	distance := math.Hypot(source.x-target.x, source.z-target.z)
-	return distance <= maxAttackRange(source.class, skill)
+	// Small tolerance for interpolation: the target keeps moving while the
+	// packet travels, so an exact radius check caused false rejections.
+	return distance <= maxAttackRange(source.class, skill)+1.5
 }
 
 func maxAttackRange(class int, skill string) float64 {

@@ -404,3 +404,77 @@ func TestMatchmakingRestartsBotTimerForEachJoin(t *testing.T) {
 		t.Fatalf("expected 3 humans in one room, got %d", humans)
 	}
 }
+
+func TestRelayStatsNeverLowersServerHP(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	client := newTestClient(1, 0, 0, 0)
+	room := newTestRoom(client)
+	client.maxHP = 1050
+	client.hp = 700
+	client.alive = true
+	hub.rooms[room.id] = room
+	hub.clients[client.id] = client
+
+	hub.relayStats(client, wsIncoming{MaxHP: 1050, HP: 0, AttackDamage: 50})
+	if client.hp != 700 {
+		t.Fatalf("stale 0 HP packet lowered server HP to %v", client.hp)
+	}
+	if !client.alive {
+		t.Fatal("stale packet killed the client")
+	}
+
+	hub.relayStats(client, wsIncoming{MaxHP: 1050, HP: 950, AttackDamage: 50})
+	if client.hp != 950 {
+		t.Fatalf("respawn/heal packet did not raise HP: %v", client.hp)
+	}
+
+	hub.relayStats(client, wsIncoming{MaxHP: 1050, HP: 500, AttackDamage: 50})
+	if client.hp != 950 {
+		t.Fatalf("client lowered authoritative HP to %v", client.hp)
+	}
+}
+
+func TestUpdateStateSendsAuthoritativeSync(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	client := newTestClient(1, 0, 0, 0)
+	room := newTestRoom(client)
+	client.maxHP = 1050
+	client.hp = 730
+	client.alive = true
+	hub.rooms[room.id] = room
+
+	hub.updateState(client, wsIncoming{X: 1, Y: 0.76, Z: 2, Rotation: 0})
+	messages := collectMessages(t, client)
+	if len(messages) != 1 || messages[0].Type != "sync" {
+		t.Fatalf("expected one sync message, got %+v", messages)
+	}
+	if messages[0].HP != 730 || messages[0].MaxHP != 1050 || !messages[0].Alive {
+		t.Fatalf("sync lost authoritative HP: %+v", messages[0])
+	}
+}
+
+func TestBotStatesCannotHealAliveBot(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	host := newTestClient(1, 0, 0, 0)
+	room := newTestRoom(host)
+	room.bots[0] = &wsBot{id: -1, team: 0, alive: true, hp: 300, maxHP: 450, lastAttacks: make(map[string]time.Time)}
+	hub.rooms[room.id] = room
+
+	snapshot := wsBotSnapshot{ID: -1, X: 0, Y: 0.76, Z: 0, Rotation: 0, HP: 450, MaxHP: 450, Alive: true}
+	hub.relayBotStates(host, wsIncoming{Bots: []wsBotSnapshot{snapshot}})
+	if room.bots[0].hp != 300 {
+		t.Fatalf("host packet healed a live bot to %v", room.bots[0].hp)
+	}
+
+	snapshot.HP = 120
+	hub.relayBotStates(host, wsIncoming{Bots: []wsBotSnapshot{snapshot}})
+	if room.bots[0].hp != 120 {
+		t.Fatalf("host damage was not applied: %v", room.bots[0].hp)
+	}
+
+	snapshot.HP = 450
+	hub.relayBotStates(host, wsIncoming{Bots: []wsBotSnapshot{snapshot}})
+	if room.bots[0].hp != 120 {
+		t.Fatalf("host packet healed a damaged bot back to %v", room.bots[0].hp)
+	}
+}
