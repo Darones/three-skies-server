@@ -397,6 +397,14 @@ func (h *wsHub) joinMatchmaking(client *wsClient, message wsIncoming) {
 	client.joined = true
 	room.players[slot] = client
 	room.humanCount++
+	// Balance teams immediately so the search screen shows the real teams;
+	// otherwise both players see themselves as allies and one is moved to
+	// the other team only at match start.
+	balanceHumansLocked(room)
+	if balancedSlot := roomSlotOf(room, client); balancedSlot >= 0 {
+		slot = balancedSlot
+		client.team = slot / 3
+	}
 	room.startsAt = time.Now().Add(roomBotFillDelay)
 	if room.hostID == 0 {
 		room.hostID = client.id
