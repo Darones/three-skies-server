@@ -19,6 +19,7 @@ signal bot_roster_received(bots: Array)
 signal attack_denied(target_id: int, skill: String, reason: String)
 signal sync_received(hp: float, max_hp: float, alive: bool)
 signal match_started(room_id: int, host_id: int, players: Array)
+signal lobby_state_received(players: Array, starts_in_ms: int)
 signal match_finished(winning_team: int)
 signal match_score_updated(score_0: int, score_1: int, sudden_death: bool)
 signal match_event_received(event: String, team: int)
@@ -395,6 +396,12 @@ func _handle_message(text: String) -> void:
 			_handle_room_joined(message)
 		"match_start":
 			_handle_match_start(message)
+		"lobby_state":
+			var lobby_players: Variant = message.get("match_players", [])
+			lobby_state_received.emit(
+				lobby_players if lobby_players is Array else [],
+				int(message.get("starts_in_ms", 0))
+			)
 		"match_score":
 			match_score_updated.emit(
 				int(message.get("score_0", 0)),

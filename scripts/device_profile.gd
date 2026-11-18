@@ -12,6 +12,7 @@ const MOBILE_MAX_ZOOM := 32.0
 
 var mobile_ui := false
 var touch_controls := false
+var quality_override := ""
 var device := ""
 var camera_distance := 16.0
 var min_zoom_distance := 12.0
@@ -42,6 +43,13 @@ func _ready() -> void:
 		if search.contains("mobile=1") or search.contains("touch=1"):
 			mobile_ui = true
 			touch_controls = true
+		var quality_pos := search.find("q=")
+		if quality_pos >= 0:
+			var quality_value := search.substr(quality_pos + 2)
+			var amp := quality_value.find("&")
+			if amp >= 0:
+				quality_value = quality_value.substr(0, amp)
+			quality_override = quality_value
 
 	if OS.has_feature("mobile"):
 		mobile_ui = true

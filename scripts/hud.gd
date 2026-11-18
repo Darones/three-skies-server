@@ -87,6 +87,7 @@ var tutorial_secondary_action := Callable()
 var tutorial_ability_index := -1
 var tutorial_press_label: Label
 var tutorial_pulse := 0.0
+var hud_tick := 0.0
 var low_health_overlay: ColorRect
 var low_health_material: ShaderMaterial
 var vignette_time := 0.0
@@ -963,6 +964,8 @@ func _ability_style(_is_ready: bool, hovered: bool) -> StyleBoxFlat:
 
 
 func _set_ability_ready(index: int, is_ready: bool) -> void:
+	if ability_ready[index] == is_ready:
+		return
 	ability_ready[index] = is_ready
 	_refresh_ability_button_style(index)
 
@@ -974,6 +977,10 @@ func _refresh_ability_icons(cls: int) -> void:
 		var icon_rect := ability_buttons[index].get_node_or_null("AbilityIcon") as TextureRect
 		if icon_rect != null:
 			icon_rect.texture = ABILITY_ICONS[cls][index]
+		if index < ability_name_labels.size():
+			ability_name_labels[index].text = str(ABILITY_SHORT_LABELS[cls][index])
+		if index < ability_key_labels.size() and _mobile_ui():
+			ability_key_labels[index].text = str(ABILITY_SHORT_LABELS[cls][index])
 
 
 func _refresh_ability_button_style(index: int) -> void:
@@ -1416,30 +1423,34 @@ func _process(_delta: float) -> void:
 		_refresh_ability_icons(icon_class)
 	if pause_button != null:
 		pause_button.visible = game.state == "live"
-	update_gold()
-	_update_player_panel()
-	if center_respawn_label != null:
-		var is_respawning: bool = game.state == "live" and game.player != null and is_instance_valid(game.player) and game.player.dead
-		center_respawn_label.visible = is_respawning
-		if is_respawning:
-			center_respawn_label.text = "Возрождение\n%d" % int(ceil(maxf(0.0, float(game.player.respawn_timer))))
-			center_respawn_label.modulate.a = 1.0
-	var match_time_left: float = maxf(0.0, game.match_time)
-	var match_minutes := floori(match_time_left / 60.0)
-	var match_seconds := int(match_time_left) % 60
-	timer_label.text = "%02d:%02d" % [match_minutes, match_seconds]
-	if game.sudden_death:
-		timer_label.text = "РЕШАЮЩИЙ"
-	score_label.text = "Свет — %d:%d — Тьма" % [game.score[0], game.score[1]]
-	_update_carrier_panel()
-	score_label.visible = not game.tutorial_mode
-	timer_label.visible = not game.tutorial_mode
-	shell_timer_label.visible = not game.tutorial_mode
-	var shell_time_left: float = game.shell_window if game.shell_phase == "active" else game.shell_timer
-	shell_time_left = maxf(0.0, shell_time_left)
-	var shell_minutes := floori(shell_time_left / 60.0)
-	var shell_seconds := int(shell_time_left) % 60
-	shell_timer_label.text = "Оболочка: %02d:%02d" % [shell_minutes, shell_seconds]
+	hud_tick += _delta
+	var slow_ui := hud_tick >= 0.1
+	if slow_ui:
+		hud_tick = 0.0
+		update_gold()
+		_update_player_panel()
+		if center_respawn_label != null:
+			var is_respawning: bool = game.state == "live" and game.player != null and is_instance_valid(game.player) and game.player.dead
+			center_respawn_label.visible = is_respawning
+			if is_respawning:
+				center_respawn_label.text = "Возрождение\n%d" % int(ceil(maxf(0.0, float(game.player.respawn_timer))))
+				center_respawn_label.modulate.a = 1.0
+		var match_time_left: float = maxf(0.0, game.match_time)
+		var match_minutes := floori(match_time_left / 60.0)
+		var match_seconds := int(match_time_left) % 60
+		timer_label.text = "%02d:%02d" % [match_minutes, match_seconds]
+		if game.sudden_death:
+			timer_label.text = "РЕШАЮЩИЙ"
+		score_label.text = "Свет — %d:%d — Тьма" % [game.score[0], game.score[1]]
+		_update_carrier_panel()
+		score_label.visible = not game.tutorial_mode
+		timer_label.visible = not game.tutorial_mode
+		shell_timer_label.visible = not game.tutorial_mode
+		var shell_time_left: float = game.shell_window if game.shell_phase == "active" else game.shell_timer
+		shell_time_left = maxf(0.0, shell_time_left)
+		var shell_minutes := floori(shell_time_left / 60.0)
+		var shell_seconds := int(shell_time_left) % 60
+		shell_timer_label.text = "Оболочка: %02d:%02d" % [shell_minutes, shell_seconds]
 	if ability_row != null:
 		ability_row.visible = game.state != "select"
 
@@ -1447,9 +1458,6 @@ func _process(_delta: float) -> void:
 		var p = game.player
 		for i in 3:
 			var data: Dictionary = HeroUnit.CLASS_DATA[p.hero_class]["abilities"][i]
-			ability_name_labels[i].text = str(ABILITY_SHORT_LABELS[p.hero_class][i])
-			if _mobile_ui():
-				ability_key_labels[i].text = str(ABILITY_SHORT_LABELS[p.hero_class][i])
 			var cd: float = p.ability_cds[i]
 			var cooldown_length := maxf(0.001, float(data["cd"]) * (1.0 - p.cooldown_reduction))
 			var progress := 1.0 if cd <= 0.01 else clampf(1.0 - cd / cooldown_length, 0.0, 1.0)

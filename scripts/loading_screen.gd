@@ -51,9 +51,7 @@ func _ready() -> void:
 	var preloader := preload('res://scripts/vfx_preloader.gd').new()
 	preloader.name = 'VfxPreloader'
 	add_child(preloader)
-	search_label.text = '\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432...'
-	if network_flow:
-		search_label.text = '\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432 \u00b7 \u0441\u0442\u0430\u0440\u0442 \u0447\u0435\u0440\u0435\u0437 %d \u0441\u0435\u043a' % int(NETWORK_WAIT_SECONDS)
+	search_label.text = 'Поиск игроков...'
 	tip_label.text = TIPS[0]
 
 
@@ -61,7 +59,9 @@ func _start_network_flow() -> void:
 	no_network = false
 	fill_with_bots = true
 	wait_seconds_left = NETWORK_WAIT_SECONDS
-	wait_countdown_active = true
+	# The countdown starts only when the server sends the lobby state, so it
+	# is always the real time until the match starts.
+	wait_countdown_active = false
 	connection_hint.text = '\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0430\u0435\u043c\u0441\u044f \u043a \u0441\u0435\u0440\u0432\u0435\u0440\u0443...'
 	if not NetworkManager.connection_succeeded.is_connected(_on_network_connected):
 		NetworkManager.connection_succeeded.connect(_on_network_connected)
@@ -71,6 +71,8 @@ func _start_network_flow() -> void:
 		NetworkManager.remote_player_joined.connect(_on_network_player_joined)
 	if not NetworkManager.match_started.is_connected(_on_network_match_started):
 		NetworkManager.match_started.connect(_on_network_match_started)
+	if not NetworkManager.lobby_state_received.is_connected(_on_lobby_state):
+		NetworkManager.lobby_state_received.connect(_on_lobby_state)
 	var hero_class := clampi(int(get_tree().get_meta('selected_class', 0)), 0, 2)
 	var error := NetworkManager.connect_to_server(
 		hero_class,
@@ -128,12 +130,20 @@ func _on_network_player_joined(player_id: int, info: Dictionary) -> void:
 	wait_countdown_active = true
 
 
-func _on_network_match_started(room_id: int, _host_id: int, players: Array) -> void:
+func _on_lobby_state(players: Array, starts_in_ms: int) -> void:
 	if transition_started:
 		return
-	transition_started = true
-	wait_countdown_active = false
+	_fill_lobby_slots(players)
 	network_player_slots.clear()
+	wait_seconds_left = maxf(0.0, float(starts_in_ms) / 1000.0)
+	wait_countdown_active = true
+	if starts_in_ms <= 0:
+		search_label.text = 'Бой начинается...'
+	else:
+		search_label.text = 'Бой начнётся через %d сек' % int(ceil(wait_seconds_left))
+
+
+func _fill_lobby_slots(players: Array) -> void:
 	for team_index in range(2):
 		for slot_index in range(SLOTS_PER_TEAM):
 			var slot: Dictionary = team_slots[team_index][slot_index]
@@ -151,8 +161,17 @@ func _on_network_match_started(room_id: int, _host_id: int, players: Array) -> v
 		var slot_index: int = team_counts[team]
 		team_counts[team] += 1
 		var class_index := clampi(int(entry.get('class', 0)), 0, 2)
-		var entry_name := String(entry.get('name', 'РРіСЂРѕРє'))
+		var entry_name := String(entry.get('name', 'Игрок'))
 		_set_slot_entry(team, slot_index, entry_name, class_index, bool(entry.get('bot', false)))
+
+
+func _on_network_match_started(room_id: int, _host_id: int, players: Array) -> void:
+	if transition_started:
+		return
+	transition_started = true
+	wait_countdown_active = false
+	network_player_slots.clear()
+	_fill_lobby_slots(players)
 	_fill_open_slots_with_bots()
 	progress_bar.value = 100.0
 	found_count_label.text = '\u0421\u043e\u0441\u0442\u0430\u0432 \u0441\u043e\u0431\u0440\u0430\u043d: 6 / 6'
@@ -207,9 +226,9 @@ func _process(delta: float) -> void:
 		wait_seconds_left = maxf(0.0, wait_seconds_left - delta)
 		var seconds_left := int(ceil(wait_seconds_left))
 		if seconds_left > 0:
-			search_label.text = '\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432 \u00b7 \u0441\u0442\u0430\u0440\u0442 \u0447\u0435\u0440\u0435\u0437 %d \u0441\u0435\u043a' % seconds_left
+			search_label.text = 'Бой начнётся через %d сек' % seconds_left
 		else:
-			search_label.text = '\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432...'
+			search_label.text = 'Бой начинается...'
 			wait_countdown_active = false
 	tip_timer += delta
 	if tip_timer >= 10.0:

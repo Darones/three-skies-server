@@ -209,6 +209,7 @@ func _ready() -> void:
 	_create_gold_fountain()
 	if arena_root != null:
 		_create_ambient_decor(arena_root)
+	_apply_mobile_quality()
 	_setup_audio()
 	_prepare_effect_pools()
 	hud = preload("res://scripts/hud.gd").new()
@@ -232,6 +233,42 @@ func _ready() -> void:
 		_setup_network_play()
 	if OS.get_cmdline_user_args().has("--shop-preview"):
 		hud.call("set_shop_open", true)
+
+
+func _apply_mobile_quality() -> void:
+	if not DeviceProfile.mobile_ui:
+		return
+	if DeviceProfile.quality_override == "full":
+		return
+	var viewport := get_viewport()
+	if viewport != null:
+		# The phone renders the 3D scene below native resolution; the UI is
+		# still sharp and the difference is invisible on a small screen.
+		if DeviceProfile.quality_override != "noscale":
+			viewport.scaling_3d_scale = 0.7
+		viewport.msaa_3d = Viewport.MSAA_DISABLED
+		viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
+	for node in find_children("*", "WorldEnvironment", true, false):
+		var world_env := node as WorldEnvironment
+		if world_env == null or world_env.environment == null:
+			continue
+		var env := world_env.environment
+		env.glow_enabled = false
+		env.fog_enabled = false
+		env.ssao_enabled = false
+		env.ssil_enabled = false
+		env.volumetric_fog_enabled = false
+	for node in find_children("*", "DirectionalLight3D", true, false):
+		var sun := node as DirectionalLight3D
+		sun.shadow_enabled = false
+	for node in find_children("*", "OmniLight3D", true, false):
+		var light := node as OmniLight3D
+		light.shadow_enabled = false
+		var light_name := String(light.name).to_lower()
+		var parent_name := String(light.get_parent().name).to_lower() if light.get_parent() != null else ""
+		var keep := light_name.contains("fountain") or light_name.contains("shop") or light_name.contains("altar") or light_name.contains("rim") or light_name.contains("halfglow") or parent_name.contains("base")
+		if not keep:
+			light.visible = false
 
 
 func _soften_baked_base_rings() -> void:
@@ -1493,6 +1530,11 @@ func _process(delta: float) -> void:
 
 
 func _create_fog_of_war() -> void:
+	if DeviceProfile.mobile_ui:
+		# Full-arena transparent shader plane; one of the most expensive
+		# overdraw passes on phone GPUs. Enemy visibility is scripted, so
+		# skipping the visual fog does not change gameplay.
+		return
 	var arena := get_node_or_null("Arena") as Node3D
 	if arena == null or arena.get_node_or_null("FogOfWar") != null:
 		return

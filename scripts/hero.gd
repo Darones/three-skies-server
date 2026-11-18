@@ -798,6 +798,17 @@ func spawn_vfx(
 		effect.free()
 		return
 	effect_parent.add_child(effect)
+	if DeviceProfile.mobile_ui:
+		# Mobile GPUs choke on large particle bursts; halve the count and
+		# simulate at 30 Hz, which is visually indistinguishable in combat.
+		for node in effect.find_children("*", "GPUParticles3D", true, false):
+			var particles := node as GPUParticles3D
+			particles.amount = maxi(4, particles.amount / 2)
+			particles.fixed_fps = 30
+		for node in effect.find_children("*", "CPUParticles3D", true, false):
+			var particles := node as CPUParticles3D
+			particles.amount = maxi(4, particles.amount / 2)
+			particles.fixed_fps = 30
 	var effect_position := pos
 	effect_position.y += 0.6
 	effect.global_position = effect_position
@@ -907,12 +918,12 @@ func _build_health_label() -> void:
 		health_label.name = "HealthLabel"
 		add_child(health_label)
 	health_label.font = UI_FONT
-	health_label.position = Vector3(0.0, 2.65, 0.0)
+	health_label.position = Vector3(0.0, 2.58, 0.0)
 	health_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	health_label.no_depth_test = true
-	health_label.font_size = 46
-	health_label.pixel_size = 0.0055
-	health_label.outline_size = 9
+	health_label.font_size = 34
+	health_label.pixel_size = 0.0045
+	health_label.outline_size = 6
 	health_label.outline_modulate = Color(0.02, 0.03, 0.05, 0.96)
 	health_label.modulate = Color(0.95, 1.0, 0.97, 0.98)
 
@@ -943,28 +954,29 @@ func _name_plate_texture() -> Texture2D:
 
 
 func _build_name_label() -> void:
-	name_plate = Sprite3D.new()
-	name_plate.name = "NamePlate"
-	name_plate.texture = _name_plate_texture()
-	name_plate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	name_plate.no_depth_test = true
-	name_plate.render_priority = -1
-	name_plate.pixel_size = 0.014
-	name_plate.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
-	name_plate.position = Vector3(0.0, 2.72, 0.0)
-	add_child(name_plate)
+	if DeviceProfile.quality_override != "noplate":
+		name_plate = Sprite3D.new()
+		name_plate.name = "NamePlate"
+		name_plate.texture = _name_plate_texture()
+		name_plate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		name_plate.no_depth_test = true
+		name_plate.render_priority = -1
+		name_plate.pixel_size = 0.0085
+		name_plate.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+		name_plate.position = Vector3(0.0, 2.7, 0.0)
+		add_child(name_plate)
 	name_label = Label3D.new()
 	name_label.name = "NameLabel"
 	name_label.text = display_name
 	name_label.font = UI_FONT
-	name_label.font_size = 46
-	name_label.pixel_size = 0.006
+	name_label.font_size = 34
+	name_label.pixel_size = 0.005
 	name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	name_label.no_depth_test = true
 	name_label.modulate = Color(0.55, 0.9, 1.0) if team == 0 else Color(0.92, 0.66, 1.0)
-	name_label.outline_size = 8
+	name_label.outline_size = 5
 	name_label.outline_modulate = Color(0.02, 0.03, 0.06, 0.98)
-	name_label.position = Vector3(0.0, 3.0, 0.0)
+	name_label.position = Vector3(0.0, 2.9, 0.0)
 	add_child(name_label)
 
 
