@@ -7,8 +7,9 @@ const MAGE: Texture2D = preload('res://assets/ui/heroes/mage_face.webp')
 const FAIRY: Texture2D = preload('res://assets/ui/heroes/archer_face.webp')
 const MATCH_PATH := 'res://scenes/Main.tscn'
 const SEARCH_SECONDS := 15.0
-# Временное значение для тестов: ждём сервер 15 секунд вместо 30.
-const NETWORK_WAIT_SECONDS := 15.0
+# Клиент ждёт сервер; сервер стартует комнату через 30 секунд после
+# последнего вошедшего игрока, поэтому обратный отсчёт тоже 30.
+const NETWORK_WAIT_SECONDS := 30.0
 const SLOTS_PER_TEAM := 3
 const SIMULATED_TARGET := 4
 const FONT: FontFile = preload('res://assets/fonts/Philosopher-Regular.ttf')
@@ -117,6 +118,10 @@ func _on_network_player_joined(player_id: int, info: Dictionary) -> void:
 	var player_name := String(info.get('name', 'РРіСЂРѕРє'))
 	_set_slot_entry(team, slot_index, player_name, class_index, false)
 	network_player_slots[player_id] = true
+	# Сервер перезапускает таймер ботов на каждом входе — держим
+	# обратный отсчёт синхронным, иначе он врёт игроку.
+	wait_seconds_left = NETWORK_WAIT_SECONDS
+	wait_countdown_active = true
 
 
 func _on_network_match_started(room_id: int, _host_id: int, players: Array) -> void:
@@ -200,7 +205,7 @@ func _process(delta: float) -> void:
 		if seconds_left > 0:
 			search_label.text = '\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432 \u00b7 \u0441\u0442\u0430\u0440\u0442 \u0447\u0435\u0440\u0435\u0437 %d \u0441\u0435\u043a' % seconds_left
 		else:
-			search_label.text = '\u0421\u0442\u0430\u0440\u0442 \u0447\u0435\u0440\u0435\u0437 0 \u0441\u0435\u043a'
+			search_label.text = '\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432...'
 			wait_countdown_active = false
 	tip_timer += delta
 	if tip_timer >= 10.0:
