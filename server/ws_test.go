@@ -504,6 +504,9 @@ func TestLobbyStateBroadcastsPlayersImmediately(t *testing.T) {
 	if len(update[0].MatchPlayers) != 2 {
 		t.Fatalf("lobby update should show both players, got %+v", update[0].MatchPlayers)
 	}
+	if update[0].MatchPlayers[0].Team == update[0].MatchPlayers[1].Team {
+		t.Fatalf("two humans were not split between teams: %+v", update[0].MatchPlayers)
+	}
 	if update[0].StartsInMS < 25000 {
 		t.Fatalf("join should reset the countdown, got %d ms", update[0].StartsInMS)
 	}
