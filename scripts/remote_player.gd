@@ -335,6 +335,8 @@ func apply_network_damage(amount: float) -> void:
 	_update_health_bar()
 	if game != null and game.has_method("damage_number"):
 		game.call("damage_number", global_position + Vector3(0.0, 2.0, 0.0), amount, team)
+	if health <= 0.0:
+		apply_network_death()
 
 
 func receive_heal(amount: float, source: Node = null) -> void:

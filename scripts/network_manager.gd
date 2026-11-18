@@ -17,6 +17,7 @@ signal remote_stats_updated(player_id: int, max_hp: float, hp: float, attack_dam
 signal bot_state_updated(bot_id: int, info: Dictionary)
 signal bot_roster_received(bots: Array)
 signal attack_denied(target_id: int, skill: String, reason: String)
+signal sync_received(hp: float, max_hp: float, alive: bool)
 signal match_started(room_id: int, host_id: int, players: Array)
 signal match_finished(winning_team: int)
 signal match_score_updated(score_0: int, score_1: int, sudden_death: bool)
@@ -423,6 +424,12 @@ func _handle_message(text: String) -> void:
 				String(message.get("skill", "")),
 				String(message.get("reason", "denied"))
 			)
+		"sync":
+			sync_received.emit(
+				float(message.get("hp", 0.0)),
+				float(message.get("max_hp", 0.0)),
+				bool(message.get("alive", true))
+			)
 		"host_changed":
 			host_id = int(message.get("host_id", message.get("id", 0)))
 			is_host = host_id == local_peer_id
@@ -680,7 +687,7 @@ func _handle_stats(message: Dictionary) -> void:
 
 func _handle_death(message: Dictionary) -> void:
 	var player_id := int(message.get("id", message.get("player_id", 0)))
-	if player_id == 0 or player_id == local_peer_id:
+	if player_id == 0:
 		return
 	if remote_players.has(player_id):
 		var info: Dictionary = remote_players[player_id]

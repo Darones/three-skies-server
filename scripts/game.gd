@@ -2768,6 +2768,8 @@ func _setup_network_play() -> void:
 		NetworkManager.host_changed.connect(_on_network_host_changed)
 	if not NetworkManager.attack_denied.is_connected(_on_attack_denied):
 		NetworkManager.attack_denied.connect(_on_attack_denied)
+	if not NetworkManager.sync_received.is_connected(_on_network_sync):
+		NetworkManager.sync_received.connect(_on_network_sync)
 	if not NetworkManager.match_score_updated.is_connected(_on_match_score_updated):
 		NetworkManager.match_score_updated.connect(_on_match_score_updated)
 	if not NetworkManager.match_event_received.is_connected(_on_match_event_received):
@@ -2862,6 +2864,8 @@ func _on_remote_damage_received(source_id: int, target_id: int, amount: float, s
 
 func _on_remote_death_received(player_id: int) -> void:
 	if player_id == NetworkManager.local_peer_id:
+		if player != null and is_instance_valid(player):
+			player.apply_network_sync(0.0, player.max_health, false)
 		return
 	var bot = network_bots.get(player_id)
 	if bot != null and is_instance_valid(bot):
@@ -2965,6 +2969,12 @@ func _spawn_network_bot_from_info(info: Dictionary) -> HeroUnit:
 
 func _on_attack_denied(target_id: int, skill: String, reason: String) -> void:
 	print("[NET] attack_denied target=", target_id, " skill=", skill, " reason=", reason)
+
+
+func _on_network_sync(hp: float, max_hp: float, alive: bool) -> void:
+	if not network_play or player == null or not is_instance_valid(player):
+		return
+	player.apply_network_sync(hp, max_hp, alive)
 
 
 func _on_match_score_updated(score_0: int, score_1: int, server_sudden_death: bool) -> void:

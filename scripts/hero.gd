@@ -2242,6 +2242,27 @@ func apply_network_heal(amount: float) -> void:
 		game.call("heal_number", global_position + Vector3(0.0, 2.2, 0.0), amount)
 
 
+func apply_network_sync(hp: float, max_hp: float, alive: bool) -> void:
+	# Authoritative correction from the server. Fixes the case where a damage
+	# or death packet was dropped: the player kept running while the server
+	# already considered them dead, so every attack was rejected.
+	if not is_player:
+		return
+	if max_hp > 0.0:
+		max_health = max_hp
+	if not alive:
+		if not dead:
+			health = 0.0
+			_update_health_display()
+			_die()
+		return
+	if dead:
+		_respawn()
+	if hp > 0.0:
+		health = clampf(hp, 0.0, max_health)
+		_update_health_display()
+
+
 func _spawn_damage_number(amount: float, source: Node) -> void:
 	if game == null or not is_instance_valid(game):
 		return
