@@ -972,25 +972,46 @@ func _load_model() -> Node3D:
 			folder = "res://art/generated/mage"
 		Cls.FAIRY:
 			folder = "res://art/generated/fairy"
-	var dir := DirAccess.open(folder)
-	if dir == null:
+	if folder.is_empty():
 		return null
-	var chosen := ""
-	for file in dir.get_files():
-		if file.ends_with(".tscn"):
-			if chosen == "" or file.to_lower().contains("character"):
-				chosen = file
-	if chosen == "":
-		for file in dir.get_files():
-			if file.ends_with(".glb") and (file.to_lower().contains("idle") or chosen == ""):
-				chosen = file
-	if chosen == "":
+	# Explicit path first: exported builds remap .tscn to .scn + .tscn.remap,
+	# so directory scans for "*.tscn" find nothing and fall back to capsules.
+	var scene_path := folder + "/character.tscn"
+	if not ResourceLoader.exists(scene_path):
+		scene_path = _find_model_scene(folder)
+	if scene_path.is_empty():
 		return null
-	var packed := load(folder + "/" + chosen) as PackedScene
+	var packed := load(scene_path) as PackedScene
 	if packed == null:
 		return null
 	var node := packed.instantiate() as Node3D
 	return node
+
+
+func _find_model_scene(folder: String) -> String:
+	var dir := DirAccess.open(folder)
+	if dir == null:
+		return ""
+	var files := dir.get_files()
+	# Prefer a character scene, then any scene, then a rigged glb.
+	for suffix in [".tscn", ".scn", ".tscn.remap"]:
+		for file in files:
+			var lower := file.to_lower()
+			if lower.contains("character") and lower.ends_with(suffix):
+				return folder + "/" + _strip_remap(file)
+	for suffix in [".tscn", ".scn", ".tscn.remap"]:
+		for file in files:
+			if file.to_lower().ends_with(suffix):
+				return folder + "/" + _strip_remap(file)
+	for file in files:
+		if file.to_lower().ends_with(".glb"):
+			return folder + "/" + file
+	return ""
+
+
+func _strip_remap(file: String) -> String:
+	# Load the original resource path; loading "*.remap" itself does not work.
+	return file.trim_suffix(".remap")
 
 
 func _fit_model(holder: Node3D) -> void:

@@ -167,25 +167,36 @@ func _build_visual() -> void:
 
 func _load_model() -> Node3D:
 	var folder: String = MODEL_DIRS[hero_class]
-	var directory := DirAccess.open(folder)
-	if directory == null:
+	# Exported builds remap .tscn to .scn + .tscn.remap, so scan-free explicit
+	# path first and only fall back to a directory listing if it is missing.
+	var scene_path := folder + "/character.tscn"
+	if not ResourceLoader.exists(scene_path):
+		scene_path = _find_model_scene(folder)
+	if scene_path.is_empty():
 		return null
-	var chosen := ""
-	for file in directory.get_files():
-		if file.ends_with(".tscn"):
-			chosen = file
-			break
-	if chosen.is_empty():
-		for file in directory.get_files():
-			if file.ends_with(".glb"):
-				chosen = file
-				break
-	if chosen.is_empty():
-		return null
-	var packed := load(folder + "/" + chosen) as PackedScene
+	var packed := load(scene_path) as PackedScene
 	if packed == null:
 		return null
 	return packed.instantiate() as Node3D
+
+
+func _find_model_scene(folder: String) -> String:
+	var directory := DirAccess.open(folder)
+	if directory == null:
+		return ""
+	var files := directory.get_files()
+	for suffix in [".tscn", ".scn", ".tscn.remap"]:
+		for file in files:
+			if file.to_lower().contains("character") and file.to_lower().ends_with(suffix):
+				return folder + "/" + file.trim_suffix(".remap")
+	for suffix in [".tscn", ".scn", ".tscn.remap"]:
+		for file in files:
+			if file.to_lower().ends_with(suffix):
+				return folder + "/" + file.trim_suffix(".remap")
+	for file in files:
+		if file.to_lower().ends_with(".glb"):
+			return folder + "/" + file
+	return ""
 
 
 func _fit_model(holder: Node3D) -> void:

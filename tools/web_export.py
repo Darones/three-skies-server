@@ -66,6 +66,34 @@ def bust_pck() -> None:
     print("PCK_BUST", new_name)
 
 
+def patch_vk_bridge() -> None:
+    bridge_src = ROOT / "tools" / "vk-bridge.min.js"
+    if not bridge_src.exists():
+        print("VK_BRIDGE skipped")
+        return
+    shutil.copy2(bridge_src, OUT_DIR / "vk-bridge.min.js")
+    html_path = OUT_DIR / "index.html"
+    html = html_path.read_text(encoding="utf-8")
+    if "vk-bridge.min.js" in html:
+        return
+    needle = '<script src="index.js"></script>'
+    if needle not in html:
+        print("VK_BRIDGE index.js script not found")
+        return
+    block = (
+        '<script src="vk-bridge.min.js"></script>\n'
+        "\t\t<script>\n"
+        "\t\t\tif (window.vkBridge) {\n"
+        "\t\t\t\twindow.vkBridge.send('VKWebAppInit').catch(function () {});\n"
+        "\t\t\t}\n"
+        "\t\t</script>\n"
+        "\t\t"
+    )
+    html = html.replace(needle, block + needle, 1)
+    html_path.write_text(html, encoding="utf-8", newline="")
+    print("VK_BRIDGE patched")
+
+
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     if BACKUP.exists():
@@ -109,6 +137,7 @@ def main() -> None:
         print("RESTORED project.godot")
 
     bust_pck()
+    patch_vk_bridge()
 
     print("FILES")
     total = 0
