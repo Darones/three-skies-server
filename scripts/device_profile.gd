@@ -36,6 +36,13 @@ func _ready() -> void:
 		elif arg.begins_with("--screenshot-delay="):
 			_screenshot_delay = maxf(0.5, float(arg.trim_prefix("--screenshot-delay=")))
 
+	if OS.has_feature("web") and Engine.has_singleton("JavaScriptBridge"):
+		var bridge := Engine.get_singleton("JavaScriptBridge")
+		var search := str(bridge.call("eval", "window.location.search", true))
+		if search.contains("mobile=1") or search.contains("touch=1"):
+			mobile_ui = true
+			touch_controls = true
+
 	if OS.has_feature("mobile"):
 		mobile_ui = true
 		touch_controls = true

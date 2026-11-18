@@ -604,9 +604,9 @@ func _build_top(root: Control) -> void:
 		pause_button.text = "II"
 		pause_button.tooltip_text = "Пауза"
 		pause_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		pause_button.offset_left = 362.0
+		pause_button.offset_left = 436.0
 		pause_button.offset_top = 20.0
-		pause_button.offset_right = 426.0
+		pause_button.offset_right = 500.0
 		pause_button.offset_bottom = 84.0
 		pause_button.focus_mode = Control.FOCUS_NONE
 		pause_button.add_theme_font_override("font", font)
@@ -794,6 +794,8 @@ func _build_player_panel(root: Control) -> void:
 	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	details.add_child(name_row)
 	player_name_label = _make_label("Игрок · Воин Света", 15, Color(0.97, 0.91, 0.79))
+	player_name_label.clip_text = true
+	player_name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	player_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	player_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_row.add_child(player_name_label)
@@ -1224,7 +1226,11 @@ func _update_player_panel() -> void:
 	if nickname.is_empty():
 		nickname = "Игрок"
 	var faction := "Света" if player.team == 0 else "Тьмы"
-	player_name_label.text = "%s · %s %s" % [nickname, HeroUnit.CLASS_DATA[player.hero_class]["name"], faction]
+	var class_text := String(HeroUnit.CLASS_DATA[player.hero_class]["name"])
+	if _mobile_ui():
+		player_name_label.text = "%s · %s" % [nickname, class_text]
+	else:
+		player_name_label.text = "%s · %s %s" % [nickname, class_text, faction]
 	if player_panel_class != player.hero_class:
 		player_panel_class = player.hero_class
 		var portrait_source: Texture2D = HERO_PORTRAITS[player.hero_class]

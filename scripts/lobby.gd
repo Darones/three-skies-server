@@ -2122,6 +2122,8 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 	var footer_height := 46.0 if is_center else 38.0
 	var frame_color: Color = CLASS_FRAME_COLORS.get(slot_classes[slot], GOLD)
 	card.custom_minimum_size = Vector2(card_width, card_height)
+	if not is_center:
+		card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	var mobile := DeviceProfile.mobile_ui
 	if is_center:
 		card.offset_left = -130.0
