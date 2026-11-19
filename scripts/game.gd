@@ -225,6 +225,8 @@ func _ready() -> void:
 				var bush := bush_node as Area3D
 				bush.body_entered.connect(_on_bush_body_entered.bind(bush))
 				bush.body_exited.connect(_on_bush_body_exited.bind(bush))
+	if DeviceProfile.mobile_ui:
+		await _warm_battle_world()
 	state = "select"
 	if get_tree().has_meta("selected_class"):
 		var selected_class := int(get_tree().get_meta("selected_class"))
@@ -235,6 +237,31 @@ func _ready() -> void:
 		_setup_network_play()
 	if OS.get_cmdline_user_args().has("--shop-preview"):
 		hud.call("set_shop_open", true)
+
+
+func _warm_battle_world() -> void:
+	# Render the real arena through a tiny SubViewport sharing the battle
+	# World3D. This compiles the arena materials and uploads their textures
+	# before the player reaches the center, so the first clash does not hitch.
+	var warm_viewport := SubViewport.new()
+	warm_viewport.name = "BattleWarmupViewport"
+	warm_viewport.size = Vector2i(160, 160)
+	warm_viewport.own_world_3d = false
+	warm_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(warm_viewport)
+	var warm_camera := Camera3D.new()
+	warm_camera.fov = 70.0
+	warm_camera.near = 0.1
+	warm_camera.far = 250.0
+	warm_camera.position = Vector3(0.0, 70.0, 10.0)
+	warm_camera.look_at(Vector3(0.0, 0.0, 0.0), Vector3.UP)
+	warm_viewport.add_child(warm_camera)
+	warm_camera.current = true
+	for _frame in 3:
+		await get_tree().process_frame
+	if is_instance_valid(warm_viewport):
+		warm_viewport.queue_free()
+	await get_tree().process_frame
 
 
 func _apply_mobile_quality() -> void:
@@ -792,7 +819,9 @@ func _update_gold_fountain(delta: float) -> void:
 func spawn_tutorial_coin(gold_value: int) -> void:
 	if not tutorial_mode or gold_fountain == null or not is_instance_valid(gold_fountain):
 		return
-	_spawn_gold_coin(gold_value, false)
+	# Tutorial coins must appear around the player, not on the fountain
+	# platform: the fountain has collision and the stage could soft-lock.
+	_spawn_gold_coin(gold_value, true)
 
 
 func is_hero_near_shop(hero: HeroUnit) -> bool:

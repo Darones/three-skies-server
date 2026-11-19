@@ -14,6 +14,10 @@ var mobile_ui := false
 var touch_controls := false
 var quality_override := ""
 var device := ""
+var edit_mode := false
+var auto_battle := false
+var auto_tutorial := false
+var edit_screen := ""
 var camera_distance := 16.0
 var min_zoom_distance := 12.0
 var max_zoom_distance := 42.0
@@ -30,6 +34,16 @@ func _ready() -> void:
 		if arg == "--mobile" or arg == "--touch":
 			mobile_ui = true
 			touch_controls = true
+		elif arg == "--edit":
+			edit_mode = true
+			mobile_ui = true
+			touch_controls = true
+		elif arg == "--auto-battle":
+			auto_battle = true
+		elif arg == "--auto-tutorial":
+			auto_tutorial = true
+		elif arg.begins_with("--view="):
+			edit_screen = arg.trim_prefix("--view=")
 		elif arg.begins_with("--device="):
 			device = arg.trim_prefix("--device=")
 		elif arg.begins_with("--screenshot="):
@@ -43,6 +57,19 @@ func _ready() -> void:
 		if search.contains("mobile=1") or search.contains("touch=1"):
 			mobile_ui = true
 			touch_controls = true
+		if search.contains("edit=1"):
+			edit_mode = true
+		if search.contains("autoplay=1"):
+			auto_battle = true
+		if search.contains("tutorial=1"):
+			auto_tutorial = true
+		var view_pos := search.find("view=")
+		if view_pos >= 0:
+			var view_value := search.substr(view_pos + 5)
+			var amp := view_value.find("&")
+			if amp >= 0:
+				view_value = view_value.substr(0, amp)
+			edit_screen = view_value
 		var quality_pos := search.find("q=")
 		if quality_pos >= 0:
 			var quality_value := search.substr(quality_pos + 2)

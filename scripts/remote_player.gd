@@ -12,7 +12,7 @@ const CLASS_COLORS := [
 	Color(0.72, 0.95, 0.55),
 ]
 const CLASS_MAX_HP := [1050.0, 1000.0, 950.0]
-const HEALTH_BAR_WIDTH := 1.3
+const HEALTH_BAR_WIDTH := 1.7
 
 var peer_id := 0
 var display_name := ""
@@ -266,21 +266,28 @@ func _build_name_label() -> void:
 	_name_label = Label3D.new()
 	_name_label.name = "NameLabel"
 	_name_label.text = display_name
-	_name_label.font = FONT
-	_name_label.font_size = 40
+	_name_label.font = ThemeDB.fallback_font
+	_name_label.font_size = 56
 	_name_label.pixel_size = 0.0055
 	_name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_name_label.no_depth_test = true
-	_name_label.modulate = Color(0.55, 0.85, 1.0) if team == 0 else Color(0.86, 0.62, 1.0)
-	_name_label.outline_size = 6
-	_name_label.outline_modulate = Color(0.02, 0.03, 0.06, 0.95)
-	_name_label.position = Vector3(0.0, 2.9, 0.0)
+	_name_label.modulate = Color(0.62, 1.0, 0.62) if _is_ally() else Color(1.0, 0.32, 0.28)
+	_name_label.outline_size = 10
+	_name_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)
+	_name_label.position = Vector3(0.0, 3.02, 0.0)
 	add_child(_name_label)
 
 
+func _is_ally() -> bool:
+	if game != null and is_instance_valid(game) and game.player != null and is_instance_valid(game.player):
+		return team == int(game.player.team)
+	return team == int(NetworkManager.assigned_team)
+
+
 func _build_health_bar() -> void:
-	_health_back = _make_bar_quad("HealthBarBack", Vector2(HEALTH_BAR_WIDTH, 0.18), Color(0.02, 0.03, 0.05, 0.9), 2.48, 0.0)
-	_health_fill = _make_bar_quad("HealthBarFill", Vector2(HEALTH_BAR_WIDTH - 0.06, 0.1), Color(0.35, 0.95, 0.48, 1.0), 2.48, 0.01)
+	var bar_color := Color(0.36, 0.95, 0.52, 1.0) if _is_ally() else Color(1.0, 0.3, 0.26, 1.0)
+	_health_back = _make_bar_quad("HealthBarBack", Vector2(HEALTH_BAR_WIDTH, 0.16), Color(0.06, 0.05, 0.08, 0.9), 2.55, 0.0)
+	_health_fill = _make_bar_quad("HealthBarFill", Vector2(HEALTH_BAR_WIDTH, 0.12), bar_color, 2.55, 0.01)
 	_update_health_bar()
 
 
@@ -309,7 +316,7 @@ func _update_health_bar() -> void:
 		return
 	var ratio := clampf(health / max_health, 0.0, 1.0) if max_health > 0.0 else 0.0
 	_health_fill.scale.x = ratio
-	_health_fill.position.x = -(HEALTH_BAR_WIDTH - 0.06) * (1.0 - ratio) * 0.5
+	_health_fill.position.x = -HEALTH_BAR_WIDTH * (1.0 - ratio) * 0.5
 	_health_back.visible = not dead
 	_health_fill.visible = not dead
 

@@ -1,4 +1,4 @@
-extends Control
+﻿extends Control
 
 const HERO_FACE := [
 	"res://assets/ui/heroes/warrior_face.webp",
@@ -115,9 +115,24 @@ var info_message_label: Label
 var info_ok_button: Button
 var shard_amount_label: Label
 var play_button: Button
+var profile_button: Button
+var shard_shop_button: Button
+var settings_button: Button
 var settings_panel: Control
 var touch_keyboard: Control
 var player_menu_overlay: ColorRect
+var player_menu_panel: PanelContainer
+var player_menu_profile: PanelContainer
+var player_menu_hero: PanelContainer
+var player_menu_wardrobe: PanelContainer
+var player_menu_close_button: Button
+var player_menu_report_button: Button
+var shop_close_button: Button
+var shop_topup_button: Button
+var shop_tabs: HBoxContainer
+var shop_cards_area: HBoxContainer
+var shop_balance_row: HBoxContainer
+var shop_hint_label: Label
 var nickname_line_edit: LineEdit
 var nickname_status_label: Label
 var nickname_cost_label: Label
@@ -142,6 +157,9 @@ var menu_xp_bar: ProgressBar
 var menu_xp_remaining_label: Label
 var menu_next_reward_label: Label
 var lobby_logo: TextureRect
+var level_up_banner: PanelContainer
+var level_up_banner_label: Label
+var level_up_banner_tween: Tween
 var wing_buttons: Dictionary = {}
 var wing_cards: Array[PanelContainer] = []
 var wing_inventory_cards: Dictionary = {}
@@ -198,6 +216,7 @@ func _ready() -> void:
 	_build_rename_confirm()
 	_build_report_form()
 	_build_info_popup()
+	_build_level_up_banner()
 	_refresh_wing_shop()
 	_refresh_weapon_shop()
 	_refresh_selection()
@@ -237,7 +256,7 @@ func _ready() -> void:
 	add_child(touch_keyboard)
 	if OS.get_cmdline_user_args().has("--auto-play"):
 		_auto_play_after_delay()
-	if OS.get_cmdline_user_args().has("--auto-tutorial"):
+	if OS.get_cmdline_user_args().has("--auto-tutorial") or DeviceProfile.auto_tutorial:
 		_auto_tutorial_after_delay()
 	if OS.get_cmdline_user_args().has("--shop-lobby-preview"):
 		_open_shard_shop()
@@ -245,6 +264,78 @@ func _ready() -> void:
 		_open_settings()
 	if OS.get_cmdline_user_args().has("--topup-preview"):
 		_open_topup_panel()
+	_register_ui_layout()
+	if DeviceProfile.edit_mode and DeviceProfile.auto_battle:
+		_editor_start_battle()
+	elif DeviceProfile.edit_mode and DeviceProfile.edit_screen == "inventory":
+		_editor_open_inventory()
+	elif DeviceProfile.edit_mode and DeviceProfile.edit_screen == "shop":
+		_editor_open_shop()
+
+
+func _register_ui_layout() -> void:
+	if not DeviceProfile.mobile_ui:
+		return
+	UiLayout.register("lobby.logo", lobby_logo, "Логотип", "lobby")
+	UiLayout.register("lobby.profile", profile_button, "Профиль игрока", "lobby")
+	UiLayout.register("lobby.shard_shop", shard_shop_button, "Магазин осколков", "lobby")
+	for slot in cards.size():
+		UiLayout.register("lobby.hero_%d" % (slot + 1), cards[slot], "Карта героя %d" % (slot + 1), "lobby")
+	UiLayout.register("lobby.play", play_button, "Кнопка «Играть»", "lobby")
+	UiLayout.register("lobby.tutorial", tutorial_button, "Кнопка «Обучение»", "lobby")
+	UiLayout.register("lobby.settings", settings_button, "Настройки", "lobby")
+	if player_menu_panel != null:
+		UiLayout.register("inventory.panel", player_menu_panel, "Окно инвентаря", "inventory")
+		UiLayout.register("inventory.profile", player_menu_profile, "Профиль", "inventory")
+		UiLayout.register("inventory.hero", player_menu_hero, "Герой", "inventory")
+		UiLayout.register("inventory.wardrobe", player_menu_wardrobe, "Оружие", "inventory")
+		UiLayout.register("inventory.close", player_menu_close_button, "Закрыть инвентарь", "inventory")
+		UiLayout.register("inventory.report", player_menu_report_button, "Пожаловаться", "inventory")
+	if shop_panel != null:
+		UiLayout.register("shop.panel", shop_panel, "Окно магазина", "shop")
+		UiLayout.register("shop.tabs", shop_tabs, "Герои магазина", "shop")
+		UiLayout.register("shop.cards", shop_cards_area, "Товары", "shop")
+		UiLayout.register("shop.balance", shop_balance_row, "Баланс осколков", "shop")
+		UiLayout.register("shop.close", shop_close_button, "Закрыть магазин", "shop")
+		UiLayout.register("shop.topup", shop_topup_button, "Купить осколки", "shop")
+		UiLayout.register("shop.page", shop_page_label, "Страница", "shop")
+		UiLayout.register("shop.hint", shop_hint_label, "Подсказка", "shop")
+
+
+func _editor_start_battle() -> void:
+	# The editor reloads the page for the battle tab.  Skip the 15 second
+	# match search so the HUD appears almost immediately.
+	await get_tree().create_timer(0.8).timeout
+	if not is_inside_tree():
+		return
+	_save_selection()
+	get_tree().set_meta("tutorial_mode", false)
+	get_tree().set_meta("network_play", false)
+	get_tree().set_meta("selected_class", selected_class)
+	get_tree().set_meta("selected_team", 0)
+	var error := get_tree().change_scene_to_file("res://scenes/Main.tscn")
+	if error != OK:
+		push_error("Не удалось открыть бой для редактора UI: %s" % error_string(error))
+
+
+func _editor_open_inventory() -> void:
+	await get_tree().create_timer(0.8).timeout
+	if not is_inside_tree():
+		return
+	_open_player_menu()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	UiLayout.refresh_geometry()
+
+
+func _editor_open_shop() -> void:
+	await get_tree().create_timer(0.8).timeout
+	if not is_inside_tree():
+		return
+	_open_shard_shop()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	UiLayout.refresh_geometry()
 
 
 func _auto_play_after_delay() -> void:
@@ -367,6 +458,8 @@ func _build_header() -> void:
 func _layout_lobby_logo() -> void:
 	if lobby_logo == null or lobby_logo.texture == null:
 		return
+	if UiLayout.has_override("lobby.logo"):
+		return
 	var viewport_size := get_viewport_rect().size
 	var card_top := viewport_size.y * 0.5 - 173.0
 	var available_height := maxf(0.0, card_top - 16.0)
@@ -386,7 +479,7 @@ func _layout_lobby_logo() -> void:
 
 
 func _build_player_profile() -> void:
-	var profile_button := Button.new()
+	profile_button = Button.new()
 	profile_button.name = "PlayerProfile"
 	profile_button.anchor_left = 0.02
 	profile_button.anchor_top = 0.025
@@ -473,7 +566,8 @@ func _build_player_profile() -> void:
 
 
 func _build_shard_shop_button() -> void:
-	var button := Button.new()
+	shard_shop_button = Button.new()
+	var button: Button = shard_shop_button
 	button.name = "ShardShopButton"
 	button.anchor_left = 0.77
 	button.anchor_top = 0.025
@@ -552,23 +646,27 @@ func _build_shard_shop() -> void:
 	balance_row.add_child(shop_balance_label)
 	balance_row.add_child(_shard_icon(26))
 	header.add_child(balance_row)
+	shop_balance_row = balance_row
 	var topup_button := _make_action_button("КУПИТЬ ОСКОЛКИ", true)
 	topup_button.name = "TopupButton"
 	topup_button.custom_minimum_size = Vector2(230, 46)
 	topup_button.add_theme_font_size_override("font_size", _fs(16))
 	topup_button.pressed.connect(_open_topup_panel)
 	header.add_child(topup_button)
+	shop_topup_button = topup_button
 	var close_button := _make_action_button("×", false)
 	close_button.custom_minimum_size = Vector2(46, 46)
 	close_button.add_theme_font_size_override("font_size", _fs(24))
 	close_button.pressed.connect(_close_shard_shop)
 	header.add_child(close_button)
+	shop_close_button = close_button
 
 	var tabs := HBoxContainer.new()
 	tabs.name = "ShopHeroTabs"
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
 	tabs.add_theme_constant_override("separation", 10)
 	layout.add_child(tabs)
+	shop_tabs = tabs
 	shop_hero_buttons.clear()
 	for i in range(SHOP_HERO_TABS.size()):
 		var tab: Dictionary = SHOP_HERO_TABS[i]
@@ -591,6 +689,7 @@ func _build_shard_shop() -> void:
 	cards_area.add_theme_constant_override("separation", 10)
 	cards_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(cards_area)
+	shop_cards_area = cards_area
 	var left_button := _make_action_button("‹", false)
 	left_button.custom_minimum_size = Vector2(34, 34)
 	left_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -612,10 +711,84 @@ func _build_shard_shop() -> void:
 
 	shop_page_label = _make_label("1 / 1", 13, Color(0.62, 0.68, 0.78))
 	layout.add_child(shop_page_label)
-	layout.add_child(_make_label("Оружие надевается в инвентаре · 100 осколков = 1 голос", 12, Color(0.5, 0.56, 0.66)))
+	shop_hint_label = _make_label("Оружие надевается в инвентаре · 100 осколков = 1 голос", 12, Color(0.5, 0.56, 0.66))
+	layout.add_child(shop_hint_label)
 
 	_build_topup_panel()
 	_refresh_shop()
+	_finish_shop_layout()
+
+
+func _finish_shop_layout() -> void:
+	if shard_shop_overlay == null:
+		return
+	for control in [shop_topup_button, shop_close_button, shop_tabs, shop_cards_area, shop_balance_row, shop_page_label, shop_hint_label]:
+		if control == null or not is_instance_valid(control):
+			continue
+		var old_parent: Node = control.get_parent()
+		if old_parent != null:
+			old_parent.remove_child(control)
+		shard_shop_overlay.add_child(control)
+		control.z_index = 3
+	if shop_close_button != null:
+		shop_close_button.anchor_left = 1.0
+		shop_close_button.anchor_right = 1.0
+		shop_close_button.anchor_top = 0.0
+		shop_close_button.anchor_bottom = 0.0
+		shop_close_button.offset_left = -106.0
+		shop_close_button.offset_right = -60.0
+		shop_close_button.offset_top = 20.0
+		shop_close_button.offset_bottom = 66.0
+	if shop_topup_button != null:
+		shop_topup_button.anchor_left = 1.0
+		shop_topup_button.anchor_right = 1.0
+		shop_topup_button.anchor_top = 0.0
+		shop_topup_button.anchor_bottom = 0.0
+		shop_topup_button.offset_left = -350.0
+		shop_topup_button.offset_right = -116.0
+		shop_topup_button.offset_top = 20.0
+		shop_topup_button.offset_bottom = 66.0
+	if shop_tabs != null:
+		shop_tabs.anchor_left = 0.06
+		shop_tabs.anchor_right = 0.94
+		shop_tabs.anchor_top = 0.18
+		shop_tabs.anchor_bottom = 0.18
+		shop_tabs.offset_top = 0.0
+		shop_tabs.offset_bottom = 58.0
+	if shop_balance_row != null:
+		shop_balance_row.anchor_left = 0.0
+		shop_balance_row.anchor_right = 0.0
+		shop_balance_row.anchor_top = 0.0
+		shop_balance_row.anchor_bottom = 0.0
+		shop_balance_row.offset_left = 100.0
+		shop_balance_row.offset_right = 320.0
+		shop_balance_row.offset_top = 78.0
+		shop_balance_row.offset_bottom = 118.0
+	if shop_cards_area != null:
+		shop_cards_area.anchor_left = 0.03
+		shop_cards_area.anchor_right = 0.97
+		shop_cards_area.anchor_top = 0.36
+		shop_cards_area.anchor_bottom = 0.86
+		shop_cards_area.offset_left = 0.0
+		shop_cards_area.offset_top = 0.0
+		shop_cards_area.offset_right = 0.0
+		shop_cards_area.offset_bottom = 0.0
+	if shop_page_label != null:
+		shop_page_label.anchor_left = 1.0
+		shop_page_label.anchor_right = 1.0
+		shop_page_label.anchor_top = 1.0
+		shop_page_label.anchor_bottom = 1.0
+		shop_page_label.offset_left = -120.0
+		shop_page_label.offset_right = -36.0
+		shop_page_label.offset_top = -70.0
+		shop_page_label.offset_bottom = -44.0
+	if shop_hint_label != null:
+		shop_hint_label.anchor_left = 0.03
+		shop_hint_label.anchor_right = 0.78
+		shop_hint_label.anchor_top = 1.0
+		shop_hint_label.anchor_bottom = 1.0
+		shop_hint_label.offset_top = -70.0
+		shop_hint_label.offset_bottom = -44.0
 
 
 func _shop_items_for(hero_index: int) -> Array:
@@ -1067,6 +1240,8 @@ func _build_player_menu() -> void:
 	panel.anchor_bottom = 0.93
 	panel.add_theme_stylebox_override("panel", _panel_style(Color(0.78, 0.62, 0.32), Color(0.035, 0.045, 0.07, 0.99)))
 	player_menu_overlay.add_child(panel)
+	player_menu_panel = panel
+	panel.clip_contents = true
 
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 14)
@@ -1091,24 +1266,28 @@ func _build_player_menu() -> void:
 	report_button.add_theme_font_size_override("font_size", _fs(14))
 	report_button.pressed.connect(_open_report_form)
 	header.add_child(report_button)
+	player_menu_report_button = report_button
 	var close_button := _make_action_button("×", false)
 	close_button.custom_minimum_size = Vector2(46, 44)
 	close_button.add_theme_font_size_override("font_size", _fs(25))
 	close_button.pressed.connect(_close_player_menu)
 	header.add_child(close_button)
+	player_menu_close_button = close_button
 
-	var columns := HBoxContainer.new()
+	var columns := Control.new()
+	columns.name = "PlayerMenuColumns"
 	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	columns.add_theme_constant_override("separation", 12)
+	columns.custom_minimum_size = Vector2(0, 300)
+	columns.mouse_filter = Control.MOUSE_FILTER_PASS
 	layout.add_child(columns)
 
 	var profile_panel := PanelContainer.new()
 	profile_panel.name = "PlayerMenuProfile"
-	profile_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	profile_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_place_inventory_column(profile_panel, 0.0, 0.36)
 	profile_panel.custom_minimum_size = Vector2(260, 0)
 	profile_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.4, 0.48, 0.63, 0.8), Color(0.045, 0.055, 0.085, 0.97)))
 	columns.add_child(profile_panel)
+	player_menu_profile = profile_panel
 	var profile_content := VBoxContainer.new()
 	profile_content.add_theme_constant_override("separation", 6)
 	profile_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1141,7 +1320,7 @@ func _build_player_menu() -> void:
 	var nickname_cost_row := HBoxContainer.new()
 	nickname_cost_row.add_theme_constant_override("separation", 4)
 	profile_content.add_child(nickname_cost_row)
-	nickname_cost_label = _make_label("Первый ник — бесплатно", 13, Color(0.76, 0.8, 0.89))
+	nickname_cost_label = _make_label("Ник: бесплатно", 13, Color(0.76, 0.8, 0.89))
 	nickname_cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	nickname_cost_label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	nickname_cost_row.add_child(nickname_cost_label)
@@ -1218,11 +1397,11 @@ func _build_player_menu() -> void:
 
 	var hero_panel := PanelContainer.new()
 	hero_panel.name = "PlayerMenuHero"
-	hero_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hero_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_place_inventory_column(hero_panel, 0.372, 0.652)
 	hero_panel.custom_minimum_size = Vector2(280, 0)
 	hero_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.57, 0.48, 0.31, 0.8), Color(0.025, 0.032, 0.05, 0.98)))
 	columns.add_child(hero_panel)
+	player_menu_hero = hero_panel
 	var hero_content := VBoxContainer.new()
 	hero_content.add_theme_constant_override("separation", 8)
 	hero_panel.add_child(hero_content)
@@ -1252,7 +1431,7 @@ func _build_player_menu() -> void:
 	hero_content.add_child(portrait_frame)
 	var preview_container := SubViewportContainer.new()
 	preview_container.name = "SelectedHeroPreview"
-	preview_container.custom_minimum_size = Vector2(0, 280)
+	preview_container.custom_minimum_size = Vector2(0, 190 if DeviceProfile.mobile_ui else 280)
 	preview_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	preview_container.stretch = true
 	preview_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1270,11 +1449,11 @@ func _build_player_menu() -> void:
 
 	var wardrobe_panel := PanelContainer.new()
 	wardrobe_panel.name = "PlayerMenuWardrobe"
-	wardrobe_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	wardrobe_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_place_inventory_column(wardrobe_panel, 0.664, 1.0)
 	wardrobe_panel.custom_minimum_size = Vector2(280, 0)
 	wardrobe_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.4, 0.48, 0.63, 0.8), Color(0.045, 0.055, 0.085, 0.97)))
 	columns.add_child(wardrobe_panel)
+	player_menu_wardrobe = wardrobe_panel
 	var wardrobe_content := VBoxContainer.new()
 	wardrobe_content.add_theme_constant_override("separation", 9)
 	wardrobe_panel.add_child(wardrobe_content)
@@ -1348,7 +1527,52 @@ func _build_player_menu() -> void:
 		weapon_inventory_buttons[weapon_id] = weapon_button
 		weapon_inventory_cards[weapon_id] = weapon_card
 	# Крылья временно убраны из инвентаря.
+	_finish_player_menu_layout()
 	_refresh_player_menu()
+
+
+func _place_inventory_column(panel: PanelContainer, left: float, right: float) -> void:
+	panel.anchor_left = left
+	panel.anchor_right = right
+	panel.anchor_top = 0.0
+	panel.anchor_bottom = 1.0
+	panel.offset_left = 0.0
+	panel.offset_top = 0.0
+	panel.offset_right = 0.0
+	panel.offset_bottom = 0.0
+
+
+func _finish_player_menu_layout() -> void:
+	if player_menu_overlay == null:
+		return
+	for button in [player_menu_report_button, player_menu_close_button]:
+		if button == null or not is_instance_valid(button):
+			continue
+		var old_parent: Node = button.get_parent()
+		if old_parent != null:
+			old_parent.remove_child(button)
+		player_menu_overlay.add_child(button)
+		button.z_index = 40
+	# Close and report float above the inventory window so the editor can
+	# place them freely.
+	if player_menu_close_button != null:
+		player_menu_close_button.anchor_left = 1.0
+		player_menu_close_button.anchor_right = 1.0
+		player_menu_close_button.anchor_top = 0.0
+		player_menu_close_button.anchor_bottom = 0.0
+		player_menu_close_button.offset_left = -106.0
+		player_menu_close_button.offset_right = -60.0
+		player_menu_close_button.offset_top = 44.0
+		player_menu_close_button.offset_bottom = 90.0
+	if player_menu_report_button != null:
+		player_menu_report_button.anchor_left = 1.0
+		player_menu_report_button.anchor_right = 1.0
+		player_menu_report_button.anchor_top = 0.0
+		player_menu_report_button.anchor_bottom = 0.0
+		player_menu_report_button.offset_left = -280.0
+		player_menu_report_button.offset_right = -116.0
+		player_menu_report_button.offset_top = 44.0
+		player_menu_report_button.offset_bottom = 90.0
 
 
 func _build_hero_preview_stage() -> void:
@@ -2070,12 +2294,12 @@ func _refresh_player_menu() -> void:
 		nickname_line_edit.text = MetaProgression.player_nickname
 	if nickname_cost_label != null:
 		if MetaProgression.nickname_custom:
-			nickname_cost_label.text = "Смена ника — %d осколков" % NICKNAME_CHANGE_COST
+			nickname_cost_label.text = "Смена: %d" % NICKNAME_CHANGE_COST
 			nickname_cost_label.add_theme_color_override("font_color", Color(0.95, 0.76, 0.38))
 			if nickname_cost_icon != null:
 				nickname_cost_icon.visible = true
 		else:
-			nickname_cost_label.text = "Первый ник — бесплатно"
+			nickname_cost_label.text = "Ник: бесплатно"
 			nickname_cost_label.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
 			if nickname_cost_icon != null:
 				nickname_cost_icon.visible = false
@@ -2321,7 +2545,7 @@ func _build_actions() -> void:
 	add_child(tutorial_button)
 	_refresh_tutorial_button()
 
-	var settings_button := _make_action_button("", false)
+	settings_button = _make_action_button("", false)
 	settings_button.name = "SettingsButton"
 	settings_button.anchor_left = 0.0
 	settings_button.anchor_top = 1.0
@@ -2460,10 +2684,12 @@ func _refresh_player_profile() -> void:
 func _play_level_up_feedback() -> void:
 	var player := AudioStreamPlayer.new()
 	player.stream = preload("res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/level_up_chime.wav")
-	player.volume_db = -4.0
+	player.volume_db = -1.0
 	add_child(player)
 	player.finished.connect(player.queue_free)
 	player.play()
+	var character_key: String = ['warrior', 'mage', 'fairy'][selected_class]
+	_show_level_up_banner(int(MetaProgression.char_levels.get(character_key, 1)))
 	if profile_xp_label == null or not is_instance_valid(profile_xp_label):
 		return
 	profile_xp_label.text = "* НОВЫЙ УРОВЕНЬ!"
@@ -2471,6 +2697,52 @@ func _play_level_up_feedback() -> void:
 	await get_tree().create_timer(2.6).timeout
 	if is_instance_valid(profile_xp_label):
 		_refresh_player_profile()
+
+
+func _build_level_up_banner() -> void:
+	level_up_banner = PanelContainer.new()
+	level_up_banner.name = "LevelUpBanner"
+	level_up_banner.anchor_left = 0.5
+	level_up_banner.anchor_right = 0.5
+	level_up_banner.anchor_top = 0.0
+	level_up_banner.anchor_bottom = 0.0
+	level_up_banner.offset_left = -300.0
+	level_up_banner.offset_right = 300.0
+	level_up_banner.offset_top = 86.0
+	level_up_banner.offset_bottom = 184.0
+	level_up_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	level_up_banner.z_index = 70
+	level_up_banner.add_theme_stylebox_override(
+		"panel",
+		_panel_style(Color(1.0, 0.84, 0.44, 1.0), Color(0.035, 0.045, 0.07, 0.97))
+	)
+	level_up_banner_label = _make_label("", 28, GOLD)
+	level_up_banner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	level_up_banner_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	level_up_banner.add_child(level_up_banner_label)
+	level_up_banner.visible = false
+	add_child(level_up_banner)
+
+
+func _show_level_up_banner(character_level: int) -> void:
+	if level_up_banner == null or not is_instance_valid(level_up_banner):
+		return
+	if level_up_banner_tween != null and level_up_banner_tween.is_running():
+		level_up_banner_tween.kill()
+	level_up_banner_label.text = "НОВЫЙ УРОВЕНЬ!\n%s · %d" % [HERO_NAMES[selected_class], character_level]
+	level_up_banner.visible = true
+	level_up_banner.modulate.a = 0.0
+	level_up_banner.scale = Vector2(0.78, 0.78)
+	level_up_banner.pivot_offset = Vector2(300.0, 49.0)
+	level_up_banner_tween = create_tween()
+	level_up_banner_tween.tween_property(level_up_banner, "modulate:a", 1.0, 0.18)
+	level_up_banner_tween.parallel().tween_property(level_up_banner, "scale", Vector2.ONE, 0.38).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	level_up_banner_tween.tween_interval(2.6)
+	level_up_banner_tween.tween_property(level_up_banner, "modulate:a", 0.0, 0.35)
+	level_up_banner_tween.tween_callback(func() -> void:
+		if level_up_banner != null and is_instance_valid(level_up_banner):
+			level_up_banner.visible = false
+	)
 
 
 func _on_side_card_pressed(slot: int) -> void:
@@ -2559,6 +2831,7 @@ func _start_battle() -> void:
 func _start_tutorial() -> void:
 	if tutorial_button == null or tutorial_button.disabled:
 		return
+	DeviceProfile.auto_tutorial = false
 	_save_selection()
 	if NetworkManager.is_connecting() or NetworkManager.is_server_connected():
 		NetworkManager.disconnect_from_server(false)

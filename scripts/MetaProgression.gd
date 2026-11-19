@@ -207,10 +207,14 @@ func get_shard_reward_for_level(level: int) -> int:
 func add_character_xp(char_name: String, amount: int) -> void:
 	if not char_levels.has(char_name) or amount <= 0:
 		return
+	# Doubling rewards adds XP in a second call. Keep a level-up that the
+	# first call already earned instead of silently clearing the flag.
+	var had_pending_level_up := just_leveled_up and just_leveled_up_character == char_name
 	last_xp_gain = amount
 	last_xp_gain_character = char_name
-	just_leveled_up = false
-	just_leveled_up_character = ""
+	if not had_pending_level_up:
+		just_leveled_up = false
+		just_leveled_up_character = ""
 	if int(char_levels[char_name]) >= MAX_CHARACTER_LEVEL:
 		char_xps[char_name] = 0
 		return

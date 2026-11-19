@@ -20,6 +20,7 @@ var coins_collected := 0
 var coins_spawned := 0
 var coin_spawn_timer := 0.0
 var shell_spawn_countdown := 0.0
+var shell_hint_near := false
 var completed := false
 
 
@@ -70,8 +71,20 @@ func process(delta: float) -> void:
 		shell_spawn_countdown = maxf(0.0, shell_spawn_countdown - delta)
 		if shell_spawn_countdown <= 0.0:
 			stage = "destroy_shell"
+			shell_hint_near = false
 			game.call("_spawn_shell")
 			game.hud.call("show_tutorial_hint", "Уничтожь Оболочку — внутри неё Небесный Осколок")
+	elif stage == "destroy_shell":
+		# Drop the hint strip when the player is close enough to fight the
+		# Shell; otherwise it covers the Shell's own name and HP bar.
+		var shell_node = game.shell
+		var near := shell_node != null and is_instance_valid(shell_node) and shell_node.alive and game.player.global_position.distance_to(shell_node.global_position) <= 10.0
+		if near != shell_hint_near:
+			shell_hint_near = near
+			game.hud.call(
+				"show_tutorial_hint",
+				"" if near else "Уничтожь Оболочку — внутри неё Небесный Осколок"
+			)
 	elif stage == "pick_crystal":
 		if game.crystal_state == "carried" and game.carrier == game.player:
 			stage = "deliver_crystal"
@@ -126,6 +139,7 @@ func on_shop_item_bought(item_id: String) -> void:
 		return
 	game.call("set_shop_open", false)
 	stage = "shell_warning"
+	game.hud.call("hide_ui_highlight")
 	shell_spawn_countdown = 10.0
 	_point_to(Vector3.ZERO, OBJECTIVE_SHELL)
 	game.hud.call("show_tutorial_hint", "Через 10 секунд появится Оболочка")
@@ -136,6 +150,7 @@ func on_shell_destroyed() -> void:
 	if stage != "destroy_shell":
 		return
 	stage = "pick_crystal"
+	game.hud.call("hide_ui_highlight")
 	_point_to(_crystal_position(), OBJECTIVE_CRYSTAL)
 	game.hud.call("show_tutorial_hint", "Возьми осколок")
 
@@ -152,6 +167,7 @@ func on_delivery() -> void:
 	_clear_target()
 	_save_completion()
 	game.hud.call("show_tutorial_hint", "")
+	game.hud.call("hide_ui_highlight")
 	game.hud.call("set_tutorial_ability", -1)
 	game.hud.call(
 		"show_tutorial_victory",
@@ -194,6 +210,7 @@ func _show_fountain_card() -> void:
 	if stage != "go_fountain":
 		return
 	stage = "fountain_intro"
+	game.hud.call("hide_ui_highlight")
 	game.hud.call(
 		"show_tutorial_card",
 		FOUNTAIN_TITLE,
@@ -217,6 +234,7 @@ func _show_shop_card() -> void:
 	if stage != "go_shop":
 		return
 	stage = "shop_intro"
+	game.hud.call("hide_ui_highlight")
 	game.hud.call(
 		"show_tutorial_card",
 		SHOP_TITLE,
@@ -232,6 +250,11 @@ func _open_shop_for_tutorial() -> void:
 	game.hud.call("hide_tutorial_card")
 	stage = "buy_item"
 	if game.player != null and is_instance_valid(game.player):
+		# The shop tent has a collision box. Put the player on its
+		# centre-facing side so they cannot get pinned under the canopy.
+		var shop_point: Vector3 = game.SHOP_INTERACTION_POINT
+		game.player.global_position = game.clamp_to_arena(shop_point + Vector3(3.5, 0.0, 0.0))
+		game.player.velocity = Vector3.ZERO
 		game.player.seconds_since_damage = 5.0
 		game.player.shop_manual_dismissed = false
 		game.player._update_shop_proximity(0.0)
@@ -244,6 +267,7 @@ func _start_ability_training() -> void:
 		return
 	game.call("spawn_tutorial_dummy")
 	stage = "abilities"
+	game.hud.call("hide_ui_highlight")
 	expected_ability = 0
 	if game.tutorial_dummy != null and is_instance_valid(game.tutorial_dummy):
 		_point_to(game.tutorial_dummy.global_position, OBJECTIVE_GOLD)

@@ -19,15 +19,43 @@ const SCENES := [
 
 const SOUNDS := [
 	"res://assets/audio/Soundza_Game_SFX_Pack/hits_impacts/deep_punch_impact.wav",
+	"res://assets/audio/Soundza_Game_SFX_Pack/hits_impacts/deep_sub_impact.wav",
 	"res://assets/audio/Soundza_Game_SFX_Pack/explosions/fireball_explosion.wav",
 	"res://assets/audio/Soundza_Game_SFX_Pack/magic/spell_2.wav",
 	"res://assets/audio/Soundza_Game_SFX_Pack/pickups_powerups/synth_power_up_ascending.wav",
+	"res://assets/audio/Soundza_Game_SFX_Pack/pickups_powerups/coins_1.wav",
+	"res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/level_up_chime.wav",
 	"res://audio/sfx/warrior_attack_sword_01.wav",
 	"res://audio/sfx/warrior_hit.wav",
+	"res://audio/sfx/warrior_quake_ult.wav",
+	"res://audio/sfx/warrior_dash_shadow.wav",
+	"res://audio/sfx/warrior_bloodthirst.wav",
 	"res://audio/sfx/mage_ice_ball.wav",
 	"res://audio/sfx/mage_hit.wav",
+	"res://audio/sfx/mage_root_vines_short.wav",
+	"res://audio/sfx/mage_heal_chime.wav",
+	"res://audio/sfx/mage_storm_ult.wav",
 	"res://audio/sfx/fairy_bow_release_01.wav",
 	"res://audio/sfx/fairy_hit.wav",
+	"res://audio/sfx/fairy_stun_shot.wav",
+	"res://audio/sfx/fairy_crit_draw_release.wav",
+	"res://audio/sfx/fairy_blessing.wav",
+	"res://audio/sfx/fairy_blessing_free/sfx_magical_fairy_chime_bell_brig_.wav",
+	"res://audio/sfx/sword_hit.wav",
+	"res://audio/sfx/magic_burst.wav",
+	"res://audio/sfx/shell_thunder.wav",
+	"res://audio/sfx/misc_shell_hit.wav",
+	"res://audio/sfx/misc_shell_destroyed.wav",
+	"res://audio/sfx/misc_shard_pickup.wav",
+	"res://audio/sfx/misc_shard_delivery.wav",
+	"res://audio/sfx/misc_coin_wallet.wav",
+	"res://audio/sfx/death_soft_thud.wav",
+	"res://audio/sfx/fairy_death_scream.wav",
+	"res://assets/audio/kenney_rpg/footstep_0.ogg",
+	"res://assets/audio/kenney_rpg/footstep_1.ogg",
+	"res://assets/audio/kenney_rpg/footstep_2.ogg",
+	"res://assets/audio/kenney_rpg/footstep_3.ogg",
+	"res://assets/audio/kenney_rpg/footstep_4.ogg",
 ]
 
 var viewport: SubViewport
@@ -120,6 +148,53 @@ func _run() -> void:
 	for _frame in 2:
 		await get_tree().process_frame
 	label.queue_free()
+
+	# Player names use the larger fallback font with a heavy black outline.
+	# Warm it so the first visible enemy nameplate does not compile mid-fight.
+	var name_probe := Label3D.new()
+	name_probe.text = "Северный Ветер"
+	name_probe.font = ThemeDB.fallback_font
+	name_probe.font_size = 56
+	name_probe.outline_size = 10
+	name_probe.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	viewport.add_child(name_probe)
+	for _frame in 2:
+		await get_tree().process_frame
+	name_probe.queue_free()
+
+	# Weapon glow orbs/sparks and skill particles are built at runtime.
+	var glow_probe := MeshInstance3D.new()
+	glow_probe.mesh = QuadMesh.new()
+	var glow_material := StandardMaterial3D.new()
+	glow_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glow_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glow_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	glow_material.albedo_texture = preload("res://ui/fx/blessing_rune.png")
+	glow_material.albedo_color = Color(1.0, 0.85, 0.4, 0.9)
+	glow_material.emission_enabled = true
+	glow_material.emission = Color(1.0, 0.7, 0.25)
+	glow_material.emission_energy_multiplier = 1.8
+	glow_probe.material_override = glow_material
+	glow_probe.scale = Vector3(2.8, 2.8, 1.0)
+	viewport.add_child(glow_probe)
+	var spark_probe := CPUParticles3D.new()
+	spark_probe.amount = 12
+	spark_probe.lifetime = 0.5
+	spark_probe.emitting = true
+	spark_probe.mesh = QuadMesh.new()
+	var spark_material := StandardMaterial3D.new()
+	spark_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	spark_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	spark_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	spark_material.albedo_color = Color(1.0, 0.8, 0.35, 0.9)
+	spark_material.emission_enabled = true
+	spark_material.emission = Color(1.0, 0.72, 0.25)
+	spark_probe.material_override = spark_material
+	viewport.add_child(spark_probe)
+	for _frame in 3:
+		await get_tree().process_frame
+	glow_probe.queue_free()
+	spark_probe.queue_free()
 
 	# Decode the first-clash sounds while the search screen is still visible.
 	for path in SOUNDS:

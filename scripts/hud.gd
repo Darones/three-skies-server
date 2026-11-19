@@ -36,7 +36,7 @@ const ABILITY_SHORT_LABELS := {
 }
 
 # Временный отладочный оверлей производительности. Выключить после тестов.
-const PERF_MONITOR_ENABLED := true
+const PERF_MONITOR_ENABLED := false
 
 
 
@@ -68,15 +68,20 @@ var end_panel: Control
 var end_title: Label
 var end_score: Label
 var shop_panel: PanelContainer
+var shop_scroll: ScrollContainer
 var shop_hint_label: Label
 var shop_highlight: Panel
 var tutorial_shop_item := ""
 var focus_panel: Panel
 var focus_target: Control
+var focus_manual_rect := Rect2()
+var focus_use_manual := false
 var minimap_control: Control
 var shop_dim: ColorRect
 var shop_buttons: Dictionary = {}
 var ability_row: Control
+var ability_slots: Array[Control] = []
+var match_info_box: Control = null
 var touch_joystick: Control
 var announce_tween: Tween
 var pause_button: Button
@@ -168,6 +173,25 @@ func _ready() -> void:
 		perf.name = "PerfMonitor"
 		root.add_child(perf)
 		perf.call("configure", game)
+	_register_ui_layout()
+
+
+func _register_ui_layout() -> void:
+	if not DeviceProfile.mobile_ui:
+		return
+	UiLayout.register("hud.match_info", match_info_box, "Счёт и таймер", "battle")
+	UiLayout.register("hud.player_card", player_panel, "Карточка игрока", "battle")
+	UiLayout.register("hud.kill_feed", kill_feed_box, "Лента убийств", "battle")
+	UiLayout.register("hud.minimap", minimap_control, "Миникарта", "battle")
+	for index in ability_slots.size():
+		UiLayout.register(
+			"hud.ability_%d" % (index + 1),
+			ability_slots[index],
+			"Скилл %d" % (index + 1),
+			"battle"
+		)
+	if touch_joystick != null:
+		UiLayout.register("hud.joystick", touch_joystick, "Джойстик", "battle")
 
 
 func _apply_safe_area(root: Control) -> void:
@@ -212,7 +236,8 @@ func _build_low_health_overlay(root: Control) -> void:
 	low_health_overlay.name = "LowHealthVignette"
 	low_health_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	low_health_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	low_health_overlay.z_index = 20
+	# Behind the HUD: the red vignette must not tint the HP bars and buttons.
+	low_health_overlay.z_index = -10
 	low_health_material = ShaderMaterial.new()
 	low_health_material.shader = preload("res://shaders/low_health_vignette.gdshader")
 	low_health_overlay.material = low_health_material
@@ -599,6 +624,7 @@ func _build_top(root: Control) -> void:
 	box.add_theme_constant_override("separation", 2)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(box)
+	match_info_box = box
 
 	score_label = _make_label("Свет — 0:0 — Тьма", 24, Color.WHITE)
 	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -656,6 +682,7 @@ func _build_focus_panel(root: Control) -> void:
 
 func set_focus_target(target: Control) -> void:
 	focus_target = target
+	focus_use_manual = false
 	if focus_panel == null:
 		return
 	if target == null or not is_instance_valid(target):
@@ -663,26 +690,50 @@ func set_focus_target(target: Control) -> void:
 
 
 func show_ui_highlight(kind: String, text: String) -> void:
+	focus_use_manual = false
 	var target: Control = null
 	match kind:
 		"minimap":
 			target = minimap_control
 		"skills":
-			target = ability_row
+			# The mobile ability row is a full-screen layout helper; highlight
+			# the actual buttons instead of the whole screen.
+			if not ability_slots.is_empty():
+				var union := ability_slots[0].get_global_rect()
+				for slot in ability_slots:
+					if slot != null and is_instance_valid(slot):
+						union = union.merge(slot.get_global_rect())
+				focus_manual_rect = union
+				focus_use_manual = true
+			else:
+				target = ability_row
 		"avatar":
 			target = player_panel
-	set_focus_target(target)
+	if focus_use_manual:
+		focus_target = null
+		if focus_panel != null:
+			focus_panel.visible = true
+	else:
+		set_focus_target(target)
 	show_tutorial_hint(text)
 
 
 func hide_ui_highlight() -> void:
+	focus_use_manual = false
 	set_focus_target(null)
+	if focus_panel != null:
+		focus_panel.visible = false
 
 
 func set_tutorial_shop_item(item_id: String) -> void:
 	tutorial_shop_item = item_id
 	if item_id.is_empty():
+		focus_use_manual = false
 		set_focus_target(null)
+		return
+	var button := shop_buttons.get(item_id) as Control
+	if button != null and shop_scroll != null:
+		shop_scroll.call_deferred("ensure_control_visible", button)
 
 
 func _update_focus_panel() -> void:
@@ -693,9 +744,14 @@ func _update_focus_panel() -> void:
 		if button != null and is_instance_valid(button):
 			focus_target = button
 	if focus_target == null or not is_instance_valid(focus_target) or not focus_target.is_visible_in_tree():
-		focus_panel.visible = false
-		return
-	var rect := focus_target.get_global_rect()
+		if not focus_use_manual:
+			focus_panel.visible = false
+			return
+	var rect: Rect2
+	if focus_use_manual:
+		rect = focus_manual_rect
+	else:
+		rect = focus_target.get_global_rect()
 	var hud_root := get_child(0) as Control if get_child_count() > 0 else null
 	var origin := hud_root.global_position if hud_root != null else Vector2.ZERO
 	focus_panel.position = rect.position - origin + Vector2(-5.0, -5.0)
@@ -970,21 +1026,30 @@ func _build_abilities(root: Control) -> void:
 
 	var slot_offsets := [Vector2(-209.0, -150.0), Vector2(-128.0, -231.0), Vector2(-290.0, -231.0)]
 	for i in 3:
-		var slot := VBoxContainer.new()
+		var slot: Control
 		if is_mobile:
+			# A plain Control gives the editor full freedom to move and
+			# resize each skill; the button fills it edge to edge.
+			slot = Control.new()
 			slot.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 			slot.offset_left = slot_offsets[i].x
 			slot.offset_top = slot_offsets[i].y
 			slot.offset_right = slot_offsets[i].x + 88.0
-			slot.offset_bottom = slot_offsets[i].y + 110.0
-			slot.custom_minimum_size = Vector2(88.0, 110.0)
+			slot.offset_bottom = slot_offsets[i].y + 88.0
+			slot.custom_minimum_size = Vector2(88.0, 88.0)
+			slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		else:
+			slot = VBoxContainer.new()
 			slot.custom_minimum_size = Vector2(84.0, 106.0)
-		slot.add_theme_constant_override("separation", 2)
-		slot.alignment = BoxContainer.ALIGNMENT_CENTER
+			slot.add_theme_constant_override("separation", 2)
+			slot.alignment = BoxContainer.ALIGNMENT_CENTER
 		var button := Button.new()
 		button.text = ""
-		button.custom_minimum_size = Vector2(88.0, 88.0) if is_mobile else Vector2(84.0, 84.0)
+		if is_mobile:
+			button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			button.custom_minimum_size = Vector2.ZERO
+		else:
+			button.custom_minimum_size = Vector2(84.0, 84.0)
 		button.clip_contents = true
 		button.focus_mode = Control.FOCUS_NONE
 		button.add_theme_font_override("font", font)
@@ -1035,8 +1100,10 @@ func _build_abilities(root: Control) -> void:
 		name_label.clip_text = true
 		name_label.visible = not is_mobile
 		slot.add_child(button)
-		slot.add_child(name_label)
+		if not is_mobile:
+			slot.add_child(name_label)
 		row.add_child(slot)
+		ability_slots.append(slot)
 		ability_buttons.append(button)
 		ability_wipes.append(wipe)
 		ability_ready.append(true)
@@ -1294,10 +1361,19 @@ func _build_shop(root: Control) -> void:
 	shop_hint_label.visible = false
 	layout.add_child(shop_hint_label)
 
+	var scroll := ScrollContainer.new()
+	scroll.name = "ShopScroll"
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	layout.add_child(scroll)
+	shop_scroll = scroll
+
 	var grid_center := CenterContainer.new()
 	grid_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	grid_center.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	layout.add_child(grid_center)
+	scroll.add_child(grid_center)
 
 	var grid := GridContainer.new()
 	grid.columns = 3
@@ -1311,9 +1387,10 @@ func _build_shop(root: Control) -> void:
 	for item in game.get_shop_items():
 		var item_id := String(item["id"])
 		var button := Button.new()
-		button.custom_minimum_size = Vector2(0.0, 122.0)
+		button.custom_minimum_size = Vector2(0.0, 145.0)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		button.clip_contents = true
 		button.focus_mode = Control.FOCUS_NONE
 		button.add_theme_stylebox_override("normal", _panel_style(Color(0.47, 0.55, 0.72, 0.8), Color(0.09, 0.105, 0.15, 0.96)))
 		button.add_theme_stylebox_override("hover", _panel_style(Color(0.95, 0.77, 0.35, 1.0), Color(0.14, 0.13, 0.16, 0.98)))

@@ -112,6 +112,22 @@ def patch_splash() -> None:
     print("SPLASH patched")
 
 
+def copy_editor_page() -> None:
+    editor = ROOT / "ui_editor.html"
+    if not editor.exists():
+        print("EDITOR skipped")
+        return
+    shutil.copy2(editor, OUT_DIR / "ui_editor.html")
+    for source_name, target_name in (
+        ("Philosopher-Regular.ttf", "philosopher.ttf"),
+        ("Philosopher-Bold.ttf", "philosopher_bold.ttf"),
+    ):
+        source = ROOT / "assets" / "fonts" / source_name
+        if source.exists():
+            shutil.copy2(source, OUT_DIR / target_name)
+    print("EDITOR copied")
+
+
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     if BACKUP.exists():
@@ -157,6 +173,7 @@ def main() -> None:
     bust_pck()
     patch_vk_bridge()
     patch_splash()
+    copy_editor_page()
 
     print("FILES")
     total = 0

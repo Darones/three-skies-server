@@ -12,7 +12,7 @@ const DIRECT_DAMAGE_MIN_MULTIPLIER := 0.75
 const DIRECT_DAMAGE_MAX_MULTIPLIER := 1.25
 const CRITICAL_CHANCE := 0.05
 const CRITICAL_DAMAGE_MULTIPLIER := 2.0
-const HEALTH_BAR_FILL_WIDTH := 1.18
+const HEALTH_BAR_FILL_WIDTH := 1.7
 const GROUND_Y_OFFSET := -0.7
 const HEALTH_REGEN_PER_SECOND := 10.0
 const BASE_REGEN_RADIUS := 6.5
@@ -621,12 +621,14 @@ func _build_body() -> void:
 	_build_health_label()
 	_build_name_label()
 
-	carry_light = OmniLight3D.new()
-	carry_light.light_color = Color(0.7, 0.9, 1.0)
-	carry_light.light_energy = 0.0
-	carry_light.omni_range = 5.0
-	carry_light.position = Vector3(0.0, 2.4, 0.0)
-	add_child(carry_light)
+	carry_light = null
+	if not DeviceProfile.mobile_ui:
+		carry_light = OmniLight3D.new()
+		carry_light.light_color = Color(0.7, 0.9, 1.0)
+		carry_light.light_energy = 0.0
+		carry_light.omni_range = 5.0
+		carry_light.position = Vector3(0.0, 2.4, 0.0)
+		add_child(carry_light)
 	_build_combat_audio_players()
 
 
@@ -816,6 +818,8 @@ func spawn_vfx(
 			var particles := node as CPUParticles3D
 			particles.amount = maxi(4, particles.amount / 2)
 			particles.fixed_fps = 30
+		for node in effect.find_children("*", "Light3D", true, false):
+			(node as Light3D).visible = false
 	var effect_position := pos
 	effect_position.y += 0.6
 	effect.global_position = effect_position
@@ -889,10 +893,10 @@ func _vfx_audio_for_scene(vfx_scene: PackedScene) -> AudioStream:
 func _build_health_bar() -> void:
 	health_back = MeshInstance3D.new()
 	var quad := QuadMesh.new()
-	quad.size = Vector2(1.6, 0.12)
+	quad.size = Vector2(HEALTH_BAR_FILL_WIDTH, 0.16)
 	health_back.mesh = quad
 	var back_mat := StandardMaterial3D.new()
-	back_mat.albedo_color = Color(0.08, 0.06, 0.1, 0.82)
+	back_mat.albedo_color = Color(0.06, 0.05, 0.08, 0.9)
 	back_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	back_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	back_mat.no_depth_test = true
@@ -903,12 +907,12 @@ func _build_health_bar() -> void:
 
 	health_fill = MeshInstance3D.new()
 	var fill_quad := QuadMesh.new()
-	fill_quad.size = Vector2(HEALTH_BAR_FILL_WIDTH, 0.08)
+	fill_quad.size = Vector2(HEALTH_BAR_FILL_WIDTH, 0.12)
 	health_fill.mesh = fill_quad
 	var fill_mat := StandardMaterial3D.new()
-	fill_mat.albedo_color = Color(0.4, 0.92, 0.6, 0.95)
+	fill_mat.albedo_color = Color(0.36, 0.95, 0.52, 0.96)
 	fill_mat.emission_enabled = true
-	fill_mat.emission = Color(0.4, 0.92, 0.6)
+	fill_mat.emission = Color(0.36, 0.95, 0.52)
 	fill_mat.emission_energy_multiplier = 0.35
 	fill_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	fill_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
@@ -939,55 +943,21 @@ func _build_health_label() -> void:
 	health_label.visible = false
 
 
-static var _name_plate_cache: Texture2D = null
-
-func _name_plate_texture() -> Texture2D:
-	if _name_plate_cache != null:
-		return _name_plate_cache
-	var width := 160
-	var height := 64
-	var radius := 14.0
-	var image := Image.create(width, height, false, Image.FORMAT_RGBA8)
-	image.fill(Color(0.0, 0.0, 0.0, 0.0))
-	for y in height:
-		for x in width:
-			var cx := clampf(float(x), radius, float(width - 1) - radius)
-			var cy := clampf(float(y), radius, float(height - 1) - radius)
-			var distance := Vector2(float(x) - cx, float(y) - cy).length()
-			if distance > radius:
-				continue
-			if distance > radius - 2.0:
-				image.set_pixel(x, y, Color(0.55, 0.68, 0.85, 0.55))
-			else:
-				image.set_pixel(x, y, Color(0.015, 0.025, 0.045, 0.66))
-	_name_plate_cache = ImageTexture.create_from_image(image)
-	return _name_plate_cache
-
-
 func _build_name_label() -> void:
-	if DeviceProfile.quality_override != "noplate":
-		name_plate = Sprite3D.new()
-		name_plate.name = "NamePlate"
-		name_plate.texture = _name_plate_texture()
-		name_plate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		name_plate.no_depth_test = true
-		name_plate.render_priority = -1
-		name_plate.pixel_size = 0.0085
-		name_plate.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
-		name_plate.position = Vector3(0.0, 3.0, 0.0)
-		status_root.add_child(name_plate)
+	# A clean readable name with a black outline instead of a dark plate.
+	name_plate = null
 	name_label = Label3D.new()
 	name_label.name = "NameLabel"
 	name_label.text = display_name
-	name_label.font = UI_FONT
-	name_label.font_size = 40
+	name_label.font = ThemeDB.fallback_font
+	name_label.font_size = 56
 	name_label.pixel_size = 0.0055
 	name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	name_label.no_depth_test = true
-	name_label.modulate = Color(0.55, 0.9, 1.0) if team == 0 else Color(0.92, 0.66, 1.0)
-	name_label.outline_size = 6
-	name_label.outline_modulate = Color(0.02, 0.03, 0.06, 0.98)
-	name_label.position = Vector3(0.0, 2.93, 0.0)
+	name_label.modulate = Color(0.62, 1.0, 0.62)
+	name_label.outline_size = 10
+	name_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)
+	name_label.position = Vector3(0.0, 3.02, 0.0)
 	status_root.add_child(name_label)
 
 
@@ -1319,6 +1289,10 @@ func _add_weapon_sparks(parent: Node3D, node_name: String, at: Vector3, amount: 
 
 
 func _add_weapon_light(parent: Node3D, at: Vector3, color: Color, energy: float, light_range: float) -> void:
+	# Decorative weapon lights are the most expensive per-hero addition on
+	# mobile WebGL; the glow meshes already sell the effect.
+	if DeviceProfile.mobile_ui:
+		return
 	var light := OmniLight3D.new()
 	light.name = "WeaponLight"
 	light.position = at
@@ -2148,15 +2122,19 @@ func dismiss_shop() -> void:
 
 
 func _update_name_color() -> void:
-	if name_label == null or not is_instance_valid(name_label):
-		return
 	var local_team := -1
 	if game != null and is_instance_valid(game) and game.player != null and is_instance_valid(game.player):
 		local_team = int(game.player.team)
-	if local_team >= 0 and team != local_team:
-		name_label.modulate = Color(1.0, 0.32, 0.28)
-	else:
-		name_label.modulate = Color(0.55, 0.9, 1.0) if team == 0 else Color(0.92, 0.66, 1.0)
+	var is_ally := local_team < 0 or team == local_team
+	if name_label != null and is_instance_valid(name_label):
+		# Red enemy names and green ally names, both with a black outline.
+		name_label.modulate = Color(0.62, 1.0, 0.62) if is_ally else Color(1.0, 0.32, 0.28)
+	if health_fill != null and is_instance_valid(health_fill):
+		var fill_mat := health_fill.material_override as StandardMaterial3D
+		if fill_mat != null:
+			var bar_color := Color(0.36, 0.95, 0.52) if is_ally else Color(1.0, 0.3, 0.26)
+			fill_mat.albedo_color = Color(bar_color.r, bar_color.g, bar_color.b, 0.96)
+			fill_mat.emission = bar_color
 
 
 func _update_name_visibility() -> void:
@@ -2377,7 +2355,7 @@ func take_damage(amount: float, source: Node = null, damage_type: String = "phys
 	if game != null and game.has_method("record_hero_damage"):
 		game.record_hero_damage(self, source, applied_damage, health <= 0.0)
 	if game != null and game.has_method("damage_number"):
-		var show_number := game.player == null or source == game.player or self == game.player
+		var show_number: bool = game.player == null or source == game.player or self == game.player
 		if show_number:
 			game.damage_number(global_position + Vector3(0.0, 2.0, 0.0), applied_damage, team, false, is_crit)
 	if source is HeroUnit:
@@ -2740,15 +2718,17 @@ func _begin_crit_cast_visuals() -> void:
 		crit_cast_particle_restores.append({"node": existing, "emitting": existing.emitting})
 		existing.emitting = false
 	_build_crit_cast_particles()
-	var light := OmniLight3D.new()
-	light.name = "CritCastLight"
-	light.position = Vector3(0.0, 0.0, 0.18)
-	light.light_color = CRIT_CAST_COLOR
-	light.light_energy = 1.7
-	light.omni_range = 3.2
-	light.shadow_enabled = false
-	weapon_instance.add_child(light)
-	crit_cast_light = light
+	crit_cast_light = null
+	if not DeviceProfile.mobile_ui:
+		var light := OmniLight3D.new()
+		light.name = "CritCastLight"
+		light.position = Vector3(0.0, 0.0, 0.18)
+		light.light_color = CRIT_CAST_COLOR
+		light.light_energy = 1.7
+		light.omni_range = 3.2
+		light.shadow_enabled = false
+		weapon_instance.add_child(light)
+		crit_cast_light = light
 
 
 func _apply_crit_cast_material(material: StandardMaterial3D) -> void:
@@ -2912,13 +2892,14 @@ func apply_blessing(duration: float, source_team: int = -1) -> void:
 	var root := Node3D.new()
 	root.name = "GoldenBlessingRing"
 	root.position = Vector3(0.0, 0.05, 0.0)
-	var glow := OmniLight3D.new()
-	glow.name = "Glow"
-	glow.light_color = Color(1.0, 0.72, 0.2)
-	glow.light_energy = 2.2
-	glow.omni_range = 4.0
-	glow.position = Vector3(0.0, 0.6, 0.0)
-	root.add_child(glow)
+	if not DeviceProfile.mobile_ui:
+		var glow := OmniLight3D.new()
+		glow.name = "Glow"
+		glow.light_color = Color(1.0, 0.72, 0.2)
+		glow.light_energy = 2.2
+		glow.omni_range = 4.0
+		glow.position = Vector3(0.0, 0.6, 0.0)
+		root.add_child(glow)
 	var rune := MeshInstance3D.new()
 	rune.name = "BlessingRune"
 	var rune_mesh := QuadMesh.new()

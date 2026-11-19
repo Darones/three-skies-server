@@ -43,6 +43,10 @@ var stats_tab_button: Button
 var players_tab_button: Button
 var ad_button_pulse_tween: Tween
 var victory_player: AudioStreamPlayer
+var reward_banner: Label
+var reward_banner_tween: Tween
+var entry_leveled_up := false
+var entry_level := 1
 
 
 func _build_players_table(parent: VBoxContainer) -> void:
@@ -204,10 +208,18 @@ func _ready() -> void:
 	MetaProgression.record_match_result(player_won, player_place, match_stats, final_xp, final_shards)
 	_grant_match_reward_to_server(final_shards)
 	if not rewards_committed:
-		MetaProgression.add_character_xp(CHARACTER_KEYS[selected_class], final_xp)
+		var character_key := CHARACTER_KEYS[selected_class]
+		var level_before := int(MetaProgression.char_levels.get(character_key, 1))
+		MetaProgression.add_character_xp(character_key, final_xp)
+		entry_level = int(MetaProgression.char_levels.get(character_key, level_before))
+		entry_leveled_up = entry_level > level_before
 		rewards_committed = true
 	_build_screen()
+	_build_reward_banner()
 	_animate_rewards()
+	if entry_leveled_up:
+		_show_reward_banner("НОВЫЙ УРОВЕНЬ!  %d" % entry_level, 2.4)
+		_play_level_up_chime()
 	if player_won:
 		_play_victory_celebration()
 	else:
@@ -617,14 +629,94 @@ func _on_rewarded_ad_completed() -> void:
 	var previous_xp := final_xp
 	final_xp *= 2
 	final_shards *= 2
-	MetaProgression.add_character_xp(CHARACTER_KEYS[selected_class], final_xp - previous_xp)
+	var character_key := CHARACTER_KEYS[selected_class]
+	var level_before := int(MetaProgression.char_levels.get(character_key, 1))
+	MetaProgression.add_character_xp(character_key, final_xp - previous_xp)
+	var level_after := int(MetaProgression.char_levels.get(character_key, level_before))
+	var leveled_up := level_after > level_before or (
+		MetaProgression.just_leveled_up and MetaProgression.just_leveled_up_character == character_key
+	)
 	MetaProgression.add_reward_delta(final_xp - previous_xp, final_shards - previous_shards)
 	_grant_match_reward_to_server(final_shards - previous_shards)
 	rewards_doubled = true
 	_refresh_reward_ui()
+	_play_reward_fanfare()
+	if leveled_up:
+		_show_reward_banner("×2  ·  НОВЫЙ УРОВЕНЬ %d" % level_after, 2.8)
+		await get_tree().create_timer(0.7).timeout
+		if is_inside_tree():
+			_play_level_up_chime()
+	else:
+		_show_reward_banner("×2  НАГРАДЫ УДВОЕНЫ", 2.2)
 	if ad_button_pulse_tween != null and ad_button_pulse_tween.is_running():
 		ad_button_pulse_tween.kill()
 		double_reward_button.scale = Vector2.ONE
+
+
+func _build_reward_banner() -> void:
+	reward_banner = _make_label("", 42, GOLD)
+	reward_banner.name = "RewardBanner"
+	reward_banner.anchor_left = 0.5
+	reward_banner.anchor_right = 0.5
+	reward_banner.anchor_top = 0.5
+	reward_banner.anchor_bottom = 0.5
+	reward_banner.offset_left = -370.0
+	reward_banner.offset_right = 370.0
+	reward_banner.offset_top = -220.0
+	reward_banner.offset_bottom = -120.0
+	reward_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	reward_banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	reward_banner.add_theme_font_override("font", UI_FONT_BOLD)
+	reward_banner.add_theme_font_size_override("font_size", _fs(42))
+	reward_banner.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.95))
+	reward_banner.add_theme_constant_override("shadow_offset_x", 3)
+	reward_banner.add_theme_constant_override("shadow_offset_y", 3)
+	reward_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	reward_banner.z_index = 90
+	reward_banner.visible = false
+	add_child(reward_banner)
+
+
+func _show_reward_banner(text: String, hold_seconds: float) -> void:
+	if reward_banner == null or not is_instance_valid(reward_banner):
+		return
+	if reward_banner_tween != null and reward_banner_tween.is_running():
+		reward_banner_tween.kill()
+	reward_banner.text = text
+	reward_banner.visible = true
+	reward_banner.modulate.a = 0.0
+	reward_banner.scale = Vector2(0.72, 0.72)
+	reward_banner.pivot_offset = Vector2(370.0, 50.0)
+	reward_banner_tween = create_tween()
+	reward_banner_tween.tween_property(reward_banner, "modulate:a", 1.0, 0.16)
+	reward_banner_tween.parallel().tween_property(reward_banner, "scale", Vector2.ONE, 0.38).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	reward_banner_tween.tween_interval(maxf(0.4, hold_seconds))
+	reward_banner_tween.tween_property(reward_banner, "modulate:a", 0.0, 0.35)
+	reward_banner_tween.tween_callback(func() -> void:
+		if reward_banner != null and is_instance_valid(reward_banner):
+			reward_banner.visible = false
+	)
+
+
+func _play_reward_fanfare() -> void:
+	var player := AudioStreamPlayer.new()
+	player.name = "RewardFanfare"
+	player.stream = VICTORY_SOUND
+	player.volume_db = -1.0
+	add_child(player)
+	player.finished.connect(player.queue_free)
+	player.play()
+
+
+func _play_level_up_chime() -> void:
+	var player := AudioStreamPlayer.new()
+	player.name = "LevelUpChime"
+	player.stream = preload("res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/level_up_chime.wav")
+	player.volume_db = -2.0
+	player.pitch_scale = 1.04
+	add_child(player)
+	player.finished.connect(player.queue_free)
+	player.play()
 
 
 func _refresh_reward_ui() -> void:

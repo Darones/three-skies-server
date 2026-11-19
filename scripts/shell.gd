@@ -161,7 +161,7 @@ func _node_aabb(node: Node) -> AABB:
 func _build_health_bar() -> void:
 	var back := MeshInstance3D.new()
 	var quad := QuadMesh.new()
-	quad.size = Vector2(1.8, 0.14)
+	quad.size = Vector2(1.7, 0.16)
 	back.mesh = quad
 	var back_mat := StandardMaterial3D.new()
 	back_mat.albedo_color = Color(0.05, 0.04, 0.09, 0.92)
@@ -175,7 +175,7 @@ func _build_health_bar() -> void:
 
 	health_fill = MeshInstance3D.new()
 	var fill_quad := QuadMesh.new()
-	fill_quad.size = Vector2(1.7, 0.1)
+	fill_quad.size = Vector2(1.7, 0.12)
 	health_fill.mesh = fill_quad
 	var fill_mat := StandardMaterial3D.new()
 	fill_mat.albedo_color = Color(0.85, 0.4, 1.0)
@@ -193,15 +193,15 @@ func _build_health_bar() -> void:
 	health_name = Label3D.new()
 	health_name.name = "ShellName"
 	health_name.text = "ОБОЛОЧКА"
-	health_name.font = preload("res://assets/fonts/Philosopher-Regular.ttf")
-	health_name.font_size = 34
+	health_name.font = ThemeDB.fallback_font
+	health_name.font_size = 48
 	health_name.pixel_size = 0.006
-	health_name.outline_size = 6
-	health_name.outline_modulate = Color(0.02, 0.03, 0.05, 0.98)
+	health_name.outline_size = 10
+	health_name.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)
 	health_name.modulate = Color(0.95, 0.75, 1.0)
 	health_name.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	health_name.no_depth_test = true
-	health_name.position = Vector3(0.0, 3.05, 0.0)
+	health_name.position = Vector3(0.0, 3.12, 0.0)
 	add_child(health_name)
 
 
