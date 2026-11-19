@@ -359,7 +359,7 @@ func TestDisconnectReplacesHumanWithBot(t *testing.T) {
 	}
 }
 
-func TestMatchmakingRestartsBotTimerForEachJoin(t *testing.T) {
+func TestMatchmakingKeepsFirstJoinDeadline(t *testing.T) {
 	hub := newWebSocketHub(nil)
 	first := newTestClient(1, 0, 0, 0)
 	second := newTestClient(2, 0, 0, 0)
@@ -369,25 +369,31 @@ func TestMatchmakingRestartsBotTimerForEachJoin(t *testing.T) {
 	hub.mu.Lock()
 	roomID := first.roomID
 	room := hub.rooms[roomID]
+	deadline := room.startsAt
 	firstTimer := room.fillTimer
 	hub.mu.Unlock()
-	if roomID == 0 || room == nil || firstTimer == nil {
-		t.Fatal("first player did not create a waiting room with a bot timer")
+	if roomID == 0 || room == nil || firstTimer == nil || deadline.IsZero() {
+		t.Fatal("first player did not create a waiting room with a deadline")
 	}
 
 	hub.joinMatchmaking(second, wsIncoming{PlayerID: 102, Name: "Second", Class: 1})
 	hub.mu.Lock()
+	secondDeadline := room.startsAt
 	secondTimer := room.fillTimer
 	hub.mu.Unlock()
 	if second.roomID != roomID {
 		t.Fatalf("second player joined room %d, want %d", second.roomID, roomID)
 	}
-	if secondTimer == firstTimer {
-		t.Fatal("bot timer was not restarted for the second player")
+	if !secondDeadline.Equal(deadline) {
+		t.Fatal("second join reset the countdown; variant 1 forbids that")
+	}
+	if secondTimer != firstTimer {
+		t.Fatal("second join replaced the bot timer")
 	}
 
 	hub.joinMatchmaking(third, wsIncoming{PlayerID: 103, Name: "Third", Class: 2})
 	hub.mu.Lock()
+	thirdDeadline := room.startsAt
 	thirdTimer := room.fillTimer
 	humans := room.humanCount
 	if thirdTimer != nil {
@@ -397,8 +403,8 @@ func TestMatchmakingRestartsBotTimerForEachJoin(t *testing.T) {
 	if third.roomID != roomID {
 		t.Fatalf("third player joined room %d, want %d", third.roomID, roomID)
 	}
-	if thirdTimer == secondTimer {
-		t.Fatal("bot timer was not restarted for the third player")
+	if !thirdDeadline.Equal(deadline) {
+		t.Fatal("third join reset the countdown; variant 1 forbids that")
 	}
 	if humans != 3 {
 		t.Fatalf("expected 3 humans in one room, got %d", humans)
