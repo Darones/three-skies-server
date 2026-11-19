@@ -398,3 +398,11 @@ func _refresh_js() -> void:
 		"window.__uiLayoutElements = %s; window.__uiLayoutReady = true;" % JSON.stringify(list),
 		true
 	)
+	# The editor also needs the full baked layout so a downloaded file keeps
+	# the already tuned lobby/battle screens.
+	var all_elements := _serialize_elements()
+	bridge.call(
+		"eval",
+		"window.__uiLayoutAll = %s;" % JSON.stringify(all_elements),
+		true
+	)
