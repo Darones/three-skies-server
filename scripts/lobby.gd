@@ -1598,6 +1598,7 @@ func _open_nickname_popup() -> void:
 	if nickname_popup_overlay == null or nickname_line_edit == null:
 		return
 	nickname_line_edit.text = MetaProgression.player_nickname
+	nickname_line_edit.caret_column = nickname_line_edit.text.length()
 	nickname_popup_status_label.text = ""
 	if MetaProgression.nickname_custom:
 		nickname_popup_cost_label.text = "Смена ника стоит %d осколков" % NICKNAME_CHANGE_COST
