@@ -933,6 +933,30 @@ aside {
     }
   }
 
+  function seedFromGameLayout(win) {
+    if (!win) return false;
+    try {
+      const all = win.__uiLayoutAll;
+      if (!all || typeof all !== "object") return false;
+      let changed = false;
+      for (const [id, raw] of Object.entries(all)) {
+        if (layout.elements[id]) continue;
+        const rect = normalizeRect(raw);
+        if (rect) {
+          layout.elements[id] = rect;
+          changed = true;
+        }
+      }
+      if (changed) {
+        saveLayoutNow();
+        render();
+      }
+      return changed;
+    } catch (error) {
+      return false;
+    }
+  }
+
   /* ---------------- iframe ---------------- */
 
   function buildSrc() {
@@ -1004,11 +1028,13 @@ aside {
             }
             setStatus("ok", `${modeTitle()} · готово`);
             readFromGame();
+            seedFromGameLayout(win);
             render();
             clearInterval(liveTimer);
             liveTimer = setInterval(() => {
               if (!ready || drag) return;
               readFromGame();
+              seedFromGameLayout(gameWin);
             }, 1600);
             return;
           }
