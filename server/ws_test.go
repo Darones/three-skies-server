@@ -517,3 +517,15 @@ func TestLobbyStateBroadcastsPlayersImmediately(t *testing.T) {
 		t.Fatalf("join should reset the countdown, got %d ms", update[0].StartsInMS)
 	}
 }
+
+func TestBotClassesFillMissingTeamClasses(t *testing.T) {
+	room := &wsRoom{}
+	human := newTestClient(1, 0, 0, 0)
+	human.class = 2
+	room.players[0] = human
+	classes := botClassesForRoom(room)
+	want := [roomSlots]int{2, 0, 1, 0, 1, 2}
+	if classes != want {
+		t.Fatalf("bot classes = %v, want %v", classes, want)
+	}
+}

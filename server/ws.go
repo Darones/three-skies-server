@@ -555,6 +555,38 @@ func balanceHumansLocked(room *wsRoom) {
 	}
 }
 
+func botClassesForRoom(room *wsRoom) [roomSlots]int {
+	var classes [roomSlots]int
+	for team := 0; team < 2; team++ {
+		var used [3]bool
+		for slot := team * 3; slot < team*3+3; slot++ {
+			if player := room.players[slot]; player != nil {
+				used[clampClass(player.class)] = true
+			}
+		}
+		missing := make([]int, 0, 3)
+		for class := 0; class < 3; class++ {
+			if !used[class] {
+				missing = append(missing, class)
+			}
+		}
+		missingIndex := 0
+		for slot := team * 3; slot < team*3+3; slot++ {
+			if room.players[slot] != nil {
+				classes[slot] = clampClass(room.players[slot].class)
+				continue
+			}
+			class := slot % 3
+			if missingIndex < len(missing) {
+				class = missing[missingIndex]
+				missingIndex++
+			}
+			classes[slot] = class
+		}
+	}
+	return classes
+}
+
 func (h *wsHub) startRoom(roomID int64) {
 	h.mu.Lock()
 	room := h.rooms[roomID]
@@ -586,10 +618,11 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 		}
 	}
 	balanceHumansLocked(room)
+	botClasses := botClassesForRoom(room)
 	players := make([]wsMatchPlayer, 0, roomSlots)
 	clients := make([]*wsClient, 0, room.humanCount)
 	for slot := 0; slot < roomSlots; slot++ {
-		class := slot % 3
+		class := botClasses[slot]
 		team := slot / 3
 		if player := room.players[slot]; player != nil {
 			class = clampClass(player.class)
