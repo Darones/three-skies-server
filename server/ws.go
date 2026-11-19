@@ -405,19 +405,17 @@ func (h *wsHub) joinMatchmaking(client *wsClient, message wsIncoming) {
 		slot = balancedSlot
 		client.team = slot / 3
 	}
-	room.startsAt = time.Now().Add(roomBotFillDelay)
+	// Variant 1: start exactly 30 seconds after the FIRST player. New joins
+	// never reset the countdown; the room is locked 3 seconds before start.
+	if room.startsAt.IsZero() {
+		room.startsAt = time.Now().Add(roomBotFillDelay)
+	}
 	if room.hostID == 0 {
 		room.hostID = client.id
 	}
-	if room.humanCount < roomSlots {
-		// Restart the bot-fill countdown on every human join. Without this,
-		// a player joining a few seconds after the first one could land in
-		// a room that already started with bots, and everyone got split.
+	if room.fillTimer == nil && room.humanCount < roomSlots {
 		roomID := room.id
-		if room.fillTimer != nil {
-			room.fillTimer.Stop()
-		}
-		room.fillTimer = time.AfterFunc(roomBotFillDelay, func() { h.startRoom(roomID) })
+		room.fillTimer = time.AfterFunc(time.Until(room.startsAt), func() { h.startRoom(roomID) })
 	}
 
 	var startMessage wsOutgoing
@@ -457,6 +455,11 @@ func (h *wsHub) findRoomLocked(_ int) (*wsRoom, int) {
 	var best *wsRoom
 	for _, room := range h.rooms {
 		if room.state != "waiting" || room.humanCount >= roomSlots {
+			continue
+		}
+		// Lock the room for the last 3 seconds so a late join cannot appear
+		// in the roster with one second left before the fight.
+		if !room.startsAt.IsZero() && time.Until(room.startsAt) <= 3*time.Second {
 			continue
 		}
 		if !hasFreeSlot(room) {
