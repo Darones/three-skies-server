@@ -972,9 +972,9 @@ func _build_name_label() -> void:
 		name_plate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		name_plate.no_depth_test = true
 		name_plate.render_priority = -1
-		name_plate.pixel_size = 0.010
+		name_plate.pixel_size = 0.0085
 		name_plate.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
-		name_plate.position = Vector3(0.0, 2.72, 0.0)
+		name_plate.position = Vector3(0.0, 3.0, 0.0)
 		status_root.add_child(name_plate)
 	name_label = Label3D.new()
 	name_label.name = "NameLabel"

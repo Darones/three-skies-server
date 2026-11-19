@@ -48,6 +48,7 @@ var shell_timer_label: Label
 var gold_label: Label
 var player_panel: PanelContainer
 var player_portrait: TextureRect
+var player_team_label: Label
 var player_name_label: Label
 var player_team_icon: TextureRect
 var player_hp_bar: ProgressBar
@@ -906,6 +907,11 @@ func _build_player_panel(root: Control) -> void:
 	player_team_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	player_team_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	name_row.add_child(player_team_icon)
+	player_team_label = _make_label("Свет", 13, Color(0.55, 0.85, 1.0))
+	player_team_label.custom_minimum_size = Vector2(40, 0)
+	player_team_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	player_team_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name_row.add_child(player_team_label)
 
 	var hp_container := Control.new()
 	hp_container.custom_minimum_size = Vector2(0.0, 20.0)
@@ -1380,9 +1386,15 @@ func _update_player_panel() -> void:
 	var team_short := "Свет" if player.team == 0 else "Тьма"
 	var class_text := String(HeroUnit.CLASS_DATA[player.hero_class]["name"])
 	if _mobile_ui():
-		player_name_label.text = "%s · %s · %s" % [nickname, class_text, team_short]
+		player_name_label.text = "%s · %s" % [nickname, class_text]
+		if player_team_label != null:
+			player_team_label.visible = true
+			player_team_label.text = team_short
+			player_team_label.add_theme_color_override("font_color", Color(0.55, 0.85, 1.0) if player.team == 0 else Color(0.78, 0.62, 1.0))
 	else:
 		player_name_label.text = "%s · %s %s" % [nickname, class_text, faction]
+		if player_team_label != null:
+			player_team_label.visible = false
 	if player_panel_class != player.hero_class:
 		player_panel_class = player.hero_class
 		var portrait_source: Texture2D = HERO_PORTRAITS[player.hero_class]
