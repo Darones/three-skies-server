@@ -1962,7 +1962,10 @@ func _try_auto_attack(movement_direction: Vector3) -> void:
 	_play_weapon_attack_animation()
 	_play_class_attack_sfx()
 	var guaranteed_crit_multiplier := crit_buff_multiplier if crit_buff else 1.0
+	var crit_attack := crit_buff
 	var damage := roll_direct_damage(attack_damage * get_blessing_damage_multiplier(), guaranteed_crit_multiplier)
+	if not crit_attack and damage > attack_damage * get_blessing_damage_multiplier() * 1.4:
+		crit_attack = true
 	if crit_buff:
 		crit_buff = false
 		crit_buff_timer = 0.0
@@ -1971,7 +1974,7 @@ func _try_auto_attack(movement_direction: Vector3) -> void:
 			crit_buff_ring.visible = false
 	if ranged:
 		var color: Color = CLASS_DATA[hero_class]["color"]
-		game.spawn_projectile(global_position + Vector3(0.0, 1.2, 0.0), target, damage, color, self)
+		game.spawn_projectile(global_position + Vector3(0.0, 1.2, 0.0), target, damage, color, self, 0.0, "physical", "", crit_attack)
 		var cast_position := global_position + Vector3(0.0, 0.6, 0.0)
 		if weapon_attachment != null and is_instance_valid(weapon_attachment):
 			cast_position = weapon_attachment.global_position - Vector3(0.0, 0.6, 0.0)
@@ -1981,7 +1984,10 @@ func _try_auto_attack(movement_direction: Vector3) -> void:
 		elif hero_class == Cls.MAGE:
 			spawn_vfx_silent(VFX_GOLDEN_SCENE, cast_position, 0.6)
 	else:
-		target.take_damage(damage, self, "physical", "auto")
+		if target is HeroUnit:
+			(target as HeroUnit).take_damage(damage, self, "physical", "auto", crit_attack)
+		else:
+			target.take_damage(damage, self, "physical", "auto")
 		spawn_attack_impact_vfx(target.global_position + Vector3(0.0, 0.9, 0.0))
 		game.melee_fx(global_position + Vector3(0.0, 1.0, 0.0), target.global_position)
 
@@ -2341,7 +2347,7 @@ func _spawn_damage_number(amount: float, source: Node) -> void:
 	tween.chain().tween_callback(label.queue_free)
 
 
-func take_damage(amount: float, source: Node = null, damage_type: String = "physical", _skill: String = "") -> void:
+func take_damage(amount: float, source: Node = null, damage_type: String = "physical", _skill: String = "", is_crit := false) -> void:
 	if dead or _is_under_base_shield():
 		return
 	if game != null and bool(game.get("tutorial_mode")) and is_player:
@@ -2365,13 +2371,15 @@ func take_damage(amount: float, source: Node = null, damage_type: String = "phys
 	health = clampf(health - final_damage, 0.0, max_health)
 	_update_health_display()
 	if applied_damage >= 1.0:
-		_spawn_damage_number(applied_damage, source)
-	if is_player and game != null and game.hud != null:
-		game.hud.call("flash_damage", clampf(0.22 + applied_damage / 260.0, 0.22, 0.6))
+		# One number per hit; the old extra label doubled every damage popup.
+		if is_player and game != null and game.hud != null:
+			game.hud.call("flash_damage", clampf(0.22 + applied_damage / 260.0, 0.22, 0.6))
 	if game != null and game.has_method("record_hero_damage"):
 		game.record_hero_damage(self, source, applied_damage, health <= 0.0)
 	if game != null and game.has_method("damage_number"):
-		game.damage_number(global_position + Vector3(0.0, 2.0, 0.0), final_damage, team)
+		var show_number := game.player == null or source == game.player or self == game.player
+		if show_number:
+			game.damage_number(global_position + Vector3(0.0, 2.0, 0.0), applied_damage, team, false, is_crit)
 	if source is HeroUnit:
 		var source_hero := source as HeroUnit
 		if applied_damage > 0.0:
@@ -2857,7 +2865,7 @@ func _release_crit_shot() -> void:
 	_play_class_attack_sfx()
 	var color: Color = CLASS_DATA[hero_class]["color"]
 	var damage := roll_direct_damage(attack_damage * get_blessing_damage_multiplier(), FAIRY_CRIT_MULTIPLIER)
-	game.spawn_projectile(global_position + Vector3(0.0, 1.2, 0.0), target, damage, color, self)
+	game.spawn_projectile(global_position + Vector3(0.0, 1.2, 0.0), target, damage, color, self, 0.0, "physical", "", true)
 	var cast_position := global_position + Vector3(0.0, 0.6, 0.0)
 	if weapon_attachment != null and is_instance_valid(weapon_attachment):
 		cast_position = weapon_attachment.global_position - Vector3(0.0, 0.6, 0.0)

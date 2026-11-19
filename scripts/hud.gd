@@ -496,7 +496,7 @@ func _build_kill_feed(root: Control) -> void:
 	kill_feed_box.name = "KillFeed"
 	kill_feed_box.anchor_left = 0.02
 	kill_feed_box.anchor_right = 0.30
-	kill_feed_box.anchor_top = 0.175
+	kill_feed_box.anchor_top = 0.24
 	kill_feed_box.anchor_bottom = 0.45
 	kill_feed_box.alignment = BoxContainer.ALIGNMENT_BEGIN
 	kill_feed_box.add_theme_constant_override("separation", 2)

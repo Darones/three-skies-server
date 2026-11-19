@@ -155,6 +155,8 @@ var ring_pool: Array[Dictionary] = []
 var root_spike_pool: Array[Dictionary] = []
 var shell_beam_pool: Array[Dictionary] = []
 var projectile_pool: Array[Dictionary] = []
+var projectile_mesh: SphereMesh
+var projectile_bolt_mesh: BoxMesh
 var shake_amount := 0.0
 var earthquake_timer := 0.0
 var earthquake_intensity := 0.0
@@ -927,11 +929,13 @@ func _prepare_effect_pools() -> void:
 		add_child(beam)
 		shell_beam_pool.append({"node": beam, "material": material, "busy": false, "remaining": 0.0})
 
-	var projectile_mesh := SphereMesh.new()
+	projectile_mesh = SphereMesh.new()
 	projectile_mesh.radius = 0.18
 	projectile_mesh.height = 0.36
 	projectile_mesh.radial_segments = 6
 	projectile_mesh.rings = 3
+	projectile_bolt_mesh = BoxMesh.new()
+	projectile_bolt_mesh.size = Vector3(0.07, 0.07, 0.55)
 	for index in PROJECTILE_POOL_SIZE:
 		var projectile := MeshInstance3D.new()
 		projectile.name = "PooledProjectile%d" % index
@@ -2470,12 +2474,14 @@ func bless_team(team: int, duration: float) -> void:
 			hero.apply_blessing(duration, team)
 
 
-func spawn_projectile(from: Vector3, target: Node3D, damage: float, color: Color, source: HeroUnit, stun_time := 0.0, damage_type: String = "physical", effect_type: String = "") -> void:
+func spawn_projectile(from: Vector3, target: Node3D, damage: float, color: Color, source: HeroUnit, stun_time := 0.0, damage_type: String = "physical", effect_type: String = "", is_crit := false) -> void:
 	if target == null or not is_instance_valid(target):
 		return
 	var node := _acquire_projectile()
 	if node == null:
 		return
+	var is_bolt := source != null and source.hero_class == HeroUnit.Cls.FAIRY
+	node.mesh = projectile_bolt_mesh if is_bolt else projectile_mesh
 	var mat := node.material_override as StandardMaterial3D
 	mat.albedo_color = color
 	mat.emission = color
@@ -2490,6 +2496,8 @@ func spawn_projectile(from: Vector3, target: Node3D, damage: float, color: Color
 		"stun": stun_time,
 		"damage_type": damage_type,
 		"effect_type": effect_type,
+		"crit": is_crit,
+		"bolt": is_bolt,
 		"life": 2.5,
 		"pooled": true,
 	})
@@ -2524,7 +2532,10 @@ func _update_projectiles(delta: float) -> void:
 		var dist := to_goal.length()
 		if dist < 0.6:
 			if target.has_method("take_damage"):
-				target.take_damage(p["damage"], p["source"], String(p.get("damage_type", "physical")), String(p.get("effect_type", "auto")))
+				if target is HeroUnit:
+					(target as HeroUnit).take_damage(p["damage"], p["source"], String(p.get("damage_type", "physical")), String(p.get("effect_type", "auto")), bool(p.get("crit", false)))
+				else:
+					target.take_damage(p["damage"], p["source"], String(p.get("damage_type", "physical")), String(p.get("effect_type", "auto")))
 				if not (target is SkyShell) and shell != null and is_instance_valid(shell) and shell.alive:
 					if shell.global_position.distance_to(node.global_position) <= 1.8:
 						shell.take_damage(float(p["damage"]) * 0.8, p["source"], String(p.get("damage_type", "physical")))
@@ -2544,6 +2555,8 @@ func _update_projectiles(delta: float) -> void:
 			_release_projectile(node, bool(p.get("pooled", false)))
 			continue
 		node.global_position += to_goal.normalized() * minf(dist, 26.0 * delta)
+		if bool(p.get("bolt", false)):
+			node.look_at(node.global_position + to_goal.normalized(), Vector3.UP)
 		keep.append(p)
 	projectiles = keep
 
@@ -2746,15 +2759,20 @@ func root_snare_fx(pos: Vector3, color: Color) -> void:
 			break
 
 
-func damage_number(pos: Vector3, amount: float, _team: int, is_shell := false) -> void:
+func damage_number(pos: Vector3, amount: float, _team: int, is_shell := false, is_crit := false) -> void:
 	var label := Label3D.new()
 	label.font = UI_FONT
 	label.text = str(int(round(amount)))
-	label.font_size = 64
+	label.font_size = 76 if is_crit else 64
 	label.pixel_size = 0.008
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
-	label.modulate = Color(0.85, 0.9, 1.0) if is_shell else Color(1.0, 0.55, 0.45)
+	if is_shell:
+		label.modulate = Color(0.85, 0.9, 1.0)
+	elif is_crit:
+		label.modulate = Color(1.0, 0.25, 0.2)
+	else:
+		label.modulate = Color(1.0, 0.92, 0.65)
 	label.outline_size = 12
 	label.outline_modulate = Color(0.05, 0.03, 0.08, 0.9)
 	add_child(label)
@@ -2896,13 +2914,14 @@ func _on_remote_attack_received(player_id: int, attack_type: String, _target_id:
 
 
 func _on_remote_damage_received(source_id: int, target_id: int, amount: float, skill: String) -> void:
+	var show_number := source_id == NetworkManager.local_peer_id or target_id == NetworkManager.local_peer_id
 	if source_id < 0:
 		var source_bot = remote_players.get(source_id)
 		if source_bot != null and is_instance_valid(source_bot):
 			source_bot.play_attack(skill)
 	var target_bot = network_bots.get(target_id)
 	if target_bot != null and is_instance_valid(target_bot):
-		target_bot.apply_network_damage(amount)
+		target_bot.apply_network_damage(amount, show_number)
 		return
 	if target_id == NetworkManager.local_peer_id:
 		if player != null and is_instance_valid(player):
@@ -2910,7 +2929,7 @@ func _on_remote_damage_received(source_id: int, target_id: int, amount: float, s
 		return
 	var remote = remote_players.get(target_id)
 	if remote != null and is_instance_valid(remote):
-		remote.apply_network_damage(amount)
+		remote.apply_network_damage(amount, show_number)
 
 
 func _on_remote_death_received(player_id: int) -> void:

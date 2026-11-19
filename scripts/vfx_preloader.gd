@@ -86,6 +86,29 @@ func _run() -> void:
 			instance.queue_free()
 		await get_tree().process_frame
 
+	# Generic ability visuals: projectile spheres/bolts, telegraph rings and
+	# ground glows use materials that are created at runtime, not in a scene.
+	for mesh in [SphereMesh.new(), QuadMesh.new(), BoxMesh.new(), CylinderMesh.new()]:
+		var probe := MeshInstance3D.new()
+		probe.mesh = mesh
+		var material := StandardMaterial3D.new()
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		material.emission_enabled = true
+		material.emission = Color(1.0, 0.8, 0.4)
+		material.emission_energy_multiplier = 2.0
+		probe.material_override = material
+		viewport.add_child(probe)
+		for _frame in 2:
+			await get_tree().process_frame
+		probe.queue_free()
+	var glow := FxUtils.soft_ground_glow(3.0, Color(1.0, 0.8, 0.4, 0.7), 0.0, 0.4)
+	viewport.add_child(glow)
+	for _frame in 2:
+		await get_tree().process_frame
+	glow.queue_free()
+	await get_tree().process_frame
+
 	# Damage numbers are Label3D; warm the font atlas before the first hit.
 	var label := Label3D.new()
 	label.text = "1050"
