@@ -59,6 +59,7 @@ const LOBBY_LOGO: Texture2D = preload("res://ui/logo.png")
 const UI_CLICK_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/ui_menu/menu_selection_click.wav")
 const SHARD_TOPUP_SCENE := preload("res://scenes/ShardTopupPanel.tscn")
 const SHARD_ICON: Texture2D = preload("res://ui/icons/sky_shard.png")
+const SETTINGS_GEAR_ICON: Texture2D = preload("res://ui/icons/settings_gear.png")
 const NICKNAME_CHANGE_COST := 100
 const SHOP_WING_ICON: Texture2D = preload("res://assets/ui/generated_wing_shop_icon/img-6adcd384-a1c6-4d03-ab8f-2885c6220fd5-1794244737264-0_1794244737264_rm3v6na1.webp")
 const SHOP_2H_SWORD_ICON: Texture2D = preload("res://ui/icons/legendary_greatsword.png")
@@ -115,6 +116,7 @@ var info_ok_button: Button
 var shard_amount_label: Label
 var play_button: Button
 var settings_panel: Control
+var touch_keyboard: Control
 var player_menu_overlay: ColorRect
 var nickname_line_edit: LineEdit
 var nickname_status_label: Label
@@ -230,6 +232,9 @@ func _ready() -> void:
 		MetaProgression.load_profile(MetaProgression.player_id)
 	_setup_ui_click_sound()
 	_wire_ui_click_sounds(self)
+	touch_keyboard = preload("res://scripts/touch_keyboard.gd").new()
+	touch_keyboard.name = "TouchKeyboard"
+	add_child(touch_keyboard)
 	if OS.get_cmdline_user_args().has("--auto-play"):
 		_auto_play_after_delay()
 	if OS.get_cmdline_user_args().has("--auto-tutorial"):
@@ -845,7 +850,7 @@ func _build_info_popup() -> void:
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 14)
 	margin.add_child(content)
-	var ornament := _make_label("✦", 30, GOLD)
+	var ornament := _make_label("*", 30, GOLD)
 	ornament.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	content.add_child(ornament)
 	info_title_label = _make_label("", 27, GOLD)
@@ -1105,8 +1110,13 @@ func _build_player_menu() -> void:
 	profile_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.4, 0.48, 0.63, 0.8), Color(0.045, 0.055, 0.085, 0.97)))
 	columns.add_child(profile_panel)
 	var profile_content := VBoxContainer.new()
-	profile_content.add_theme_constant_override("separation", 9)
-	profile_panel.add_child(profile_content)
+	profile_content.add_theme_constant_override("separation", 6)
+	profile_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var profile_scroll := ScrollContainer.new()
+	profile_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	profile_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	profile_panel.add_child(profile_scroll)
+	profile_scroll.add_child(profile_content)
 	var profile_title := _make_label("ПРОФИЛЬ", 19, GOLD)
 	profile_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_content.add_child(profile_title)
@@ -1221,19 +1231,19 @@ func _build_player_menu() -> void:
 	hero_selector.alignment = BoxContainer.ALIGNMENT_CENTER
 	hero_selector.add_theme_constant_override("separation", 8)
 	hero_content.add_child(hero_selector)
-	var previous_hero_button := _make_action_button("◀", false)
+	var previous_hero_button := _make_action_button("<", false)
 	previous_hero_button.name = "PreviousHeroButton"
 	previous_hero_button.custom_minimum_size = Vector2(46, 40)
-	previous_hero_button.add_theme_font_size_override("font_size", _fs(19))
+	previous_hero_button.add_theme_font_size_override("font_size", _fs(22))
 	previous_hero_button.pressed.connect(_cycle_selected_hero.bind(-1))
 	hero_selector.add_child(previous_hero_button)
 	menu_hero_name_label = _make_label("Воин", 20, PALE)
 	menu_hero_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hero_selector.add_child(menu_hero_name_label)
-	var next_hero_button := _make_action_button("▶", false)
+	var next_hero_button := _make_action_button(">", false)
 	next_hero_button.name = "NextHeroButton"
 	next_hero_button.custom_minimum_size = Vector2(46, 40)
-	next_hero_button.add_theme_font_size_override("font_size", _fs(19))
+	next_hero_button.add_theme_font_size_override("font_size", _fs(22))
 	next_hero_button.pressed.connect(_cycle_selected_hero.bind(1))
 	hero_selector.add_child(next_hero_button)
 	var portrait_frame := PanelContainer.new()
@@ -1398,13 +1408,14 @@ func _refresh_hero_preview() -> void:
 	preview_root.add_child(preview_hero)
 	preview_hero.setup(null, selected_class, 0, false)
 	preview_hero.set_physics_process(false)
+	preview_hero.set_preview_mode(true)
 	preview_hero.position = Vector3.ZERO
 	preview_hero.visual.rotation.y = PI
 	var preview_scale := float([1.0, 0.8, 0.78][selected_class])
 	var preview_distance := float([4.4, 4.8, 4.6][selected_class])
 	preview_hero.scale = Vector3.ONE * preview_scale
 	if preview_camera != null:
-		preview_camera.look_at_from_position(Vector3(0.0, 1.15, preview_distance), Vector3(0.0, 1.05, 0.0), Vector3.UP)
+		preview_camera.look_at_from_position(Vector3(0.0, 1.2, preview_distance + 0.6), Vector3(0.0, 0.95, 0.0), Vector3.UP)
 	preview_hero.health_back.visible = false
 	preview_hero.health_fill.visible = false
 	preview_hero.health_label.visible = false
@@ -1548,7 +1559,7 @@ func _build_nickname_popup() -> void:
 	nickname_line_edit.mouse_filter = Control.MOUSE_FILTER_STOP
 	nickname_line_edit.focus_mode = Control.FOCUS_ALL
 	nickname_line_edit.caret_blink = true
-	nickname_line_edit.virtual_keyboard_enabled = true
+	nickname_line_edit.virtual_keyboard_enabled = false
 	nickname_line_edit.add_theme_font_override("font", font)
 	nickname_line_edit.add_theme_font_size_override("font_size", _fs(20))
 	nickname_line_edit.text_submitted.connect(_on_nickname_submitted)
@@ -1598,10 +1609,9 @@ func _open_nickname_popup() -> void:
 		nickname_popup_cost_icon.visible = false
 	nickname_popup_overlay.visible = true
 	nickname_line_edit.call_deferred("grab_focus")
-	if DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
-		# Opening the popup is a real tap, so this is the right moment to
-		# raise the soft keyboard on Android/iOS webviews.
-		_show_nickname_keyboard()
+	# On web/VK the native keyboard often does not appear; our own keyboard
+	# is used there, while the desktop keeps physical input.
+	_show_nickname_keyboard()
 
 
 func _on_nickname_input(event: InputEvent) -> void:
@@ -1614,6 +1624,10 @@ func _on_nickname_input(event: InputEvent) -> void:
 func _show_nickname_keyboard() -> void:
 	if nickname_line_edit == null or not is_instance_valid(nickname_line_edit):
 		return
+	if DeviceProfile.mobile_ui or DisplayServer.is_touchscreen_available():
+		if touch_keyboard != null:
+			touch_keyboard.call("open", nickname_line_edit, "СМЕНА НИКА", 12)
+			return
 	if not DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
 		return
 	nickname_line_edit.grab_focus()
@@ -1628,6 +1642,8 @@ func _show_nickname_keyboard() -> void:
 
 
 func _close_nickname_popup() -> void:
+	if touch_keyboard != null:
+		touch_keyboard.call("close")
 	if DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
 		DisplayServer.virtual_keyboard_hide()
 	if nickname_popup_overlay != null:
@@ -1924,7 +1940,9 @@ func _build_report_form() -> void:
 	report_nickname_edit.placeholder_text = "Ник (3–12 символов)"
 	report_nickname_edit.max_length = 12
 	report_nickname_edit.custom_minimum_size = Vector2(0, 42)
+	report_nickname_edit.virtual_keyboard_enabled = false
 	report_nickname_edit.add_theme_font_override("font", font)
+	report_nickname_edit.gui_input.connect(_on_report_nickname_input)
 	content.add_child(report_nickname_edit)
 	var reason_label := _make_label("Причина", 15, PALE)
 	reason_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -1966,10 +1984,36 @@ func _open_report_form() -> void:
 	report_status_label.add_theme_color_override("font_color", Color(0.76, 0.8, 0.89))
 	report_submit_button.disabled = false
 	report_overlay.visible = true
-	report_nickname_edit.grab_focus()
+	_open_report_keyboard()
+
+
+func _on_report_nickname_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+		_open_report_keyboard()
+	elif event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
+		_open_report_keyboard()
+
+
+func _open_report_keyboard() -> void:
+	if report_nickname_edit == null or touch_keyboard == null:
+		return
+	if DeviceProfile.mobile_ui or DisplayServer.is_touchscreen_available():
+		touch_keyboard.call("open", report_nickname_edit, "НИК ДЛЯ ЖАЛОБЫ", 12)
+	elif DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
+		report_nickname_edit.grab_focus()
+		DisplayServer.virtual_keyboard_show(
+			report_nickname_edit.text,
+			Rect2(),
+			DisplayServer.KEYBOARD_TYPE_DEFAULT,
+			12
+		)
 
 
 func _close_report_form() -> void:
+	if touch_keyboard != null:
+		touch_keyboard.call("close")
+	if DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
+		DisplayServer.virtual_keyboard_hide()
 	if report_overlay != null:
 		report_overlay.visible = false
 
@@ -2069,7 +2113,7 @@ func _refresh_skill_info() -> void:
 		row.add_theme_constant_override("separation", 6)
 		var icon := TextureRect.new()
 		icon.texture = SKILL_ICONS[selected_class][index]
-		icon.custom_minimum_size = Vector2(32, 32)
+		icon.custom_minimum_size = Vector2(28, 28)
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -2077,14 +2121,11 @@ func _refresh_skill_info() -> void:
 		var text_box := VBoxContainer.new()
 		text_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		text_box.add_theme_constant_override("separation", 0)
-		var title := _make_label("%s · %d с" % [String(abilities[index]["name"]), int(abilities[index]["cd"])], 16, PALE)
+		var title := _make_label("%s · %d с" % [String(abilities[index]["name"]), int(abilities[index]["cd"])], 15, PALE)
 		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		title.clip_text = true
 		text_box.add_child(title)
-		var description := _make_label(String(descriptions[index]), 14, Color(0.72, 0.76, 0.86))
-		description.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		text_box.add_child(description)
+		row.tooltip_text = String(descriptions[index])
 		row.add_child(text_box)
 		skills_info_box.add_child(row)
 
@@ -2294,15 +2335,16 @@ func _build_actions() -> void:
 	settings_button.add_theme_stylebox_override("hover", _gear_button_style(true))
 	settings_button.add_theme_stylebox_override("pressed", _gear_button_style(true))
 	settings_button.pressed.connect(_open_settings)
-	var gear_icon := Label.new()
+	var gear_icon := TextureRect.new()
 	gear_icon.name = "GearIcon"
-	gear_icon.text = "⚙"
+	gear_icon.texture = SETTINGS_GEAR_ICON
 	gear_icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	gear_icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	gear_icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	gear_icon.add_theme_font_override("font", font)
-	gear_icon.add_theme_font_size_override("font_size", _fs(28))
-	gear_icon.add_theme_color_override("font_color", PALE)
+	gear_icon.offset_left = 17.0
+	gear_icon.offset_top = 17.0
+	gear_icon.offset_right = -17.0
+	gear_icon.offset_bottom = -17.0
+	gear_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	gear_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	gear_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	settings_button.add_child(gear_icon)
 	add_child(settings_button)
@@ -2423,7 +2465,7 @@ func _play_level_up_feedback() -> void:
 	player.play()
 	if profile_xp_label == null or not is_instance_valid(profile_xp_label):
 		return
-	profile_xp_label.text = "✦ НОВЫЙ УРОВЕНЬ!"
+	profile_xp_label.text = "* НОВЫЙ УРОВЕНЬ!"
 	profile_xp_label.add_theme_color_override("font_color", GOLD)
 	await get_tree().create_timer(2.6).timeout
 	if is_instance_valid(profile_xp_label):

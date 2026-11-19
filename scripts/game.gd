@@ -54,13 +54,13 @@ const REMOTE_PLAYER_SCRIPT: Script = preload("res://scripts/remote_player.gd")
 const SHOP_ITEMS := [
 	{"id": "life_amulet", "name": "Амулет Жизни", "effect": "+150 Max HP", "price": 500, "icon": 10},
 	{"id": "revival_talisman", "name": "Талисман Возрождения", "effect": "+10 HP/сек реген", "price": 450, "icon": 2},
-	{"id": "titan_shell", "name": "Панцирь Титана", "effect": "−15% входящего урона", "price": 450, "icon": 12},
+	{"id": "titan_shell", "name": "Панцирь Титана", "effect": "-15% входящего урона", "price": 450, "icon": 12},
 	{"id": "power_glove", "name": "Перчатка Силы", "effect": "+25 к урону атаки", "price": 500, "icon": 0},
 	{"id": "vampire_fang", "name": "Клык Вампира", "effect": "15% вампиризма", "price": 500, "icon": 4},
 	{"id": "agility_mark", "name": "Знак Ловкости", "effect": "+20% скорости атаки", "price": 450, "icon": 15},
 	{"id": "wind_boots", "name": "Сапоги Ветра", "effect": "+15% скорости бега", "price": 350, "icon": 11},
-	{"id": "hourglass", "name": "Песочные Часы", "effect": "−15% КД скиллов", "price": 450, "icon": 6},
-	{"id": "cleansing_charm", "name": "Оберег Очищения", "effect": "−20% времени станов", "price": 350, "icon": 3},
+	{"id": "hourglass", "name": "Песочные Часы", "effect": "-15% КД скиллов", "price": 450, "icon": 6},
+	{"id": "cleansing_charm", "name": "Оберег Очищения", "effect": "-20% времени станов", "price": 350, "icon": 3},
 ]
 
 const SHOP_ITEM_TEXTURES := {
@@ -240,8 +240,6 @@ func _apply_mobile_quality() -> void:
 		return
 	if DeviceProfile.quality_override == "full":
 		return
-	Engine.physics_ticks_per_second = 30
-	Engine.max_physics_steps_per_frame = 4
 	var viewport := get_viewport()
 	if viewport != null:
 		# The phone renders the 3D scene below native resolution; the UI is
@@ -2527,6 +2525,9 @@ func _update_projectiles(delta: float) -> void:
 		if dist < 0.6:
 			if target.has_method("take_damage"):
 				target.take_damage(p["damage"], p["source"], String(p.get("damage_type", "physical")), String(p.get("effect_type", "auto")))
+				if not (target is SkyShell) and shell != null and is_instance_valid(shell) and shell.alive:
+					if shell.global_position.distance_to(node.global_position) <= 1.8:
+						shell.take_damage(float(p["damage"]) * 0.8, p["source"], String(p.get("damage_type", "physical")))
 				var attack_source := p.get("source") as HeroUnit
 				if attack_source != null:
 					attack_source.spawn_attack_impact_vfx(target.global_position + Vector3(0.0, 0.9, 0.0), String(p.get("effect_type", "")))
@@ -2571,6 +2572,12 @@ func mage_storm_tick(mage: HeroUnit, radius: float, damage: float) -> void:
 			mage.spawn_ability_vfx(2, remote_enemy.global_position + Vector3(0.0, 0.1, 0.0))
 			var network_damage := mage.roll_ultimate_damage(damage)
 			remote_enemy.take_damage(mage._outgoing_damage(network_damage) * mage.get_blessing_damage_multiplier(), mage, "magic", "ult_lightning_storm")
+	if shell != null and is_instance_valid(shell) and shell.alive:
+		if shell.global_position.distance_to(mage.global_position) <= radius:
+			lightning_strike_fx(shell.global_position)
+			_activate_shell_beam(shell.global_position, Color(0.38, 0.82, 1.0, 0.95))
+			shell.take_damage(mage.roll_ultimate_damage(damage) * mage.get_blessing_damage_multiplier() * 0.8, mage, "magic", "ult_lightning_storm")
+			struck = true
 	if not struck:
 		var angle := randf() * TAU
 		var distance := randf_range(2.0, radius * 0.75)

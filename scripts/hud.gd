@@ -67,12 +67,20 @@ var end_panel: Control
 var end_title: Label
 var end_score: Label
 var shop_panel: PanelContainer
+var shop_hint_label: Label
+var shop_highlight: Panel
+var tutorial_shop_item := ""
+var focus_panel: Panel
+var focus_target: Control
+var minimap_control: Control
 var shop_dim: ColorRect
 var shop_buttons: Dictionary = {}
 var ability_row: Control
 var touch_joystick: Control
 var announce_tween: Tween
 var pause_button: Button
+var pause_title_label: Label
+var pause_resume_button: Button
 var pause_overlay: Control
 var pause_menu_panel: Control
 var pause_settings_panel: Control
@@ -141,10 +149,12 @@ func _ready() -> void:
 	mini_map.name = "MiniMap"
 	mini_map.call("configure", game)
 	root.add_child(mini_map)
+	minimap_control = mini_map
 	_build_select(root)
 	_build_end(root)
 	_build_shop(root)
 	_build_pause_menu(root)
+	_build_focus_panel(root)
 	var navigator := preload("res://scripts/tutorial_navigator.gd").new() as Control
 	navigator.name = "TutorialNavigator"
 	navigator.z_index = 50
@@ -357,40 +367,36 @@ func hide_tutorial_card() -> void:
 
 
 func show_tutorial_hint(text: String) -> void:
-	_layout_tutorial_hint(shop_panel != null and shop_panel.visible)
+	var shop_open := shop_panel != null and shop_panel.visible
+	if shop_open and shop_hint_label != null:
+		shop_hint_label.text = text
+		shop_hint_label.visible = not text.is_empty()
+		tutorial_hint.visible = false
+		return
+	if shop_hint_label != null:
+		shop_hint_label.visible = false
+	_layout_tutorial_hint(false)
 	tutorial_hint.text = text
 	tutorial_hint.visible = not text.is_empty()
 
 
-func _layout_tutorial_hint(shop_open: bool) -> void:
+func _layout_tutorial_hint(_shop_open: bool) -> void:
 	if tutorial_hint == null:
 		return
-	if shop_open:
-		tutorial_hint.anchor_left = 0.012
-		tutorial_hint.anchor_right = 0.21
-		tutorial_hint.anchor_top = 0.28
-		tutorial_hint.anchor_bottom = 0.72
-		tutorial_hint.offset_left = 0.0
-		tutorial_hint.offset_top = 0.0
-		tutorial_hint.offset_right = 0.0
-		tutorial_hint.offset_bottom = 0.0
-		tutorial_hint.add_theme_font_size_override("font_size", _fs(19))
-		tutorial_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		tutorial_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		tutorial_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	else:
-		tutorial_hint.anchor_left = 0.12
-		tutorial_hint.anchor_right = 0.88
-		tutorial_hint.anchor_top = 0.72
-		tutorial_hint.anchor_bottom = 0.72
-		tutorial_hint.offset_left = 0.0
-		tutorial_hint.offset_top = 0.0
-		tutorial_hint.offset_right = 0.0
-		tutorial_hint.offset_bottom = 48.0
-		tutorial_hint.add_theme_font_size_override("font_size", _fs(24))
-		tutorial_hint.autowrap_mode = TextServer.AUTOWRAP_OFF
-		tutorial_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		tutorial_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	# Below the player card, top-center: never covers the card, minimap,
+	# skills or the shop grid.
+	tutorial_hint.anchor_left = 0.22
+	tutorial_hint.anchor_right = 0.78
+	tutorial_hint.anchor_top = 0.19
+	tutorial_hint.anchor_bottom = 0.19
+	tutorial_hint.offset_left = 0.0
+	tutorial_hint.offset_top = 0.0
+	tutorial_hint.offset_right = 0.0
+	tutorial_hint.offset_bottom = 46.0
+	tutorial_hint.add_theme_font_size_override("font_size", _fs(18))
+	tutorial_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tutorial_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tutorial_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
 
 func _on_tutorial_primary_pressed() -> void:
@@ -505,7 +511,7 @@ func show_kill_feed(killer: String, victim: String, killer_team: int = 0, victim
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(_team_icon_control(killer_team))
 	row.add_child(_make_feed_name(killer, killer_team))
-	row.add_child(_make_feed_name("⚔", -1))
+	row.add_child(_make_feed_name("x", -1))
 	row.add_child(_team_icon_control(victim_team))
 	row.add_child(_make_feed_name(victim, victim_team))
 	kill_feed_box.add_child(row)
@@ -632,6 +638,71 @@ func _build_top(root: Control) -> void:
 		root.add_child(pause_button)
 
 
+func _build_focus_panel(root: Control) -> void:
+	focus_panel = Panel.new()
+	focus_panel.name = "TutorialFocus"
+	focus_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	focus_panel.z_index = 60
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(1.0, 0.9, 0.4, 0.06)
+	style.border_color = Color(1.0, 0.9, 0.4, 0.95)
+	style.set_border_width_all(3)
+	style.set_corner_radius_all(9)
+	focus_panel.add_theme_stylebox_override("panel", style)
+	focus_panel.visible = false
+	root.add_child(focus_panel)
+
+
+func set_focus_target(target: Control) -> void:
+	focus_target = target
+	if focus_panel == null:
+		return
+	if target == null or not is_instance_valid(target):
+		focus_panel.visible = false
+
+
+func show_ui_highlight(kind: String, text: String) -> void:
+	var target: Control = null
+	match kind:
+		"minimap":
+			target = minimap_control
+		"skills":
+			target = ability_row
+		"avatar":
+			target = player_panel
+	set_focus_target(target)
+	show_tutorial_hint(text)
+
+
+func hide_ui_highlight() -> void:
+	set_focus_target(null)
+
+
+func set_tutorial_shop_item(item_id: String) -> void:
+	tutorial_shop_item = item_id
+	if item_id.is_empty():
+		set_focus_target(null)
+
+
+func _update_focus_panel() -> void:
+	if focus_panel == null:
+		return
+	if tutorial_shop_item != "" and shop_panel != null and shop_panel.visible:
+		var button := shop_buttons.get(tutorial_shop_item) as Control
+		if button != null and is_instance_valid(button):
+			focus_target = button
+	if focus_target == null or not is_instance_valid(focus_target) or not focus_target.is_visible_in_tree():
+		focus_panel.visible = false
+		return
+	var rect := focus_target.get_global_rect()
+	var hud_root := get_child(0) as Control if get_child_count() > 0 else null
+	var origin := hud_root.global_position if hud_root != null else Vector2.ZERO
+	focus_panel.position = rect.position - origin + Vector2(-5.0, -5.0)
+	focus_panel.size = rect.size + Vector2(10.0, 10.0)
+	focus_panel.visible = true
+	focus_panel.modulate.a = 0.45 + 0.55 * (0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.006))
+
+
 func _pause_button_style(hovered: bool) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.07, 0.09, 0.13, 0.93) if not hovered else Color(0.12, 0.16, 0.22, 1.0)
@@ -676,8 +747,10 @@ func _build_pause_menu(root: Control) -> void:
 	layout.add_theme_constant_override("separation", 14)
 	panel.add_child(layout)
 	var title := _make_label("ПАУЗА", 34, GOLD)
+	pause_title_label = title
 	layout.add_child(title)
 	var resume_button := _pause_action_button("Продолжить", true)
+	pause_resume_button = resume_button
 	resume_button.pressed.connect(_resume_game)
 	layout.add_child(resume_button)
 	var settings_button := _pause_action_button("Настройки", false)
@@ -716,13 +789,27 @@ func _toggle_pause_menu() -> void:
 		_open_pause_menu()
 
 
+func _on_avatar_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		_toggle_pause_menu()
+	elif event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
+		_toggle_pause_menu()
+
+
 func _open_pause_menu() -> void:
 	if game == null or game.state != "live":
 		return
+	var online := bool(game.get("network_play"))
 	pause_overlay.visible = true
 	pause_menu_panel.visible = true
 	pause_settings_panel.visible = false
-	get_tree().paused = true
+	if pause_title_label != null:
+		pause_title_label.text = "МЕНЮ" if online else "ПАУЗА"
+	if pause_resume_button != null:
+		pause_resume_button.text = "Закрыть" if online else "Продолжить"
+	# In online matches the server keeps running; pausing would freeze this
+	# client only and desync it. The avatar menu is an overlay, not a pause.
+	get_tree().paused = not online
 	Haptics.vibrate(35)
 
 
@@ -768,7 +855,7 @@ func _build_player_panel(root: Control) -> void:
 	player_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	player_panel.offset_left = 20.0
 	player_panel.offset_top = 20.0
-	player_panel.offset_right = 350.0
+	player_panel.offset_right = 390.0
 	player_panel.offset_bottom = 94.0
 	player_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	player_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.76, 0.63, 0.36, 0.62), Color(0.035, 0.035, 0.05, 0.3)))
@@ -782,8 +869,9 @@ func _build_player_panel(root: Control) -> void:
 	var portrait_frame := PanelContainer.new()
 	portrait_frame.custom_minimum_size = Vector2(60.0, 60.0)
 	portrait_frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	portrait_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait_frame.mouse_filter = Control.MOUSE_FILTER_STOP
 	portrait_frame.add_theme_stylebox_override("panel", _panel_style(Color(0.92, 0.76, 0.42, 0.75), Color(0.06, 0.05, 0.05, 0.55)))
+	portrait_frame.gui_input.connect(_on_avatar_input)
 	content.add_child(portrait_frame)
 
 	player_portrait = TextureRect.new()
@@ -980,7 +1068,7 @@ func _refresh_ability_icons(cls: int) -> void:
 		if index < ability_name_labels.size():
 			ability_name_labels[index].text = str(ABILITY_SHORT_LABELS[cls][index])
 		if index < ability_key_labels.size() and _mobile_ui():
-			ability_key_labels[index].text = str(ABILITY_SHORT_LABELS[cls][index])
+			ability_key_labels[index].text = str(index + 1)
 
 
 func _refresh_ability_button_style(index: int) -> void:
@@ -992,6 +1080,10 @@ func _refresh_ability_button_style(index: int) -> void:
 			style.border_color = Color(1.0, 0.9, 0.48, 0.35 + 0.65 * tutorial_pulse)
 			style.set_border_width_all(5)
 		ability_buttons[index].add_theme_stylebox_override(style_name, style)
+	var icon := ability_buttons[index].get_node_or_null("AbilityIcon") as TextureRect
+	if icon != null:
+		# Gray while the skill is on cooldown, full color when ready.
+		icon.modulate = Color(1.0, 1.0, 1.0, 1.0) if ability_ready[index] else Color(0.35, 0.36, 0.4, 1.0)
 
 
 func set_tutorial_ability(index: int) -> void:
@@ -1188,6 +1280,13 @@ func _build_shop(root: Control) -> void:
 
 	var subtitle := _make_label("Улучшения до конца боя · по одной покупке каждого предмета", 14, PALE)
 	layout.add_child(subtitle)
+	shop_hint_label = _make_label("", 16, GOLD)
+	shop_hint_label.name = "ShopTutorialHint"
+	shop_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	shop_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	shop_hint_label.add_theme_stylebox_override("normal", _panel_style(Color(0.95, 0.78, 0.4, 0.9), Color(0.08, 0.07, 0.04, 0.95)))
+	shop_hint_label.visible = false
+	layout.add_child(shop_hint_label)
 
 	var grid_center := CenterContainer.new()
 	grid_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1278,9 +1377,10 @@ func _update_player_panel() -> void:
 	if nickname.is_empty():
 		nickname = "Игрок"
 	var faction := "Света" if player.team == 0 else "Тьмы"
+	var team_short := "Свет" if player.team == 0 else "Тьма"
 	var class_text := String(HeroUnit.CLASS_DATA[player.hero_class]["name"])
 	if _mobile_ui():
-		player_name_label.text = "%s · %s" % [nickname, class_text]
+		player_name_label.text = "%s · %s · %s" % [nickname, class_text, team_short]
 	else:
 		player_name_label.text = "%s · %s %s" % [nickname, class_text, faction]
 	if player_panel_class != player.hero_class:
@@ -1308,6 +1408,11 @@ func set_shop_open(open: bool) -> void:
 	_layout_tutorial_hint(open)
 	if open:
 		update_shop()
+	else:
+		tutorial_shop_item = ""
+		if shop_hint_label != null:
+			shop_hint_label.visible = false
+		set_focus_target(null)
 
 
 func update_gold() -> void:
@@ -1414,6 +1519,7 @@ func show_announcement(text: String, color: Color, duration: float) -> void:
 func _process(_delta: float) -> void:
 	_update_low_health_vignette(_delta)
 	_update_tutorial_press_hint()
+	_update_focus_panel()
 	if game == null:
 		return
 	if touch_joystick != null:
@@ -1422,7 +1528,7 @@ func _process(_delta: float) -> void:
 		icon_class = game.player.hero_class
 		_refresh_ability_icons(icon_class)
 	if pause_button != null:
-		pause_button.visible = game.state == "live"
+		pause_button.visible = game.state == "live" and not _mobile_ui()
 	hud_tick += _delta
 	var slow_ui := hud_tick >= 0.1
 	if slow_ui:

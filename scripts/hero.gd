@@ -278,6 +278,8 @@ var health_fill: MeshInstance3D
 var health_label: Label3D
 var name_label: Label3D
 var name_plate: Sprite3D
+var status_root: Node3D
+var preview_mode := false
 var occluded_from_player := false
 var carry_light: OmniLight3D
 var bush_zones: Array[Area3D] = []
@@ -602,6 +604,11 @@ func _build_body() -> void:
 	visual.name = "Visual"
 	add_child(visual)
 
+	status_root = Node3D.new()
+	status_root.name = "StatusRoot"
+	status_root.top_level = true
+	add_child(status_root)
+
 	var local_player: HeroUnit = game.get("player") as HeroUnit if game != null else null
 	var is_ally := is_player or (local_player != null and local_player.team == team)
 	var ring_color := Color(0.18, 1.0, 0.52) if is_ally else Color(1.0, 0.2, 0.16)
@@ -882,41 +889,42 @@ func _vfx_audio_for_scene(vfx_scene: PackedScene) -> AudioStream:
 func _build_health_bar() -> void:
 	health_back = MeshInstance3D.new()
 	var quad := QuadMesh.new()
-	quad.size = Vector2(1.25, 0.065)
+	quad.size = Vector2(1.6, 0.12)
 	health_back.mesh = quad
 	var back_mat := StandardMaterial3D.new()
-	back_mat.albedo_color = Color(0.08, 0.06, 0.1, 0.58)
+	back_mat.albedo_color = Color(0.08, 0.06, 0.1, 0.82)
 	back_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	back_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	back_mat.no_depth_test = false
+	back_mat.no_depth_test = true
 	back_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	health_back.material_override = back_mat
-	health_back.position = Vector3(0.0, 2.3, 0.0)
-	add_child(health_back)
+	health_back.position = Vector3(0.0, 2.55, 0.0)
+	status_root.add_child(health_back)
 
 	health_fill = MeshInstance3D.new()
 	var fill_quad := QuadMesh.new()
-	fill_quad.size = Vector2(HEALTH_BAR_FILL_WIDTH, 0.04)
+	fill_quad.size = Vector2(HEALTH_BAR_FILL_WIDTH, 0.08)
 	health_fill.mesh = fill_quad
 	var fill_mat := StandardMaterial3D.new()
-	fill_mat.albedo_color = Color(0.4, 0.92, 0.6, 0.84)
+	fill_mat.albedo_color = Color(0.4, 0.92, 0.6, 0.95)
 	fill_mat.emission_enabled = true
 	fill_mat.emission = Color(0.4, 0.92, 0.6)
 	fill_mat.emission_energy_multiplier = 0.35
 	fill_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	fill_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	fill_mat.no_depth_test = true
 	fill_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	health_fill.material_override = fill_mat
-	health_fill.position = Vector3(0.0, 2.3, 0.01)
-	add_child(health_fill)
+	health_fill.position = Vector3(0.0, 2.55, 0.01)
+	status_root.add_child(health_fill)
 
 
 func _build_health_label() -> void:
-	health_label = get_node_or_null("HealthLabel") as Label3D
+	health_label = status_root.get_node_or_null("HealthLabel") as Label3D
 	if health_label == null:
 		health_label = Label3D.new()
 		health_label.name = "HealthLabel"
-		add_child(health_label)
+		status_root.add_child(health_label)
 	health_label.font = UI_FONT
 	health_label.position = Vector3(0.0, 2.56, 0.0)
 	health_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -926,6 +934,9 @@ func _build_health_label() -> void:
 	health_label.outline_size = 6
 	health_label.outline_modulate = Color(0.02, 0.03, 0.05, 0.96)
 	health_label.modulate = Color(0.95, 1.0, 0.97, 0.98)
+	# The player asked for a readable name and bar, not floating HP digits.
+	health_label.text = ""
+	health_label.visible = false
 
 
 static var _name_plate_cache: Texture2D = null
@@ -961,23 +972,23 @@ func _build_name_label() -> void:
 		name_plate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		name_plate.no_depth_test = true
 		name_plate.render_priority = -1
-		name_plate.pixel_size = 0.0075
+		name_plate.pixel_size = 0.010
 		name_plate.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
-		name_plate.position = Vector3(0.0, 2.68, 0.0)
-		add_child(name_plate)
+		name_plate.position = Vector3(0.0, 2.72, 0.0)
+		status_root.add_child(name_plate)
 	name_label = Label3D.new()
 	name_label.name = "NameLabel"
 	name_label.text = display_name
 	name_label.font = UI_FONT
-	name_label.font_size = 34
-	name_label.pixel_size = 0.005
+	name_label.font_size = 40
+	name_label.pixel_size = 0.0055
 	name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	name_label.no_depth_test = true
 	name_label.modulate = Color(0.55, 0.9, 1.0) if team == 0 else Color(0.92, 0.66, 1.0)
-	name_label.outline_size = 5
+	name_label.outline_size = 6
 	name_label.outline_modulate = Color(0.02, 0.03, 0.06, 0.98)
-	name_label.position = Vector3(0.0, 2.88, 0.0)
-	add_child(name_label)
+	name_label.position = Vector3(0.0, 2.93, 0.0)
+	status_root.add_child(name_label)
 
 
 func set_display_name(value: String) -> void:
@@ -987,6 +998,26 @@ func set_display_name(value: String) -> void:
 	display_name = trimmed
 	if name_label != null and is_instance_valid(name_label):
 		name_label.text = display_name
+
+
+func set_preview_mode(enabled: bool) -> void:
+	# Lobby/inventory preview: a clean model with no floating name, plate or
+	# health bar above its head.
+	preview_mode = enabled
+	if not enabled:
+		return
+	if name_label != null and is_instance_valid(name_label):
+		name_label.visible = false
+	if name_plate != null and is_instance_valid(name_plate):
+		name_plate.visible = false
+	if health_back != null and is_instance_valid(health_back):
+		health_back.visible = false
+	if health_fill != null and is_instance_valid(health_fill):
+		health_fill.visible = false
+	if health_label != null and is_instance_valid(health_label):
+		health_label.visible = false
+	if carry_light != null and is_instance_valid(carry_light):
+		carry_light.visible = false
 
 
 func _build_visual() -> void:
@@ -1376,6 +1407,8 @@ func _build_placeholder() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if status_root != null and is_instance_valid(status_root):
+		status_root.global_position = global_position
 	_update_blessing(delta)
 	if game != null and bool(game.get("tutorial_mode")) and String(game.get("state")) == "tutorial_complete":
 		velocity = Vector3.ZERO
@@ -2122,6 +2155,12 @@ func _update_name_color() -> void:
 
 func _update_name_visibility() -> void:
 	_update_name_color()
+	if preview_mode:
+		if name_label != null:
+			name_label.visible = false
+		if name_plate != null:
+			name_plate.visible = false
+		return
 	if name_label == null or game == null or not is_instance_valid(game):
 		return
 	if is_player:
@@ -2133,9 +2172,9 @@ func _update_name_visibility() -> void:
 	if game.player != null and is_instance_valid(game.player):
 		player_team = int(game.player.team)
 	if team == player_team:
-		# Allies clutter the screen at the spawn; their names are on the
-		# minimap, so only the local player keeps a floating nameplate.
-		var show_ally_name := is_player
+		# Everyone's nickname is part of the online experience; keep all
+		# ally nameplates visible and compact.
+		var show_ally_name := true
 		name_label.visible = show_ally_name
 		if name_plate != null:
 			name_plate.visible = show_ally_name
@@ -2181,7 +2220,7 @@ func _refresh_bush_visibility() -> void:
 
 
 func _health_bar_visible() -> bool:
-	return not dead and not occluded_from_player
+	return not preview_mode and not dead and not occluded_from_player
 
 
 func is_hidden_from(observer: HeroUnit) -> bool:
@@ -2217,8 +2256,8 @@ func _update_health_display() -> void:
 	var displayed_health := clampi(roundi(health), 0, displayed_max)
 	var hp_ratio := float(displayed_health) / float(displayed_max)
 	if health_label != null:
-		health_label.text = "%d" % displayed_health
-		health_label.visible = _health_bar_visible()
+		health_label.text = ""
+		health_label.visible = false
 	if health_fill != null:
 		var fill_quad := health_fill.mesh as QuadMesh
 		if fill_quad != null:
@@ -2273,7 +2312,10 @@ func apply_network_sync(hp: float, max_hp: float, alive: bool) -> void:
 		return
 	if dead:
 		_respawn()
-	if hp > 0.0:
+	# Only authoritative damage corrects HP. A higher server HP is usually a
+	# stale value from bot damage that was applied locally; raising HP here
+	# made the player immortal after every hit.
+	if hp > 0.0 and hp < health:
 		health = clampf(hp, 0.0, max_health)
 		_update_health_display()
 
@@ -2516,6 +2558,7 @@ func use_ability(index: int, manual := true) -> bool:
 				target.stun(1.0)
 			spawn_ability_vfx(0, target.global_position)
 			game.dash_fx(origin, hit_position, color)
+			_damage_shell_in_radius(hit_position, 3.0, attack_damage)
 		"crit_shot":
 			var crit_target := _crit_shot_target()
 			if crit_target == null:
@@ -2549,6 +2592,7 @@ func use_ability(index: int, manual := true) -> bool:
 						remote_enemy.stun(1.5)
 			game.fear_pulse_fx(origin, WARRIOR_ULT_RADIUS, color)
 			game.earthquake_fx(origin, WARRIOR_ULT_RADIUS, 1.5)
+			_damage_shell_in_radius(origin, WARRIOR_ULT_RADIUS, 60.0)
 		"root":
 			var fwd: Vector3 = _facing_direction()
 			var proj_pos := origin + Vector3(0.0, 1.2, 0.0)
@@ -2589,6 +2633,7 @@ func use_ability(index: int, manual := true) -> bool:
 					if remote_enemy.has_method("apply_slow"):
 						remote_enemy.apply_slow(FAIRY_ULT_SLOW, FAIRY_ULT_SLOW_DURATION)
 			game.fairy_ult_burst_fx(origin, FAIRY_ULT_RADIUS, color)
+			_damage_shell_in_radius(origin, FAIRY_ULT_RADIUS, FAIRY_ULT_DAMAGE)
 	if is_player and manual:
 		_play_ability_sfx(index)
 	if is_player and manual and game != null and bool(game.get("network_play")):
@@ -2617,6 +2662,17 @@ func _set_crit_buff_ring(active: bool) -> void:
 		crit_buff_ring.position.y = GROUND_Y_OFFSET
 		visual.add_child(crit_buff_ring)
 	crit_buff_ring.visible = active
+
+
+func _damage_shell_in_radius(center: Vector3, radius: float, amount: float) -> void:
+	if game == null:
+		return
+	var target := game.shell as SkyShell
+	if target == null or not is_instance_valid(target) or not target.alive:
+		return
+	if target.global_position.distance_to(center) > radius:
+		return
+	target.take_damage(roll_direct_damage(amount * get_blessing_damage_multiplier()), self)
 
 
 func _crit_shot_target() -> Node3D:

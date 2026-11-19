@@ -13,6 +13,7 @@ const GOLD := Color(0.94, 0.78, 0.43)
 const PALE := Color(0.9, 0.91, 0.95)
 
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
+const UI_FONT_BOLD := preload("res://assets/fonts/Philosopher-Bold.ttf")
 const SHARD_ICON: Texture2D = preload("res://ui/icons/sky_shard.png")
 const VICTORY_SOUND: AudioStream = preload("res://audio/sfx/misc_start_kenney_hit_11.ogg")
 const DEFEAT_SOUND: AudioStream = preload("res://audio/sfx/fairy_death_scream.wav")
@@ -91,9 +92,9 @@ func _make_player_row(entry: Dictionary, best_damage: int) -> Control:
 	row_panel.add_child(row)
 
 	var damage := int(entry.get("damage", 0))
-	var name_text := String(entry.get("name", "?"))
+	var name_text := String(entry.get("name", ">"))
 	if damage > 0 and damage == best_damage:
-		name_text = "★ " + name_text
+		name_text = "* " + name_text
 	var name_cell := _table_cell(name_text, 13, GOLD if is_self else PALE, 0.0, HORIZONTAL_ALIGNMENT_LEFT)
 	name_cell.clip_text = true
 	row.add_child(name_cell)
@@ -172,12 +173,12 @@ func _animate_rewards() -> void:
 	var shard_tween := create_tween()
 	shard_tween.tween_method(func(value: float) -> void:
 		if is_instance_valid(shards_reward_label):
-			shards_reward_label.text = "Получено: %d" % int(round(value))
+			shards_reward_label.text = str(int(round(value)))
 	, 0.0, float(final_shards), 0.9)
 	var xp_tween := create_tween()
 	xp_tween.tween_method(func(value: float) -> void:
 		if is_instance_valid(xp_reward_label):
-			xp_reward_label.text = "Получено: %d опыта" % int(round(value))
+			xp_reward_label.text = str(int(round(value)))
 	, 0.0, float(final_xp), 1.2)
 
 
@@ -362,24 +363,26 @@ func _build_content() -> void:
 	stats_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stats_content.add_theme_constant_override("separation", 5)
 	stats_scroll.add_child(stats_content)
+	var reward_line := HBoxContainer.new()
+	reward_line.name = "RewardLine"
+	reward_line.add_theme_constant_override("separation", 4)
+	reward_line.add_child(_make_label("Получено осколков", 16, Color(0.43, 0.84, 1.0)))
+	shards_reward_label = _make_bold_label(str(final_shards), 22, Color(0.43, 0.84, 1.0))
+	shards_reward_label.name = "ShardReward"
+	shards_reward_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	reward_line.add_child(shards_reward_label)
+	reward_line.add_child(_shard_icon(18))
+	reward_line.add_child(_make_label("  ·  ", 18, Color(0.6, 0.64, 0.72)))
+	reward_line.add_child(_make_label("Получено опыта", 16, Color(0.62, 0.86, 1.0)))
+	xp_reward_label = _make_bold_label(str(final_xp), 22, Color(0.62, 0.86, 1.0))
+	xp_reward_label.name = "XPReward"
+	xp_reward_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	reward_line.add_child(xp_reward_label)
+	panel_box.add_child(reward_line)
 	var divider := ColorRect.new()
 	divider.custom_minimum_size = Vector2(0.0, 1.0)
 	divider.color = Color(GOLD.r, GOLD.g, GOLD.b, 0.35)
-	stats_content.add_child(divider)
-
-	var shards_row := HBoxContainer.new()
-	shards_row.name = "ShardRewardRow"
-	shards_row.add_theme_constant_override("separation", 5)
-	shards_reward_label = _make_label("Получено: %d" % final_shards, 17, Color(0.43, 0.84, 1.0))
-	shards_reward_label.name = "ShardReward"
-	shards_reward_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	shards_row.add_child(shards_reward_label)
-	shards_row.add_child(_shard_icon(18))
-	stats_content.add_child(shards_row)
-	xp_reward_label = _make_label("Получено: %d опыта" % final_xp, 17, Color(0.62, 0.86, 1.0))
-	xp_reward_label.name = "XPReward"
-	xp_reward_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	stats_content.add_child(xp_reward_label)
+	panel_box.add_child(divider)
 
 	stats_content.add_child(_make_stat_row("Убийства", str(int(match_stats.get("p_kills", 0)))))
 	stats_content.add_child(_make_stat_row("Смерти", str(int(match_stats.get("p_deaths", 0)))))
@@ -398,7 +401,11 @@ func _build_content() -> void:
 	double_reward_button.add_theme_stylebox_override("hover", _ad_reward_button_style(true))
 	double_reward_button.add_theme_stylebox_override("pressed", _ad_reward_button_style(true))
 	double_reward_button.pressed.connect(_double_rewards_for_ad)
-	stats_content.add_child(double_reward_button)
+	panel_box.add_child(double_reward_button)
+	# Rewards and the x2 button stay pinned above the scrollable stats list.
+	panel_box.move_child(reward_line, 1)
+	panel_box.move_child(divider, 2)
+	panel_box.move_child(double_reward_button, 3)
 
 	players_scroll = ScrollContainer.new()
 	players_scroll.name = "PlayersScroll"
@@ -424,6 +431,12 @@ func _get_player_character_name() -> String:
 	if nickname.is_empty():
 		return hero
 	return "%s\n%s" % [nickname, hero]
+
+
+func _make_bold_label(text: String, font_size: int, color: Color) -> Label:
+	var label := _make_label(text, font_size, color)
+	label.add_theme_font_override("font", UI_FONT_BOLD)
+	return label
 
 
 func _make_stat_row(label_text: String, value_text: String) -> Control:
@@ -616,16 +629,16 @@ func _on_rewarded_ad_completed() -> void:
 
 func _refresh_reward_ui() -> void:
 	if shards_reward_label != null:
-		shards_reward_label.text = "Получено: %d" % final_shards
+		shards_reward_label.text = str(final_shards)
 	if xp_reward_label != null:
-		xp_reward_label.text = "Получено: %d опыта" % final_xp
+		xp_reward_label.text = str(final_xp)
 	if double_reward_button == null:
 		return
 	if rewards_doubled:
 		double_reward_button.text = "Награды удвоены"
 		double_reward_button.disabled = true
 	else:
-		double_reward_button.text = "▶ Реклама: награды ×2"
+		double_reward_button.text = "Получить x2 за рекламу"
 		double_reward_button.disabled = false
 
 

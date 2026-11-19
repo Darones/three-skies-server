@@ -35,7 +35,7 @@ func begin() -> void:
 	game.hud.call(
 		"show_tutorial_card",
 		"Добро пожаловать!",
-		"Цель игры — разбить Оболочку, подобрать Осколок и донести его до базы.\n\n%s В этом обучении ты не можешь погибнуть." % controls_hint,
+		"Цель игры — разбить Оболочку, подобрать Осколок и донести его до базы.\n\n%s В этом обучении ты не можешь погибнуть.\n\nЕсли стоять на месте 1 минуту, за тебя начнёт играть ИИ." % controls_hint,
 		"Продолжить",
 		Callable(self, "_continue_intro")
 	)
@@ -165,8 +165,28 @@ func on_delivery() -> void:
 func _continue_intro() -> void:
 	if stage != "welcome":
 		return
-	stage = "reach_center"
+	stage = "ui_tour"
 	game.hud.call("hide_tutorial_card")
+	_clear_target()
+	_run_ui_tour()
+
+
+func _run_ui_tour() -> void:
+	game.hud.call("show_ui_highlight", "minimap", "Это миникарта: на ней видно союзников, врагов и осколок.")
+	await get_tree().create_timer(3.4).timeout
+	if not is_inside_tree() or stage != "ui_tour":
+		return
+	game.hud.call("show_ui_highlight", "skills", "Это ваши скиллы — кнопки 1, 2 и 3 справа.")
+	await get_tree().create_timer(3.4).timeout
+	if not is_inside_tree() or stage != "ui_tour":
+		return
+	game.hud.call("show_ui_highlight", "avatar", "Это меню: звук и настройки. Пауза в онлайне недоступна.")
+	await get_tree().create_timer(4.0).timeout
+	if not is_inside_tree() or stage != "ui_tour":
+		return
+	game.hud.call("hide_ui_highlight")
+	stage = "reach_center"
+	_point_to(Vector3.ZERO, OBJECTIVE_GOLD)
 	game.hud.call("show_tutorial_hint", "Беги вперёд — к центру арены")
 
 
@@ -216,6 +236,7 @@ func _open_shop_for_tutorial() -> void:
 		game.player.shop_manual_dismissed = false
 		game.player._update_shop_proximity(0.0)
 	game.hud.call("show_tutorial_hint", "Купи учебный товар в магазине")
+	game.hud.call("set_tutorial_shop_item", SHOP_ITEM_ID)
 
 
 func _start_ability_training() -> void:

@@ -88,7 +88,7 @@ func _build_panel() -> void:
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	header.add_child(title)
-	var back_button := _make_button("←", false)
+	var back_button := _make_button("<-", false)
 	back_button.custom_minimum_size = Vector2(48.0, 42.0)
 	back_button.add_theme_font_size_override("font_size", _fs(22))
 	back_button.pressed.connect(_on_back_pressed)
@@ -328,7 +328,7 @@ func _confirm_reset_progress() -> void:
 	if reset_dialog != null and is_instance_valid(reset_dialog):
 		reset_dialog.queue_free()
 	reset_dialog = ConfirmationDialog.new()
-	reset_dialog.title = "Сбросить общий прогресс?"
+	reset_dialog.title = "Сбросить общий прогресс<-"
 	reset_dialog.dialog_text = "Вы потеряете всё, что успели накопить: уровни, баланс, покупки, статистику и ник. Это действие нельзя отменить."
 	reset_dialog.get_ok_button().text = "Сбросить"
 	reset_dialog.get_cancel_button().text = "Отмена"

@@ -12,6 +12,7 @@ var bob_time := 0.0
 var visual: Node3D
 var collision_shape: CollisionShape3D
 var health_fill: MeshInstance3D
+var health_name: Label3D
 var core_light: OmniLight3D
 var base_y := 0.16
 var retiring := false
@@ -35,7 +36,8 @@ func activate(p_game: Node, spawn_position: Vector3) -> void:
 		visual.position = Vector3.ZERO
 	if health_fill != null:
 		health_fill.scale = Vector3.ONE
-		health_fill.position.x = -0.55
+		health_fill.position.x = -0.85
+	_refresh_health_bar()
 	collision_layer = 1
 	collision_mask = 1
 	if collision_shape != null:
@@ -159,21 +161,21 @@ func _node_aabb(node: Node) -> AABB:
 func _build_health_bar() -> void:
 	var back := MeshInstance3D.new()
 	var quad := QuadMesh.new()
-	quad.size = Vector2(1.15, 0.09)
+	quad.size = Vector2(1.8, 0.14)
 	back.mesh = quad
 	var back_mat := StandardMaterial3D.new()
-	back_mat.albedo_color = Color(0.05, 0.04, 0.09, 0.9)
+	back_mat.albedo_color = Color(0.05, 0.04, 0.09, 0.92)
 	back_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	back_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	back_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	back_mat.no_depth_test = true
 	back.material_override = back_mat
-	back.position = Vector3(0.0, 2.55, 0.0)
+	back.position = Vector3(0.0, 2.7, 0.0)
 	add_child(back)
 
 	health_fill = MeshInstance3D.new()
 	var fill_quad := QuadMesh.new()
-	fill_quad.size = Vector2(1.1, 0.06)
+	fill_quad.size = Vector2(1.7, 0.1)
 	health_fill.mesh = fill_quad
 	var fill_mat := StandardMaterial3D.new()
 	fill_mat.albedo_color = Color(0.85, 0.4, 1.0)
@@ -183,9 +185,32 @@ func _build_health_bar() -> void:
 	fill_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	fill_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	fill_mat.no_depth_test = true
+	fill_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	health_fill.material_override = fill_mat
-	health_fill.position = Vector3(0.0, 2.55, 0.02)
+	health_fill.position = Vector3(0.0, 2.7, 0.02)
 	add_child(health_fill)
+
+	health_name = Label3D.new()
+	health_name.name = "ShellName"
+	health_name.text = "ОБОЛОЧКА"
+	health_name.font = preload("res://assets/fonts/Philosopher-Regular.ttf")
+	health_name.font_size = 34
+	health_name.pixel_size = 0.006
+	health_name.outline_size = 6
+	health_name.outline_modulate = Color(0.02, 0.03, 0.05, 0.98)
+	health_name.modulate = Color(0.95, 0.75, 1.0)
+	health_name.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	health_name.no_depth_test = true
+	health_name.position = Vector3(0.0, 3.05, 0.0)
+	add_child(health_name)
+
+
+func _refresh_health_bar() -> void:
+	if health_fill == null:
+		return
+	var frac := clampf(health / max_health, 0.0, 1.0)
+	health_fill.scale.x = maxf(0.001, frac)
+	health_fill.position.x = (frac - 1.0) * 0.85
 
 
 func _physics_process(delta: float) -> void:
@@ -202,7 +227,7 @@ func _physics_process(delta: float) -> void:
 			_strike()
 	var frac := clampf(health / max_health, 0.0, 1.0)
 	health_fill.scale.x = maxf(0.001, frac)
-	health_fill.position.x = (frac - 1.0) * 0.55
+	health_fill.position.x = (frac - 1.0) * 0.85
 	if core_light != null:
 		core_light.light_energy = 3.0 + sin(bob_time * 3.0) * 0.8
 
@@ -225,6 +250,7 @@ func take_damage(amount: float, source: Node = null, _damage_type: String = "phy
 	var source_multiplier := HeroUnit.HERO_OUTGOING_DAMAGE_MULTIPLIER if source is HeroUnit else 1.0
 	var applied_damage := minf(maxf(amount, 0.0) * source_multiplier, health)
 	health -= applied_damage
+	_refresh_health_bar()
 	game.damage_number(global_position + Vector3(0.0, 3.4, 0.0), applied_damage, 1, true)
 	if applied_damage > 0.0 and health > 0.0:
 		game.play_sfx("shell_hit", -4.0)
