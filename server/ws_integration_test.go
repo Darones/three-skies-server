@@ -68,9 +68,11 @@ func TestWebSocketBotSyncAndServerValidation(t *testing.T) {
 		t.Fatalf("expected %d match players", roomSlots)
 	}
 	var enemyBotID int64
+	var enemyBotMaxHP float64
 	for _, player := range hostStart.MatchPlayers {
 		if player.Bot && player.Team == 0 {
 			enemyBotID = player.ID
+			enemyBotMaxHP = player.MaxHP
 		}
 	}
 	if enemyBotID >= 0 {
@@ -91,7 +93,7 @@ func TestWebSocketBotSyncAndServerValidation(t *testing.T) {
 			relayedEnemy = &relayed.Bots[index]
 		}
 	}
-	if relayedEnemy == nil || relayedEnemy.HP != 400 || relayedEnemy.Animation != "run" {
+	if relayedEnemy == nil || relayedEnemy.HP != enemyBotMaxHP || relayedEnemy.Animation != "run" {
 		t.Fatalf("unexpected relayed bot state: %+v", relayed.Bots)
 	}
 
