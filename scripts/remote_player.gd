@@ -29,6 +29,7 @@ var target_position := Vector3.ZERO
 var target_rotation := 0.0
 var _has_target := false
 var _last_bot_animation := ""
+var last_damage_msec := 0
 var _name_label: Label3D = null
 var _health_back: MeshInstance3D = null
 var _health_fill: MeshInstance3D = null
@@ -100,6 +101,12 @@ func apply_bot_state(info: Dictionary) -> void:
 		synced_hp = clampf(synced_hp, 0.0, max_health)
 	if CombatProfiler.enabled and absf(synced_hp - health) > 1.0:
 		print("[BOTHP] id=%d snapshot=%.0f/%.0f current=%.0f/%.0f" % [peer_id, synced_hp, max_health, health, max_health])
+	if synced_hp > health and Time.get_ticks_msec() - last_damage_msec < 600:
+		# The host sends snapshots at 12 Hz. A snapshot created just before
+		# the host applied our confirmed hit can arrive after the damage and
+		# raise the bar again. Hold the confirmed damage briefly so the hit
+		# is visible; real heals after 600 ms still apply.
+		synced_hp = health
 	attack_damage = maxf(float(info.get("attack_damage", attack_damage)), 0.0)
 	var alive := bool(info.get("alive", synced_hp > 0.0))
 	var position: Vector3 = info.get("position", target_position)
@@ -324,6 +331,7 @@ func take_damage(amount: float, source: Node = null, _damage_type := "physical",
 func apply_network_damage(amount: float, show_number := true) -> void:
 	if dead:
 		return
+	last_damage_msec = Time.get_ticks_msec()
 	health = maxf(0.0, health - maxf(amount, 0.0))
 	_update_health_bar()
 	if show_number and game != null and game.has_method("damage_number"):

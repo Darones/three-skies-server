@@ -75,21 +75,21 @@ const SHOP_ITEM_TEXTURES := {
 	"cleansing_charm": preload("res://assets/ui/shop/cleansing_charm.webp"),
 }
 const MUSIC_PATH := "res://audio/music/dread/6adcd384-a1c6-4d03-ab8f-2885c6220fd5_music_dark_fantasy_arena_battle_them__1793744175999.mp3"
-const AMBIENT_PATH := "res://audio/ambient/arena_wind.wav"
+const AMBIENT_PATH := "res://audio/ambient/arena_wind.mp3"
 const SFX_PATHS := {
-	"fairy_ult": "res://audio/sfx/fairy_blessing_free/sfx_magical_fairy_chime_bell_brig_.wav",
-	"hit": "res://audio/sfx/sword_hit.wav",
-	"magic": "res://audio/sfx/magic_burst.wav",
-	"thunder": "res://audio/sfx/shell_thunder.wav",
-	"coin_pickup": "res://audio/sfx/misc_coin_wallet.wav",
-	"shop_purchase": "res://assets/audio/Soundza_Game_SFX_Pack/pickups_powerups/coins_1.wav",
-	"shard_pickup": "res://audio/sfx/misc_shard_pickup.wav",
-	"shard_delivery": "res://audio/sfx/misc_shard_delivery.wav",
-	"death": "res://audio/sfx/death_soft_thud.wav",
-	"death_scream": "res://audio/sfx/fairy_death_scream.wav",
-	"respawn": "res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/level_up_chime.wav",
-	"shell_hit": "res://audio/sfx/misc_shell_hit.wav",
-	"shell_destroyed": "res://audio/sfx/misc_shell_destroyed.wav",
+	"fairy_ult": "res://audio/sfx/fairy_blessing_free/sfx_magical_fairy_chime_bell_brig_.mp3",
+	"hit": "res://audio/sfx/sword_hit.mp3",
+	"magic": "res://audio/sfx/magic_burst.mp3",
+	"thunder": "res://audio/sfx/shell_thunder.mp3",
+	"coin_pickup": "res://audio/sfx/misc_coin_wallet.mp3",
+	"shop_purchase": "res://assets/audio/Soundza_Game_SFX_Pack/pickups_powerups/coins_1.mp3",
+	"shard_pickup": "res://audio/sfx/misc_shard_pickup.mp3",
+	"shard_delivery": "res://audio/sfx/misc_shard_delivery.mp3",
+	"death": "res://audio/sfx/death_soft_thud.mp3",
+	"death_scream": "res://audio/sfx/fairy_death_scream.mp3",
+	"respawn": "res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/level_up_chime.mp3",
+	"shell_hit": "res://audio/sfx/misc_shell_hit.mp3",
+	"shell_destroyed": "res://audio/sfx/misc_shell_destroyed.mp3",
 	"match_start": "res://audio/sfx/misc_start_kenney_hit_15.ogg",
 }
 
@@ -929,11 +929,15 @@ func _setup_audio() -> void:
 		music.play()
 	ambient = AudioStreamPlayer.new()
 	ambient.name = "Ambient"
-	var ambient_stream := load(AMBIENT_PATH) as AudioStreamWAV
+	var ambient_stream := load(AMBIENT_PATH) as AudioStream
 	if ambient_stream != null:
-		ambient_stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
-		ambient_stream.loop_begin = 0
-		ambient_stream.loop_end = int(ambient_stream.get_length() * float(ambient_stream.mix_rate))
+		if ambient_stream is AudioStreamMP3:
+			(ambient_stream as AudioStreamMP3).loop = true
+		elif ambient_stream is AudioStreamWAV:
+			var wav_stream := ambient_stream as AudioStreamWAV
+			wav_stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+			wav_stream.loop_begin = 0
+			wav_stream.loop_end = int(wav_stream.get_length() * float(wav_stream.mix_rate))
 		ambient.stream = ambient_stream
 		ambient.volume_db = -18.0
 		add_child(ambient)

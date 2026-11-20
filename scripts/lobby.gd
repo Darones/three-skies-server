@@ -56,12 +56,11 @@ const GOLD := Color(0.95, 0.76, 0.38)
 const PALE := Color(0.9, 0.92, 0.98)
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const LOBBY_LOGO: Texture2D = preload("res://ui/logo.png")
-const UI_CLICK_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/ui_menu/menu_selection_click.wav")
+const UI_CLICK_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/ui_menu/menu_selection_click.mp3")
 const SHARD_TOPUP_SCENE := preload("res://scenes/ShardTopupPanel.tscn")
 const SHARD_ICON: Texture2D = preload("res://ui/icons/sky_shard.png")
 const SETTINGS_GEAR_ICON: Texture2D = preload("res://ui/icons/settings_gear.png")
 const NICKNAME_CHANGE_COST := 100
-const SHOP_WING_ICON: Texture2D = preload("res://assets/ui/generated_wing_shop_icon/img-6adcd384-a1c6-4d03-ab8f-2885c6220fd5-1794244737264-0_1794244737264_rm3v6na1.webp")
 const SHOP_2H_SWORD_ICON: Texture2D = preload("res://ui/icons/legendary_greatsword.png")
 const SHOP_WAND_ICON: Texture2D = preload("res://ui/icons/gear_wand.png")
 const SHOP_STAFF_ICON: Texture2D = preload("res://ui/icons/legendary_staff.png")
@@ -74,12 +73,9 @@ const SHOP_HERO_TABS := [
 	{"key": "mage", "class": 1, "name": "Маг", "portrait": "res://assets/ui/heroes/mage_face.webp"},
 	{"key": "warrior", "class": 0, "name": "Воин", "portrait": "res://assets/ui/heroes/warrior_face.webp"},
 ]
-const SHOP_WING_ITEMS := [
-	{"id": 1, "name": "Белые крылья", "price": 500},
-	{"id": 2, "name": "Золотые крылья", "price": 1500},
-	{"id": 3, "name": "Чёрные крылья", "price": 3000},
-	{"id": 4, "name": "Демонические крылья", "price": 5000},
-]
+const SHOP_WING_ITEMS := []
+
+
 const SHOP_HERO_WEAPON := {
 	"fairy": {"id": 2, "name": "Тяжёлый арбалет", "price": 1500, "icon": SHOP_2H_CROSSBOW_ICON},
 	"warrior": {"id": 1, "name": "Двуручный меч", "price": 1500, "icon": SHOP_2H_SWORD_ICON},
@@ -1649,38 +1645,8 @@ func _refresh_hero_preview() -> void:
 		ring.visible = false
 
 
-func _build_wing_inventory_cards(inventory_grid: GridContainer) -> void:
-	var names := ["Белые крылья", "Золотые крылья", "Чёрные крылья", "Демонические крылья"]
-	var tints := [Color.WHITE, Color(1.0, 0.84, 0.45), Color(0.45, 0.42, 0.5), Color(0.85, 0.42, 0.4)]
-	for wing_id in range(1, 5):
-		var card := PanelContainer.new()
-		card.name = "WingInventoryCard%d" % wing_id
-		card.custom_minimum_size = Vector2(110, 150)
-		card.add_theme_stylebox_override("panel", _panel_style(Color(0.34, 0.37, 0.44), Color(0.065, 0.072, 0.09, 0.92)))
-		inventory_grid.add_child(card)
-		var content := VBoxContainer.new()
-		content.add_theme_constant_override("separation", 4)
-		card.add_child(content)
-		var icon := TextureRect.new()
-		icon.texture = SHOP_WING_ICON
-		icon.modulate = tints[wing_id - 1]
-		icon.custom_minimum_size = Vector2(0, 46)
-		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		content.add_child(icon)
-		content.add_child(_make_label(names[wing_id - 1], 11, PALE))
-		var status := _make_label("Не куплено", 11, Color(0.62, 0.65, 0.72))
-		content.add_child(status)
-		var button := _make_action_button("Купить", false)
-		button.name = "WingInventoryButton%d" % wing_id
-		button.custom_minimum_size = Vector2(0, 28)
-		button.add_theme_font_size_override("font_size", _fs(11))
-		button.pressed.connect(_on_inventory_wing_pressed.bind(wing_id))
-		content.add_child(button)
-		wing_inventory_cards[wing_id] = card
-		wing_inventory_statuses[wing_id] = status
-		wing_inventory_buttons[wing_id] = button
+func _build_wing_inventory_cards(_inventory_grid: GridContainer) -> void:
+	return
 
 
 func _refresh_wing_inventory() -> void:
@@ -2683,7 +2649,7 @@ func _refresh_player_profile() -> void:
 
 func _play_level_up_feedback() -> void:
 	var player := AudioStreamPlayer.new()
-	player.stream = preload("res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/level_up_chime.wav")
+	player.stream = preload("res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/level_up_chime.mp3")
 	player.volume_db = -1.0
 	add_child(player)
 	player.finished.connect(player.queue_free)

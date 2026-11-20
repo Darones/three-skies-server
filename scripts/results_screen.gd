@@ -16,7 +16,7 @@ const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const UI_FONT_BOLD := preload("res://assets/fonts/Philosopher-Bold.ttf")
 const SHARD_ICON: Texture2D = preload("res://ui/icons/sky_shard.png")
 const VICTORY_SOUND: AudioStream = preload("res://audio/sfx/misc_start_kenney_hit_11.ogg")
-const DEFEAT_SOUND: AudioStream = preload("res://audio/sfx/fairy_death_scream.wav")
+const DEFEAT_SOUND: AudioStream = preload("res://audio/sfx/fairy_death_scream.mp3")
 
 var font: FontFile
 var selected_class := 0
@@ -714,7 +714,7 @@ func _play_reward_fanfare() -> void:
 func _play_level_up_chime() -> void:
 	var player := AudioStreamPlayer.new()
 	player.name = "LevelUpChime"
-	player.stream = preload("res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/level_up_chime.wav")
+	player.stream = preload("res://assets/audio/Soundza_Game_SFX_Pack/jingles_stingers/level_up_chime.mp3")
 	player.volume_db = -2.0
 	player.pitch_scale = 1.04
 	add_child(player)

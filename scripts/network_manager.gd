@@ -330,11 +330,11 @@ func _send_local_state(delta: float) -> void:
 	})
 
 
-func _send_bot_states(delta: float) -> void:
+func _send_bot_states(delta: float, force := false) -> void:
 	if not is_host or local_bots.is_empty():
 		return
 	_bot_send_accumulator += delta
-	if _bot_send_accumulator < SEND_INTERVAL:
+	if not force and _bot_send_accumulator < SEND_INTERVAL:
 		return
 	_bot_send_accumulator = 0.0
 	var bots: Array = []

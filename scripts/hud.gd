@@ -113,7 +113,7 @@ var heartbeat_second := -1.0
 const GOLD := Color(0.96, 0.82, 0.52)
 const PALE := Color(0.86, 0.9, 1.0)
 const DARK_BG := Color(0.05, 0.05, 0.09, 0.78)
-const HEARTBEAT_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/hits_impacts/deep_sub_impact.wav")
+const HEARTBEAT_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/hits_impacts/deep_sub_impact.mp3")
 const ABILITY_ICONS := [
 	[
 		preload("res://assets/ui/icon/128/004.png"),

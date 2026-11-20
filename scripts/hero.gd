@@ -31,25 +31,25 @@ const WEAPON_MAGE_GLOW := Color(0.35, 0.78, 1.0)
 const WEAPON_WARRIOR_GLOW := Color(1.0, 0.64, 0.24)
 const WEAPON_FAIRY_GLOW := Color(0.55, 1.0, 0.62)
 const WARRIOR_SWING_SOUNDS := [
-	preload("res://audio/sfx/warrior_attack_sword_01.wav"),
+	preload("res://audio/sfx/warrior_attack_sword_01.mp3"),
 ]
 const WARRIOR_HIT_SOUNDS := [
-	preload("res://audio/sfx/warrior_hit.wav"),
+	preload("res://audio/sfx/warrior_hit.mp3"),
 ]
 const MAGE_ATTACK_SOUNDS := [
-	preload("res://audio/sfx/mage_ice_ball.wav"),
+	preload("res://audio/sfx/mage_ice_ball.mp3"),
 ]
 const MAGE_HIT_SOUNDS := [
-	preload("res://audio/sfx/mage_hit.wav"),
+	preload("res://audio/sfx/mage_hit.mp3"),
 ]
 const FAIRY_ATTACK_SOUNDS := [
-	preload("res://audio/sfx/fairy_bow_release_01.wav"),
+	preload("res://audio/sfx/fairy_bow_release_01.mp3"),
 ]
 const FAIRY_HIT_SOUNDS := [
-	preload("res://audio/sfx/fairy_hit.wav"),
+	preload("res://audio/sfx/fairy_hit.mp3"),
 ]
 const WARRIOR_ULT_SOUND := [
-	preload("res://audio/sfx/warrior_quake_ult.wav"),
+	preload("res://audio/sfx/warrior_quake_ult.mp3"),
 ]
 const VFX_HIT_SCENE: PackedScene = preload("res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn")
 const VFX_HIT_02_SCENE: PackedScene = preload("res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn")
@@ -57,7 +57,7 @@ const VFX_BIG_IMPACT_SCENE: PackedScene = preload("res://assets/hit_fx/BinbunVFX
 const VFX_BIG_IMPACT_02_SCENE: PackedScene = preload("res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn")
 const VFX_LIGHTNING_SCENE: PackedScene = preload("res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_01.tscn")
 const VFX_GOLDEN_SCENE: PackedScene = preload("res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn")
-const VFX_HIT_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/hits_impacts/deep_punch_impact.wav")
+const VFX_HIT_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/hits_impacts/deep_punch_impact.mp3")
 const FOOTSTEP_SOUNDS := [
 	preload("res://assets/audio/kenney_rpg/footstep_0.ogg"),
 	preload("res://assets/audio/kenney_rpg/footstep_1.ogg"),
@@ -67,24 +67,24 @@ const FOOTSTEP_SOUNDS := [
 ]
 const ABILITY_SOUNDS := [
 	[
-		preload("res://audio/sfx/warrior_dash_shadow.wav"),
-		preload("res://audio/sfx/warrior_bloodthirst.wav"),
+		preload("res://audio/sfx/warrior_dash_shadow.mp3"),
+		preload("res://audio/sfx/warrior_bloodthirst.mp3"),
 		null,
 	],
 	[
-		preload("res://audio/sfx/mage_root_vines_short.wav"),
-		preload("res://audio/sfx/mage_heal_chime.wav"),
-		preload("res://audio/sfx/mage_storm_ult.wav"),
+		preload("res://audio/sfx/mage_root_vines_short.mp3"),
+		preload("res://audio/sfx/mage_heal_chime.mp3"),
+		preload("res://audio/sfx/mage_storm_ult.mp3"),
 	],
 	[
-		preload("res://audio/sfx/fairy_stun_shot.wav"),
-		preload("res://audio/sfx/fairy_crit_draw_release.wav"),
-		preload("res://audio/sfx/fairy_blessing.wav"),
+		preload("res://audio/sfx/fairy_stun_shot.mp3"),
+		preload("res://audio/sfx/fairy_crit_draw_release.mp3"),
+		preload("res://audio/sfx/fairy_blessing.mp3"),
 	],
 ]
-const VFX_BIG_IMPACT_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/explosions/fireball_explosion.wav")
-const VFX_LIGHTNING_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/magic/spell_2.wav")
-const VFX_GOLDEN_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/pickups_powerups/synth_power_up_ascending.wav")
+const VFX_BIG_IMPACT_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/explosions/fireball_explosion.mp3")
+const VFX_LIGHTNING_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/magic/spell_2.mp3")
+const VFX_GOLDEN_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/pickups_powerups/synth_power_up_ascending.mp3")
 const MAGE_STORM_DURATION := 5.0
 const MAGE_STORM_RADIUS := 10.0
 const WARRIOR_ULT_RADIUS := 8.0
@@ -253,16 +253,6 @@ var ai_strafe_sign := 1.0
 var ai_strafe_timer := 0.0
 
 var visual: Node3D
-var wing_attachment: Node3D
-var wing_bone_attachment: BoneAttachment3D
-var wing_attachment_fallback := false
-var wing_sway_time := 0.0
-var wing_skeleton: Skeleton3D = null
-var wing_bone_index := -1
-var wing_model: Node3D = null
-var wing_model_scale := 1.0
-var wing_rotation_offset := Vector3.ZERO
-var wing_world_offset := Vector3.ZERO
 var model_fit_scale := 1.0
 var anim_player: AnimationPlayer = null
 var current_anim := ""
@@ -291,10 +281,6 @@ var bush_reveal_timer := 0.0
 var bush_visual_hidden := false
 var in_shop_zone := false
 var shop_manual_dismissed := false
-
-
-func _ready() -> void:
-	update_wings()
 
 
 func setup(p_game: Node, p_class: int, p_team: int, p_player: bool) -> void:
@@ -337,180 +323,7 @@ func setup(p_game: Node, p_class: int, p_team: int, p_player: bool) -> void:
 	ability_sfx_player.name = "AbilitySfx"
 	ability_sfx_player.max_polyphony = 1
 	add_child(ability_sfx_player)
-	update_wings()
 	_update_health_display()
-
-
-const WING_TINT_SHADER: Shader = preload("res://shaders/wing_tint.gdshader")
-
-const WING_MODEL_DEFAULT := {
-	"path": "res://assets/wings/angel_wings_animated.glb",
-	"scale": 1.0,
-	"position": Vector3.ZERO,
-	"rotation": Vector3(0.0, 0.0, 0.0),
-	"tint": Color(1.0, 1.0, 1.0),
-	"emission": 0.0,
-	"rim": 0.0,
-}
-
-
-const WING_TUNING := {
-	"warrior": {
-		1: {"position": Vector3(0.0, 0.25, -0.15), "rotation": Vector3(-1.7, 0.0, 0.0), "scale": 1.0},
-		2: {"position": Vector3(0.0, 0.25, -0.15), "rotation": Vector3(-1.7, 0.0, 0.0), "scale": 1.0},
-		3: {"position": Vector3(0.0, 0.25, -0.15), "rotation": Vector3(-1.7, 0.0, 0.0), "scale": 1.0},
-		4: {"position": Vector3(0.0, -0.68, -0.46), "rotation": Vector3(0.0, 0.0, 0.0), "scale": 0.006},
-	},
-	"mage": {
-		1: {"position": Vector3(0.0, 0.25, -0.15), "rotation": Vector3(-1.7, 0.0, 0.0), "scale": 1.0},
-		2: {"position": Vector3(0.0, 0.25, -0.15), "rotation": Vector3(-1.7, 0.0, 0.0), "scale": 1.0},
-		3: {"position": Vector3(0.0, 0.25, -0.15), "rotation": Vector3(-1.7, 0.0, 0.0), "scale": 1.0},
-		4: {"position": Vector3(0.0, -0.77, -0.49), "rotation": Vector3(0.0, 0.0, 0.0), "scale": 0.006},
-	},
-	"fairy": {
-		1: {"position": Vector3(0.0, 0.31, -0.22), "rotation": Vector3(-33.0, 0.0, 0.0), "scale": 1.0},
-		2: {"position": Vector3(0.0, 0.31, -0.22), "rotation": Vector3(-33.0, 0.0, 0.0), "scale": 1.0},
-		3: {"position": Vector3(0.0, 0.31, -0.22), "rotation": Vector3(-33.0, 0.0, 0.0), "scale": 1.0},
-		4: {"position": Vector3(0.0, -0.75, -0.15), "rotation": Vector3(16.98, 0.0, 0.0), "scale": 0.006},
-	},
-}
-
-
-func _wing_config(wing_id: int) -> Dictionary:
-	var config: Dictionary = _wing_config_base(wing_id).duplicate()
-	var hero_key: String = ["warrior", "mage", "fairy"][hero_class]
-	if WING_TUNING.has(hero_key) and WING_TUNING[hero_key].has(wing_id):
-		var tuning: Dictionary = WING_TUNING[hero_key][wing_id]
-		# в тунере позиция задаётся от кости целиком; ниже в игре ещё добавляется -0.12
-		config["position"] = tuning["position"] - Vector3(0.0, 0.0, -0.12)
-		config["rotation"] = tuning["rotation"]
-		if tuning.has("scale"):
-			config["scale"] = tuning["scale"]
-	return config
-
-
-func _wing_config_base(wing_id: int) -> Dictionary:
-	match wing_id:
-		2:
-			# золотые: тёплый металл и мягкое свечение по кромке
-			var gold := WING_MODEL_DEFAULT.duplicate()
-			gold["tint"] = Color(1.0, 0.78, 0.34)
-			gold["emission"] = 0.15
-			gold["rim"] = 0.30
-			return gold
-		3:
-			# чёрные: тёмное оперение без золотого ободка
-			var dark := WING_MODEL_DEFAULT.duplicate()
-			dark["tint"] = Color(0.10, 0.09, 0.13)
-			dark["emission"] = 0.0
-			dark["rim"] = 0.0
-			dark["scale"] = 1.06
-			dark["rotation"] = Vector3(0.0, 0.0, 4.0)
-			return dark
-		4:
-			# демонические: модель пришла в сантиметрах и со сдвинутым origin
-			return {
-				"path": "res://assets/wings/low_poly_demon_wings_animated.glb",
-				"scale": 0.006,
-				"position": Vector3(0.0, -0.85, 0.0),
-				"rotation": Vector3(0.0, 0.0, 0.0),
-				"tint": Color(1.0, 1.0, 1.0),
-				"emission": 0.0,
-				"rim": 0.0,
-			}
-		_:
-			return WING_MODEL_DEFAULT
-
-
-func _apply_wing_tint(node: Node, tint: Color, emission: float, rim: float) -> void:
-	for child in node.get_children():
-		if child is MeshInstance3D:
-			var mesh_instance := child as MeshInstance3D
-			if mesh_instance.mesh != null:
-				for surface_index in range(mesh_instance.mesh.get_surface_count()):
-					var source := mesh_instance.get_active_material(surface_index) as BaseMaterial3D
-					var material := ShaderMaterial.new()
-					material.shader = WING_TINT_SHADER
-					material.set_shader_parameter("tint", tint)
-					material.set_shader_parameter("emission_strength", emission)
-					material.set_shader_parameter("rim_strength", rim)
-					if source != null and source.albedo_texture != null:
-						material.set_shader_parameter("albedo_texture", source.albedo_texture)
-					mesh_instance.set_surface_override_material(surface_index, material)
-		_apply_wing_tint(child, tint, emission, rim)
-
-
-func update_wings() -> void:
-	# Крылья временно убраны из игры: у Лучницы остаются родные, вшитые в модель.
-	if wing_attachment != null and is_instance_valid(wing_attachment):
-		wing_attachment.queue_free()
-	if wing_bone_attachment != null and is_instance_valid(wing_bone_attachment):
-		wing_bone_attachment.queue_free()
-	wing_attachment = null
-	wing_bone_attachment = null
-	wing_model = null
-	wing_attachment_fallback = false
-
-
-func _configure_wing_attachment() -> void:
-	var model_root := visual.get_node_or_null("Model") as Node3D
-	var fallback_parent: Node3D = model_root if model_root != null else visual
-	var skeleton := _find_skeleton(model_root)
-	var bone_index := _find_wing_bone_index(skeleton)
-	wing_skeleton = skeleton
-	wing_bone_index = bone_index
-	var target_parent: Node3D = fallback_parent
-	wing_attachment_fallback = true
-	if skeleton != null and bone_index >= 0:
-		var selected_bone := skeleton.get_bone_name(bone_index)
-		if wing_bone_attachment == null or not is_instance_valid(wing_bone_attachment) or wing_bone_attachment.get_parent() != skeleton or wing_bone_attachment.bone_name != selected_bone:
-			if wing_bone_attachment != null and is_instance_valid(wing_bone_attachment):
-				if wing_attachment.get_parent() == wing_bone_attachment:
-					wing_attachment.reparent(fallback_parent, false)
-				wing_bone_attachment.queue_free()
-			wing_bone_attachment = BoneAttachment3D.new()
-			wing_bone_attachment.name = "WingBoneAttachment"
-			wing_bone_attachment.bone_name = selected_bone
-			skeleton.add_child(wing_bone_attachment)
-		target_parent = wing_bone_attachment
-		wing_attachment_fallback = false
-	elif wing_bone_attachment != null and is_instance_valid(wing_bone_attachment):
-		if wing_attachment.get_parent() == wing_bone_attachment:
-			wing_attachment.reparent(fallback_parent, false)
-		wing_bone_attachment.queue_free()
-		wing_bone_attachment = null
-	if wing_attachment.get_parent() != target_parent:
-		if wing_attachment.get_parent() == null:
-			target_parent.add_child(wing_attachment)
-		else:
-			wing_attachment.reparent(target_parent, false)
-	var parent_scale := target_parent.global_transform.basis.get_scale()
-	var inverse_parent_scale := Vector3(
-		1.0 / maxf(absf(parent_scale.x), 0.001),
-		1.0 / maxf(absf(parent_scale.y), 0.001),
-		1.0 / maxf(absf(parent_scale.z), 0.001)
-	)
-	wing_attachment.scale = inverse_parent_scale
-	wing_attachment.position = Vector3(0.0, 0.0, -0.10) * inverse_parent_scale if not wing_attachment_fallback else Vector3(0.0, 1.43, 0.32)
-	wing_attachment.rotation = Vector3.ZERO
-
-
-func _set_wing_materials_double_sided(node: Node) -> void:
-	if node is MeshInstance3D:
-		var mesh_instance := node as MeshInstance3D
-		if mesh_instance.material_override is BaseMaterial3D:
-			var double_sided_override := mesh_instance.material_override.duplicate() as BaseMaterial3D
-			double_sided_override.cull_mode = BaseMaterial3D.CULL_DISABLED
-			mesh_instance.material_override = double_sided_override
-		elif mesh_instance.mesh != null:
-			for surface_index in range(mesh_instance.mesh.get_surface_count()):
-				var source_material := mesh_instance.get_active_material(surface_index)
-				if source_material is BaseMaterial3D:
-					var double_sided_material := source_material.duplicate() as BaseMaterial3D
-					double_sided_material.cull_mode = BaseMaterial3D.CULL_DISABLED
-					mesh_instance.set_surface_override_material(surface_index, double_sided_material)
-	for child in node.get_children():
-		_set_wing_materials_double_sided(child)
 
 
 func _find_skeleton(node: Node) -> Skeleton3D:
@@ -523,41 +336,6 @@ func _find_skeleton(node: Node) -> Skeleton3D:
 		if found != null:
 			return found
 	return null
-
-
-func _find_wing_bone_index(skeleton: Skeleton3D) -> int:
-	if skeleton == null or skeleton.get_bone_count() == 0:
-		return -1
-	var preferred_names := ["spine02", "chest", "torso", "body", "spine", "char1"]
-	for preferred_name in preferred_names:
-		for bone_index in range(skeleton.get_bone_count()):
-			if String(skeleton.get_bone_name(bone_index)).to_lower().contains(preferred_name):
-				return bone_index
-	return -1
-
-
-func _update_wing_transform() -> void:
-	if wing_model == null or not is_instance_valid(wing_model):
-		return
-	if wing_skeleton == null or not is_instance_valid(wing_skeleton) or wing_bone_index < 0:
-		return
-	var bone_world := wing_skeleton.global_transform * wing_skeleton.get_bone_global_pose(wing_bone_index)
-	# та же формула, что в WingTuner: мировые оси + сохранённые смещение/поворот/масштаб
-	var skel_basis := wing_skeleton.global_transform.basis
-	var forward := -skel_basis.z
-	forward.y = 0.0
-	if forward.length_squared() < 0.0001:
-		forward = Vector3.FORWARD
-	forward = forward.normalized()
-	var right := forward.cross(Vector3.UP).normalized()
-	var basis := Basis(right, Vector3.UP, forward)
-	basis = basis * Basis.from_euler(Vector3(
-		deg_to_rad(wing_rotation_offset.x),
-		deg_to_rad(wing_rotation_offset.y),
-		deg_to_rad(wing_rotation_offset.z)
-	))
-	basis = basis.scaled(Vector3.ONE * wing_model_scale * model_fit_scale)
-	wing_model.global_transform = Transform3D(basis, bone_world.origin + wing_world_offset * model_fit_scale)
 
 
 func _update_weapon_transform() -> void:
@@ -584,10 +362,6 @@ func _process(delta: float) -> void:
 	if name_label_timer <= 0.0:
 		name_label_timer = 0.25
 		_update_name_visibility()
-	if wing_model == null or not is_instance_valid(wing_model):
-		return
-	wing_sway_time += delta
-	_update_wing_transform()
 
 
 func _build_body() -> void:
