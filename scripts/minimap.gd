@@ -184,6 +184,17 @@ func _draw_heroes(map_rect: Rect2, player_team: int) -> void:
 		if not enemy.is_visible_to_player(game.player):
 			continue
 		_draw_hero_marker(enemy, map_rect, ENEMY_COLOR, false)
+	# On a guest client every bot and the other human live in remote_players,
+	# not in game.heroes. Without this the guest's minimap showed no allies
+	# at all and the enemy player was invisible.
+	if game.remote_players != null:
+		for remote in game.remote_players.values():
+			if remote == null or not is_instance_valid(remote) or remote.dead:
+				continue
+			if int(remote.team) == player_team:
+				_draw_hero_marker(remote, map_rect, ALLY_COLOR, false)
+			else:
+				_draw_hero_marker(remote, map_rect, ENEMY_COLOR, false)
 
 
 func _draw_hero_marker(hero: Node3D, map_rect: Rect2, team_color: Color, is_local_player: bool) -> void:

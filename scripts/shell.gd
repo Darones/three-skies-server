@@ -217,6 +217,8 @@ func _strike() -> void:
 func take_damage(amount: float, source: Node = null, _damage_type: String = "physical", _skill: String = "") -> void:
 	if not alive:
 		return
+	if CombatProfiler.enabled:
+		print("[SHELL] dmg=%.0f hp_before=%.0f/%.0f source=%s" % [amount, health, max_health, str(source.name) if source != null else "?"])
 	var source_multiplier := HeroUnit.HERO_OUTGOING_DAMAGE_MULTIPLIER if source is HeroUnit else 1.0
 	var applied_damage := minf(maxf(amount, 0.0) * source_multiplier, health)
 	health -= applied_damage

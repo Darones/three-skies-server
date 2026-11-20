@@ -184,6 +184,7 @@ var display_name := ""
 
 var max_health := 200.0
 var health := 200.0
+var last_server_hp := -1.0
 var seconds_since_damage := 0.0
 var move_speed := 6.0
 var attack_range := 2.5
@@ -2270,6 +2271,7 @@ func apply_network_sync(hp: float, max_hp: float, alive: bool) -> void:
 	# already considered them dead, so every attack was rejected.
 	if not is_player:
 		return
+	last_server_hp = hp
 	if max_hp > 0.0:
 		max_health = max_hp
 	if not alive:
@@ -2323,7 +2325,7 @@ func take_damage(amount: float, source: Node = null, damage_type: String = "phys
 		# other player saw the host as immortal after every bot fight.
 		if not network_source.is_player and int(network_source.network_id) < 0:
 			var network_skill := _skill if not _skill.is_empty() else "auto"
-			NetworkManager.send_attack_intent(NetworkManager.local_peer_id, network_skill, int(network_source.network_id))
+			NetworkManager.send_attack_intent(NetworkManager.local_peer_id, network_skill, int(network_source.network_id), amount)
 			return
 	if _is_under_base_shield():
 		return

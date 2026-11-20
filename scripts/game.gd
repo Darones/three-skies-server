@@ -166,6 +166,8 @@ var select_angle := 0.6
 var camera_pos := Vector3.ZERO
 var camera_distance := 16.0
 var visibility_refresh_timer := 0.0
+var net_debug_timer := 0.0
+var last_deny_msec := 0
 var death_camera_active := false
 var death_camera_last_distance := 16.0
 var zoom_speed := 1.0
@@ -1628,6 +1630,23 @@ func _process(delta: float) -> void:
 	else:
 		_update_camera(delta)
 	_update_fog_of_war()
+	if network_play and CombatProfiler.enabled and state == "live":
+		net_debug_timer += delta
+		if net_debug_timer >= 1.0:
+			net_debug_timer = 0.0
+			var parts: Array[String] = []
+			if player != null and is_instance_valid(player):
+				parts.append("L:%d hp=%.0f/%.0f sync=%.0f dead=%s" % [
+					NetworkManager.local_peer_id, player.health, player.max_health,
+					player.last_server_hp, str(player.dead)
+				])
+			for remote_id in remote_players.keys():
+				var remote = remote_players[remote_id]
+				if remote != null and is_instance_valid(remote):
+					parts.append("R:%d hp=%.0f/%.0f dead=%s" % [
+						int(remote_id), remote.health, remote.max_health, str(remote.dead)
+					])
+			print("[HP] host=%s room=%d %s" % [str(network_host), network_room_id, " | ".join(parts)])
 
 	if state == "live":
 		if tutorial_mode:
@@ -3058,6 +3077,8 @@ func _on_remote_attack_received(player_id: int, attack_type: String, _target_id:
 
 
 func _on_remote_damage_received(source_id: int, target_id: int, amount: float, skill: String) -> void:
+	if CombatProfiler.enabled:
+		print("[DMG] source=%d target=%d amount=%.0f skill=%s" % [source_id, target_id, amount, skill])
 	var show_number := source_id == NetworkManager.local_peer_id or target_id == NetworkManager.local_peer_id
 	if source_id < 0:
 		var source_bot = remote_players.get(source_id)
@@ -3183,6 +3204,25 @@ func _spawn_network_bot_from_info(info: Dictionary) -> HeroUnit:
 
 func _on_attack_denied(target_id: int, skill: String, reason: String) -> void:
 	print("[NET] attack_denied target=", target_id, " skill=", skill, " reason=", reason)
+	var now := Time.get_ticks_msec()
+	if now - last_deny_msec < 1200:
+		return
+	var text := ""
+	match reason:
+		"out_of_range":
+			text = "Слишком далеко"
+		"cooldown":
+			text = "Перезарядка"
+		"invalid_target":
+			text = "Цель недоступна"
+		"invalid_source":
+			text = "Вы мертвы"
+		"protected":
+			text = "Цель под защитой"
+	if text.is_empty():
+		return
+	last_deny_msec = now
+	announce("Удар не прошёл: " + text, Color(1.0, 0.72, 0.35), 0.9)
 
 
 func _on_network_sync(hp: float, max_hp: float, alive: bool) -> void:

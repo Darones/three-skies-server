@@ -411,6 +411,23 @@ func TestMatchmakingKeepsFirstJoinDeadline(t *testing.T) {
 	}
 }
 
+func TestAoESkillAllowsMultipleTargetsInOneCast(t *testing.T) {
+	combatant := &wsCombatant{class: 0, lastAttacks: make(map[string]time.Time)}
+	if !combatant.cooldownReady("fear_ult") {
+		t.Fatal("first AoE target was rejected")
+	}
+	if !combatant.cooldownReady("fear_ult") {
+		t.Fatal("second target of the same AoE cast was rejected")
+	}
+	auto := &wsCombatant{class: 0, lastAttacks: make(map[string]time.Time)}
+	if !auto.cooldownReady("auto") {
+		t.Fatal("first auto attack was rejected")
+	}
+	if auto.cooldownReady("auto") {
+		t.Fatal("auto attack spam was accepted")
+	}
+}
+
 func TestRelayStatsNeverLowersServerHP(t *testing.T) {
 	hub := newWebSocketHub(nil)
 	client := newTestClient(1, 0, 0, 0)

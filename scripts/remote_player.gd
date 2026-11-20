@@ -98,6 +98,8 @@ func apply_bot_state(info: Dictionary) -> void:
 	var synced_hp := maxf(float(info.get("hp", 0.0)), 0.0)
 	if max_health > 0.0:
 		synced_hp = clampf(synced_hp, 0.0, max_health)
+	if CombatProfiler.enabled and absf(synced_hp - health) > 1.0:
+		print("[BOTHP] id=%d snapshot=%.0f/%.0f current=%.0f/%.0f" % [peer_id, synced_hp, max_health, health, max_health])
 	attack_damage = maxf(float(info.get("attack_damage", attack_damage)), 0.0)
 	var alive := bool(info.get("alive", synced_hp > 0.0))
 	var position: Vector3 = info.get("position", target_position)
@@ -308,7 +310,9 @@ func take_damage(amount: float, source: Node = null, _damage_type := "physical",
 		return
 	if source is HeroUnit and game != null and bool(game.get("network_play")):
 		var source_id := int(source.get("network_id"))
-		NetworkManager.send_attack_intent(peer_id, skill, source_id)
+		if CombatProfiler.enabled:
+			print("[HIT] remote id=%d amount=%.0f skill=%s source=%d" % [peer_id, amount, skill, source_id])
+		NetworkManager.send_attack_intent(peer_id, skill, source_id, amount)
 		return
 	var applied := minf(maxf(amount, 0.0), health)
 	health = maxf(0.0, health - maxf(amount, 0.0))

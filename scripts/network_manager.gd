@@ -62,6 +62,18 @@ func _ready() -> void:
 	else:
 		var setting_url := String(ProjectSettings.get_setting("network/ws_url", DEFAULT_WS_URL)).strip_edges()
 		ws_url = setting_url if not setting_url.is_empty() else DEFAULT_WS_URL
+	if OS.has_feature("web") and Engine.has_singleton("JavaScriptBridge"):
+		var bridge := Engine.get_singleton("JavaScriptBridge")
+		var search := str(bridge.call("eval", "window.location.search", true))
+		var ws_pos := search.find("ws=")
+		if ws_pos >= 0:
+			var override_url := search.substr(ws_pos + 3)
+			var amp := override_url.find("&")
+			if amp >= 0:
+				override_url = override_url.substr(0, amp)
+			override_url = override_url.uri_decode()
+			if override_url.begins_with("ws://") or override_url.begins_with("wss://"):
+				ws_url = override_url
 	print("[NET] WebSocket URL: ", ws_url)
 
 
@@ -158,7 +170,7 @@ func get_remote_snapshot() -> Dictionary:
 	return remote_players.duplicate(true)
 
 
-func send_attack_intent(target_id: int, skill: String, source_id: int = 0) -> void:
+func send_attack_intent(target_id: int, skill: String, source_id: int = 0, amount := -1.0) -> void:
 	if state != State.CONNECTED or target_id == 0:
 		return
 	var payload := {
@@ -168,6 +180,8 @@ func send_attack_intent(target_id: int, skill: String, source_id: int = 0) -> vo
 	}
 	if source_id != 0:
 		payload["source_id"] = source_id
+	if amount > 0.0:
+		payload["amount"] = amount
 	_send_json(payload)
 
 
@@ -465,15 +479,16 @@ func _handle_state(message: Dictionary) -> void:
 		float(message.get("z", 0.0))
 	)
 	var rotation_y := float(message.get("rotation", 0.0))
-	if not remote_players.has(player_id):
-		var info := _make_remote_info(message)
+	var is_new := not remote_players.has(player_id)
+	var info: Dictionary
+	if is_new:
+		info = _make_remote_info(message)
 		info["position"] = position
 		info["rotation"] = rotation_y
 		info["has_state"] = true
 		remote_players[player_id] = info
-		remote_player_joined.emit(player_id, info)
 	else:
-		var info: Dictionary = remote_players[player_id]
+		info = remote_players[player_id]
 		if message.has("class"):
 			info["class"] = clampi(int(message.get("class", 0)), 0, 2)
 		if message.has("team"):
@@ -481,6 +496,21 @@ func _handle_state(message: Dictionary) -> void:
 		info["position"] = position
 		info["rotation"] = rotation_y
 		info["has_state"] = true
+	var was_alive := bool(info.get("alive", true))
+	if message.has("max_hp") or message.has("hp") or message.has("alive"):
+		var synced_max := maxf(float(message.get("max_hp", info.get("max_hp", 0.0))), 0.0)
+		var synced_hp := maxf(float(message.get("hp", info.get("hp", 0.0))), 0.0)
+		var now_alive := bool(message.get("alive", info.get("alive", true)))
+		info["max_hp"] = synced_max
+		info["hp"] = synced_hp
+		info["alive"] = now_alive
+		if now_alive and not was_alive:
+			# A missed death/respawn packet used to leave the remote node
+			# invisible forever. The 12 Hz state packet now repairs it.
+			remote_respawn_received.emit(player_id, position, rotation_y)
+		remote_stats_updated.emit(player_id, synced_max, synced_hp, float(info.get("attack_damage", 0.0)))
+	if is_new:
+		remote_player_joined.emit(player_id, info)
 	remote_player_state.emit(player_id, position, rotation_y)
 
 

@@ -765,16 +765,21 @@ func (h *wsHub) updateState(client *wsClient, message wsIncoming) {
 		MaxHP:  client.maxHP,
 		Alive:  client.alive,
 	}
+	stateX, stateY, stateZ, stateRot := client.x, client.y, client.z, client.rotation
+	stateHP, stateMaxHP, stateAlive := client.hp, client.maxHP, client.alive
 	roomID := room.id
 	h.mu.Unlock()
 	h.sendToClients(targets, wsOutgoing{
 		Type:     "state",
 		ID:       client.id,
 		RoomID:   roomID,
-		X:        client.x,
-		Y:        client.y,
-		Z:        client.z,
-		Rotation: client.rotation,
+		X:        stateX,
+		Y:        stateY,
+		Z:        stateZ,
+		Rotation: stateRot,
+		HP:       stateHP,
+		MaxHP:    stateMaxHP,
+		Alive:    stateAlive,
 	})
 	if syncDue {
 		client.sendJSON(syncMessage)
@@ -1080,6 +1085,14 @@ func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
 		return
 	}
 	damage := calculateDamageFor(source.attackDamage, source.class, skill)
+	if finite(message.Amount) && message.Amount > 0 {
+		// The client sends the rolled hit (crits, buffs). Keep server authority
+		// by clamping it to a sane multiple of the class attack value.
+		cap := math.Max(source.attackDamage*6.0, 400.0)
+		if message.Amount <= cap {
+			damage = math.Round(message.Amount*100) / 100
+		}
+	}
 	died := target.applyDamage(damage)
 	sourceID := source.id
 	targetID := target.id
@@ -1379,11 +1392,28 @@ func (combatant *wsCombatant) cooldownReady(skill string) bool {
 		}
 	}
 	now := time.Now()
-	if last, ok := combatant.lastAttacks[skill]; ok && now.Sub(last) < attackCooldownFor(combatant.class, skill) {
-		return false
+	if last, ok := combatant.lastAttacks[skill]; ok {
+		elapsed := now.Sub(last)
+		if elapsed < attackCooldownFor(combatant.class, skill) {
+			// One AoE cast sends one intent per target. Those targets arrive
+			// within a few milliseconds; allow them without refreshing the
+			// cooldown, otherwise only the first target took damage.
+			if elapsed <= 350*time.Millisecond && isMultiTargetSkill(skill) {
+				return true
+			}
+			return false
+		}
 	}
 	combatant.lastAttacks[skill] = now
 	return true
+}
+
+func isMultiTargetSkill(skill string) bool {
+	switch strings.ToLower(skill) {
+	case "fear_ult", "fairy_ult", "ult_lightning_storm":
+		return true
+	}
+	return false
 }
 
 func normalizeSkill(skill string) string {
