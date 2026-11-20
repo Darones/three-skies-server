@@ -16,6 +16,8 @@ signal remote_heal_received(source_id: int, target_id: int, amount: float)
 signal remote_stats_updated(player_id: int, max_hp: float, hp: float, attack_damage: float)
 signal bot_state_updated(bot_id: int, info: Dictionary)
 signal bot_roster_received(bots: Array)
+signal shell_state_received(shell: Dictionary)
+signal shell_damage_received(amount: float, source_id: int)
 signal attack_denied(target_id: int, skill: String, reason: String)
 signal sync_received(hp: float, max_hp: float, alive: bool)
 signal match_started(room_id: int, host_id: int, players: Array)
@@ -45,6 +47,7 @@ var local_class := 0
 var is_host := false
 var match_players: Array = []
 var last_match_end_reason := ""
+var server_protocol := 0
 
 var _pending_class := 0
 var _pending_team := 0
@@ -214,13 +217,51 @@ func send_attack(attack_type: String, target_id: int = 0) -> void:
 
 
 func send_heal(target_id: int, amount: float) -> void:
-	if state != State.CONNECTED or target_id <= 0 or amount <= 0.0:
+	if state != State.CONNECTED or target_id == 0 or amount <= 0.0:
 		return
 	_send_json({
 		"type": "heal",
 		"target_id": target_id,
 		"amount": amount,
 	})
+
+
+func send_bot_damage(target_id: int, amount: float) -> void:
+	if state != State.CONNECTED or target_id >= 0 or amount <= 0.0:
+		return
+	_send_json({
+		"type": "bot_damage",
+		"target_id": target_id,
+		"amount": amount,
+	})
+
+
+func send_shell_state(alive: bool, x: float, y: float, z: float, phase: String, timer: float) -> void:
+	if state != State.CONNECTED:
+		return
+	_send_json({
+		"type": "shell_state",
+		"shell": {
+			"alive": alive,
+			"x": x,
+			"y": y,
+			"z": z,
+			"phase": phase,
+			"timer": timer,
+		},
+	})
+
+
+func send_shell_attack(amount: float, source_id: int = 0) -> void:
+	if state != State.CONNECTED or amount <= 0.0:
+		return
+	var payload := {
+		"type": "shell_attack",
+		"amount": amount,
+	}
+	if source_id != 0:
+		payload["source_id"] = source_id
+	_send_json(payload)
 
 
 func send_stats(max_hp: float, hp: float, attack_damage: float) -> void:
@@ -441,6 +482,15 @@ func _handle_message(text: String) -> void:
 			_handle_bot_states(message)
 		"bot_roster":
 			_handle_bot_roster(message)
+		"shell_state":
+			var shell_state: Variant = message.get("shell", {})
+			if shell_state is Dictionary:
+				shell_state_received.emit(shell_state)
+		"shell_damage":
+			shell_damage_received.emit(
+				float(message.get("amount", 0.0)),
+				int(message.get("source_id", 0))
+			)
 		"attack_denied":
 			attack_denied.emit(
 				int(message.get("target_id", 0)),
@@ -461,6 +511,7 @@ func _handle_message(text: String) -> void:
 
 func _handle_welcome(message: Dictionary) -> void:
 	local_peer_id = int(message.get("id", 0))
+	server_protocol = int(message.get("protocol", 0))
 	welcome_received.emit(local_peer_id)
 	var players: Variant = message.get("players", [])
 	if players is Array:
@@ -621,13 +672,17 @@ func _handle_match_start(message: Dictionary) -> void:
 
 
 func _handle_bot_states(message: Dictionary) -> void:
-	if is_host:
-		return
 	var bots: Variant = message.get("bots", [])
 	if not bots is Array:
 		return
 	for entry in bots:
-		if entry is Dictionary:
+		if not entry is Dictionary:
+			continue
+		if is_host:
+			# The host owns movement/AI but not HP. Apply the server's HP to
+			# its local bots without creating remote copies.
+			bot_state_updated.emit(int(entry.get("id", 0)), entry)
+		else:
 			_apply_bot_snapshot(entry)
 
 

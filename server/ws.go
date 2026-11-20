@@ -68,6 +68,7 @@ type wsRoom struct {
 	score        [2]int
 	suddenDeath  bool
 	lastDelivery [2]time.Time
+	shell        *wsShellState
 }
 
 type wsBot struct {
@@ -86,6 +87,7 @@ type wsBot struct {
 	animation    string
 	hasState     bool
 	lastDamaged  time.Time
+	lastRegen    time.Time
 	deadSince    time.Time
 	lastAttacks  map[string]time.Time
 }
@@ -143,6 +145,7 @@ type wsIncoming struct {
 	WinningTeam  int             `json:"winning_team"`
 	Event        string          `json:"event"`
 	Bots         []wsBotSnapshot `json:"bots"`
+	Shell        *wsShellState   `json:"shell"`
 }
 
 type wsBotSnapshot struct {
@@ -159,6 +162,17 @@ type wsBotSnapshot struct {
 	AttackDamage float64 `json:"attack_damage,omitempty"`
 	Alive        bool    `json:"alive"`
 	Animation    string  `json:"animation,omitempty"`
+}
+
+type wsShellState struct {
+	Alive bool    `json:"alive"`
+	HP    float64 `json:"hp,omitempty"`
+	MaxHP float64 `json:"max_hp,omitempty"`
+	X     float64 `json:"x"`
+	Y     float64 `json:"y"`
+	Z     float64 `json:"z"`
+	Phase string  `json:"phase,omitempty"`
+	Timer float64 `json:"timer,omitempty"`
 }
 
 type matchResultPlayer struct {
@@ -204,6 +218,8 @@ type wsOutgoing struct {
 	MatchPlayers []wsMatchPlayer `json:"match_players,omitempty"`
 	StartsInMS   int64           `json:"starts_in_ms,omitempty"`
 	Bots         []wsBotSnapshot `json:"bots,omitempty"`
+	Shell        *wsShellState   `json:"shell,omitempty"`
+	Protocol     int             `json:"protocol,omitempty"`
 	Score0       int             `json:"score_0,omitempty"`
 	Score1       int             `json:"score_1,omitempty"`
 	SuddenDeath  bool            `json:"sudden_death,omitempty"`
@@ -243,7 +259,7 @@ func (h *wsHub) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	h.clients[client.id] = client
 	h.mu.Unlock()
 
-	client.sendJSON(wsOutgoing{Type: "welcome", ID: client.id})
+	client.sendJSON(wsOutgoing{Type: "welcome", ID: client.id, Protocol: 2})
 	log.Printf("ws client %d connected", client.id)
 
 	go client.writePump()
@@ -613,6 +629,7 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 	room.suddenDeath = false
 	room.resultSaved = false
 	room.lastDelivery = [2]time.Time{}
+	room.shell = nil
 	if room.hostID == 0 {
 		for index := 0; index < roomSlots; index++ {
 			if player := room.players[index]; player != nil {
@@ -868,22 +885,34 @@ func (h *wsHub) relayStats(client *wsClient, message wsIncoming) {
 }
 
 func (h *wsHub) relayHeal(client *wsClient, message wsIncoming) {
-	if message.TargetID <= 0 || message.TargetID == client.id || !finite(message.Amount) || message.Amount <= 0 || message.Amount > 100000 {
+	if message.TargetID == 0 || message.TargetID == client.id || !finite(message.Amount) || message.Amount <= 0 {
 		return
 	}
+	amount := math.Min(message.Amount, 800)
 	h.mu.Lock()
 	room := h.rooms[client.roomID]
 	if room == nil || room.state != "live" {
 		h.mu.Unlock()
 		return
 	}
-	target := findRoomPlayerLocked(room, message.TargetID)
-	if target == nil || !target.alive || target.team != client.team {
+	var targetID int64
+	if target := findRoomPlayerLocked(room, message.TargetID); target != nil {
+		if !target.alive || target.team != client.team || target.maxHP <= 0 {
+			h.mu.Unlock()
+			return
+		}
+		target.hp = math.Min(target.maxHP, target.hp+amount)
+		targetID = target.id
+	} else if bot := findRoomBotLocked(room, message.TargetID); bot != nil {
+		if !bot.alive || bot.team != client.team {
+			h.mu.Unlock()
+			return
+		}
+		bot.hp = math.Min(bot.maxHP, bot.hp+amount)
+		targetID = bot.id
+	} else {
 		h.mu.Unlock()
 		return
-	}
-	if target.maxHP > 0 {
-		target.hp = math.Min(target.maxHP, target.hp+message.Amount)
 	}
 	targets := roomClientsLocked(room, client.id)
 	roomID := room.id
@@ -893,8 +922,8 @@ func (h *wsHub) relayHeal(client *wsClient, message wsIncoming) {
 		ID:       client.id,
 		RoomID:   roomID,
 		SourceID: client.id,
-		TargetID: target.id,
-		Amount:   message.Amount,
+		TargetID: targetID,
+		Amount:   amount,
 	})
 }
 
@@ -981,53 +1010,45 @@ func (h *wsHub) relayBotStates(client *wsClient, message wsIncoming) {
 		if bot == nil {
 			continue
 		}
-		if !finite(state.X) || !finite(state.Y) || !finite(state.Z) || !finite(state.Rotation) || !finite(state.HP) || !finite(state.MaxHP) {
+		if !finite(state.X) || !finite(state.Y) || !finite(state.Z) || !finite(state.Rotation) {
 			continue
 		}
 		if math.Abs(state.X) > 1000 || math.Abs(state.Z) > 1000 {
 			continue
 		}
-		if state.MaxHP > 0 && state.MaxHP <= 100000 {
-			bot.maxHP = state.MaxHP
-		}
+		// The host is the trusted movement/AI simulator, but the server owns
+		// the bot's HP, death and respawn. HP fields in this packet are
+		// deliberately ignored.
 		bot.x = state.X
 		bot.y = state.Y
 		bot.z = state.Z
 		bot.rotation = state.Rotation
 		bot.animation = truncateText(state.Animation, 24)
-		if state.AttackDamage >= 0 && state.AttackDamage <= 100000 {
-			bot.attackDamage = state.AttackDamage
+		if bot.alive {
+			if bot.lastRegen.IsZero() {
+				bot.lastRegen = now
+			}
+			elapsed := now.Sub(bot.lastRegen).Seconds()
+			if elapsed > 0.0 && elapsed <= 1.0 && (bot.lastDamaged.IsZero() || now.Sub(bot.lastDamaged) >= 5*time.Second) {
+				rate := 10.0
+				baseZ := 27.5
+				if bot.team == 1 {
+					baseZ = -27.5
+				}
+				if math.Hypot(bot.x, bot.z-baseZ) <= 6.5 {
+					rate *= 2.0
+				}
+				bot.hp = math.Min(bot.maxHP, bot.hp+rate*elapsed)
+			}
+			bot.lastRegen = now
 		}
-		hp := math.Max(0, math.Min(state.HP, bot.maxHP))
-		switch {
-		case !state.Alive:
-			bot.hp = 0
-			bot.alive = false
-			if bot.deadSince.IsZero() {
-				bot.deadSince = now
-			}
-		case !bot.alive && hp > 0:
-			// A host packet sent before it applied a server kill must not
-			// resurrect the bot. Real respawns wait for the respawn timer.
-			if !bot.deadSince.IsZero() && now.Sub(bot.deadSince) >= 1500*time.Millisecond {
-				bot.hp = hp
-				bot.alive = true
-				bot.deadSince = time.Time{}
-			}
-		case hp <= 0:
-			bot.hp = 0
-			bot.alive = false
-			if bot.deadSince.IsZero() {
-				bot.deadSince = now
-			}
-		default:
-			// The host simulates bots, so its HP is the real one. Accept it
-			// both ways; otherwise the host's regen was ignored and the
-			// server could think a bot is nearly dead while both clients
-			// still see it healthy.
-			bot.hp = hp
+		if !bot.alive && state.Alive && !bot.deadSince.IsZero() && now.Sub(bot.deadSince) >= 1500*time.Millisecond {
+			// The host's respawn timer won. The server restores the bot and
+			// broadcasts the new HP to every client.
+			bot.hp = bot.maxHP
 			bot.alive = true
 			bot.deadSince = time.Time{}
+			bot.lastRegen = now
 		}
 		changed = true
 	}
@@ -1037,7 +1058,8 @@ func (h *wsHub) relayBotStates(client *wsClient, message wsIncoming) {
 	}
 	roomID := room.id
 	snapshots := botSnapshotsLocked(room)
-	targets := roomClientsLocked(room, client.id)
+	// Include the host: it applies the server's HP to its local bots.
+	targets := roomClientsLocked(room, 0)
 	h.mu.Unlock()
 	h.sendToClients(targets, wsOutgoing{
 		Type:   "bot_states",
@@ -1107,6 +1129,147 @@ func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
 		TargetID: targetID,
 		Skill:    skill,
 		Amount:   damage,
+	})
+	if died {
+		h.broadcastRoom(roomID, 0, wsOutgoing{Type: "death", ID: targetID, RoomID: roomID})
+	}
+}
+
+func (h *wsHub) relayShellState(client *wsClient, message wsIncoming) {
+	if message.Shell == nil {
+		return
+	}
+	state := *message.Shell
+	if !finite(state.X) || !finite(state.Y) || !finite(state.Z) {
+		return
+	}
+	h.mu.Lock()
+	room := h.rooms[client.roomID]
+	if room == nil || room.state != "live" || room.hostID != client.id {
+		h.mu.Unlock()
+		return
+	}
+	if room.shell == nil {
+		room.shell = &wsShellState{Alive: true, HP: 1000, MaxHP: 1000}
+	}
+	if state.Alive && !room.shell.Alive {
+		// A new shell cycle starts at full HP. The host's HP is ignored.
+		room.shell.HP = 1000
+		room.shell.MaxHP = 1000
+	}
+	room.shell.Alive = state.Alive
+	room.shell.X = state.X
+	room.shell.Y = state.Y
+	room.shell.Z = state.Z
+	room.shell.Phase = truncateText(state.Phase, 16)
+	room.shell.Timer = state.Timer
+	shell := *room.shell
+	roomID := room.id
+	targets := roomClientsLocked(room, 0)
+	h.mu.Unlock()
+	h.sendToClients(targets, wsOutgoing{
+		Type:   "shell_state",
+		RoomID: roomID,
+		Shell:  &shell,
+	})
+}
+
+func (h *wsHub) handleShellAttack(client *wsClient, message wsIncoming) {
+	if !finite(message.Amount) || message.Amount <= 0 || message.Amount > 800 {
+		return
+	}
+	h.mu.Lock()
+	room := h.rooms[client.roomID]
+	if room == nil || room.state != "live" || room.shell == nil || !room.shell.Alive {
+		h.mu.Unlock()
+		return
+	}
+	var source *wsCombatant
+	switch {
+	case message.SourceID == 0 || message.SourceID == client.id:
+		source = combatantFromClient(client)
+	case message.SourceID < 0 && room.hostID == client.id:
+		if bot := findRoomBotLocked(room, message.SourceID); bot != nil {
+			source = combatantFromBot(bot)
+		}
+	}
+	if source == nil || !source.alive || !source.hasState {
+		h.mu.Unlock()
+		return
+	}
+	distance := math.Hypot(source.x-room.shell.X, source.z-room.shell.Z)
+	if distance > maxAttackRange(source.class, "shell")+1.5 {
+		h.mu.Unlock()
+		return
+	}
+	if !source.cooldownReady("shell") {
+		h.mu.Unlock()
+		return
+	}
+	room.shell.HP = math.Max(0, room.shell.HP-message.Amount)
+	died := room.shell.HP <= 0
+	if died {
+		room.shell.Alive = false
+	}
+	shell := *room.shell
+	roomID := room.id
+	sourceID := source.id
+	targets := roomClientsLocked(room, 0)
+	h.mu.Unlock()
+	h.sendToClients(targets, wsOutgoing{
+		Type:   "shell_state",
+		RoomID: roomID,
+		Shell:  &shell,
+	})
+	h.broadcastRoom(roomID, 0, wsOutgoing{
+		Type:     "shell_damage",
+		RoomID:   roomID,
+		SourceID: sourceID,
+		Amount:   message.Amount,
+	})
+	if died {
+		h.broadcastRoom(roomID, 0, wsOutgoing{
+			Type:   "match_event",
+			RoomID: roomID,
+			Event:  "shell_destroyed",
+		})
+	}
+}
+
+func (h *wsHub) handleBotDamage(client *wsClient, message wsIncoming) {
+	if !finite(message.Amount) || message.Amount <= 0 || message.Amount > 800 {
+		return
+	}
+	h.mu.Lock()
+	room := h.rooms[client.roomID]
+	if room == nil || room.state != "live" || room.hostID != client.id {
+		h.mu.Unlock()
+		return
+	}
+	bot := findRoomBotLocked(room, message.TargetID)
+	if bot == nil || !bot.alive {
+		h.mu.Unlock()
+		return
+	}
+	bot.hp = math.Max(0, bot.hp-message.Amount)
+	bot.lastDamaged = time.Now()
+	bot.lastRegen = time.Now()
+	died := bot.hp <= 0
+	if died {
+		bot.alive = false
+		if bot.deadSince.IsZero() {
+			bot.deadSince = time.Now()
+		}
+	}
+	roomID := room.id
+	targetID := bot.id
+	h.mu.Unlock()
+	h.broadcastRoom(roomID, 0, wsOutgoing{
+		Type:     "damage",
+		RoomID:   roomID,
+		TargetID: targetID,
+		Skill:    "shell",
+		Amount:   message.Amount,
 	})
 	if died {
 		h.broadcastRoom(roomID, 0, wsOutgoing{Type: "death", ID: targetID, RoomID: roomID})
@@ -1691,6 +1854,12 @@ func (c *wsClient) readPump() {
 			c.hub.relayRespawn(c, message)
 		case "bot_states":
 			c.hub.relayBotStates(c, message)
+		case "bot_damage":
+			c.hub.handleBotDamage(c, message)
+		case "shell_state":
+			c.hub.relayShellState(c, message)
+		case "shell_attack":
+			c.hub.handleShellAttack(c, message)
 		case "match_event":
 			c.hub.handleMatchEvent(c, message)
 		}

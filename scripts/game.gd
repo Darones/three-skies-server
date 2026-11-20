@@ -167,6 +167,7 @@ var camera_pos := Vector3.ZERO
 var camera_distance := 16.0
 var visibility_refresh_timer := 0.0
 var net_debug_timer := 0.0
+var shell_sync_timer := 0.0
 var last_deny_msec := 0
 var death_camera_active := false
 var death_camera_last_distance := 16.0
@@ -1634,6 +1635,15 @@ func _process(delta: float) -> void:
 	else:
 		_update_camera(delta)
 	_update_fog_of_war()
+	if network_play and network_host and NetworkManager.server_protocol >= 2 and state == "live":
+		shell_sync_timer += delta
+		if shell_sync_timer >= 0.1:
+			shell_sync_timer = 0.0
+			var shell_alive := shell != null and is_instance_valid(shell) and shell.alive
+			var shell_pos := Vector3(0.0, 0.45, 0.0)
+			if shell_alive:
+				shell_pos = shell.global_position
+			NetworkManager.send_shell_state(shell_alive, shell_pos.x, shell_pos.y, shell_pos.z, shell_phase, shell_timer)
 	if network_play and CombatProfiler.enabled and state == "live":
 		net_debug_timer += delta
 		if net_debug_timer >= 1.0:
@@ -1650,6 +1660,17 @@ func _process(delta: float) -> void:
 					parts.append("R:%d hp=%.0f/%.0f dead=%s" % [
 						int(remote_id), remote.health, remote.max_health, str(remote.dead)
 					])
+			if network_host:
+				for bot_id in network_bots.keys():
+					var bot = network_bots[bot_id]
+					if bot != null and is_instance_valid(bot):
+						parts.append("B:%d hp=%.0f/%.0f dead=%s" % [
+							int(bot_id), bot.health, bot.max_health, str(bot.dead)
+						])
+			if shell != null and is_instance_valid(shell):
+				parts.append("S hp=%.0f/%.0f alive=%s" % [
+					shell.health, shell.max_health, str(shell.alive)
+				])
 			print("[HP] host=%s room=%d %s" % [str(network_host), network_room_id, " | ".join(parts)])
 
 	if state == "live":
@@ -1878,20 +1899,25 @@ func _update_match(delta: float) -> void:
 				return
 
 	shell_cycle_timer = maxf(0.0, shell_cycle_timer - delta)
-	shell_timer = shell_cycle_timer
-	if shell_phase == "idle" and shell_cycle_timer <= SHELL_WARNING_TIME:
-		shell_phase = "warning"
-		announce("Оболочка пробуждается — 10 секунд!", Color(0.78, 0.6, 1.0), 2.4)
-	if shell_phase == "warning":
-		if shell_cycle_timer <= 0.0:
-			_spawn_shell()
-	elif shell_phase == "active":
-		shell_window -= delta
-		if shell_window <= 0.0 and shell != null and is_instance_valid(shell) and shell.alive:
-			shell.despawn()
-			shell = null
-			shell_phase = "idle"
-			announce("Оболочка ушла в тень", Color(0.7, 0.7, 0.8), 1.6)
+	if network_play and not network_host and NetworkManager.server_protocol >= 2:
+		# The host simulates the shell; the guest only renders the server
+		# state. No local spawn, timer or shell AI on the guest.
+		pass
+	else:
+		shell_timer = shell_cycle_timer
+		if shell_phase == "idle" and shell_cycle_timer <= SHELL_WARNING_TIME:
+			shell_phase = "warning"
+			announce("Оболочка пробуждается — 10 секунд!", Color(0.78, 0.6, 1.0), 2.4)
+		if shell_phase == "warning":
+			if shell_cycle_timer <= 0.0:
+				_spawn_shell()
+		elif shell_phase == "active":
+			shell_window -= delta
+			if shell_window <= 0.0 and shell != null and is_instance_valid(shell) and shell.alive:
+				shell.despawn()
+				shell = null
+				shell_phase = "idle"
+				announce("Оболочка ушла в тень", Color(0.7, 0.7, 0.8), 1.6)
 
 
 func _spawn_shell() -> void:
@@ -2998,6 +3024,10 @@ func _setup_network_play() -> void:
 		NetworkManager.remote_stats_updated.connect(_on_remote_stats_updated)
 	if not NetworkManager.bot_state_updated.is_connected(_on_bot_state_updated):
 		NetworkManager.bot_state_updated.connect(_on_bot_state_updated)
+	if not NetworkManager.shell_state_received.is_connected(_on_shell_state_received):
+		NetworkManager.shell_state_received.connect(_on_shell_state_received)
+	if not NetworkManager.shell_damage_received.is_connected(_on_shell_damage_received):
+		NetworkManager.shell_damage_received.connect(_on_shell_damage_received)
 	if not NetworkManager.bot_roster_received.is_connected(_on_bot_roster_received):
 		NetworkManager.bot_roster_received.connect(_on_bot_roster_received)
 	if not NetworkManager.host_changed.is_connected(_on_network_host_changed):
@@ -3129,6 +3159,10 @@ func _on_remote_heal_received(_source_id: int, target_id: int, amount: float) ->
 			player.apply_network_heal(amount)
 			NetworkManager.send_stats(player.max_health, player.health, player.attack_damage)
 		return
+	var bot = network_bots.get(target_id)
+	if bot != null and is_instance_valid(bot):
+		bot.apply_network_heal(amount)
+		return
 	var remote = remote_players.get(target_id)
 	if remote != null and is_instance_valid(remote):
 		remote.apply_network_heal(amount)
@@ -3141,7 +3175,26 @@ func _on_remote_stats_updated(player_id: int, max_hp: float, hp: float, attack_d
 
 
 func _on_bot_state_updated(bot_id: int, info: Dictionary) -> void:
-	if not network_play or network_host:
+	if not network_play:
+		return
+	if network_host:
+		if NetworkManager.server_protocol < 2:
+			return
+		var bot = network_bots.get(bot_id)
+		if bot == null or not is_instance_valid(bot):
+			return
+		var max_hp := maxf(float(info.get("max_hp", bot.max_health)), 1.0)
+		var hp := clampf(float(info.get("hp", bot.health)), 0.0, max_hp)
+		var alive := bool(info.get("alive", true))
+		bot.max_health = max_hp
+		if not alive:
+			if not bot.dead:
+				bot.apply_network_damage(bot.health)
+			return
+		if bot.dead:
+			bot._respawn()
+		bot.health = hp
+		bot._update_health_display()
 		return
 	var remote = remote_players.get(bot_id)
 	if remote == null or not is_instance_valid(remote):
@@ -3149,6 +3202,78 @@ func _on_bot_state_updated(bot_id: int, info: Dictionary) -> void:
 		remote = remote_players.get(bot_id)
 	if remote != null and is_instance_valid(remote):
 		remote.apply_bot_state(info)
+
+
+func _on_shell_state_received(state: Dictionary) -> void:
+	if not network_play or NetworkManager.server_protocol < 2 or state.is_empty():
+		return
+	var alive := bool(state.get("alive", false))
+	var hp := float(state.get("hp", 0.0))
+	var max_hp := maxf(float(state.get("max_hp", 1000.0)), 1.0)
+	var x := float(state.get("x", 0.0))
+	var y := float(state.get("y", 0.45))
+	var z := float(state.get("z", 0.0))
+	shell_phase = String(state.get("phase", "idle"))
+	shell_timer = float(state.get("timer", 0.0))
+	if network_host:
+		if shell == null or not is_instance_valid(shell):
+			return
+		if not alive:
+			shell.alive = false
+			shell.visible = false
+			shell.health = 0.0
+			shell._refresh_health_bar()
+			return
+		shell.alive = true
+		shell.visible = true
+		shell.max_health = max_hp
+		shell.health = clampf(hp, 0.0, max_hp)
+		shell._refresh_health_bar()
+		return
+	if alive:
+		_ensure_remote_shell(Vector3(x, y, z), hp, max_hp)
+	elif shell != null and is_instance_valid(shell):
+		shell.alive = false
+		shell.visible = false
+		shell.health = 0.0
+		shell._refresh_health_bar()
+
+
+func _ensure_remote_shell(pos: Vector3, hp: float, max_hp: float) -> void:
+	if shell == null or not is_instance_valid(shell):
+		var s := SkyShell.new()
+		s.name = "RemoteShell"
+		add_child(s)
+		s.setup(self)
+		s.activate(self, pos)
+		s.set_physics_process(false)
+		shell = s
+	shell.alive = true
+	shell.visible = true
+	shell.max_health = max_hp
+	shell.health = clampf(hp, 0.0, max_hp)
+	shell.global_position = pos
+	shell.set_physics_process(false)
+	shell._refresh_health_bar()
+
+
+func _on_shell_destroyed_network() -> void:
+	if state != "live" or NetworkManager.server_protocol < 2:
+		return
+	if shell != null and is_instance_valid(shell):
+		# The server event is the only "destroyed" signal; a normal despawn
+		# only hides the shell and must not create a crystal.
+		on_shell_died(shell, null)
+	shell_phase = "idle"
+	shell_timer = SHELL_SPAWN_INTERVAL
+	shell_window = SHELL_WINDOW
+
+
+func _on_shell_damage_received(amount: float, source_id: int) -> void:
+	if NetworkManager.server_protocol < 2 or amount <= 0.0 or source_id != NetworkManager.local_peer_id:
+		return
+	if shell != null and is_instance_valid(shell):
+		damage_number(shell.global_position + Vector3(0.0, 3.4, 0.0), amount, 1, true)
 
 
 func _on_network_host_changed(new_host_id: int) -> void:
@@ -3256,7 +3381,9 @@ func _on_match_score_updated(score_0: int, score_1: int, server_sudden_death: bo
 func _on_match_event_received(event: String, _team: int) -> void:
 	if not network_play:
 		return
-	if event == "sudden_death" and not sudden_death:
+	if event == "shell_destroyed" and NetworkManager.server_protocol >= 2:
+		_on_shell_destroyed_network()
+	elif event == "sudden_death" and not sudden_death:
 		sudden_death = true
 		announce("Решающий осколок!", Color(1.0, 0.75, 0.35), 3.0)
 

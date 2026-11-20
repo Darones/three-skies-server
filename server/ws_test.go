@@ -175,15 +175,19 @@ func TestBotStatesReachGuests(t *testing.T) {
 	hub.relayBotStates(host, wsIncoming{Bots: []wsBotSnapshot{{
 		ID: -3, X: 8, Y: 0.76, Z: -6, Rotation: 1.2, MaxHP: 450, HP: 412, AttackDamage: 30, Alive: true, Animation: "run",
 	}}})
-	if hostMessages := collectMessages(t, host); len(hostMessages) != 0 {
-		t.Fatalf("host should not receive its own bot states: %+v", hostMessages)
+	hostMessages := collectMessages(t, host)
+	if len(hostMessages) != 1 || hostMessages[0].Type != "bot_states" || len(hostMessages[0].Bots) != 1 {
+		t.Fatalf("host should receive the server bot state: %+v", hostMessages)
+	}
+	if hostMessages[0].Bots[0].HP != 450 {
+		t.Fatalf("host packet must not change server bot HP: %+v", hostMessages[0].Bots[0])
 	}
 	messages := collectMessages(t, guest)
 	if len(messages) != 1 || messages[0].Type != "bot_states" || len(messages[0].Bots) != 1 {
 		t.Fatalf("expected relayed bot state, got %+v", messages)
 	}
 	bot := messages[0].Bots[0]
-	if bot.ID != -3 || bot.X != 8 || bot.HP != 412 || bot.Animation != "run" {
+	if bot.ID != -3 || bot.X != 8 || bot.HP != 450 || bot.Animation != "run" {
 		t.Fatalf("unexpected bot snapshot: %+v", bot)
 	}
 }
@@ -207,9 +211,11 @@ func TestStaleBotStateCannotResurrect(t *testing.T) {
 	room.bots[2] = bot
 	hub.rooms[room.id] = room
 
-	hub.relayBotStates(host, wsIncoming{Bots: []wsBotSnapshot{{
-		ID: -3, MaxHP: 450, HP: 0, Alive: false,
-	}}})
+	hub.mu.Lock()
+	bot.hp = 0
+	bot.alive = false
+	bot.deadSince = time.Now()
+	hub.mu.Unlock()
 	hub.relayBotStates(host, wsIncoming{Bots: []wsBotSnapshot{{
 		ID: -3, MaxHP: 450, HP: 450, Alive: true,
 	}}})
@@ -411,6 +417,48 @@ func TestMatchmakingKeepsFirstJoinDeadline(t *testing.T) {
 	}
 }
 
+func TestShellStateAndDamageAreServerOwned(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	host := newTestClient(1, 0, 0, 0)
+	guest := newTestClient(2, 1, 0, 2)
+	room := newTestRoom(host, guest)
+	hub.rooms[room.id] = room
+	host.x, host.z = 0, 2
+	host.hasState = true
+	host.alive = true
+	host.maxHP, host.hp = 1050, 1050
+	host.lastAttacks = make(map[string]time.Time)
+
+	hub.relayShellState(host, wsIncoming{Shell: &wsShellState{
+		Alive: true, X: 0, Y: 0.45, Z: 0, Phase: "active",
+	}})
+	if room.shell == nil || !room.shell.Alive || room.shell.HP != 1000 || room.shell.MaxHP != 1000 {
+		t.Fatalf("unexpected server shell: %+v", room.shell)
+	}
+	guestMessages := collectMessages(t, guest)
+	if len(guestMessages) != 1 || guestMessages[0].Type != "shell_state" {
+		t.Fatalf("guest did not receive shell state: %+v", guestMessages)
+	}
+
+	// The host's HP is not authoritative.
+	hub.relayShellState(host, wsIncoming{Shell: &wsShellState{
+		Alive: true, X: 0, Y: 0.45, Z: 0, Phase: "active", HP: 100, MaxHP: 100,
+	}})
+	if room.shell.HP != 1000 {
+		t.Fatalf("host shell HP changed the server value: %v", room.shell.HP)
+	}
+
+	hub.handleShellAttack(host, wsIncoming{Amount: 800, SourceID: 0})
+	if room.shell == nil || room.shell.HP != 200 || !room.shell.Alive {
+		t.Fatalf("shell damage not applied by server: %+v", room.shell)
+	}
+	host.lastAttacks["shell"] = time.Now().Add(-time.Second)
+	hub.handleShellAttack(host, wsIncoming{Amount: 300, SourceID: 0})
+	if room.shell.Alive || room.shell.HP != 0 {
+		t.Fatalf("shell death not owned by server: %+v", room.shell)
+	}
+}
+
 func TestAoESkillAllowsMultipleTargetsInOneCast(t *testing.T) {
 	combatant := &wsCombatant{class: 0, lastAttacks: make(map[string]time.Time)}
 	if !combatant.cooldownReady("fear_ult") {
@@ -476,7 +524,7 @@ func TestUpdateStateSendsAuthoritativeSync(t *testing.T) {
 	}
 }
 
-func TestBotStatesFollowHostHP(t *testing.T) {
+func TestServerOwnsBotHP(t *testing.T) {
 	hub := newWebSocketHub(nil)
 	host := newTestClient(1, 0, 0, 0)
 	room := newTestRoom(host)
@@ -485,20 +533,15 @@ func TestBotStatesFollowHostHP(t *testing.T) {
 
 	snapshot := wsBotSnapshot{ID: -1, X: 0, Y: 0.76, Z: 0, Rotation: 0, HP: 450, MaxHP: 450, Alive: true}
 	hub.relayBotStates(host, wsIncoming{Bots: []wsBotSnapshot{snapshot}})
-	if room.bots[0].hp != 450 {
-		t.Fatalf("host regen should update the server bot HP, got %v", room.bots[0].hp)
+	if room.bots[0].hp != 300 {
+		t.Fatalf("host snapshot raised server bot HP to %v", room.bots[0].hp)
 	}
 
-	snapshot.HP = 120
+	room.bots[0].hp = 120
+	room.bots[0].lastDamaged = time.Now()
 	hub.relayBotStates(host, wsIncoming{Bots: []wsBotSnapshot{snapshot}})
 	if room.bots[0].hp != 120 {
-		t.Fatalf("host damage was not applied: %v", room.bots[0].hp)
-	}
-
-	snapshot.HP = 450
-	hub.relayBotStates(host, wsIncoming{Bots: []wsBotSnapshot{snapshot}})
-	if room.bots[0].hp != 450 {
-		t.Fatalf("host heal was not applied: %v", room.bots[0].hp)
+		t.Fatalf("host snapshot healed server bot back to %v", room.bots[0].hp)
 	}
 }
 

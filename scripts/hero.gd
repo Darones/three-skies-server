@@ -1160,7 +1160,7 @@ func _physics_process(delta: float) -> void:
 	_update_shop_proximity(delta)
 	bush_reveal_timer = maxf(0.0, bush_reveal_timer - delta)
 	_refresh_bush_visibility()
-	if seconds_since_damage >= 5.0 and health < max_health:
+	if seconds_since_damage >= 5.0 and health < max_health and not (game != null and bool(game.get("network_play")) and NetworkManager.server_protocol >= 2 and not is_player and int(network_id) < 0):
 		var regen_multiplier := 1.0
 		if _is_at_own_base():
 			# 2x, not 6x: 60 HP/s out-healed a warrior's ~55 DPS and made
@@ -2101,6 +2101,20 @@ func take_damage(amount: float, source: Node = null, damage_type: String = "phys
 			var network_skill := _skill if not _skill.is_empty() else "auto"
 			NetworkManager.send_attack_intent(NetworkManager.local_peer_id, network_skill, int(network_source.network_id), amount)
 			return
+	if game != null and bool(game.get("network_play")) and NetworkManager.server_protocol >= 2 and not is_player and int(network_id) < 0:
+		# The host moves the bot, but the server owns its HP. Every local hit
+		# becomes an intent; the server applies it and broadcasts the result.
+		if source is HeroUnit:
+			var source_hero := source as HeroUnit
+			var source_id := int(source_hero.network_id)
+			if source_id == 0 and source_hero.is_player:
+				source_id = NetworkManager.local_peer_id
+			if source_id != 0:
+				var source_skill := _skill if not _skill.is_empty() else "auto"
+				NetworkManager.send_attack_intent(network_id, source_skill, source_id, amount)
+				return
+		NetworkManager.send_bot_damage(network_id, amount)
+		return
 	if _is_under_base_shield():
 		return
 	if game != null and bool(game.get("tutorial_mode")) and is_player:
@@ -2144,6 +2158,9 @@ func take_damage(amount: float, source: Node = null, damage_type: String = "phys
 
 func heal(amount: float) -> void:
 	if dead:
+		return
+	if game != null and bool(game.get("network_play")) and NetworkManager.server_protocol >= 2 and not is_player and int(network_id) < 0:
+		NetworkManager.send_heal(network_id, amount)
 		return
 	health = clampf(health + maxf(amount, 0.0), 0.0, max_health)
 	_update_health_display()

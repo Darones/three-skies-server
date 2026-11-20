@@ -217,6 +217,16 @@ func _strike() -> void:
 func take_damage(amount: float, source: Node = null, _damage_type: String = "physical", _skill: String = "") -> void:
 	if not alive:
 		return
+	if game != null and bool(game.get("network_play")) and NetworkManager.server_protocol >= 2:
+		var source_id := 0
+		if source is HeroUnit:
+			source_id = int((source as HeroUnit).network_id)
+			if source_id == 0 and (source as HeroUnit).is_player:
+				source_id = NetworkManager.local_peer_id
+		if CombatProfiler.enabled:
+			print("[SHELL] intent amount=%.0f source=%d hp_local=%.0f" % [amount, source_id, health])
+		NetworkManager.send_shell_attack(amount, source_id)
+		return
 	if CombatProfiler.enabled:
 		print("[SHELL] dmg=%.0f hp_before=%.0f/%.0f source=%s" % [amount, health, max_health, str(source.name) if source != null else "?"])
 	var source_multiplier := HeroUnit.HERO_OUTGOING_DAMAGE_MULTIPLIER if source is HeroUnit else 1.0
