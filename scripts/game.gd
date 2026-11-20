@@ -106,6 +106,8 @@ var carrier: HeroUnit = null
 
 var state := "select"
 var match_time := MATCH_LENGTH
+var time_up_announced := false
+var match_end_reason := ""
 var score: Array[int] = [0, 0]
 var p_kills := 0
 var p_deaths := 0
@@ -1369,6 +1371,8 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	p_damage = 0.0
 	p_crystals = 0
 	p_shells_destroyed = 0
+	match_end_reason = ""
+	time_up_announced = false
 	gold_earned_this_match = 0
 	gold = 0 if tutorial_mode else TEST_STARTING_GOLD
 	death_camera_active = false
@@ -1835,10 +1839,18 @@ func _update_match(delta: float) -> void:
 	else:
 		match_time = maxf(0.0, match_time - delta)
 		if match_time <= 0.0:
-			if score[0] == score[1]:
+			if network_play:
+				# Сетевой матч завершает только сервер. Локальный таймер
+				# может убежать вперёд из-за загрузки/реконнекта; если он
+				# обрывал бой, игрок видел конец матча без причины.
+				if not time_up_announced:
+					time_up_announced = true
+					announce("Время вышло — ждём результат сервера", Color(1.0, 0.75, 0.35), 3.0)
+			elif score[0] == score[1]:
 				sudden_death = true
 				announce("Решающий осколок!", Color(1.0, 0.75, 0.35), 3.0)
 			else:
+				match_end_reason = "Время вышло"
 				end_match(score[0] > score[1])
 				return
 
@@ -2152,9 +2164,14 @@ func _deliver(h: HeroUnit) -> void:
 		print("[SCORE] deliver team=", h.team, " ws=", NetworkManager.state, " assigned=", NetworkManager.assigned_team)
 		NetworkManager.send_match_event("shard_delivered", h.team)
 		shell_phase = "idle"
-	if sudden_death or score[h.team] >= CRYSTALS_TO_WIN:
+		# Счёт на клиенте — только отображение. Третье очко подтверждает
+		# сервер через match_finished; локальный счёт не обрывает бой.
+		if score[h.team] >= CRYSTALS_TO_WIN:
+			announce("Осколки: %d : %d — ждём подтверждение сервера" % [score[0], score[1]], Color(1.0, 0.9, 0.6), 2.0)
+	elif sudden_death or score[h.team] >= CRYSTALS_TO_WIN:
+		match_end_reason = "Решающий осколок" if sudden_death else "Осколки"
 		end_match(h.team == 0)
-	elif not network_play:
+	else:
 		shell_phase = "idle"
 
 
@@ -2241,7 +2258,10 @@ func end_match(team_zero_won: bool) -> void:
 	var player_place := _get_player_place()
 	var player_is_mvp := _is_player_mvp()
 	result_text = "ПОБЕДА" if player_won else "ПОРАЖЕНИЕ"
+	if match_end_reason.is_empty():
+		match_end_reason = "Матч завершён"
 	get_tree().set_meta("last_match_won", player_won)
+	get_tree().set_meta("last_match_reason", match_end_reason)
 	get_tree().set_meta("last_match_score", score.duplicate())
 	get_tree().set_meta("last_match_team", player_team)
 	get_tree().set_meta("last_match_place", player_place)
@@ -2273,7 +2293,7 @@ func end_match(team_zero_won: bool) -> void:
 	if player != null and is_instance_valid(player):
 		get_tree().set_meta("selected_class", player.hero_class)
 		player.is_player = false
-	announce(result_text, Color(0.85, 1.0, 0.7) if player_won else Color(1.0, 0.5, 0.45), 6.0)
+	announce("%s · %s" % [result_text, match_end_reason], Color(0.85, 1.0, 0.7) if player_won else Color(1.0, 0.5, 0.45), 6.0)
 	var transition_timer := get_tree().create_timer(2.8)
 	transition_timer.timeout.connect(_open_results_screen)
 
@@ -3178,12 +3198,9 @@ func _on_match_score_updated(score_0: int, score_1: int, server_sudden_death: bo
 	print("[SCORE] server=", score_0, ":", score_1, " local=", score[0], ":", score[1])
 	score[0] = maxi(score[0], score_0)
 	score[1] = maxi(score[1], score_1)
-	if score[0] >= CRYSTALS_TO_WIN or score[1] >= CRYSTALS_TO_WIN:
-		end_match(score[0] > score[1])
-		return
-	if match_time <= 0.0 and score[0] != score[1]:
-		end_match(score[0] > score[1])
-		return
+	# Завершает сетевой матч только match_finished от сервера. Раньше
+	# локальный max() мог набрать 3 осколка из рассинхрона и оборвать
+	# бой, хотя на таймере оставалось ещё несколько минут.
 	if server_sudden_death and not sudden_death:
 		sudden_death = true
 		announce("Решающий осколок!", Color(1.0, 0.75, 0.35), 3.0)
@@ -3200,14 +3217,15 @@ func _on_match_event_received(event: String, _team: int) -> void:
 func _on_network_match_finished(winning_team: int) -> void:
 	if not network_play or state != "live":
 		return
-	# Если локально уже набрано 3 осколка, не даём запоздавшему ответу сервера
-	# перевернуть результат.
-	var local_winner := -1
-	if score[0] >= CRYSTALS_TO_WIN:
-		local_winner = 0
-	elif score[1] >= CRYSTALS_TO_WIN:
-		local_winner = 1
-	end_match((local_winner if local_winner >= 0 else winning_team) == 0)
+	# Сетевой матч завершает только сервер. Локальный счёт — отображение,
+	# он не должен переворачивать или обрывать результат.
+	match_end_reason = "Матч завершён сервером"
+	match String(NetworkManager.last_match_end_reason).to_lower():
+		"score":
+			match_end_reason = "Победили по осколкам"
+		"time":
+			match_end_reason = "Время вышло"
+	end_match(winning_team == 0)
 
 
 func _on_network_disconnected() -> void:

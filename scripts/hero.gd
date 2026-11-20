@@ -26,6 +26,7 @@ const BOT_RETREAT_START_RATIO := 0.22
 const BOT_RETREAT_END_RATIO := 0.4
 const AFK_TIMEOUT := 60.0
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
+const HEALTH_BAR_3D := preload("res://scripts/health_bar_3d.gd")
 const WEAPON_MAGE_GLOW := Color(0.35, 0.78, 1.0)
 const WEAPON_WARRIOR_GLOW := Color(1.0, 0.64, 0.24)
 const WEAPON_FAIRY_GLOW := Color(0.55, 1.0, 0.62)
@@ -900,38 +901,12 @@ func _vfx_audio_for_scene(vfx_scene: PackedScene) -> AudioStream:
 
 
 func _build_health_bar() -> void:
-	health_back = MeshInstance3D.new()
-	var quad := QuadMesh.new()
-	quad.size = Vector2(HEALTH_BAR_FILL_WIDTH, 0.16)
-	health_back.mesh = quad
-	var back_mat := StandardMaterial3D.new()
-	back_mat.albedo_color = Color(0.06, 0.05, 0.08, 0.9)
-	back_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	back_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	back_mat.no_depth_test = true
-	back_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	back_mat.render_priority = 0
-	health_back.material_override = back_mat
-	health_back.position = Vector3(0.0, 2.55, 0.0)
+	var bar_color := Color(0.36, 0.95, 0.52, 1.0)
+	health_back = HEALTH_BAR_3D.create(HEALTH_BAR_FILL_WIDTH, 0.16, bar_color, 2.55)
 	status_root.add_child(health_back)
-
-	health_fill = MeshInstance3D.new()
-	var fill_quad := QuadMesh.new()
-	fill_quad.size = Vector2(HEALTH_BAR_FILL_WIDTH, 0.12)
-	health_fill.mesh = fill_quad
-	var fill_mat := StandardMaterial3D.new()
-	fill_mat.albedo_color = Color(0.36, 0.95, 0.52, 0.96)
-	fill_mat.emission_enabled = true
-	fill_mat.emission = Color(0.36, 0.95, 0.52)
-	fill_mat.emission_energy_multiplier = 0.35
-	fill_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	fill_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	fill_mat.no_depth_test = true
-	fill_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	fill_mat.render_priority = 3
-	health_fill.material_override = fill_mat
-	health_fill.position = Vector3(0.0, 2.55, 0.0)
-	status_root.add_child(health_fill)
+	# One mesh draws background, fill and frame. Keep the old field as an
+	# alias so all visibility code works unchanged.
+	health_fill = health_back
 
 
 func _build_health_label() -> void:
@@ -1413,8 +1388,9 @@ func _physics_process(delta: float) -> void:
 	if seconds_since_damage >= 5.0 and health < max_health:
 		var regen_multiplier := 1.0
 		if _is_at_own_base():
-			# База лечит в 3 раза быстрее, чем раньше (было 2x, стало 6x)
-			regen_multiplier = 6.0
+			# 2x, not 6x: 60 HP/s out-healed a warrior's ~55 DPS and made
+			# the base a literal immortality zone in online matches.
+			regen_multiplier = 2.0
 		elif _is_bush_stealthed():
 			regen_multiplier = 2.0
 		if blessing_timer > 0.0:
@@ -2143,11 +2119,10 @@ func _update_name_color() -> void:
 		# Red enemy names and green ally names, both with a black outline.
 		name_label.modulate = Color(0.62, 1.0, 0.62) if is_ally else Color(1.0, 0.32, 0.28)
 	if health_fill != null and is_instance_valid(health_fill):
-		var fill_mat := health_fill.material_override as StandardMaterial3D
+		var fill_mat := health_fill.material_override as ShaderMaterial
 		if fill_mat != null:
 			var bar_color := Color(0.36, 0.95, 0.52) if is_ally else Color(1.0, 0.3, 0.26)
-			fill_mat.albedo_color = Color(bar_color.r, bar_color.g, bar_color.b, 0.96)
-			fill_mat.emission = bar_color
+			fill_mat.set_shader_parameter("fill_color", bar_color)
 
 
 func _update_name_visibility() -> void:
@@ -2255,15 +2230,11 @@ func _update_health_display() -> void:
 	if health_label != null:
 		health_label.text = ""
 		health_label.visible = false
-	if health_fill != null:
-		var fill_quad := health_fill.mesh as QuadMesh
-		if fill_quad != null:
-			fill_quad.size.x = HEALTH_BAR_FILL_WIDTH * hp_ratio
-			health_fill.scale = Vector3.ONE
-			health_fill.position.x = -(HEALTH_BAR_FILL_WIDTH - HEALTH_BAR_FILL_WIDTH * hp_ratio) * 0.5
-			health_fill.visible = _health_bar_visible()
 	if health_back != null:
+		HEALTH_BAR_3D.set_fill(health_back, hp_ratio)
 		health_back.visible = _health_bar_visible()
+	if health_fill != null and health_fill != health_back:
+		health_fill.visible = _health_bar_visible()
 
 
 
@@ -2309,11 +2280,13 @@ func apply_network_sync(hp: float, max_hp: float, alive: bool) -> void:
 		return
 	if dead:
 		_respawn()
-	# Only authoritative damage corrects HP. A higher server HP is usually a
-	# stale value from bot damage that was applied locally; raising HP here
-	# made the player immortal after every hit.
-	if hp > 0.0 and hp < health:
-		health = clampf(hp, 0.0, max_health)
+	# The server owns HP in network play. Apply the value in both directions:
+	# a higher value means local regen lagged behind, a lower one means a
+	# damage packet was not displayed yet. Never keep a local HP that the
+	# server does not know about.
+	var server_hp := clampf(hp, 0.0, max_health)
+	if not is_equal_approx(server_hp, health):
+		health = server_hp
 		_update_health_display()
 
 
@@ -2341,7 +2314,18 @@ func _spawn_damage_number(amount: float, source: Node) -> void:
 func take_damage(amount: float, source: Node = null, damage_type: String = "physical", _skill: String = "", is_crit := false) -> void:
 	if CombatProfiler.enabled:
 		CombatProfiler.mark("hit", "%s -> %s %.0f" % [str(source.name) if source != null else "?", display_name, amount])
-	if dead or _is_under_base_shield():
+	if dead:
+		return
+	if is_player and game != null and bool(game.get("network_play")) and source is HeroUnit:
+		var network_source := source as HeroUnit
+		# A host-simulated bot hitting the host player must go through the
+		# server. Applying it locally left the server at full HP, so the
+		# other player saw the host as immortal after every bot fight.
+		if not network_source.is_player and int(network_source.network_id) < 0:
+			var network_skill := _skill if not _skill.is_empty() else "auto"
+			NetworkManager.send_attack_intent(NetworkManager.local_peer_id, network_skill, int(network_source.network_id))
+			return
+	if _is_under_base_shield():
 		return
 	if game != null and bool(game.get("tutorial_mode")) and is_player:
 		return

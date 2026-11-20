@@ -2,6 +2,7 @@
 extends CharacterBody3D
 
 const SHELL_MODEL: PackedScene = preload("res://art/generated/shell/3d_1793744338028.glb")
+const HEALTH_BAR_3D := preload("res://scripts/health_bar_3d.gd")
 
 var game: Node
 var alive := false
@@ -35,8 +36,7 @@ func activate(p_game: Node, spawn_position: Vector3) -> void:
 		visual.rotation = Vector3.ZERO
 		visual.position = Vector3.ZERO
 	if health_fill != null:
-		health_fill.scale = Vector3.ONE
-		health_fill.position.x = -0.85
+		health_fill.visible = true
 	_refresh_health_bar()
 	collision_layer = 1
 	collision_mask = 1
@@ -159,37 +159,7 @@ func _node_aabb(node: Node) -> AABB:
 
 
 func _build_health_bar() -> void:
-	var back := MeshInstance3D.new()
-	var quad := QuadMesh.new()
-	quad.size = Vector2(1.7, 0.16)
-	back.mesh = quad
-	var back_mat := StandardMaterial3D.new()
-	back_mat.albedo_color = Color(0.05, 0.04, 0.09, 0.92)
-	back_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	back_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	back_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	back_mat.no_depth_test = true
-	back_mat.render_priority = 0
-	back.material_override = back_mat
-	back.position = Vector3(0.0, 2.7, 0.0)
-	add_child(back)
-
-	health_fill = MeshInstance3D.new()
-	var fill_quad := QuadMesh.new()
-	fill_quad.size = Vector2(1.7, 0.12)
-	health_fill.mesh = fill_quad
-	var fill_mat := StandardMaterial3D.new()
-	fill_mat.albedo_color = Color(0.85, 0.4, 1.0)
-	fill_mat.emission_enabled = true
-	fill_mat.emission = Color(0.8, 0.35, 1.0)
-	fill_mat.emission_energy_multiplier = 1.2
-	fill_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	fill_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	fill_mat.no_depth_test = true
-	fill_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	fill_mat.render_priority = 3
-	health_fill.material_override = fill_mat
-	health_fill.position = Vector3(0.0, 2.7, 0.0)
+	health_fill = HEALTH_BAR_3D.create(1.7, 0.16, Color(0.85, 0.4, 1.0, 1.0), 2.7)
 	add_child(health_fill)
 
 	health_name = Label3D.new()
@@ -211,8 +181,7 @@ func _refresh_health_bar() -> void:
 	if health_fill == null:
 		return
 	var frac := clampf(health / max_health, 0.0, 1.0)
-	health_fill.scale.x = maxf(0.001, frac)
-	health_fill.position.x = (frac - 1.0) * 0.85
+	HEALTH_BAR_3D.set_fill(health_fill, frac)
 
 
 func _physics_process(delta: float) -> void:
@@ -228,8 +197,7 @@ func _physics_process(delta: float) -> void:
 			attack_timer = 3.4
 			_strike()
 	var frac := clampf(health / max_health, 0.0, 1.0)
-	health_fill.scale.x = maxf(0.001, frac)
-	health_fill.position.x = (frac - 1.0) * 0.85
+	HEALTH_BAR_3D.set_fill(health_fill, frac)
 	if core_light != null:
 		core_light.light_energy = 3.0 + sin(bob_time * 3.0) * 0.8
 

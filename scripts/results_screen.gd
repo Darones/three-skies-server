@@ -276,6 +276,9 @@ func _build_header() -> void:
 	add_child(title)
 
 	var subtitle_text := "ИТОГИ МАТЧА  ·  СВЕТ %d : %d ТЬМА" % [int(score[0]), int(score[1])]
+	var end_reason := String(get_tree().get_meta("last_match_reason", "")).strip_edges()
+	if not end_reason.is_empty():
+		subtitle_text += "  ·  " + end_reason
 	var subtitle := _make_label(subtitle_text, 18 if mobile else 17, Color(0.76, 0.78, 0.84))
 	subtitle.name = "MatchSummary"
 	subtitle.anchor_left = 0.08

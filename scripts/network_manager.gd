@@ -44,6 +44,7 @@ var assigned_team := 0
 var local_class := 0
 var is_host := false
 var match_players: Array = []
+var last_match_end_reason := ""
 
 var _pending_class := 0
 var _pending_team := 0
@@ -420,6 +421,7 @@ func _handle_message(text: String) -> void:
 					int(message.get("score_1", 0)),
 					bool(message.get("sudden_death", false))
 				)
+			last_match_end_reason = String(message.get("reason", ""))
 			match_finished.emit(int(message.get("winning_team", 0)))
 		"bot_states":
 			_handle_bot_states(message)

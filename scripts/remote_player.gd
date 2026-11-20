@@ -13,6 +13,7 @@ const CLASS_COLORS := [
 ]
 const CLASS_MAX_HP := [1050.0, 1000.0, 950.0]
 const HEALTH_BAR_WIDTH := 1.7
+const HEALTH_BAR_3D := preload("res://scripts/health_bar_3d.gd")
 
 var peer_id := 0
 var display_name := ""
@@ -286,43 +287,20 @@ func _is_ally() -> bool:
 
 func _build_health_bar() -> void:
 	var bar_color := Color(0.36, 0.95, 0.52, 1.0) if _is_ally() else Color(1.0, 0.3, 0.26, 1.0)
-	_health_back = _make_bar_quad("HealthBarBack", Vector2(HEALTH_BAR_WIDTH, 0.16), Color(0.06, 0.05, 0.08, 0.9), 2.55, 0.0)
-	_health_fill = _make_bar_quad("HealthBarFill", Vector2(HEALTH_BAR_WIDTH, 0.12), bar_color, 2.55, 0.0)
-	if _health_back != null and _health_back.material_override is StandardMaterial3D:
-		(_health_back.material_override as StandardMaterial3D).render_priority = 0
-	if _health_fill != null and _health_fill.material_override is StandardMaterial3D:
-		(_health_fill.material_override as StandardMaterial3D).render_priority = 3
+	_health_back = HEALTH_BAR_3D.create(HEALTH_BAR_WIDTH, 0.16, bar_color, 2.55)
+	add_child(_health_back)
+	_health_fill = _health_back
 	_update_health_bar()
 
 
-func _make_bar_quad(node_name: String, size: Vector2, color: Color, y: float, z: float) -> MeshInstance3D:
-	var bar := MeshInstance3D.new()
-	bar.name = node_name
-	var quad := QuadMesh.new()
-	quad.size = size
-	bar.mesh = quad
-	bar.position = Vector3(0.0, y, z)
-	bar.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	material.no_depth_test = true
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.disable_receive_shadows = true
-	bar.material_override = material
-	add_child(bar)
-	return bar
-
-
 func _update_health_bar() -> void:
-	if _health_fill == null or _health_back == null:
+	if _health_back == null:
 		return
 	var ratio := clampf(health / max_health, 0.0, 1.0) if max_health > 0.0 else 0.0
-	_health_fill.scale.x = ratio
-	_health_fill.position.x = -HEALTH_BAR_WIDTH * (1.0 - ratio) * 0.5
+	HEALTH_BAR_3D.set_fill(_health_back, ratio)
 	_health_back.visible = not dead
-	_health_fill.visible = not dead
+	if _health_fill != null and _health_fill != _health_back:
+		_health_fill.visible = not dead
 
 
 func take_damage(amount: float, source: Node = null, _damage_type := "physical", skill := "auto") -> void:

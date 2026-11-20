@@ -78,7 +78,7 @@ func process(delta: float) -> void:
 		# Drop the hint strip when the player is close enough to fight the
 		# Shell; otherwise it covers the Shell's own name and HP bar.
 		var shell_node = game.shell
-		var near := shell_node != null and is_instance_valid(shell_node) and shell_node.alive and game.player.global_position.distance_to(shell_node.global_position) <= 10.0
+		var near: bool = shell_node != null and is_instance_valid(shell_node) and shell_node.alive and game.player.global_position.distance_to(shell_node.global_position) <= 10.0
 		if near != shell_hint_near:
 			shell_hint_near = near
 			game.hud.call(
