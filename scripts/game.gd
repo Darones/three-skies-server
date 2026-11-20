@@ -264,6 +264,88 @@ func _warm_battle_world() -> void:
 	await get_tree().process_frame
 
 
+func _warm_combat_world() -> void:
+	# Render the freshly spawned heroes (weapons, nameplates, particles) and
+	# every combat VFX scene once in the real World3D. The warm camera is
+	# tiny and off-screen, so only the shader cache is affected.
+	var warm_viewport := SubViewport.new()
+	warm_viewport.name = "CombatWarmupViewport"
+	warm_viewport.size = Vector2i(192, 192)
+	warm_viewport.own_world_3d = false
+	warm_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(warm_viewport)
+	var warm_camera := Camera3D.new()
+	warm_camera.fov = 78.0
+	warm_camera.near = 0.1
+	warm_camera.far = 250.0
+	warm_camera.position = Vector3(0.0, 48.0, 0.1)
+	warm_camera.look_at(Vector3(0.0, 1.0, 0.0), Vector3.UP)
+	warm_viewport.add_child(warm_camera)
+	warm_camera.current = true
+	for _frame in 3:
+		await get_tree().process_frame
+	warm_camera.position = Vector3(0.0, -94.0, 8.0)
+	warm_camera.look_at(Vector3(0.0, -100.0, 0.0), Vector3.UP)
+	var vfx_paths := [
+		"res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn",
+		"res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn",
+		"res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_01.tscn",
+		"res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn",
+		"res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_01.tscn",
+		"res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn",
+	]
+	for path in vfx_paths:
+		var packed := load(path) as PackedScene
+		if packed == null:
+			continue
+		var effect := packed.instantiate() as Node3D
+		if effect == null:
+			continue
+		add_child(effect)
+		effect.global_position = Vector3(0.0, -100.0, 0.0)
+		effect.visible = true
+		for _frame in 2:
+			await get_tree().process_frame
+		effect.queue_free()
+		await get_tree().process_frame
+	if is_instance_valid(warm_viewport):
+		warm_viewport.queue_free()
+	await get_tree().process_frame
+
+
+func _warm_first_clash_vfx() -> void:
+	# One main-world render of the cheap hit scene used by all mobile bot and
+	# auto attacks. The class-select panel still covers the screen here, so
+	# its one-time shader compile is hidden instead of freezing the clash.
+	var warm_viewport := SubViewport.new()
+	warm_viewport.name = "FirstClashWarmup"
+	warm_viewport.size = Vector2i(128, 128)
+	warm_viewport.own_world_3d = false
+	warm_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(warm_viewport)
+	var warm_camera := Camera3D.new()
+	warm_camera.fov = 60.0
+	warm_camera.near = 0.1
+	warm_camera.far = 50.0
+	warm_camera.position = Vector3(0.0, -94.0, 8.0)
+	warm_camera.look_at(Vector3(0.0, -100.0, 0.0), Vector3.UP)
+	warm_viewport.add_child(warm_camera)
+	warm_camera.current = true
+	var packed := load("res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn") as PackedScene
+	if packed != null:
+		var effect := packed.instantiate() as Node3D
+		if effect != null:
+			add_child(effect)
+			effect.global_position = Vector3(0.0, -100.0, 0.0)
+			effect.visible = true
+			for _frame in 2:
+				await get_tree().process_frame
+			effect.queue_free()
+	if is_instance_valid(warm_viewport):
+		warm_viewport.queue_free()
+	await get_tree().process_frame
+
+
 func _apply_mobile_quality() -> void:
 	if not DeviceProfile.mobile_ui:
 		return
@@ -1263,6 +1345,7 @@ func _release_projectile(node: Node3D, pooled: bool) -> void:
 func play_sfx(key: String, volume_db := -4.0, pitch := 1.0) -> void:
 	if not sfx_streams.has(key) or sfx_players.is_empty():
 		return
+	var profiler_start := Time.get_ticks_usec() if CombatProfiler.enabled else 0
 	for offset in range(sfx_players.size()):
 		var index := (sfx_index + offset) % sfx_players.size()
 		var player := sfx_players[index]
@@ -1272,6 +1355,8 @@ func play_sfx(key: String, volume_db := -4.0, pitch := 1.0) -> void:
 		player.volume_db = volume_db
 		player.pitch_scale = pitch
 		player.play()
+		if CombatProfiler.enabled:
+			CombatProfiler.mark("sfx", "%s %.1fms" % [key, (Time.get_ticks_usec() - profiler_start) / 1000.0])
 		sfx_index = (index + 1) % sfx_players.size()
 		return
 
@@ -1321,6 +1406,8 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 				ai_index += 1
 			for i in classes.size():
 				_spawn_hero(classes[i], enemy_team, false, enemy_spots[mini(i, 2)])
+	if DeviceProfile.mobile_ui:
+		await _warm_first_clash_vfx()
 	state = "live"
 	if network_play:
 		_setup_network_play()
@@ -1773,6 +1860,8 @@ func _update_match(delta: float) -> void:
 
 
 func _spawn_shell() -> void:
+	if CombatProfiler.enabled:
+		CombatProfiler.mark("shell", "spawn")
 	var s := shell_pool
 	if s == null or not is_instance_valid(s):
 		s = SkyShell.new()
@@ -2506,6 +2595,7 @@ func bless_team(team: int, duration: float) -> void:
 func spawn_projectile(from: Vector3, target: Node3D, damage: float, color: Color, source: HeroUnit, stun_time := 0.0, damage_type: String = "physical", effect_type: String = "", is_crit := false) -> void:
 	if target == null or not is_instance_valid(target):
 		return
+	var profiler_start := Time.get_ticks_usec() if CombatProfiler.enabled else 0
 	var node := _acquire_projectile()
 	if node == null:
 		return
@@ -2530,6 +2620,8 @@ func spawn_projectile(from: Vector3, target: Node3D, damage: float, color: Color
 		"life": 2.5,
 		"pooled": true,
 	})
+	if CombatProfiler.enabled:
+		CombatProfiler.mark("projectile", "%.0f %.1fms" % [damage, (Time.get_ticks_usec() - profiler_start) / 1000.0])
 
 
 func _update_projectiles(delta: float) -> void:
@@ -2789,6 +2881,7 @@ func root_snare_fx(pos: Vector3, color: Color) -> void:
 
 
 func damage_number(pos: Vector3, amount: float, _team: int, is_shell := false, is_crit := false) -> void:
+	var profiler_start := Time.get_ticks_usec() if CombatProfiler.enabled else 0
 	var label := Label3D.new()
 	label.font = UI_FONT
 	label.text = str(int(round(amount)))
@@ -2810,6 +2903,8 @@ func damage_number(pos: Vector3, amount: float, _team: int, is_shell := false, i
 	tween.tween_property(label, "global_position", label.global_position + Vector3(0.0, 1.1, 0.0), 0.7)
 	tween.parallel().tween_property(label, "modulate:a", 0.0, 0.7)
 	tween.tween_callback(label.queue_free)
+	if CombatProfiler.enabled:
+		CombatProfiler.mark("number", "%.0f crit=%s %.1fms" % [amount, str(is_crit), (Time.get_ticks_usec() - profiler_start) / 1000.0])
 
 
 func heal_number(pos: Vector3, amount: float) -> void:

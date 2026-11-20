@@ -48,7 +48,6 @@ void fragment() {
 	
 	
 	ALPHA = value;
-	PREMUL_ALPHA_FACTOR = value;
 	
 	vec3 color = mix(secondary_color, primary_color, value) * emission * emission_mult;
 	

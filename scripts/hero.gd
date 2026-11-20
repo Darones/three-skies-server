@@ -725,11 +725,12 @@ func spawn_attack_impact_vfx(pos: Vector3, effect_type: String = "") -> void:
 		spawn_ability_vfx(0, pos)
 		return
 	var scene := VFX_HIT_SCENE
-	match hero_class:
-		Cls.MAGE:
-			scene = VFX_GOLDEN_SCENE
-		Cls.FAIRY:
-			scene = VFX_HIT_02_SCENE
+	if not DeviceProfile.mobile_ui:
+		match hero_class:
+			Cls.MAGE:
+				scene = VFX_GOLDEN_SCENE
+			Cls.FAIRY:
+				scene = VFX_HIT_02_SCENE
 	var palette := _vfx_palette()
 	spawn_vfx(scene, pos, 1.2, 1.3, 1.5, palette["primary"], palette["secondary"], palette["light"])
 
@@ -739,6 +740,11 @@ func spawn_ability_vfx(index: int, pos: Vector3) -> void:
 	var effect_scale := 1.15
 	var effect_emission := 1.4
 	var effect_light := 1.5
+	if DeviceProfile.mobile_ui and not is_player:
+		# Bot abilities are numerous and decorative; on a phone use the one
+		# cheap hit scene so the first clash does not compile six variants.
+		spawn_vfx(scene, pos, effect_scale, effect_emission, effect_light, Color(1, 1, 1), Color(1, 0.8, 0.4), Color(1, 0.8, 0.4))
+		return
 	match hero_class:
 		Cls.WARRIOR:
 			match index:
@@ -799,6 +805,7 @@ func spawn_vfx(
 ) -> void:
 	if vfx_scene == null:
 		return
+	var profiler_start := Time.get_ticks_usec() if CombatProfiler.enabled else 0
 	var effect := vfx_scene.instantiate() as Node3D
 	if effect == null:
 		return
@@ -871,6 +878,8 @@ func spawn_vfx(
 	if audio_player != null and audio_player.stream != null and not audio_player.is_playing():
 		audio_player.play()
 	get_tree().create_timer(lifetime).timeout.connect(Callable(effect, "queue_free"), CONNECT_ONE_SHOT)
+	if CombatProfiler.enabled:
+		CombatProfiler.mark("vfx", "%s %.1fms" % [vfx_scene.resource_path.get_file(), (Time.get_ticks_usec() - profiler_start) / 1000.0])
 
 
 func spawn_vfx_silent(vfx_scene: PackedScene, pos: Vector3, effect_scale: float = 1.6) -> void:
@@ -901,6 +910,7 @@ func _build_health_bar() -> void:
 	back_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	back_mat.no_depth_test = true
 	back_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	back_mat.render_priority = 0
 	health_back.material_override = back_mat
 	health_back.position = Vector3(0.0, 2.55, 0.0)
 	status_root.add_child(health_back)
@@ -918,8 +928,9 @@ func _build_health_bar() -> void:
 	fill_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	fill_mat.no_depth_test = true
 	fill_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fill_mat.render_priority = 3
 	health_fill.material_override = fill_mat
-	health_fill.position = Vector3(0.0, 2.55, 0.01)
+	health_fill.position = Vector3(0.0, 2.55, 0.0)
 	status_root.add_child(health_fill)
 
 
@@ -1946,6 +1957,8 @@ func _try_auto_attack(movement_direction: Vector3) -> void:
 		crit_buff_multiplier = 2.0
 		if crit_buff_ring != null:
 			crit_buff_ring.visible = false
+	if CombatProfiler.enabled:
+		CombatProfiler.mark("attack", "%s %.0f" % [display_name, damage])
 	if ranged:
 		var color: Color = CLASS_DATA[hero_class]["color"]
 		game.spawn_projectile(global_position + Vector3(0.0, 1.2, 0.0), target, damage, color, self, 0.0, "physical", "", crit_attack)
@@ -2326,6 +2339,8 @@ func _spawn_damage_number(amount: float, source: Node) -> void:
 
 
 func take_damage(amount: float, source: Node = null, damage_type: String = "physical", _skill: String = "", is_crit := false) -> void:
+	if CombatProfiler.enabled:
+		CombatProfiler.mark("hit", "%s -> %s %.0f" % [str(source.name) if source != null else "?", display_name, amount])
 	if dead or _is_under_base_shield():
 		return
 	if game != null and bool(game.get("tutorial_mode")) and is_player:
@@ -2499,6 +2514,8 @@ func _respawn() -> void:
 
 
 func use_ability(index: int, manual := true) -> bool:
+	if CombatProfiler.enabled:
+		CombatProfiler.mark("ability", "%s %d" % [display_name, index])
 	if is_player and manual:
 		notify_player_input()
 	if dead or stun_timer > 0.0 or lightning_storm_timer > 0.0:

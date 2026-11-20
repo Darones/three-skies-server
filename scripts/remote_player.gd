@@ -287,7 +287,11 @@ func _is_ally() -> bool:
 func _build_health_bar() -> void:
 	var bar_color := Color(0.36, 0.95, 0.52, 1.0) if _is_ally() else Color(1.0, 0.3, 0.26, 1.0)
 	_health_back = _make_bar_quad("HealthBarBack", Vector2(HEALTH_BAR_WIDTH, 0.16), Color(0.06, 0.05, 0.08, 0.9), 2.55, 0.0)
-	_health_fill = _make_bar_quad("HealthBarFill", Vector2(HEALTH_BAR_WIDTH, 0.12), bar_color, 2.55, 0.01)
+	_health_fill = _make_bar_quad("HealthBarFill", Vector2(HEALTH_BAR_WIDTH, 0.12), bar_color, 2.55, 0.0)
+	if _health_back != null and _health_back.material_override is StandardMaterial3D:
+		(_health_back.material_override as StandardMaterial3D).render_priority = 0
+	if _health_fill != null and _health_fill.material_override is StandardMaterial3D:
+		(_health_fill.material_override as StandardMaterial3D).render_priority = 3
 	_update_health_bar()
 
 

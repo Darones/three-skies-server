@@ -18,6 +18,7 @@ var edit_mode := false
 var auto_battle := false
 var auto_tutorial := false
 var edit_screen := ""
+var profile_mode := false
 var camera_distance := 16.0
 var min_zoom_distance := 12.0
 var max_zoom_distance := 42.0
@@ -42,6 +43,8 @@ func _ready() -> void:
 			auto_battle = true
 		elif arg == "--auto-tutorial":
 			auto_tutorial = true
+		elif arg == "--profile":
+			profile_mode = true
 		elif arg.begins_with("--view="):
 			edit_screen = arg.trim_prefix("--view=")
 		elif arg.begins_with("--device="):
@@ -63,6 +66,8 @@ func _ready() -> void:
 			auto_battle = true
 		if search.contains("tutorial=1"):
 			auto_tutorial = true
+		if search.contains("profile=1"):
+			profile_mode = true
 		var view_pos := search.find("view=")
 		if view_pos >= 0:
 			var view_value := search.substr(view_pos + 5)

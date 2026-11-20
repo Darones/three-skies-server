@@ -169,6 +169,7 @@ func _build_health_bar() -> void:
 	back_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	back_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	back_mat.no_depth_test = true
+	back_mat.render_priority = 0
 	back.material_override = back_mat
 	back.position = Vector3(0.0, 2.7, 0.0)
 	add_child(back)
@@ -186,8 +187,9 @@ func _build_health_bar() -> void:
 	fill_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	fill_mat.no_depth_test = true
 	fill_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fill_mat.render_priority = 3
 	health_fill.material_override = fill_mat
-	health_fill.position = Vector3(0.0, 2.7, 0.02)
+	health_fill.position = Vector3(0.0, 2.7, 0.0)
 	add_child(health_fill)
 
 	health_name = Label3D.new()
