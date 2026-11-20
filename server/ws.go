@@ -30,7 +30,7 @@ const (
 
 	matchLength      = 10 * time.Minute
 	crystalsToWin    = 3
-	deliveryLockout  = 500 * time.Millisecond
+	deliveryLockout  = 5 * time.Second
 	botStateBotLimit = roomSlots
 )
 
@@ -115,6 +115,10 @@ type wsClient struct {
 	attackDamage float64
 	lastAttacks  map[string]time.Time
 	lastSync     time.Time
+	lastDamaged  time.Time
+	lastRegen    time.Time
+	lastStatGain time.Time
+	statHpBudget float64
 }
 
 type wsIncoming struct {
@@ -727,6 +731,27 @@ func (h *wsHub) updateState(client *wsClient, message wsIncoming) {
 	client.z = message.Z
 	client.rotation = message.Rotation
 	client.hasState = true
+	now := time.Now()
+	if client.alive && client.maxHP > 0.0 {
+		if client.lastRegen.IsZero() {
+			client.lastRegen = now
+		}
+		elapsed := now.Sub(client.lastRegen).Seconds()
+		if elapsed > 0.0 && elapsed <= 1.0 && (client.lastDamaged.IsZero() || now.Sub(client.lastDamaged) >= 5*time.Second) {
+			rate := 10.0
+			baseZ := 27.5
+			if client.team == 1 {
+				baseZ = -27.5
+			}
+			if math.Hypot(client.x, client.z-baseZ) <= 6.5 {
+				// Base regen must stay below a warrior's ~55 DPS, otherwise
+				// the defender cannot die while standing on the base.
+				rate *= 2.0
+			}
+			client.hp = math.Min(client.maxHP, client.hp+rate*elapsed)
+		}
+		client.lastRegen = now
+	}
 	targets := roomClientsLocked(room, client.id)
 	syncDue := time.Since(client.lastSync) >= time.Second
 	if syncDue {
@@ -798,18 +823,27 @@ func (h *wsHub) relayStats(client *wsClient, message wsIncoming) {
 		h.mu.Unlock()
 		return
 	}
-	client.maxHP = message.MaxHP
-	// The server owns HP after the match starts. A stale client packet may
-	// only restore HP (respawn/shop), never lower it; otherwise a client that
-	// missed a damage message could poison everyone with 0 HP.
-	if hp > client.hp {
-		client.hp = math.Min(hp, client.maxHP)
+	newMax := math.Min(message.MaxHP, 100000)
+	if newMax > 0 {
+		client.maxHP = newMax
 	}
-	if client.hp > client.maxHP {
-		client.hp = client.maxHP
+	client.attackDamage = message.AttackDamage
+	// HP is owned by the server. A client "stats" packet may only add a
+	// bounded amount of HP per second (lifesteal / a bought life amulet),
+	// never restore a full bar after taking damage. Passive regen is applied
+	// by the server from movement updates, and respawn sets full HP.
+	now := time.Now()
+	if now.Sub(client.lastStatGain) >= time.Second {
+		client.lastStatGain = now
+		client.statHpBudget = 300.0
+	}
+	if client.hp < client.maxHP {
+		gain := math.Max(0.0, math.Min(hp, client.maxHP)-client.hp)
+		gain = math.Min(gain, client.statHpBudget)
+		client.hp = math.Min(client.maxHP, client.hp+gain)
+		client.statHpBudget -= gain
 	}
 	hp = client.hp
-	client.attackDamage = message.AttackDamage
 	room := h.rooms[client.roomID]
 	var targets []*wsClient
 	if room != nil {
@@ -822,7 +856,7 @@ func (h *wsHub) relayStats(client *wsClient, message wsIncoming) {
 	h.sendToClients(targets, wsOutgoing{
 		Type:         "stats",
 		ID:           client.id,
-		MaxHP:        message.MaxHP,
+		MaxHP:        client.maxHP,
 		HP:           hp,
 		AttackDamage: message.AttackDamage,
 	})
@@ -886,6 +920,8 @@ func (h *wsHub) relayRespawn(client *wsClient, message wsIncoming) {
 	}
 	client.alive = true
 	client.hp = client.maxHP
+	client.lastDamaged = time.Time{}
+	client.lastRegen = time.Now()
 	client.x = message.X
 	client.y = message.Y
 	client.z = message.Z
@@ -973,14 +1009,20 @@ func (h *wsHub) relayBotStates(client *wsClient, message wsIncoming) {
 				bot.alive = true
 				bot.deadSince = time.Time{}
 			}
-		case hp < bot.hp:
-			bot.hp = hp
-			if hp <= 0 {
-				bot.alive = false
-				if bot.deadSince.IsZero() {
-					bot.deadSince = now
-				}
+		case hp <= 0:
+			bot.hp = 0
+			bot.alive = false
+			if bot.deadSince.IsZero() {
+				bot.deadSince = now
 			}
+		default:
+			// The host simulates bots, so its HP is the real one. Accept it
+			// both ways; otherwise the host's regen was ignored and the
+			// server could think a bot is nearly dead while both clients
+			// still see it healthy.
+			bot.hp = hp
+			bot.alive = true
+			bot.deadSince = time.Time{}
 		}
 		changed = true
 	}
@@ -1090,6 +1132,7 @@ func (h *wsHub) handleMatchEvent(client *wsClient, message wsIncoming) {
 		room.lastDelivery[team] = time.Now()
 		room.score[team]++
 		score0, score1, sudden := room.score[0], room.score[1], room.suddenDeath
+		log.Printf("shard delivered room=%d team=%d by=%d score=%d:%d", room.id, team, client.id, score0, score1)
 		winner := -1
 		if sudden || room.score[team] >= crystalsToWin {
 			winner = team
@@ -1115,6 +1158,7 @@ func (h *wsHub) handleMatchEvent(client *wsClient, message wsIncoming) {
 				WinningTeam: winner,
 				Score0:      score0,
 				Score1:      score1,
+				Reason:      "score",
 			})
 		}
 	case "shell_destroyed":
@@ -1181,6 +1225,7 @@ func (h *wsHub) finishMatchByTimeout(roomID int64) {
 		WinningTeam: winner,
 		Score0:      score0,
 		Score1:      score1,
+		Reason:      "time",
 	})
 }
 
@@ -1309,6 +1354,8 @@ func (combatant *wsCombatant) applyDamage(amount float64) bool {
 	if combatant.client != nil {
 		combatant.client.hp = combatant.hp
 		combatant.client.alive = combatant.alive
+		combatant.client.lastDamaged = time.Now()
+		combatant.client.lastRegen = time.Now()
 	}
 	if combatant.bot != nil {
 		combatant.bot.hp = combatant.hp

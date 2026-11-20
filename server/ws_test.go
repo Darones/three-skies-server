@@ -459,7 +459,7 @@ func TestUpdateStateSendsAuthoritativeSync(t *testing.T) {
 	}
 }
 
-func TestBotStatesCannotHealAliveBot(t *testing.T) {
+func TestBotStatesFollowHostHP(t *testing.T) {
 	hub := newWebSocketHub(nil)
 	host := newTestClient(1, 0, 0, 0)
 	room := newTestRoom(host)
@@ -468,8 +468,8 @@ func TestBotStatesCannotHealAliveBot(t *testing.T) {
 
 	snapshot := wsBotSnapshot{ID: -1, X: 0, Y: 0.76, Z: 0, Rotation: 0, HP: 450, MaxHP: 450, Alive: true}
 	hub.relayBotStates(host, wsIncoming{Bots: []wsBotSnapshot{snapshot}})
-	if room.bots[0].hp != 300 {
-		t.Fatalf("host packet healed a live bot to %v", room.bots[0].hp)
+	if room.bots[0].hp != 450 {
+		t.Fatalf("host regen should update the server bot HP, got %v", room.bots[0].hp)
 	}
 
 	snapshot.HP = 120
@@ -480,8 +480,8 @@ func TestBotStatesCannotHealAliveBot(t *testing.T) {
 
 	snapshot.HP = 450
 	hub.relayBotStates(host, wsIncoming{Bots: []wsBotSnapshot{snapshot}})
-	if room.bots[0].hp != 120 {
-		t.Fatalf("host packet healed a damaged bot back to %v", room.bots[0].hp)
+	if room.bots[0].hp != 450 {
+		t.Fatalf("host heal was not applied: %v", room.bots[0].hp)
 	}
 }
 
