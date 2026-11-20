@@ -613,6 +613,7 @@ aside {
       <b>Как это работает:</b> выбери элемент в списке или прямо на экране.
       Двигай его мышкой, тяни за углы для размера. Всё сразу применяется в игре
       и сохраняется в браузере. Готовую раскладку скачай кнопкой ниже.
+      <br><br>Первый запуск качает ~95 МБ — подожди 1–2 минуты, статус покажет прогресс.
     </div>
 
     <div class="section-head">
@@ -1042,8 +1043,23 @@ aside {
       } catch (error) {
         /* iframe is navigating */
       }
-      if (Date.now() - started > 45000) {
-        setStatus("error", "Игра не ответила — нажми «Перезагрузить игру»");
+      const elapsed = Date.now() - started;
+      let percent = 0;
+      try {
+        const doc = frame.contentDocument;
+        const progress = doc ? doc.getElementById("status-progress") : null;
+        if (progress && Number(progress.max) > 0 && Number(progress.value) > 0) {
+          percent = Math.round((Number(progress.value) / Number(progress.max)) * 100);
+        }
+      } catch (error) {
+        /* iframe is navigating */
+      }
+      if (percent > 0 && percent < 100) {
+        setStatus("loading", `Загрузка игры… ${percent}%`);
+      } else if (elapsed < 180000) {
+        setStatus("loading", `Запуск игры… ${Math.round(elapsed / 1000)} с`);
+      } else {
+        setStatus("error", "Игра долго не отвечает — проверь сеть или нажми «Перезагрузить игру»");
       }
       pollTimer = setTimeout(poll, 350);
     };
