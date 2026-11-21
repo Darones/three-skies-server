@@ -193,12 +193,13 @@ type wsShellState struct {
 }
 
 type wsCrystalState struct {
-	State       string    `json:"state"`
-	X           float64   `json:"x"`
-	Y           float64   `json:"y"`
-	Z           float64   `json:"z"`
-	CarrierID   int64     `json:"carrier_id,omitempty"`
-	GroundSince time.Time `json:"-"`
+	State        string    `json:"state"`
+	X            float64   `json:"x"`
+	Y            float64   `json:"y"`
+	Z            float64   `json:"z"`
+	CarrierID    int64     `json:"carrier_id,omitempty"`
+	GroundSince  time.Time `json:"-"`
+	CarriedSince time.Time `json:"-"`
 }
 
 type matchResultPlayer struct {
@@ -428,7 +429,7 @@ func botFromClient(client *wsClient, slot int) *wsBot {
 	}
 	name := client.name
 	if name == "" {
-		name = fmt.Sprintf("РРіСЂРѕРє %d", client.id)
+		name = fmt.Sprintf("Игрок %d", client.id)
 	}
 	var deadSince time.Time
 	if !alive {
@@ -482,7 +483,7 @@ func (h *wsHub) joinMatchmaking(client *wsClient, message wsIncoming) {
 	}
 	name := strings.TrimSpace(message.Name)
 	if name == "" {
-		name = fmt.Sprintf("РРіСЂРѕРє %d", client.id)
+		name = fmt.Sprintf("Игрок %d", client.id)
 	}
 	runes := []rune(name)
 	if len(runes) > 32 {
@@ -790,7 +791,7 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 			continue
 		}
 		botID := -int64(slot + 1)
-		botName := fmt.Sprintf("РРіСЂРѕРє %04d", 1000+int((room.id*37+int64(slot)*211)%9000))
+		botName := fmt.Sprintf("Игрок %04d", 1000+int((room.id*37+int64(slot)*211)%9000))
 		botZ := 27.5
 		botRotation := 0.0
 		if team == 1 {
@@ -900,6 +901,23 @@ func (h *wsHub) updateState(client *wsClient, message wsIncoming) {
 		room.crystal.Y = 0.5
 		room.crystal.Z = 0
 		room.crystal.GroundSince = time.Time{}
+		room.crystal.CarriedSince = time.Time{}
+		c := *room.crystal
+		crystalMoved = &c
+	}
+	if room.crystal != nil && room.crystal.State == "carried" && !room.crystal.CarriedSince.IsZero() && now.Sub(room.crystal.CarriedSince) >= 45*time.Second {
+		// A carried shard used to have no timeout: if the carrier stalled (lag,
+		// disconnect race, bot stuck) every later shell spawn was rejected and
+		// the match lost its shard. Drop it where the carrier stands.
+		if carrier := findRoomPlayerLocked(room, room.crystal.CarrierID); carrier != nil && carrier.hasState {
+			room.crystal.X = clampArenaX(carrier.x)
+			room.crystal.Z = clampArenaZ(carrier.z)
+		}
+		room.crystal.State = "ground"
+		room.crystal.CarrierID = 0
+		room.crystal.Y = 0.5
+		room.crystal.GroundSince = now
+		room.crystal.CarriedSince = time.Time{}
 		c := *room.crystal
 		crystalMoved = &c
 	}
@@ -1039,25 +1057,39 @@ func (h *wsHub) relayHeal(client *wsClient, message wsIncoming) {
 	}
 	client.healTokens -= 1.0
 	var targetID int64
+	applied := 0.0
 	if target := findRoomPlayerLocked(room, message.TargetID); target != nil {
 		if !target.alive || target.team != client.team || target.maxHP <= 0 {
 			h.mu.Unlock()
 			return
 		}
+		before := target.hp
 		target.hp = math.Min(target.maxHP, target.hp+amount)
+		applied = target.hp - before
 		targetID = target.id
 	} else if bot := findRoomBotLocked(room, message.TargetID); bot != nil {
 		if !bot.alive || bot.team != client.team {
 			h.mu.Unlock()
 			return
 		}
+		before := bot.hp
 		bot.hp = math.Min(bot.maxHP, bot.hp+amount)
+		applied = bot.hp - before
 		targetID = bot.id
 	} else {
 		h.mu.Unlock()
 		return
 	}
-	targets := roomClientsLocked(room, client.id)
+	if applied <= 0 {
+		// Full HP already: don't send a +0 number or a fake heal. Refund the
+		// token so a heal that raced a regen tick does not waste a cast.
+		client.healTokens = math.Min(8.0, client.healTokens+1.0)
+		h.mu.Unlock()
+		return
+	}
+	// Include the healer: self-heal was applied only on the server, so the
+	// local HP bar waited for the next 1 Hz sync and showed no +N at all.
+	targets := roomClientsLocked(room, 0)
 	roomID := room.id
 	h.mu.Unlock()
 	h.sendToClients(targets, wsOutgoing{
@@ -1066,7 +1098,7 @@ func (h *wsHub) relayHeal(client *wsClient, message wsIncoming) {
 		RoomID:   roomID,
 		SourceID: client.id,
 		TargetID: targetID,
-		Amount:   amount,
+		Amount:   applied,
 	})
 }
 
@@ -1406,12 +1438,12 @@ func (h *wsHub) relayShellState(client *wsClient, message wsIncoming) {
 	state.X = clampArenaX(state.X)
 	state.Z = clampArenaZ(state.Z)
 	if state.Alive && !room.shell.Alive {
-		// A new shell must not start while the shard from the previous one is
-		// still on the field, and a stale "alive" packet sent before the host
-		// learned about the death must not resurrect it.
-		shardActive := room.crystal != nil && room.crystal.State != "none"
+		// A stale "alive" packet sent before the host learned about the death
+		// must not resurrect the old shell. An active shard no longer blocks a
+		// new shell: the two can coexist and only the shell death creates a
+		// shard when none is active.
 		tooSoon := !room.shellDiedAt.IsZero() && time.Since(room.shellDiedAt) < 2*time.Second
-		if shardActive || tooSoon {
+		if tooSoon {
 			state.Alive = false
 		} else {
 			room.shell.HP = 1000
@@ -1805,6 +1837,7 @@ func (h *wsHub) dropCrystalForLocked(room *wsRoom, id int64, x float64, z float6
 	room.crystal.Z = clampArenaZ(z)
 	room.crystal.CarrierID = 0
 	room.crystal.GroundSince = time.Now()
+	room.crystal.CarriedSince = time.Time{}
 	crystal := *room.crystal
 	return &crystal
 }
@@ -1840,6 +1873,7 @@ func (h *wsHub) handleCrystalPickup(client *wsClient, message wsIncoming) {
 	room.crystal.State = "carried"
 	room.crystal.CarrierID = sourceID
 	room.crystal.GroundSince = time.Time{}
+	room.crystal.CarriedSince = time.Now()
 	crystal := *room.crystal
 	roomID := room.id
 	targets := roomClientsLocked(room, 0)
@@ -1894,6 +1928,7 @@ func (h *wsHub) handleCrystalDeliver(client *wsClient, message wsIncoming) {
 	room.crystal.State = "none"
 	room.crystal.CarrierID = 0
 	room.crystal.GroundSince = time.Time{}
+	room.crystal.CarriedSince = time.Time{}
 	crystal := *room.crystal
 	roomID := room.id
 	deliveredBy := sourceID
