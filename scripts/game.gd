@@ -1947,11 +1947,11 @@ func _update_match(delta: float) -> void:
 		shell_timer = shell_cycle_timer
 		if shell_hold_timer > 0.0:
 			# The server said "not alive". Wait for the shell_destroyed event:
-			# a real death keeps the fixed 2/4/6/8 schedule, only a refused
-			# spawn retries in 5 s.
+			# a real death keeps the fixed 2/4/6/8 schedule; a refused spawn
+			# waits for the next normal interval instead of an early 5 s shell.
 			shell_hold_timer -= delta
 			if shell_hold_timer <= 0.0 and not shell_death_event_seen:
-				shell_cycle_timer = 5.0
+				shell_cycle_timer = SHELL_SPAWN_INTERVAL
 				shell_timer = shell_cycle_timer
 		else:
 			if shell_phase == "idle" and shell_cycle_timer <= SHELL_WARNING_TIME:
@@ -1975,7 +1975,7 @@ func _update_match(delta: float) -> void:
 						shell_stuck_timer = 0.0
 						shell_phase = "idle"
 						shell_window = SHELL_WINDOW
-						shell_cycle_timer = 5.0
+						shell_cycle_timer = SHELL_SPAWN_INTERVAL
 						shell_timer = shell_cycle_timer
 				else:
 					shell_stuck_timer = 0.0
@@ -1991,6 +1991,13 @@ func _shell_log(tag: String) -> void:
 
 
 func _spawn_shell() -> void:
+	if crystal_state != "none" or (crystal_node != null and is_instance_valid(crystal_node)):
+		# Never spawn a second shell while a shard is still on the field.
+		# Skip this cycle; the next 2-minute boundary will try again.
+		shell_phase = "idle"
+		shell_cycle_timer = SHELL_SPAWN_INTERVAL
+		shell_timer = shell_cycle_timer
+		return
 	if CombatProfiler.enabled:
 		CombatProfiler.mark("shell", "spawn")
 	shell_spawn_id += 1
