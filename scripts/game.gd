@@ -151,6 +151,8 @@ var shell_cycle_timer := SHELL_SPAWN_INTERVAL
 var shell_timer := SHELL_SPAWN_INTERVAL
 var shell_window := SHELL_WINDOW
 var shell_stuck_timer := 0.0
+var shell_hold_timer := 0.0
+var shell_death_event_seen := false
 var crystal_state := "none"
 var crystal_timer := 0.0
 var pickup_delay := 0.0
@@ -1443,6 +1445,8 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	shell_phase = "idle"
 	shell_cycle_timer = SHELL_SPAWN_INTERVAL
 	shell_timer = SHELL_SPAWN_INTERVAL
+	shell_hold_timer = 0.0
+	shell_death_event_seen = false
 	if not tutorial_mode:
 		play_sfx("match_start", -4.0)
 	if hud != null:
@@ -1938,31 +1942,40 @@ func _update_match(delta: float) -> void:
 		pass
 	else:
 		shell_timer = shell_cycle_timer
-		if shell_phase == "idle" and shell_cycle_timer <= SHELL_WARNING_TIME:
-			shell_phase = "warning"
-			announce("Оболочка пробуждается — 10 секунд!", Color(0.78, 0.6, 1.0), 2.4)
-		if shell_phase == "warning":
-			if shell_cycle_timer <= 0.0:
-				_spawn_shell()
-		elif shell_phase == "active":
-			shell_window -= delta
-			if shell_window <= 0.0 and shell != null and is_instance_valid(shell) and shell.alive:
-				shell.despawn()
-				shell = null
-				shell_phase = "idle"
-				announce("Оболочка ушла в тень", Color(0.7, 0.7, 0.8), 1.6)
-			if shell == null or not is_instance_valid(shell) or not shell.alive:
-				# Safety net: a refused spawn or a missed destroy event must
-				# not freeze the cycle in "active" forever.
-				shell_stuck_timer += delta
-				if shell_stuck_timer >= 3.0:
-					shell_stuck_timer = 0.0
+		if shell_hold_timer > 0.0:
+			# The server said "not alive". Wait for the shell_destroyed event:
+			# a real death keeps the fixed 2/4/6/8 schedule, only a refused
+			# spawn retries in 5 s.
+			shell_hold_timer -= delta
+			if shell_hold_timer <= 0.0 and not shell_death_event_seen:
+				shell_cycle_timer = 5.0
+				shell_timer = shell_cycle_timer
+		else:
+			if shell_phase == "idle" and shell_cycle_timer <= SHELL_WARNING_TIME:
+				shell_phase = "warning"
+				announce("Оболочка пробуждается — 10 секунд!", Color(0.78, 0.6, 1.0), 2.4)
+			if shell_phase == "warning":
+				if shell_cycle_timer <= 0.0:
+					_spawn_shell()
+			elif shell_phase == "active":
+				shell_window -= delta
+				if shell_window <= 0.0 and shell != null and is_instance_valid(shell) and shell.alive:
+					shell.despawn()
+					shell = null
 					shell_phase = "idle"
-					shell_window = SHELL_WINDOW
-					shell_cycle_timer = 5.0
-					shell_timer = shell_cycle_timer
-			else:
-				shell_stuck_timer = 0.0
+					announce("Оболочка ушла в тень", Color(0.7, 0.7, 0.8), 1.6)
+				if shell == null or not is_instance_valid(shell) or not shell.alive:
+					# Safety net: a refused spawn or a missed destroy event must
+					# not freeze the cycle in "active" forever.
+					shell_stuck_timer += delta
+					if shell_stuck_timer >= 3.0:
+						shell_stuck_timer = 0.0
+						shell_phase = "idle"
+						shell_window = SHELL_WINDOW
+						shell_cycle_timer = 5.0
+						shell_timer = shell_cycle_timer
+				else:
+					shell_stuck_timer = 0.0
 
 
 func _spawn_shell() -> void:
@@ -1984,6 +1997,8 @@ func _spawn_shell() -> void:
 	shell_window = SHELL_WINDOW
 	shell_cycle_timer = SHELL_SPAWN_INTERVAL
 	shell_timer = shell_cycle_timer
+	shell_hold_timer = 0.0
+	shell_death_event_seen = false
 	announce("Оболочка здесь", Color(0.85, 0.62, 1.0), 2.6)
 	play_sfx("thunder", -3.0)
 	shake(0.6)
@@ -3634,14 +3649,13 @@ func _on_shell_state_received(state: Dictionary) -> void:
 			shell.health = 0.0
 			shell._refresh_health_bar()
 			if was_alive and shell_phase == "active":
-				# The server refused this spawn (e.g. a stale packet raced the
-				# previous death). Without a reset the host stayed in "active"
-				# with a dead shell for the rest of the match, so no new shell
-				# ever appeared.
+				# Could be a real death or a refused spawn. Wait for the
+				# shell_destroyed event: a real death keeps the fixed
+				# 2/4/6/8 schedule, only a refusal retries in 5 s.
 				shell_phase = "idle"
 				shell_window = SHELL_WINDOW
-				shell_cycle_timer = minf(shell_cycle_timer, 5.0)
-				shell_timer = shell_cycle_timer
+				shell_hold_timer = 0.5
+				shell_death_event_seen = false
 			if shell.has_method("deactivate"):
 				shell.deactivate()
 			return
@@ -3716,6 +3730,8 @@ func _on_shell_destroyed_network(team: int = -1, source_id: int = 0) -> void:
 		# The server event is the only "destroyed" signal; a normal despawn
 		# only hides the shell and must not create a crystal.
 		on_shell_died(shell, null)
+	shell_death_event_seen = true
+	shell_hold_timer = 0.0
 	shell_phase = "idle"
 	shell_timer = SHELL_SPAWN_INTERVAL
 	shell_window = SHELL_WINDOW
@@ -3774,6 +3790,8 @@ func _on_network_host_changed(new_host_id: int) -> void:
 		shell_timer = 0.0
 		shell_window = SHELL_WINDOW
 		shell_cycle_timer = 5.0
+		shell_hold_timer = 0.0
+		shell_death_event_seen = false
 
 
 func _on_bot_roster_received(bots: Array) -> void:
