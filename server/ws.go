@@ -23,9 +23,9 @@ const (
 	wsSendBuffer     = 256
 
 	roomSlots = 6
-	// Боты заполняют комнату через 30 секунд после последнего живого игрока.
-	// Таймер перезапускается на каждом входе, чтобы друзья, зашедшие с
-	// разницей в 10-25 секунд (телефон/ПК/загрузка), попали в одну комнату.
+	// Р‘РѕС‚С‹ Р·Р°РїРѕР»РЅСЏСЋС‚ РєРѕРјРЅР°С‚Сѓ С‡РµСЂРµР· 30 СЃРµРєСѓРЅРґ РїРѕСЃР»Рµ РїРѕСЃР»РµРґРЅРµРіРѕ Р¶РёРІРѕРіРѕ РёРіСЂРѕРєР°.
+	// РўР°Р№РјРµСЂ РїРµСЂРµР·Р°РїСѓСЃРєР°РµС‚СЃСЏ РЅР° РєР°Р¶РґРѕРј РІС…РѕРґРµ, С‡С‚РѕР±С‹ РґСЂСѓР·СЊСЏ, Р·Р°С€РµРґС€РёРµ СЃ
+	// СЂР°Р·РЅРёС†РµР№ РІ 10-25 СЃРµРєСѓРЅРґ (С‚РµР»РµС„РѕРЅ/РџРљ/Р·Р°РіСЂСѓР·РєР°), РїРѕРїР°Р»Рё РІ РѕРґРЅСѓ РєРѕРјРЅР°С‚Сѓ.
 	roomBotFillDelay = 30 * time.Second
 
 	matchLength      = 10 * time.Minute
@@ -276,7 +276,7 @@ func (h *wsHub) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	h.clients[client.id] = client
 	h.mu.Unlock()
 
-	client.sendJSON(wsOutgoing{Type: "welcome", ID: client.id, Protocol: 3})
+	client.sendJSON(wsOutgoing{Type: "welcome", ID: client.id, Protocol: 4})
 	log.Printf("ws client %d connected", client.id)
 
 	go client.writePump()
@@ -399,7 +399,7 @@ func botFromClient(client *wsClient, slot int) *wsBot {
 	}
 	name := client.name
 	if name == "" {
-		name = fmt.Sprintf("Игрок %d", client.id)
+		name = fmt.Sprintf("РРіСЂРѕРє %d", client.id)
 	}
 	var deadSince time.Time
 	if !alive {
@@ -431,7 +431,7 @@ func (h *wsHub) joinMatchmaking(client *wsClient, message wsIncoming) {
 	}
 	name := strings.TrimSpace(message.Name)
 	if name == "" {
-		name = fmt.Sprintf("Игрок %d", client.id)
+		name = fmt.Sprintf("РРіСЂРѕРє %d", client.id)
 	}
 	runes := []rune(name)
 	if len(runes) > 32 {
@@ -727,7 +727,7 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 			continue
 		}
 		botID := -int64(slot + 1)
-		botName := fmt.Sprintf("Игрок %04d", 1000+int((room.id*37+int64(slot)*211)%9000))
+		botName := fmt.Sprintf("РРіСЂРѕРє %04d", 1000+int((room.id*37+int64(slot)*211)%9000))
 		botZ := 27.5
 		botRotation := 0.0
 		if team == 1 {
