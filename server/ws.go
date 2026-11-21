@@ -69,6 +69,7 @@ type wsRoom struct {
 	suddenDeath  bool
 	lastDelivery [2]time.Time
 	shell        *wsShellState
+	crystal      *wsCrystalState
 }
 
 type wsBot struct {
@@ -175,6 +176,14 @@ type wsShellState struct {
 	Timer float64 `json:"timer,omitempty"`
 }
 
+type wsCrystalState struct {
+	State     string  `json:"state"`
+	X         float64 `json:"x"`
+	Y         float64 `json:"y"`
+	Z         float64 `json:"z"`
+	CarrierID int64   `json:"carrier_id,omitempty"`
+}
+
 type matchResultPlayer struct {
 	playerID int64
 	team     int
@@ -219,6 +228,7 @@ type wsOutgoing struct {
 	StartsInMS   int64           `json:"starts_in_ms,omitempty"`
 	Bots         []wsBotSnapshot `json:"bots,omitempty"`
 	Shell        *wsShellState   `json:"shell,omitempty"`
+	Crystal      *wsCrystalState `json:"crystal,omitempty"`
 	Protocol     int             `json:"protocol,omitempty"`
 	Score0       int             `json:"score_0,omitempty"`
 	Score1       int             `json:"score_1,omitempty"`
@@ -259,7 +269,7 @@ func (h *wsHub) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	h.clients[client.id] = client
 	h.mu.Unlock()
 
-	client.sendJSON(wsOutgoing{Type: "welcome", ID: client.id, Protocol: 2})
+	client.sendJSON(wsOutgoing{Type: "welcome", ID: client.id, Protocol: 3})
 	log.Printf("ws client %d connected", client.id)
 
 	go client.writePump()
@@ -271,6 +281,7 @@ func (h *wsHub) removeClient(client *wsClient) {
 	var hostChanged *wsOutgoing
 	var botRoster *wsOutgoing
 	var lobbyState *wsOutgoing
+	var crystalState *wsOutgoing
 	h.mu.Lock()
 	delete(h.clients, client.id)
 	room := h.rooms[client.roomID]
@@ -283,6 +294,11 @@ func (h *wsHub) removeClient(client *wsClient) {
 			}
 			room.players[slot] = nil
 			room.humanCount--
+		}
+		if room.state == "live" {
+			if crystal := h.dropCrystalForLocked(room, client.id, client.x, client.z); crystal != nil {
+				crystalState = &wsOutgoing{Type: "crystal_state", RoomID: room.id, Crystal: crystal}
+			}
 		}
 		if room.hostID == client.id {
 			room.hostID = 0
@@ -326,6 +342,9 @@ func (h *wsHub) removeClient(client *wsClient) {
 		}
 		if botRoster != nil {
 			h.broadcastRoom(roomID, 0, *botRoster)
+		}
+		if crystalState != nil {
+			h.broadcastRoom(roomID, 0, *crystalState)
 		}
 		if lobbyState != nil {
 			h.broadcastRoom(roomID, 0, *lobbyState)
@@ -630,6 +649,7 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 	room.resultSaved = false
 	room.lastDelivery = [2]time.Time{}
 	room.shell = nil
+	room.crystal = nil
 	if room.hostID == 0 {
 		for index := 0; index < roomSlots; index++ {
 			if player := room.players[index]; player != nil {
@@ -936,10 +956,14 @@ func (h *wsHub) relayDeath(client *wsClient) {
 	}
 	client.alive = false
 	client.hp = 0
+	crystal := h.dropCrystalForLocked(room, client.id, client.x, client.z)
 	targets := roomClientsLocked(room, client.id)
 	roomID := room.id
 	h.mu.Unlock()
 	h.sendToClients(targets, wsOutgoing{Type: "death", ID: client.id, RoomID: roomID})
+	if crystal != nil {
+		h.broadcastRoom(roomID, 0, wsOutgoing{Type: "crystal_state", RoomID: roomID, Crystal: crystal})
+	}
 }
 
 func (h *wsHub) relayRespawn(client *wsClient, message wsIncoming) {
@@ -1119,6 +1143,10 @@ func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
 	sourceID := source.id
 	targetID := target.id
 	roomID := room.id
+	var crystal *wsCrystalState
+	if died && target.bot != nil {
+		crystal = h.dropCrystalForLocked(room, target.bot.id, target.bot.x, target.bot.z)
+	}
 	h.mu.Unlock()
 
 	h.broadcastRoom(roomID, 0, wsOutgoing{
@@ -1132,6 +1160,9 @@ func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
 	})
 	if died {
 		h.broadcastRoom(roomID, 0, wsOutgoing{Type: "death", ID: targetID, RoomID: roomID})
+		if crystal != nil {
+			h.broadcastRoom(roomID, 0, wsOutgoing{Type: "crystal_state", RoomID: roomID, Crystal: crystal})
+		}
 	}
 }
 
@@ -1212,6 +1243,12 @@ func (h *wsHub) handleShellAttack(client *wsClient, message wsIncoming) {
 		room.shell.Alive = false
 	}
 	shell := *room.shell
+	var crystal *wsCrystalState
+	if died {
+		room.crystal = &wsCrystalState{State: "ground", X: shell.X, Y: 0.5, Z: shell.Z}
+		c := *room.crystal
+		crystal = &c
+	}
 	roomID := room.id
 	sourceID := source.id
 	targets := roomClientsLocked(room, 0)
@@ -1233,6 +1270,13 @@ func (h *wsHub) handleShellAttack(client *wsClient, message wsIncoming) {
 			RoomID: roomID,
 			Event:  "shell_destroyed",
 		})
+		if crystal != nil {
+			h.broadcastRoom(roomID, 0, wsOutgoing{
+				Type:    "crystal_state",
+				RoomID:  roomID,
+				Crystal: crystal,
+			})
+		}
 	}
 }
 
@@ -1263,6 +1307,10 @@ func (h *wsHub) handleBotDamage(client *wsClient, message wsIncoming) {
 	}
 	roomID := room.id
 	targetID := bot.id
+	var crystal *wsCrystalState
+	if died {
+		crystal = h.dropCrystalForLocked(room, bot.id, bot.x, bot.z)
+	}
 	h.mu.Unlock()
 	h.broadcastRoom(roomID, 0, wsOutgoing{
 		Type:     "damage",
@@ -1273,6 +1321,133 @@ func (h *wsHub) handleBotDamage(client *wsClient, message wsIncoming) {
 	})
 	if died {
 		h.broadcastRoom(roomID, 0, wsOutgoing{Type: "death", ID: targetID, RoomID: roomID})
+		if crystal != nil {
+			h.broadcastRoom(roomID, 0, wsOutgoing{Type: "crystal_state", RoomID: roomID, Crystal: crystal})
+		}
+	}
+}
+
+func (h *wsHub) dropCrystalForLocked(room *wsRoom, id int64, x float64, z float64) *wsCrystalState {
+	if room.crystal == nil || room.crystal.State != "carried" || room.crystal.CarrierID != id {
+		return nil
+	}
+	room.crystal.State = "ground"
+	room.crystal.X = x
+	room.crystal.Y = 0.5
+	room.crystal.Z = z
+	room.crystal.CarrierID = 0
+	crystal := *room.crystal
+	return &crystal
+}
+
+func (h *wsHub) handleCrystalPickup(client *wsClient, message wsIncoming) {
+	h.mu.Lock()
+	room := h.rooms[client.roomID]
+	if room == nil || room.state != "live" || room.crystal == nil || room.crystal.State != "ground" {
+		h.mu.Unlock()
+		return
+	}
+	var sourceID int64
+	var x, z float64
+	var hasState, alive bool
+	var team int
+	switch {
+	case message.SourceID == 0 || message.SourceID == client.id:
+		sourceID, x, z, hasState, alive, team = client.id, client.x, client.z, client.hasState, client.alive, client.team
+	case message.SourceID < 0 && room.hostID == client.id:
+		if bot := findRoomBotLocked(room, message.SourceID); bot != nil {
+			sourceID, x, z, hasState, alive, team = bot.id, bot.x, bot.z, bot.hasState, bot.alive, bot.team
+		}
+	}
+	if sourceID == 0 || !hasState || !alive {
+		h.mu.Unlock()
+		return
+	}
+	if math.Hypot(x-room.crystal.X, z-room.crystal.Z) > 2.5 {
+		h.mu.Unlock()
+		return
+	}
+	_ = team
+	room.crystal.State = "carried"
+	room.crystal.CarrierID = sourceID
+	crystal := *room.crystal
+	roomID := room.id
+	targets := roomClientsLocked(room, 0)
+	h.mu.Unlock()
+	h.sendToClients(targets, wsOutgoing{
+		Type:    "crystal_state",
+		RoomID:  roomID,
+		Crystal: &crystal,
+	})
+}
+
+func (h *wsHub) handleCrystalDeliver(client *wsClient, message wsIncoming) {
+	h.mu.Lock()
+	room := h.rooms[client.roomID]
+	if room == nil || room.state != "live" || room.crystal == nil || room.crystal.State != "carried" {
+		h.mu.Unlock()
+		return
+	}
+	var sourceID int64
+	var x, z float64
+	var hasState, alive bool
+	var team int
+	switch {
+	case message.SourceID == 0 || message.SourceID == client.id:
+		sourceID, x, z, hasState, alive, team = client.id, client.x, client.z, client.hasState, client.alive, client.team
+	case message.SourceID < 0 && room.hostID == client.id:
+		if bot := findRoomBotLocked(room, message.SourceID); bot != nil {
+			sourceID, x, z, hasState, alive, team = bot.id, bot.x, bot.z, bot.hasState, bot.alive, bot.team
+		}
+	}
+	if sourceID == 0 || !hasState || !alive || room.crystal.CarrierID != sourceID {
+		h.mu.Unlock()
+		return
+	}
+	baseZ := 27.5
+	if team == 1 {
+		baseZ = -27.5
+	}
+	if math.Hypot(x, z-baseZ) > 7.0 {
+		h.mu.Unlock()
+		return
+	}
+	room.score[team]++
+	score0, score1 := room.score[0], room.score[1]
+	winner := -1
+	var players []matchResultPlayer
+	if room.suddenDeath || room.score[team] >= crystalsToWin {
+		winner = team
+		players = h.finishMatchLocked(room)
+	}
+	room.crystal.State = "none"
+	room.crystal.CarrierID = 0
+	crystal := *room.crystal
+	roomID := room.id
+	targets := roomClientsLocked(room, 0)
+	h.mu.Unlock()
+	h.sendToClients(targets, wsOutgoing{
+		Type:    "crystal_state",
+		RoomID:  roomID,
+		Crystal: &crystal,
+	})
+	h.broadcastRoom(roomID, 0, wsOutgoing{
+		Type:        "match_score",
+		RoomID:      roomID,
+		Score0:      score0,
+		Score1:      score1,
+		SuddenDeath: room.suddenDeath,
+	})
+	if winner >= 0 {
+		h.saveMatch(roomID, players, winner)
+		h.broadcastRoom(roomID, 0, wsOutgoing{
+			Type:        "match_finished",
+			RoomID:      roomID,
+			WinningTeam: winner,
+			Score0:      score0,
+			Score1:      score1,
+			Reason:      "score",
+		})
 	}
 }
 
@@ -1860,6 +2035,10 @@ func (c *wsClient) readPump() {
 			c.hub.relayShellState(c, message)
 		case "shell_attack":
 			c.hub.handleShellAttack(c, message)
+		case "crystal_pickup":
+			c.hub.handleCrystalPickup(c, message)
+		case "crystal_deliver":
+			c.hub.handleCrystalDeliver(c, message)
 		case "match_event":
 			c.hub.handleMatchEvent(c, message)
 		}
