@@ -77,8 +77,8 @@ func _run() -> void:
 
 	camera = Camera3D.new()
 	camera.position = Vector3(0.0, 1.0, 4.0)
-	camera.look_at(Vector3(0.0, 0.8, 0.0), Vector3.UP)
 	viewport.add_child(camera)
+	camera.look_at(Vector3(0.0, 0.8, 0.0), Vector3.UP)
 	camera.current = true
 
 	var light := DirectionalLight3D.new()

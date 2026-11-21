@@ -1725,7 +1725,7 @@ func _try_auto_attack(movement_direction: Vector3) -> void:
 		if target is HeroUnit:
 			(target as HeroUnit).take_damage(damage, self, "physical", "auto", crit_attack)
 		else:
-			target.take_damage(damage, self, "physical", "auto")
+			target.take_damage(damage, self, "physical", "auto", crit_attack)
 		spawn_attack_impact_vfx(target.global_position + Vector3(0.0, 0.9, 0.0))
 		game.melee_fx(global_position + Vector3(0.0, 1.0, 0.0), target.global_position)
 
@@ -2162,6 +2162,10 @@ func take_damage(amount: float, source: Node = null, damage_type: String = "phys
 
 func heal(amount: float) -> void:
 	if dead:
+		return
+	if is_player and game != null and bool(game.get("network_play")) and NetworkManager.server_protocol >= 4:
+		# Self-heal is server-owned: send it and let the echo apply the HP.
+		NetworkManager.send_heal(NetworkManager.local_peer_id, amount)
 		return
 	if game != null and bool(game.get("network_play")) and NetworkManager.server_protocol >= 2 and not is_player and int(network_id) < 0:
 		NetworkManager.send_heal(network_id, amount)

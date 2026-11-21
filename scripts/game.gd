@@ -124,6 +124,8 @@ var used_bot_callsigns: Array[String] = []
 var gold_fountain: Node3D = null
 var gold_coin_timer := GOLD_COIN_INTERVAL
 var gold_coins: Array[Node3D] = []
+var shop_pending_item := ""
+var shop_pending_timer := 0.0
 var tutorial_mode := false
 var tutorial_controller: Node = null
 var tutorial_dummy: HeroUnit = null
@@ -1217,6 +1219,35 @@ func lightning_strike_fx(target: Vector3, bolt_color := Color(0.55, 0.85, 1.0)) 
 	var root := Node3D.new()
 	root.name = "LightningStrike"
 	add_child(root)
+	# One mesh/material set per strike instead of one per segment: the old code
+	# created ~27 meshes and materials each cast, which froze the mage storm.
+	var core_mesh := CylinderMesh.new()
+	core_mesh.top_radius = 1.0
+	core_mesh.bottom_radius = 1.0
+	core_mesh.height = 1.0
+	core_mesh.radial_segments = 4
+	var core_material := StandardMaterial3D.new()
+	core_material.albedo_color = bolt_color
+	core_material.emission_enabled = true
+	core_material.emission = bolt_color
+	core_material.emission_energy_multiplier = 5.5
+	core_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	core_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	core_material.no_depth_test = true
+	var halo_mesh := CylinderMesh.new()
+	halo_mesh.top_radius = 1.0
+	halo_mesh.bottom_radius = 1.0
+	halo_mesh.height = 1.0
+	halo_mesh.radial_segments = 4
+	var halo_material := StandardMaterial3D.new()
+	halo_material.albedo_color = Color(bolt_color.r, bolt_color.g, bolt_color.b, 0.22)
+	halo_material.emission_enabled = true
+	halo_material.emission = bolt_color
+	halo_material.emission_energy_multiplier = 2.0
+	halo_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	halo_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	halo_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	halo_material.no_depth_test = true
 	var start := target + Vector3(randf_range(-1.2, 1.2), 15.0, randf_range(-1.2, 1.2))
 	var current := start
 	var segments := 11
@@ -1225,10 +1256,10 @@ func lightning_strike_fx(target: Vector3, bolt_color := Color(0.55, 0.85, 1.0)) 
 		var next := start.lerp(target, t) + Vector3(randf_range(-0.8, 0.8), 0.0, randf_range(-0.8, 0.8)) * (1.0 - t * 0.65)
 		if i == segments - 1:
 			next = target
-		_add_lightning_segment(root, current, next, bolt_color, 0.05)
+		_add_lightning_segment(root, current, next, core_mesh, core_material, halo_mesh, halo_material, 0.05)
 		if i == 4 or i == 7:
 			var branch_end := current + Vector3(randf_range(-1.6, 1.6), -randf_range(0.8, 1.8), randf_range(-1.6, 1.6))
-			_add_lightning_segment(root, current, branch_end, bolt_color, 0.032)
+			_add_lightning_segment(root, current, branch_end, core_mesh, core_material, halo_mesh, halo_material, 0.032)
 		current = next
 	var flash := OmniLight3D.new()
 	flash.light_color = bolt_color
@@ -1263,53 +1294,28 @@ func lightning_strike_fx(target: Vector3, bolt_color := Color(0.55, 0.85, 1.0)) 
 	get_tree().create_timer(0.45).timeout.connect(root.queue_free)
 
 
-func _add_lightning_segment(parent: Node3D, from: Vector3, to: Vector3, color: Color, thickness: float) -> void:
+func _add_lightning_segment(parent: Node3D, from: Vector3, to: Vector3, core_mesh: Mesh, core_material: Material, halo_mesh: Mesh, halo_material: Material, thickness: float) -> void:
 	var diff := to - from
 	var length := diff.length()
 	if length < 0.001:
 		return
-	var seg := MeshInstance3D.new()
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = thickness
-	cyl.bottom_radius = thickness
-	cyl.height = length
-	cyl.radial_segments = 4
-	seg.mesh = cyl
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	material.emission_enabled = true
-	material.emission = color
-	material.emission_energy_multiplier = 5.5
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.no_depth_test = true
-	seg.material_override = material
 	var y_axis := diff.normalized()
 	var x_axis := y_axis.cross(Vector3.UP)
 	if x_axis.length() < 0.01:
 		x_axis = y_axis.cross(Vector3.RIGHT)
 	x_axis = x_axis.normalized()
 	var z_axis := x_axis.cross(y_axis).normalized()
-	seg.transform = Transform3D(Basis(x_axis, y_axis, z_axis), (from + to) * 0.5)
+	var center := (from + to) * 0.5
+	var seg := MeshInstance3D.new()
+	seg.mesh = core_mesh
+	seg.material_override = core_material
+	seg.transform = Transform3D(Basis(x_axis * thickness, y_axis * length, z_axis * thickness), center)
 	parent.add_child(seg)
 	var halo := MeshInstance3D.new()
-	var halo_cyl := CylinderMesh.new()
-	halo_cyl.top_radius = thickness * 3.4
-	halo_cyl.bottom_radius = thickness * 3.4
-	halo_cyl.height = length
-	halo_cyl.radial_segments = 4
-	halo.mesh = halo_cyl
-	var halo_material := StandardMaterial3D.new()
-	halo_material.albedo_color = Color(color.r, color.g, color.b, 0.22)
-	halo_material.emission_enabled = true
-	halo_material.emission = color
-	halo_material.emission_energy_multiplier = 2.0
-	halo_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	halo_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	halo_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	halo_material.no_depth_test = true
+	halo.mesh = halo_mesh
 	halo.material_override = halo_material
-	halo.transform = seg.transform
+	var halo_radius := thickness * 3.4
+	halo.transform = Transform3D(Basis(x_axis * halo_radius, y_axis * length, z_axis * halo_radius), center)
 	parent.add_child(halo)
 
 
@@ -1616,6 +1622,10 @@ func buy_item(item_id: String, from_afk := false) -> bool:
 		if network_play and NetworkManager.server_protocol >= 4:
 			# The server owns the match wallet and the purchase validation; the
 			# item is applied only after shop_purchase confirms it.
+			if not shop_pending_item.is_empty():
+				return false
+			shop_pending_item = item_id
+			shop_pending_timer = 3.0
 			NetworkManager.send_buy_item(item_id)
 			return true
 		if not player.apply_shop_item(item_id):
@@ -1655,6 +1665,11 @@ func _process(delta: float) -> void:
 			if shell_alive:
 				shell_pos = shell.global_position
 			NetworkManager.send_shell_state(shell_alive, shell_pos.x, shell_pos.y, shell_pos.z, shell_phase, shell_timer)
+	if not shop_pending_item.is_empty() and state == "live":
+		shop_pending_timer -= delta
+		if shop_pending_timer <= 0.0:
+			shop_pending_item = ""
+			announce("Сервер не подтвердил покупку", Color(1.0, 0.62, 0.4), 1.8)
 	if network_play and CombatProfiler.enabled and state == "live":
 		net_debug_timer += delta
 		if net_debug_timer >= 1.0:
@@ -2242,6 +2257,14 @@ func _clear_network_carrier() -> void:
 	carrier = null
 
 
+func _network_combatant(player_id: int) -> Node:
+	if network_bots.has(player_id):
+		return network_bots[player_id]
+	if remote_players.has(player_id):
+		return remote_players[player_id]
+	return null
+
+
 func _node_for_network_id(player_id: int) -> Node3D:
 	if player_id == 0:
 		return null
@@ -2316,15 +2339,19 @@ func _award_network_delivery(team: int, source_id: int) -> void:
 	if player == null or not is_instance_valid(player):
 		return
 	if team == player.team:
-		award_gold(100)
+		if NetworkManager.server_protocol < 4:
+			award_gold(100)
+		else:
+			gold_earned_this_match += 100
 		play_sfx("shard_delivery", -5.0)
 	if source_id == NetworkManager.local_peer_id:
 		p_crystals += 1
-	elif source_id < 0 and network_host:
-		var bot = network_bots.get(source_id)
+	elif source_id < 0:
+		var bot = _network_combatant(source_id)
 		if bot != null and is_instance_valid(bot):
-			bot.bot_gold += 100
 			bot.match_crystals += 1
+			if network_host and bot is HeroUnit:
+				bot.bot_gold += 100
 	elif source_id > 0 and remote_players.has(source_id):
 		var remote = remote_players[source_id]
 		if remote != null and is_instance_valid(remote):
@@ -2497,6 +2524,9 @@ func end_match(team_zero_won: bool) -> void:
 	get_tree().set_meta("last_match_team", player_team)
 	get_tree().set_meta("last_match_place", player_place)
 	get_tree().set_meta("last_match_is_mvp", player_is_mvp)
+	# The results screen runs after Main.tscn is freed (and the WS disconnected),
+	# so keep the room id here: the reward claim must still know the match.
+	get_tree().set_meta("last_match_room", network_room_id if network_play else 0)
 	get_tree().set_meta("last_match_stats", {
 		"p_kills": p_kills,
 		"p_deaths": p_deaths,
@@ -3014,8 +3044,13 @@ func shell_bolt(pos: Vector3, radius: float, damage: float) -> void:
 	ring_fx(Vector3(pos.x, 0.2, pos.z), Color(0.85, 0.65, 1.0), radius)
 	for h in heroes:
 		if not h.dead and h.global_position.distance_to(pos) <= radius:
-			h.take_damage(damage, null, "magic")
-			h.stun(1.0)
+			if network_play and network_host and h == player:
+				# The host's own HP is server-owned too: send the shell hit to
+				# the server instead of applying it locally (sync rolled it back).
+				NetworkManager.send_world_damage(NetworkManager.local_peer_id, damage)
+			else:
+				h.take_damage(damage, null, "magic")
+				h.stun(1.0)
 	if network_play and network_host:
 		# Guests are RemotePlayers on the host: their HP is server-owned, so the
 		# hit goes as a world_damage intent. The bolt VFX is relayed separately.
@@ -3392,10 +3427,10 @@ func _on_remote_damage_received(source_id: int, target_id: int, amount: float, s
 		var source_remote = remote_players[source_id]
 		if source_remote != null and is_instance_valid(source_remote):
 			source_remote.match_damage_dealt += maxf(amount, 0.0)
-	elif source_id < 0 and network_host:
-		var killer_bot = network_bots.get(source_id)
-		if killer_bot != null and is_instance_valid(killer_bot) and int(killer_bot.team) != target_team:
-			killer_bot.match_damage_dealt += maxf(amount, 0.0)
+	elif source_id < 0:
+		var source_bot = _network_combatant(source_id)
+		if source_bot != null and is_instance_valid(source_bot) and int(source_bot.get("team")) != target_team:
+			source_bot.match_damage_dealt += maxf(amount, 0.0)
 	if killed and NetworkManager.server_protocol < 4:
 		_credit_network_kill(source_id, target_name, target_team)
 
@@ -3406,13 +3441,18 @@ func _credit_network_kill(source_id: int, victim_name: String, victim_team: int)
 	if source_id == NetworkManager.local_peer_id:
 		p_kills += 1
 		player.match_kills += 1
-		award_gold(50)
+		if NetworkManager.server_protocol < 4:
+			award_gold(50)
+		else:
+			# The server credits the wallet and sends `gold`; only track stats.
+			gold_earned_this_match += 50
 		announce("Ты убил %s  +50 золота" % victim_name, Color(1.0, 0.85, 0.35), 1.8)
-	elif source_id < 0 and network_host:
-		var killer_bot = network_bots.get(source_id)
+	elif source_id < 0:
+		var killer_bot = _network_combatant(source_id)
 		if killer_bot != null and is_instance_valid(killer_bot):
 			killer_bot.match_kills += 1
-			killer_bot.bot_gold += 50
+			if network_host and killer_bot is HeroUnit:
+				killer_bot.bot_gold += 50
 	elif source_id > 0 and remote_players.has(source_id):
 		var killer_remote = remote_players[source_id]
 		if killer_remote != null and is_instance_valid(killer_remote):
@@ -3440,16 +3480,12 @@ func _on_remote_death_received(player_id: int, source_id: int = 0) -> void:
 		if bot != null and is_instance_valid(bot):
 			victim_name = String(bot.display_name)
 			victim_team = int(bot.team)
-			if not bot.dead:
-				bot.match_deaths += 1
 			bot.apply_network_damage(bot.health, false)
 	elif remote_players.has(player_id):
 		var remote = remote_players[player_id]
 		if remote != null and is_instance_valid(remote):
 			victim_name = String(remote.display_name)
 			victim_team = int(remote.team)
-			if not remote.dead:
-				remote.match_deaths += 1
 			remote.apply_network_death()
 	if victim_team < 0:
 		return
@@ -3465,7 +3501,11 @@ func _on_remote_respawn_received(player_id: int, position: Vector3, rotation_y: 
 		remote.apply_network_respawn(position, rotation_y)
 
 
-func _on_remote_heal_received(_source_id: int, target_id: int, amount: float) -> void:
+func _on_remote_heal_received(source_id: int, target_id: int, amount: float) -> void:
+	# The healer's own client already applied the heal locally when it sent the
+	# intent; applying the server echo again doubled the HP and the +N number.
+	if source_id == NetworkManager.local_peer_id and target_id != NetworkManager.local_peer_id:
+		return
 	if target_id == NetworkManager.local_peer_id:
 		if player != null and is_instance_valid(player):
 			player.apply_network_heal(amount)
@@ -3571,6 +3611,11 @@ func _ensure_remote_shell(pos: Vector3, hp: float, max_hp: float) -> void:
 		s.activate(self, pos)
 		s.set_physics_process(false)
 		shell = s
+	elif not shell.alive:
+		# deactivate() disabled the collision shape; a new cycle must restore
+		# it or the guest walks through the shell.
+		shell.activate(self, pos)
+		shell.set_physics_process(false)
 	shell.alive = true
 	shell.visible = true
 	shell.max_health = max_hp
@@ -3585,7 +3630,10 @@ func _on_shell_destroyed_network(team: int = -1, source_id: int = 0) -> void:
 		return
 	# The server owns the shell kill and reports who landed it.
 	if not tutorial_mode and player != null and is_instance_valid(player) and team == player.team:
-		award_gold(100)
+		if NetworkManager.server_protocol < 4:
+			award_gold(100)
+		else:
+			gold_earned_this_match += 100
 	if source_id != 0 and source_id == NetworkManager.local_peer_id:
 		p_shells_destroyed += 1
 		if player != null and is_instance_valid(player):
@@ -3628,15 +3676,19 @@ func _on_gold_updated(amount: int) -> void:
 func _on_shop_purchase_received(item_id: String, ok: bool, server_gold: int) -> void:
 	if not network_play:
 		return
+	shop_pending_item = ""
+	shop_pending_timer = 0.0
 	gold = maxi(0, server_gold)
 	if ok and player != null and is_instance_valid(player) and not item_id in purchased_shop_items:
-		player.apply_shop_item(item_id)
-		for item in SHOP_ITEMS:
-			if String(item["id"]) == item_id:
-				player.match_gold_spent += int(item["price"])
-				break
-		purchased_shop_items.append(item_id)
-		play_sfx("shop_purchase", -7.0)
+		if player.apply_shop_item(item_id):
+			for item in SHOP_ITEMS:
+				if String(item["id"]) == item_id:
+					player.match_gold_spent += int(item["price"])
+					break
+			purchased_shop_items.append(item_id)
+			play_sfx("shop_purchase", -7.0)
+		else:
+			announce("Предмет недоступен", Color(1.0, 0.62, 0.4), 1.8)
 	elif not ok:
 		announce("Покупка не подтверждена: недостаточно золота", Color(1.0, 0.62, 0.4), 1.8)
 	if hud != null:

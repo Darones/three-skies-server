@@ -945,11 +945,11 @@ static func _ensure_navigation_region(arena_root: Node3D) -> void:
 	navigation_mesh.geometry_source_group_name = NAVIGATION_SOURCE_GROUP
 	navigation_mesh.geometry_collision_mask = 0xFFFFFFFF
 	navigation_mesh.filter_baking_aabb = AABB(Vector3(-51.0, -0.2, -36.0), Vector3(102.0, 3.2, 72.0))
-	region.bake_navigation_mesh(false)
 	_remove_navmesh_disc(navigation_mesh, Vector3.ZERO, 2.2)
 	region.navigation_mesh = navigation_mesh
-	if navigation_mesh.get_polygon_count() == 0:
-		push_warning("Arena navigation bake produced no walkable polygons")
+	# Bake off the main thread. A synchronous bake here froze the first frame
+	# of every battle for hundreds of milliseconds on mobile/Web.
+	region.bake_navigation_mesh(true)
 
 
 static func _remove_navmesh_disc(navigation_mesh: NavigationMesh, center: Vector3, radius: float) -> void:

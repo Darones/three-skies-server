@@ -191,13 +191,19 @@ func add_shards(shards_amount: int) -> void:
 	sky_shards += maxi(0, shards_amount)
 
 
-func grant_match_reward(amount: int) -> bool:
+func grant_match_reward(amount: int, bonus := false) -> bool:
 	if amount <= 0 or player_id <= 0:
 		return false
 	var room_id := int(NetworkManager.room_id)
 	if room_id <= 0:
-		return false
-	NetworkClient.grant_match_reward(player_id, amount, room_id)
+		room_id = int(get_tree().get_meta("last_match_room", 0))
+	if room_id <= 0:
+		# Offline match (or a tutorial): no server room to claim against.
+		add_shards(amount)
+		_save_meta()
+		profile_updated.emit()
+		return true
+	NetworkClient.grant_match_reward(player_id, amount, room_id, bonus)
 	return true
 
 
@@ -241,8 +247,9 @@ func add_character_xp(char_name: String, amount: int) -> void:
 		just_leveled_up = true
 		just_leveled_up_character = char_name
 	if level_reward > 0:
-		if not grant_match_reward(level_reward):
-			pending_level_shards += level_reward
+		# Character levels and XP are client-side progression, so their shard
+		# bonus is granted locally instead of consuming the match reward slot.
+		add_shards(level_reward)
 	if int(char_levels[char_name]) >= MAX_CHARACTER_LEVEL:
 		char_xps[char_name] = 0
 	_save_meta()

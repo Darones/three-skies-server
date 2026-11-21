@@ -57,15 +57,18 @@ func buy_weapon_server(player_id: int, weapon_id: int, cost: int) -> void:
 	}, "purchase", "weapon", weapon_id)
 
 
-func grant_match_reward(player_id: int, amount: int, room_id: int) -> void:
+func grant_match_reward(player_id: int, amount: int, room_id: int, bonus := false) -> void:
 	if player_id <= 0 or amount <= 0 or room_id <= 0:
 		match_reward_completed.emit(false, amount, 0)
 		return
-	_send_post("/match_reward", {
+	var payload := {
 		"player_id": player_id,
 		"room_id": room_id,
 		"amount": amount,
-	}, "match_reward")
+	}
+	if bonus:
+		payload["bonus"] = true
+	_send_post("/match_reward", payload, "match_reward")
 
 
 func rename_player(player_id: int, nickname: String) -> void:

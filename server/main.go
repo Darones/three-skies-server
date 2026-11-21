@@ -161,6 +161,7 @@ type matchRewardRequest struct {
 	RoomID   int64 `json:"room_id"`
 	Amount   int   `json:"amount"`
 	Shards   int   `json:"shards"`
+	Bonus    bool  `json:"bonus"`
 }
 
 type matchRewardResponse struct {
@@ -528,7 +529,15 @@ func createMatchesTable(ctx context.Context, db *sql.DB) error {
 	if err != nil {
 		return err
 	}
+	_, err = db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS matches_room_player_idx ON matches (room_id, player_id)`)
+	if err != nil {
+		return err
+	}
 	_, err = db.ExecContext(ctx, `ALTER TABLE matches ADD COLUMN IF NOT EXISTS rewarded BOOLEAN DEFAULT FALSE`)
+	if err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `ALTER TABLE matches ADD COLUMN IF NOT EXISTS rewarded_bonus BOOLEAN DEFAULT FALSE`)
 	if err != nil {
 		return err
 	}
@@ -1158,28 +1167,54 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 	// or a replayed request cannot grant shards twice.
 	var won bool
 	var matchID int64
-	err = transaction.QueryRowContext(r.Context(),
-		`SELECT id, won FROM matches WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = FALSE ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED`,
-		request.RoomID, request.PlayerID,
-	).Scan(&matchID, &won)
-	if errors.Is(err, sql.ErrNoRows) {
-		writeJSON(w, http.StatusConflict, matchRewardResponse{Error: "Reward already claimed"})
-		return
-	}
-	if err != nil {
-		log.Printf("claim match reward: %v", err)
-		writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
-		return
-	}
-	// Mark every duplicate row for this room/player as rewarded so a retry
-	// cannot farm the same match more than once.
-	if _, err := transaction.ExecContext(r.Context(),
-		`UPDATE matches SET rewarded = TRUE WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = FALSE`,
-		request.RoomID, request.PlayerID,
-	); err != nil {
-		log.Printf("mark match reward: %v", err)
-		writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
-		return
+	if request.Bonus {
+		// The rewarded-ad bonus is a second, separately idempotent payout for
+		// a match whose base reward was already claimed.
+		err = transaction.QueryRowContext(r.Context(),
+			`SELECT id FROM matches WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = TRUE AND COALESCE(rewarded_bonus, FALSE) = FALSE ORDER BY id LIMIT 1 FOR UPDATE`,
+			request.RoomID, request.PlayerID,
+		).Scan(&matchID)
+		if errors.Is(err, sql.ErrNoRows) {
+			writeJSON(w, http.StatusConflict, matchRewardResponse{Error: "Reward already claimed"})
+			return
+		}
+		if err != nil {
+			log.Printf("claim match bonus: %v", err)
+			writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
+			return
+		}
+		if _, err := transaction.ExecContext(r.Context(),
+			`UPDATE matches SET rewarded_bonus = TRUE WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = TRUE AND COALESCE(rewarded_bonus, FALSE) = FALSE`,
+			request.RoomID, request.PlayerID,
+		); err != nil {
+			log.Printf("mark match bonus: %v", err)
+			writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
+			return
+		}
+	} else {
+		err = transaction.QueryRowContext(r.Context(),
+			`SELECT id, won FROM matches WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = FALSE ORDER BY id LIMIT 1 FOR UPDATE`,
+			request.RoomID, request.PlayerID,
+		).Scan(&matchID, &won)
+		if errors.Is(err, sql.ErrNoRows) {
+			writeJSON(w, http.StatusConflict, matchRewardResponse{Error: "Reward already claimed"})
+			return
+		}
+		if err != nil {
+			log.Printf("claim match reward: %v", err)
+			writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
+			return
+		}
+		// Mark every duplicate row for this room/player as rewarded so a retry
+		// cannot farm the same match more than once.
+		if _, err := transaction.ExecContext(r.Context(),
+			`UPDATE matches SET rewarded = TRUE WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = FALSE`,
+			request.RoomID, request.PlayerID,
+		); err != nil {
+			log.Printf("mark match reward: %v", err)
+			writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
+			return
+		}
 	}
 
 	var newShards int

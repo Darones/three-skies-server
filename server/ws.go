@@ -71,6 +71,7 @@ type wsRoom struct {
 	lastDelivery [2]time.Time
 	shell        *wsShellState
 	shellDiedAt  time.Time
+	lastShellHit map[int64]time.Time
 	crystal      *wsCrystalState
 }
 
@@ -878,11 +879,13 @@ func (h *wsHub) updateState(client *wsClient, message wsIncoming) {
 	var crystalMoved *wsCrystalState
 	if room.crystal != nil && room.crystal.State == "ground" && !room.crystal.GroundSince.IsZero() && now.Sub(room.crystal.GroundSince) >= 30*time.Second {
 		// A dropped shard must never stall the match: after 30 s it returns to
-		// the altar, exactly like the offline rule.
+		// the altar and disappears, so the next shell can spawn.
+		room.crystal.State = "none"
+		room.crystal.CarrierID = 0
 		room.crystal.X = 0
 		room.crystal.Y = 0.5
 		room.crystal.Z = 0
-		room.crystal.GroundSince = now
+		room.crystal.GroundSince = time.Time{}
 		c := *room.crystal
 		crystalMoved = &c
 	}
@@ -996,10 +999,10 @@ func (h *wsHub) relayStats(client *wsClient, message wsIncoming) {
 }
 
 func (h *wsHub) relayHeal(client *wsClient, message wsIncoming) {
-	if message.TargetID == 0 || message.TargetID == client.id || !finite(message.Amount) || message.Amount <= 0 {
+	if message.TargetID == 0 || !finite(message.Amount) || message.Amount <= 0 {
 		return
 	}
-	amount := math.Min(message.Amount, 400)
+	amount := math.Min(message.Amount, 300)
 	h.mu.Lock()
 	room := h.rooms[client.roomID]
 	if room == nil || room.state != "live" || !client.alive {
@@ -1007,13 +1010,13 @@ func (h *wsHub) relayHeal(client *wsClient, message wsIncoming) {
 		return
 	}
 	// A dead healer used to keep allies immortal, and an unlimited packet rate
-	// meant infinite healing. Budget a few heals per second per client
-	// (an AoE heal sends one packet per ally, so allow a small burst).
+	// meant infinite healing. An AoE heal sends one packet per ally, so allow a
+	// burst of 8 and refill 2 tokens per second.
 	now := time.Now()
 	if client.lastHeal.IsZero() {
-		client.healTokens = 4.0
+		client.healTokens = 8.0
 	} else {
-		client.healTokens = math.Min(4.0, client.healTokens+now.Sub(client.lastHeal).Seconds()*4.0)
+		client.healTokens = math.Min(8.0, client.healTokens+now.Sub(client.lastHeal).Seconds()*2.0)
 	}
 	client.lastHeal = now
 	if client.healTokens < 1.0 {
@@ -1096,7 +1099,7 @@ func (h *wsHub) relayRespawn(client *wsClient, message wsIncoming) {
 		return
 	}
 	deadFor := time.Since(client.diedAt)
-	if client.diedAt.IsZero() || deadFor < 4*time.Second {
+	if client.diedAt.IsZero() || deadFor < 6*time.Second {
 		h.mu.Unlock()
 		return
 	}
@@ -1241,11 +1244,11 @@ func (h *wsHub) relayBotStates(client *wsClient, message wsIncoming) {
 // be damaged. It used to exist only in the local client, so network attacks
 // ignored it completely.
 func underBaseShield(team int, x, z float64) bool {
-	baseZ := 27.5
+	baseZ := 28.0
 	if team == 1 {
-		baseZ = -27.5
+		baseZ = -28.0
 	}
-	return math.Hypot(x, z-baseZ) <= 5.0
+	return math.Hypot(x, z-baseZ) <= 4.9
 }
 
 func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
@@ -1296,22 +1299,19 @@ func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
 		denyAttack(client, message.TargetID, skill, "cooldown")
 		return
 	}
-	damage := calculateDamageFor(source.attackDamage, source.class, skill)
+	base := calculateDamageFor(source.attackDamage, source.class, skill)
+	// The client sends its rolled hit (crit/buffs); the offline hit is ×2
+	// outgoing. There is no 400 floor: any class used to send 400 per packet.
+	damage := base * 2.0
 	if finite(message.Amount) && message.Amount > 0 {
-		// The client sends the rolled hit (crits, buffs). Keep server authority
-		// by clamping it to a sane multiple of the class attack value.
-		cap := math.Max(source.attackDamage*6.0, 400.0)
-		if message.Amount <= cap {
-			damage = math.Round(message.Amount*100) / 100
-		}
+		cap := math.Max(base*2.0*2.6, 1.0)
+		damage = math.Min(message.Amount, cap)
+		damage = math.Round(damage*100) / 100
 	}
 	if target.client != nil {
 		damage *= 1.0 - damageReductionFor(target.client)
 	}
 	stun := stunForSkill(skill)
-	if target.client != nil && stun > 0 {
-		stun *= 1.0 - stunReductionFor(target.client)
-	}
 	died := target.applyDamage(damage)
 	// Lifesteal is a server rule too: 15% of the confirmed hit returns as HP.
 	var stealHeal float64
@@ -1422,7 +1422,7 @@ func (h *wsHub) relayShellState(client *wsClient, message wsIncoming) {
 }
 
 func (h *wsHub) handleShellAttack(client *wsClient, message wsIncoming) {
-	if !finite(message.Amount) || message.Amount <= 0 || message.Amount > 800 {
+	if !finite(message.Amount) || message.Amount <= 0 {
 		return
 	}
 	h.mu.Lock()
@@ -1453,7 +1453,10 @@ func (h *wsHub) handleShellAttack(client *wsClient, message wsIncoming) {
 		h.mu.Unlock()
 		return
 	}
-	room.shell.HP = math.Max(0, room.shell.HP-message.Amount)
+	// The shell is a PvE object; keep the legacy 800 cap so the shell kill
+	// timing is unchanged. The PvP damage cap is enforced in handleAttackIntent.
+	damage := math.Min(message.Amount, 800.0)
+	room.shell.HP = math.Max(0, room.shell.HP-damage)
 	died := room.shell.HP <= 0
 	if died {
 		room.shell.Alive = false
@@ -1482,7 +1485,7 @@ func (h *wsHub) handleShellAttack(client *wsClient, message wsIncoming) {
 		Type:     "shell_damage",
 		RoomID:   roomID,
 		SourceID: sourceID,
-		Amount:   message.Amount,
+		Amount:   damage,
 	})
 	if died {
 		h.broadcastRoom(roomID, 0, wsOutgoing{
@@ -1587,17 +1590,14 @@ func damageReductionFor(client *wsClient) float64 {
 	return 0
 }
 
-func stunReductionFor(client *wsClient) float64 {
-	if client != nil && client.bought != nil && client.bought["cleansing_charm"] {
-		return 0.2
-	}
-	return 0
-}
-
 func stunForSkill(skill string) float64 {
 	switch strings.ToLower(skill) {
 	case "fear_ult", "stun", "stun_shot":
 		return 1.5
+	case "shadow_assassin":
+		return 1.0
+	case "root":
+		return 2.0
 	case "shell":
 		return 1.0
 	}
@@ -1746,8 +1746,16 @@ func (h *wsHub) handleWorldDamage(client *wsClient, message wsIncoming) {
 		h.mu.Unlock()
 		return
 	}
+	if room.lastShellHit == nil {
+		room.lastShellHit = make(map[int64]time.Time)
+	}
+	if last, ok := room.lastShellHit[target.id]; ok && time.Since(last) < 2*time.Second {
+		h.mu.Unlock()
+		return
+	}
+	room.lastShellHit[target.id] = time.Now()
 	damage := message.Amount * (1.0 - damageReductionFor(target))
-	stun := stunForSkill("shell") * (1.0 - stunReductionFor(target))
+	stun := stunForSkill("shell")
 	died := combatantFromClient(target).applyDamage(damage)
 	targetID := target.id
 	roomID := room.id
@@ -2249,6 +2257,28 @@ func (combatant *wsCombatant) allowAttack(skill string, targetID int64) bool {
 			combatant.bot.castHits = combatant.castHits
 		}
 	}
+	if strings.ToLower(skill) == "ult_lightning_storm" {
+		// The storm is one cast with 1 Hz ticks for ~5 s, then a 42 s cooldown.
+		start := combatant.lastAttacks[skill]
+		if !start.IsZero() && now.Sub(start) <= 6*time.Second {
+			hits := combatant.castHits[skill]
+			if hits == nil {
+				hits = make(map[int64]time.Time)
+				combatant.castHits[skill] = hits
+			}
+			if last, seen := hits[targetID]; seen && now.Sub(last) < 900*time.Millisecond {
+				return false
+			}
+			hits[targetID] = now
+			return true
+		}
+		if !start.IsZero() && now.Sub(start) < 42*time.Second {
+			return false
+		}
+		combatant.lastAttacks[skill] = now
+		combatant.castHits[skill] = map[int64]time.Time{targetID: now}
+		return true
+	}
 	if isMultiTargetSkill(skill) {
 		start := combatant.lastAttacks[skill]
 		if !start.IsZero() && now.Sub(start) <= 400*time.Millisecond {
@@ -2278,7 +2308,7 @@ func (combatant *wsCombatant) allowAttack(skill string, targetID int64) bool {
 }
 
 func normalizeSkill(skill string) string {
-	skill = strings.TrimSpace(skill)
+	skill = strings.ToLower(strings.TrimSpace(skill))
 	if skill == "" {
 		return "auto"
 	}
@@ -2293,22 +2323,40 @@ func truncateText(value string, limit int) string {
 	return string(runes[:limit])
 }
 
+func classAutoInterval(class int) time.Duration {
+	switch class {
+	case 0:
+		return 600 * time.Millisecond
+	case 1:
+		return 1000 * time.Millisecond
+	case 2:
+		return 750 * time.Millisecond
+	}
+	return 600 * time.Millisecond
+}
+
 func attackCooldownFor(class int, skill string) time.Duration {
 	switch strings.ToLower(skill) {
 	case "auto":
-		return 250 * time.Millisecond
+		return classAutoInterval(class)
+	case "shell":
+		return classAutoInterval(class)
 	case "shadow_assassin":
-		return 5 * time.Second
+		return 8 * time.Second
 	case "fear_ult":
-		return 15 * time.Second
+		return 37500 * time.Millisecond
 	case "root":
-		return 5500 * time.Millisecond
+		return 10 * time.Second
 	case "stun", "stun_shot":
-		return 7 * time.Second
+		return 12 * time.Second
+	case "crit_shot":
+		return 15 * time.Second
+	case "fairy_ult":
+		return 36 * time.Second
 	case "ult_lightning_storm":
-		return 700 * time.Millisecond
+		return 42 * time.Second
 	default:
-		return 500 * time.Millisecond
+		return time.Second
 	}
 }
 
@@ -2640,9 +2688,9 @@ func finite(value float64) bool {
 // The arena is roughly 80x60; clamp every server-owned drop/respawn point so
 // a broken or hostile client cannot park the shard out of reach.
 func clampArenaX(value float64) float64 {
-	return math.Max(-100, math.Min(100, value))
+	return math.Max(-52, math.Min(52, value))
 }
 
 func clampArenaZ(value float64) float64 {
-	return math.Max(-100, math.Min(100, value))
+	return math.Max(-37, math.Min(37, value))
 }

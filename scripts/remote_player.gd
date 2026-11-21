@@ -318,14 +318,19 @@ func _update_health_bar() -> void:
 		_health_fill.visible = not dead
 
 
-func take_damage(amount: float, source: Node = null, _damage_type := "physical", skill := "auto") -> void:
+func take_damage(amount: float, source: Node = null, _damage_type := "physical", skill := "auto", is_crit := false) -> void:
 	if dead:
 		return
 	if source is HeroUnit and game != null and bool(game.get("network_play")):
 		var source_id := int(source.get("network_id"))
+		if source_id == 0 and bool(source.get("is_player")):
+			source_id = NetworkManager.local_peer_id
+		# Same contract as HeroUnit: the intent carries the final hit, so the
+		# outgoing multiplier and the crit flag must be included.
+		var intent_damage := amount * HeroUnit.HERO_OUTGOING_DAMAGE_MULTIPLIER
 		if CombatProfiler.enabled:
-			print("[HIT] remote id=%d amount=%.0f skill=%s source=%d" % [peer_id, amount, skill, source_id])
-		NetworkManager.send_attack_intent(peer_id, skill, source_id, amount)
+			print("[HIT] remote id=%d amount=%.0f skill=%s source=%d" % [peer_id, intent_damage, skill, source_id])
+		NetworkManager.send_attack_intent(peer_id, skill, source_id, intent_damage, is_crit)
 		return
 	var applied := minf(maxf(amount, 0.0), health)
 	health = maxf(0.0, health - maxf(amount, 0.0))
@@ -378,6 +383,7 @@ func apply_network_death() -> void:
 	if dead:
 		return
 	dead = true
+	match_deaths += 1
 	health = 0.0
 	_update_health_bar()
 	if game != null and game.has_method("burst"):

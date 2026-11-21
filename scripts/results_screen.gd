@@ -609,10 +609,10 @@ func _open_menu() -> void:
 	_change_scene(MENU_SCENE)
 
 
-func _grant_match_reward_to_server(amount: int) -> void:
+func _grant_match_reward_to_server(amount: int, bonus := false) -> void:
 	if amount <= 0:
 		return
-	MetaProgression.grant_match_reward(amount)
+	MetaProgression.grant_match_reward(amount, bonus)
 
 
 func _double_rewards_for_ad() -> void:
@@ -640,7 +640,7 @@ func _on_rewarded_ad_completed() -> void:
 		MetaProgression.just_leveled_up and MetaProgression.just_leveled_up_character == character_key
 	)
 	MetaProgression.add_reward_delta(final_xp - previous_xp, final_shards - previous_shards)
-	_grant_match_reward_to_server(final_shards - previous_shards)
+	_grant_match_reward_to_server(final_shards - previous_shards, true)
 	rewards_doubled = true
 	_refresh_reward_ui()
 	_play_reward_fanfare()

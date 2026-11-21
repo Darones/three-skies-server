@@ -127,7 +127,7 @@ func _design_rect(control: Control) -> Rect2:
 	var viewport_size := get_viewport().get_visible_rect().size
 	if viewport_size.y <= 0.0:
 		return Rect2()
-	var scale := viewport_size.y / REFERENCE_HEIGHT
+	var scale := minf(viewport_size.x / REFERENCE_WIDTH, viewport_size.y / REFERENCE_HEIGHT)
 	var rect := control.get_global_rect()
 	return Rect2(rect.position / scale, rect.size / scale)
 
@@ -142,7 +142,7 @@ func _apply(id: String, rect: Rect2) -> void:
 	var viewport_size := get_viewport().get_visible_rect().size
 	if viewport_size.y <= 0.0:
 		return
-	var design_scale := viewport_size.y / REFERENCE_HEIGHT
+	var design_scale := minf(viewport_size.x / REFERENCE_WIDTH, viewport_size.y / REFERENCE_HEIGHT)
 	var parent_rect: Rect2 = entry.get("parent_base_rect", Rect2(Vector2.ZERO, Vector2(REFERENCE_WIDTH, REFERENCE_HEIGHT)))
 	if parent_rect.size.x <= 0.0 or parent_rect.size.y <= 0.0:
 		parent_rect = Rect2(Vector2.ZERO, Vector2(REFERENCE_WIDTH, REFERENCE_HEIGHT))

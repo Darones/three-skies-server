@@ -200,6 +200,10 @@ func _ready() -> void:
 		MetaProgression.player_nickname = _load_player_nickname()
 	selected_class = _load_selection()
 	get_tree().set_meta("selected_class", selected_class)
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--class="):
+			selected_class = clampi(int(arg.trim_prefix("--class=")), 0, 2)
+			get_tree().set_meta("selected_class", selected_class)
 	_build_background()
 	_build_header()
 	_build_player_profile()
