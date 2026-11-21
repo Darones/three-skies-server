@@ -110,6 +110,8 @@ func apply_state(position: Vector3, rotation_y: float) -> void:
 			var desired := "run" if moved > 0.22 else "walk"
 			if desired != _move_anim:
 				_move_anim = desired
+				if game != null and bool(game.get("shell_audit")):
+					print("[RANIM] id=%d moved=%.2f anim=%s" % [peer_id, moved, desired])
 				_play_bot_animation(desired)
 		elif now - _last_state_msec > 220 and _move_anim != "idle":
 			_move_anim = "idle"
@@ -164,6 +166,8 @@ func _play_bot_animation(anim_name: String) -> void:
 		play_attack(anim_name)
 		return
 	if _animation_player == null:
+		if game != null and bool(game.get("shell_audit")):
+			print("[RANIM] no-player id=%d anim=%s" % [peer_id, anim_name])
 		return
 	var wanted := anim_name.to_lower()
 	for animation_name in _animation_player.get_animation_list():
