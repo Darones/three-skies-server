@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -188,5 +190,45 @@ func TestBalanceHumansLockedSplitsClassesEvenly(t *testing.T) {
 	}
 	if fairies[0]+mages[0] != 1 || fairies[1]+mages[1] != 1 {
 		t.Fatalf("fairy and mage must be split between teams, got fairies=%v mages=%v", fairies, mages)
+	}
+}
+
+func TestGameStaticFilesAreServedFromTheGameServer(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "index.html"), []byte("<html>game</html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "index.wasm"), []byte("wasm-bytes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "index.wasm.gz"), []byte("gzipped-wasm"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("WEB_DIR", dir)
+	service := &api{} // database is down: the game page must still load
+	router := newRouter(service, newWebSocketHub(nil))
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/game/", nil)
+	router.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK || recorder.Body.String() != "<html>game</html>" {
+		t.Fatalf("game index not served: %d %q", recorder.Code, recorder.Body.String())
+	}
+
+	recorder = httptest.NewRecorder()
+	request = httptest.NewRequest(http.MethodGet, "/game/index.wasm", nil)
+	request.Header.Set("Accept-Encoding", "gzip")
+	router.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("wasm not served: %d", recorder.Code)
+	}
+	if got := recorder.Header().Get("Content-Type"); got != "application/wasm" {
+		t.Fatalf("wasm content type = %q", got)
+	}
+	if got := recorder.Header().Get("Content-Encoding"); got != "gzip" {
+		t.Fatalf("wasm should use the pre-compressed copy, encoding = %q", got)
+	}
+	if recorder.Body.String() != "gzipped-wasm" {
+		t.Fatalf("wrong wasm body: %q", recorder.Body.String())
 	}
 }

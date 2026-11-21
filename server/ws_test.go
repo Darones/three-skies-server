@@ -574,6 +574,93 @@ func TestShellStateAndDamageAreServerOwned(t *testing.T) {
 	}
 }
 
+func TestNewShellSpawnsWhileShardActive(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	host := newTestClient(1, 0, 0, 0)
+	guest := newTestClient(2, 1, 0, 2)
+	room := newTestRoom(host, guest)
+	hub.rooms[room.id] = room
+	// The previous shell's shard is still on the field. It must not block the
+	// two-minute shell cycle: the old code forced Alive=false and every client
+	// hid the freshly spawned shell.
+	room.crystal = &wsCrystalState{State: "ground", X: 4, Y: 0.5, Z: -3, GroundSince: time.Now()}
+
+	hub.relayShellState(host, wsIncoming{Shell: &wsShellState{
+		Alive: true, X: 0, Y: 0.45, Z: 0, Phase: "active",
+	}})
+	if room.shell == nil || !room.shell.Alive {
+		t.Fatalf("shell was rejected while a shard was active: %+v", room.shell)
+	}
+
+	// The shard must survive the spawn, and the shell death must not create a
+	// second one while the first is still active.
+	host.lastAttacks["shell"] = time.Now().Add(-time.Second)
+	hub.handleShellAttack(host, wsIncoming{Amount: 800, SourceID: 0})
+	host.lastAttacks["shell"] = time.Now().Add(-time.Second)
+	hub.handleShellAttack(host, wsIncoming{Amount: 300, SourceID: 0})
+	if room.shell.Alive {
+		t.Fatalf("shell death not owned by server: %+v", room.shell)
+	}
+	if room.crystal == nil || room.crystal.State != "ground" || room.crystal.X != 4 {
+		t.Fatalf("active shard was replaced: %+v", room.crystal)
+	}
+}
+
+func TestCarriedShardTimesOutInsteadOfBlockingTheMatch(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	carrier := newTestClient(1, 0, 5, 7)
+	room := newTestRoom(carrier)
+	hub.rooms[room.id] = room
+	room.crystal = &wsCrystalState{
+		State:        "carried",
+		CarrierID:    carrier.id,
+		CarriedSince: time.Now().Add(-time.Minute),
+	}
+
+	hub.updateState(carrier, wsIncoming{X: 5, Y: 0.76, Z: 7, Rotation: 0})
+	if room.crystal.State != "ground" || room.crystal.CarrierID != 0 {
+		t.Fatalf("stale carried shard was not dropped: %+v", room.crystal)
+	}
+	if room.crystal.X != 5 || room.crystal.Z != 7 {
+		t.Fatalf("shard dropped away from the carrier: %+v", room.crystal)
+	}
+	if !room.crystal.CarriedSince.IsZero() || room.crystal.GroundSince.IsZero() {
+		t.Fatalf("shard timers not reset: %+v", room.crystal)
+	}
+}
+
+func TestHealEchoReachesTheHealer(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	mage := newTestClient(1, 0, 0, 0)
+	room := newTestRoom(mage)
+	hub.rooms[room.id] = room
+	mage.hp = 400
+
+	hub.relayHeal(mage, wsIncoming{TargetID: mage.id, Amount: 150})
+	if mage.hp != 550 {
+		t.Fatalf("server did not apply self-heal: hp=%v", mage.hp)
+	}
+	messages := collectMessages(t, mage)
+	healEcho := false
+	for _, message := range messages {
+		if message.Type == "heal" && message.TargetID == mage.id && message.SourceID == mage.id && message.Amount == 150 {
+			healEcho = true
+		}
+	}
+	if !healEcho {
+		t.Fatalf("healer did not receive its own heal echo: %+v", messages)
+	}
+
+	// Healing a full-HP target must not fabricate a heal number.
+	mage.hp = mage.maxHP
+	hub.relayHeal(mage, wsIncoming{TargetID: mage.id, Amount: 150})
+	for _, message := range collectMessages(t, mage) {
+		if message.Type == "heal" {
+			t.Fatalf("full-HP heal produced an echo: %+v", message)
+		}
+	}
+}
+
 func TestAoESkillAllowsMultipleTargetsInOneCast(t *testing.T) {
 	combatant := &wsCombatant{class: 0, lastAttacks: make(map[string]time.Time)}
 	if !combatant.cooldownReady("fear_ult") {

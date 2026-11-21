@@ -1,4 +1,4 @@
-# Fallback build for platforms whose Build Context is the repository root.
+﻿# Fallback build for platforms whose Build Context is the repository root.
 # The canonical file is server/Dockerfile (Build Context: server).
 # Keep both in sync.
 FROM golang:1.22-alpine AS build
@@ -13,7 +13,12 @@ RUN apk --no-cache add ca-certificates && addgroup -S app && adduser -S app -G a
 WORKDIR /app
 COPY --from=build /out/server /app/server
 COPY server/schema.sql /app/schema.sql
+COPY server/web /app/web
+RUN cd /app/web && for f in index.wasm index.js index.html index.pck; do \
+        [ -f "$f" ] && gzip -9 -c "$f" > "$f.gz"; \
+    done; true
 ENV PORT=8080
+ENV WEB_DIR=/app/web
 USER app
 EXPOSE 8080
 ENTRYPOINT ["/app/server"]

@@ -9,6 +9,9 @@ export.cfg
 
 # Build output
 build/
+# The HTML5 build is copied into the server image on the deployment branch;
+# keep the 86 MB binary out of the source branch.
+server/web/
 *.tmp
 
 # Performance test reports

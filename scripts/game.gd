@@ -150,6 +150,7 @@ var shell_phase := "idle"
 var shell_cycle_timer := SHELL_SPAWN_INTERVAL
 var shell_timer := SHELL_SPAWN_INTERVAL
 var shell_window := SHELL_WINDOW
+var shell_stuck_timer := 0.0
 var crystal_state := "none"
 var crystal_timer := 0.0
 var pickup_delay := 0.0
@@ -1950,6 +1951,18 @@ func _update_match(delta: float) -> void:
 				shell = null
 				shell_phase = "idle"
 				announce("Оболочка ушла в тень", Color(0.7, 0.7, 0.8), 1.6)
+			if shell == null or not is_instance_valid(shell) or not shell.alive:
+				# Safety net: a refused spawn or a missed destroy event must
+				# not freeze the cycle in "active" forever.
+				shell_stuck_timer += delta
+				if shell_stuck_timer >= 3.0:
+					shell_stuck_timer = 0.0
+					shell_phase = "idle"
+					shell_window = SHELL_WINDOW
+					shell_cycle_timer = 5.0
+					shell_timer = shell_cycle_timer
+			else:
+				shell_stuck_timer = 0.0
 
 
 func _spawn_shell() -> void:
@@ -3532,9 +3545,19 @@ func _on_remote_respawn_received(player_id: int, position: Vector3, rotation_y: 
 
 
 func _on_remote_heal_received(source_id: int, target_id: int, amount: float) -> void:
-	# The healer's own client already applied the heal locally when it sent the
-	# intent; applying the server echo again doubled the HP and the +N number.
-	if source_id == NetworkManager.local_peer_id and target_id != NetworkManager.local_peer_id:
+	# The healer's own client already applied the heal locally for remote
+	# allies (receive_heal), so the echo would double the HP and the +N. Bots
+	# and the local player are different: their heal was only sent, never
+	# applied locally, so the echo is the only place the HP and +N happen.
+	if source_id == NetworkManager.local_peer_id:
+		if target_id == NetworkManager.local_peer_id:
+			if player != null and is_instance_valid(player):
+				player.apply_network_heal(amount)
+				NetworkManager.send_stats(player.max_health, player.health, player.attack_damage)
+			return
+		var local_bot = network_bots.get(target_id)
+		if local_bot != null and is_instance_valid(local_bot):
+			local_bot.apply_network_heal(amount)
 		return
 	if target_id == NetworkManager.local_peer_id:
 		if player != null and is_instance_valid(player):
@@ -3605,10 +3628,22 @@ func _on_shell_state_received(state: Dictionary) -> void:
 		if shell == null or not is_instance_valid(shell):
 			return
 		if not alive:
+			var was_alive := shell.alive
 			shell.alive = false
 			shell.visible = false
 			shell.health = 0.0
 			shell._refresh_health_bar()
+			if was_alive and shell_phase == "active":
+				# The server refused this spawn (e.g. a stale packet raced the
+				# previous death). Without a reset the host stayed in "active"
+				# with a dead shell for the rest of the match, so no new shell
+				# ever appeared.
+				shell_phase = "idle"
+				shell_window = SHELL_WINDOW
+				shell_cycle_timer = minf(shell_cycle_timer, 5.0)
+				shell_timer = shell_cycle_timer
+			if shell.has_method("deactivate"):
+				shell.deactivate()
 			return
 		shell.alive = true
 		shell.visible = true

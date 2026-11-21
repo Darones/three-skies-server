@@ -9,9 +9,12 @@ import (
 	"errors"
 	"io"
 	"log"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
+	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -281,7 +284,76 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	mux.HandleFunc("/buy_wing", service.handleBuyWing)
 	mux.HandleFunc("/buy_weapon", service.handleBuyWeapon)
 	mux.HandleFunc("/match_reward", service.handleMatchReward)
+	if gameDir := gameWebDir(); gameDir != "" {
+		// Serve the HTML5 build from the same origin as REST/WS. GitHub Pages
+		// is not reachable at usable speed from Russia, while this host is.
+		mux.Handle("/game/", http.StripPrefix("/game/", staticGameHandler(gameDir)))
+	}
 	return cors(databaseGate(mux, service))
+}
+
+// gameWebDir returns the directory with the exported HTML5 build, or "" when
+// this deployment does not ship one (local tests, server-only builds).
+func gameWebDir() string {
+	dir := strings.TrimSpace(os.Getenv("WEB_DIR"))
+	if dir == "" {
+		dir = "web"
+	}
+	if info, err := os.Stat(dir); err == nil && info.IsDir() {
+		return dir
+	}
+	return ""
+}
+
+// staticGameHandler serves the web export with the MIME types, caching rules
+// and optional pre-compressed files Godot needs. The export is copied into the
+// image so players download it from the game server instead of GitHub.
+func staticGameHandler(dir string) http.Handler {
+	mime.AddExtensionType(".wasm", "application/wasm")
+	mime.AddExtensionType(".pck", "application/octet-stream")
+	mime.AddExtensionType(".js", "text/javascript")
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := path.Clean("/" + r.URL.Path)
+		if name == "/" {
+			name = "/index.html"
+		}
+		if strings.HasSuffix(name, "/") || strings.Contains(name, "..") {
+			http.NotFound(w, r)
+			return
+		}
+		full := filepath.Join(dir, filepath.FromSlash(name))
+		info, err := os.Stat(full)
+		if err != nil || info.IsDir() {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		switch filepath.Ext(name) {
+		case ".html", ".pck":
+			// A new PCK keeps the same name on this host; never cache the
+			// entry point or the game data, or players stay on an old build.
+			w.Header().Set("Cache-Control", "no-cache")
+		default:
+			w.Header().Set("Cache-Control", "public, max-age=86400")
+		}
+		// Serve the pre-compressed copy when the build (Dockerfile) made one:
+		// wasm is 39 MB raw and about a quarter of that over the wire.
+		servePath := full
+		if r.Header.Get("Range") == "" && strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			if gzInfo, gzErr := os.Stat(full + ".gz"); gzErr == nil && !gzInfo.IsDir() {
+				servePath = full + ".gz"
+				w.Header().Set("Content-Encoding", "gzip")
+				w.Header().Set("Vary", "Accept-Encoding")
+			}
+		}
+		file, err := os.Open(servePath)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		defer file.Close()
+		http.ServeContent(w, r, filepath.Base(name), info.ModTime(), file)
+	})
 }
 
 // cors lets the browser client run from another origin (local test server,
@@ -308,7 +380,7 @@ func cors(next http.Handler) http.Handler {
 // readable 503 instead of the platform reporting a dead backend.
 func databaseGate(next http.Handler, service *api) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/health" || r.URL.Path == "/ws" || service.dbReady.Load() {
+		if r.URL.Path == "/health" || r.URL.Path == "/ws" || strings.HasPrefix(r.URL.Path, "/game/") || service.dbReady.Load() {
 			next.ServeHTTP(w, r)
 			return
 		}
