@@ -567,6 +567,14 @@ func _team_icon(team: int) -> Texture2D:
 	var key := "light" if team == 0 else "dark"
 	if team_icons.has(key):
 		return team_icons[key] as Texture2D
+	if team == 1:
+		# Proper faction icon for the Dark side instead of the placeholder cross.
+		var dark_path := "res://assets/ui/teams/dark_team.png"
+		if ResourceLoader.exists(dark_path):
+			var dark_texture := load(dark_path) as Texture2D
+			if dark_texture != null:
+				team_icons[key] = dark_texture
+				return dark_texture
 	var fill := Color(0.97, 0.91, 0.69) if team == 0 else Color(0.08, 0.085, 0.12)
 	var outline := Color(0.04, 0.04, 0.06) if team == 0 else Color(0.95, 0.95, 0.97)
 	var texture := _build_cross_texture(fill, outline)
