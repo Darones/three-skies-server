@@ -704,6 +704,30 @@ func TestShellSpawnIDBeatsTheDeathCooldown(t *testing.T) {
 	}
 }
 
+func TestHostChangeResetsShellSpawnIDEvenAfterDeath(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	host := newTestClient(1, 0, 0, 0)
+	guest := newTestClient(2, 1, 0, 2)
+	room := newTestRoom(host, guest)
+	hub.rooms[room.id] = room
+	// The previous host already lost its shell; the server still remembered
+	// spawn id 3. If the counter is not reset, the new host's first spawn
+	// (id 1) is rejected as stale and the shell never appears.
+	room.shell = &wsShellState{Alive: false, HP: 0}
+	room.shellSpawnID = 3
+
+	hub.removeClient(host)
+
+	hub.mu.Lock()
+	defer hub.mu.Unlock()
+	if room.hostID != guest.id {
+		t.Fatalf("host did not move to the guest: %d", room.hostID)
+	}
+	if room.shellSpawnID != 0 {
+		t.Fatalf("shell spawn id was not reset on host change: %d", room.shellSpawnID)
+	}
+}
+
 func TestAoESkillAllowsMultipleTargetsInOneCast(t *testing.T) {
 	combatant := &wsCombatant{class: 0, lastAttacks: make(map[string]time.Time)}
 	if !combatant.cooldownReady("fear_ult") {
