@@ -1,12 +1,14 @@
 package main
 
 import (
+	"compress/gzip"
 	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"mime"
@@ -17,6 +19,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 	"unicode"
@@ -288,6 +291,9 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 		// Serve the HTML5 build from the same origin as REST/WS. GitHub Pages
 		// is not reachable at usable speed from Russia, while this host is.
 		mux.Handle("/game/", http.StripPrefix("/game/", staticGameHandler(gameDir)))
+		// Large files are sometimes missing from the build context; warm the
+		// cache in the background so the first player does not wait.
+		go prefetchGameAssets(gameDir)
 	}
 	return cors(databaseGate(mux, service))
 }
@@ -323,7 +329,16 @@ func staticGameHandler(dir string) http.Handler {
 		}
 		full := filepath.Join(dir, filepath.FromSlash(name))
 		info, err := os.Stat(full)
-		if err != nil || info.IsDir() {
+		if (err != nil || info.IsDir()) && fetchableGameAsset(name) {
+			// RelaxDev's build context drops files above ~20 MB. Fetch them
+			// once from the published build and cache them on disk.
+			if fetchErr := fetchGameAsset(dir, name); fetchErr != nil {
+				log.Printf("game asset %s: %v", name, fetchErr)
+			} else {
+				info, err = os.Stat(full)
+			}
+		}
+		if err != nil || info == nil || info.IsDir() {
 			http.NotFound(w, r)
 			return
 		}
@@ -336,8 +351,8 @@ func staticGameHandler(dir string) http.Handler {
 		default:
 			w.Header().Set("Cache-Control", "public, max-age=86400")
 		}
-		// Serve the pre-compressed copy when the build (Dockerfile) made one:
-		// wasm is 39 MB raw and about a quarter of that over the wire.
+		// Serve the pre-compressed copy when one exists: wasm is 39 MB raw
+		// and about a quarter of that over the wire.
 		servePath := full
 		if r.Header.Get("Range") == "" && strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 			if gzInfo, gzErr := os.Stat(full + ".gz"); gzErr == nil && !gzInfo.IsDir() {
@@ -354,6 +369,147 @@ func staticGameHandler(dir string) http.Handler {
 		defer file.Close()
 		http.ServeContent(w, r, filepath.Base(name), info.ModTime(), file)
 	})
+}
+
+var gameAssetLocks sync.Map
+
+func fetchableGameAsset(name string) bool {
+	switch name {
+	case "/index.wasm", "/index.pck":
+		return true
+	default:
+		return false
+	}
+}
+
+// gameOrigins reads a comma-separated list of mirrors of the published build.
+// The first that answers is cached locally, so players download from this host.
+func gameOrigins() []string {
+	raw := strings.TrimSpace(os.Getenv("WEB_ORIGIN"))
+	if raw == "" {
+		return nil
+	}
+	out := make([]string, 0, 2)
+	for _, part := range strings.Split(raw, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, strings.TrimRight(part, "/"))
+		}
+	}
+	return out
+}
+
+func fetchGameAsset(dir, name string) error {
+	full := filepath.Join(dir, filepath.FromSlash(name))
+	if info, err := os.Stat(full); err == nil && !info.IsDir() {
+		return nil
+	}
+	lockAny, _ := gameAssetLocks.LoadOrStore(full, &sync.Mutex{})
+	lock := lockAny.(*sync.Mutex)
+	lock.Lock()
+	defer lock.Unlock()
+	if info, err := os.Stat(full); err == nil && !info.IsDir() {
+		return nil
+	}
+	origins := gameOrigins()
+	if len(origins) == 0 {
+		return os.ErrNotExist
+	}
+	client := &http.Client{Timeout: 15 * time.Minute}
+	var lastErr error
+	for _, origin := range origins {
+		url := origin + "/" + strings.TrimLeft(name, "/")
+		response, err := client.Get(url)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		if response.StatusCode != http.StatusOK {
+			response.Body.Close()
+			lastErr = fmt.Errorf("%s: %s", url, response.Status)
+			continue
+		}
+		part := full + ".part"
+		out, err := os.Create(part)
+		if err != nil {
+			response.Body.Close()
+			return err
+		}
+		_, copyErr := io.Copy(out, response.Body)
+		closeErr := out.Close()
+		response.Body.Close()
+		if copyErr != nil || closeErr != nil {
+			os.Remove(part)
+			lastErr = copyErr
+			if lastErr == nil {
+				lastErr = closeErr
+			}
+			continue
+		}
+		if err := os.Rename(part, full); err != nil {
+			return err
+		}
+		log.Printf("game asset cached: %s", name)
+		return nil
+	}
+	if lastErr == nil {
+		lastErr = os.ErrNotExist
+	}
+	return lastErr
+}
+
+func prefetchGameAssets(dir string) {
+	if len(gameOrigins()) == 0 {
+		return
+	}
+	for _, name := range []string{"/index.wasm", "/index.pck"} {
+		if err := fetchGameAsset(dir, name); err != nil {
+			log.Printf("game asset %s: %v", name, err)
+			continue
+		}
+		full := filepath.Join(dir, filepath.FromSlash(name))
+		gz := full + ".gz"
+		if info, err := os.Stat(gz); err == nil && !info.IsDir() {
+			continue
+		}
+		if err := gzipFile(full, gz); err != nil {
+			log.Printf("game asset gzip %s: %v", name, err)
+		}
+	}
+}
+
+func gzipFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	part := dst + ".part"
+	out, err := os.Create(part)
+	if err != nil {
+		return err
+	}
+	writer, err := gzip.NewWriterLevel(out, gzip.BestCompression)
+	if err != nil {
+		out.Close()
+		os.Remove(part)
+		return err
+	}
+	if _, err := io.Copy(writer, in); err != nil {
+		writer.Close()
+		out.Close()
+		os.Remove(part)
+		return err
+	}
+	if err := writer.Close(); err != nil {
+		out.Close()
+		os.Remove(part)
+		return err
+	}
+	if err := out.Close(); err != nil {
+		os.Remove(part)
+		return err
+	}
+	return os.Rename(part, dst)
 }
 
 // cors lets the browser client run from another origin (local test server,

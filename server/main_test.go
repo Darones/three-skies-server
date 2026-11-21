@@ -193,6 +193,32 @@ func TestBalanceHumansLockedSplitsClassesEvenly(t *testing.T) {
 	}
 }
 
+func TestGameAssetsFetchFromOriginWhenTheBuildDropsThem(t *testing.T) {
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/index.wasm" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte("wasm-from-origin"))
+	}))
+	defer origin.Close()
+	t.Setenv("WEB_ORIGIN", origin.URL)
+
+	dir := t.TempDir()
+	handler := staticGameHandler(dir)
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/index.wasm", nil)
+	request.Header.Set("Accept-Encoding", "identity")
+	handler.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK || recorder.Body.String() != "wasm-from-origin" {
+		t.Fatalf("missing asset not fetched: %d %q", recorder.Code, recorder.Body.String())
+	}
+	cached, err := os.ReadFile(filepath.Join(dir, "index.wasm"))
+	if err != nil || string(cached) != "wasm-from-origin" {
+		t.Fatalf("asset not cached on disk: %q %v", cached, err)
+	}
+}
+
 func TestGameStaticFilesAreServedFromTheGameServer(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "index.html"), []byte("<html>game</html>"), 0o644); err != nil {
