@@ -18,6 +18,7 @@ signal bot_state_updated(bot_id: int, info: Dictionary)
 signal bot_roster_received(bots: Array)
 signal shell_state_received(shell: Dictionary)
 signal shell_damage_received(amount: float, source_id: int)
+signal crystal_state_received(crystal: Dictionary)
 signal attack_denied(target_id: int, skill: String, reason: String)
 signal sync_received(hp: float, max_hp: float, alive: bool)
 signal match_started(room_id: int, host_id: int, players: Array)
@@ -264,6 +265,24 @@ func send_shell_attack(amount: float, source_id: int = 0) -> void:
 	_send_json(payload)
 
 
+func send_crystal_pickup(source_id: int = 0) -> void:
+	if state != State.CONNECTED:
+		return
+	var payload := {"type": "crystal_pickup"}
+	if source_id != 0:
+		payload["source_id"] = source_id
+	_send_json(payload)
+
+
+func send_crystal_deliver(source_id: int = 0) -> void:
+	if state != State.CONNECTED:
+		return
+	var payload := {"type": "crystal_deliver"}
+	if source_id != 0:
+		payload["source_id"] = source_id
+	_send_json(payload)
+
+
 func send_stats(max_hp: float, hp: float, attack_damage: float) -> void:
 	if state != State.CONNECTED or max_hp <= 0.0:
 		return
@@ -491,6 +510,10 @@ func _handle_message(text: String) -> void:
 				float(message.get("amount", 0.0)),
 				int(message.get("source_id", 0))
 			)
+		"crystal_state":
+			var crystal_state: Variant = message.get("crystal", {})
+			if crystal_state is Dictionary:
+				crystal_state_received.emit(crystal_state)
 		"attack_denied":
 			attack_denied.emit(
 				int(message.get("target_id", 0)),

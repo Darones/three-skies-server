@@ -102,7 +102,9 @@ var player: HeroUnit = null
 var shell: SkyShell = null
 var shell_pool: SkyShell = null
 var crystal_node: Node3D = null
-var carrier: HeroUnit = null
+var carrier: Node3D = null
+var crystal_carrier_node: Node3D = null
+var crystal_intent_timer := 0.0
 
 var state := "select"
 var match_time := MATCH_LENGTH
@@ -1967,12 +1969,16 @@ func on_shell_died(s: SkyShell, source: Node = null) -> void:
 	ring_fx(Vector3(pos.x, 0.25, pos.z), Color(0.8, 0.95, 1.0), 9.0)
 	play_sfx("shell_destroyed", -3.0)
 	shake(0.8)
-	spawn_crystal(pos, true)
+	if network_play and NetworkManager.server_protocol >= 3:
+		# The server owns the crystal and broadcasts crystal_state.
+		pass
+	else:
+		spawn_crystal(pos, true)
 	announce("Оболочка пала! Осколок свободен", Color(0.8, 0.95, 1.0), 2.4)
 	s.retire(0.5)
 	shell = null
 	shell_phase = "idle"
-	if network_play:
+	if network_play and NetworkManager.server_protocol < 3:
 		var event_team := 0
 		if source is HeroUnit:
 			event_team = (source as HeroUnit).team
@@ -1987,7 +1993,7 @@ func spawn_crystal(pos: Vector3, spawn_on_pedestal := false) -> void:
 	if crystal_node != null and is_instance_valid(crystal_node):
 		crystal_node.queue_free()
 	if carrier != null and is_instance_valid(carrier):
-		carrier.carrying = false
+		_set_carrier_state(carrier, false)
 	var c := Node3D.new()
 	c.name = "Crystal"
 	add_child(c)
@@ -2111,6 +2117,9 @@ func _decoration_footprint_radius(root: Node3D) -> float:
 
 
 func _update_crystal(delta: float) -> void:
+	if network_play and NetworkManager.server_protocol >= 3:
+		_update_network_crystal(delta)
+		return
 	if crystal_node == null or not is_instance_valid(crystal_node):
 		return
 	if crystal_state == "ground":
@@ -2153,6 +2162,124 @@ func _update_crystal(delta: float) -> void:
 			_deliver(carrier)
 
 
+func _update_network_crystal(delta: float) -> void:
+	crystal_intent_timer = maxf(0.0, crystal_intent_timer - delta)
+	if crystal_node == null or not is_instance_valid(crystal_node):
+		return
+	if crystal_state == "ground":
+		crystal_timer += delta
+		crystal_node.rotation.y += delta * 1.8
+		crystal_node.position.y = 1.1 + sin(crystal_timer * 2.4) * 0.12
+		if crystal_intent_timer > 0.0 or state != "live":
+			return
+		var crystal_pos := Vector2(crystal_node.global_position.x, crystal_node.global_position.z)
+		if player != null and is_instance_valid(player) and not player.dead:
+			if Vector2(player.global_position.x, player.global_position.z).distance_to(crystal_pos) <= CRYSTAL_PICKUP_RADIUS:
+				NetworkManager.send_crystal_pickup()
+				crystal_intent_timer = 0.6
+				return
+		if network_host:
+			for bot_id in network_bots.keys():
+				var bot = network_bots[bot_id]
+				if bot == null or not is_instance_valid(bot) or bot.dead:
+					continue
+				if Vector2(bot.global_position.x, bot.global_position.z).distance_to(crystal_pos) <= CRYSTAL_PICKUP_RADIUS:
+					NetworkManager.send_crystal_pickup(int(bot_id))
+					crystal_intent_timer = 0.6
+					return
+	elif crystal_state == "carried" and crystal_carrier_node != null and is_instance_valid(crystal_carrier_node):
+		crystal_node.global_position = crystal_carrier_node.global_position + Vector3(0.0, 2.9, 0.0)
+		var carry_ring := crystal_node.get_node_or_null("CrystalRing") as MeshInstance3D
+		if carry_ring != null:
+			carry_ring.global_position = Vector3(crystal_carrier_node.global_position.x, 0.08, crystal_carrier_node.global_position.z)
+			carry_ring.scale = Vector3(1.7, 1.0, 1.7)
+		crystal_node.rotation.y += delta * 2.4
+		if crystal_intent_timer > 0.0 or state != "live":
+			return
+		var source_id := _network_carrier_source_id()
+		if source_id == 0:
+			return
+		var carrier_team := int(crystal_carrier_node.get("team"))
+		var base_z := BASE_POSITION_Z if carrier_team == 0 else -BASE_POSITION_Z
+		if Vector2(crystal_carrier_node.global_position.x, crystal_carrier_node.global_position.z - base_z).length() < BASE_DELIVERY_RADIUS:
+			NetworkManager.send_crystal_deliver(source_id)
+			crystal_intent_timer = 0.7
+
+
+func _network_carrier_source_id() -> int:
+	if crystal_carrier_node == null or not is_instance_valid(crystal_carrier_node):
+		return 0
+	if player != null and is_instance_valid(player) and crystal_carrier_node == player:
+		return NetworkManager.local_peer_id
+	if network_host and crystal_carrier_node is HeroUnit:
+		var bot_id := int(crystal_carrier_node.get("network_id"))
+		if bot_id < 0:
+			return bot_id
+	return 0
+
+
+func _set_carrier_state(node: Node3D, value: bool) -> void:
+	if node == null or not is_instance_valid(node):
+		return
+	var current = node.get("carrying")
+	if current != null:
+		node.set("carrying", value)
+
+
+func _clear_network_carrier() -> void:
+	if crystal_carrier_node != null and is_instance_valid(crystal_carrier_node):
+		_set_carrier_state(crystal_carrier_node, false)
+	crystal_carrier_node = null
+	carrier = null
+
+
+func _node_for_network_id(player_id: int) -> Node3D:
+	if player_id == 0:
+		return null
+	if player_id == NetworkManager.local_peer_id:
+		return player
+	if network_bots.has(player_id):
+		return network_bots[player_id] as Node3D
+	if remote_players.has(player_id):
+		return remote_players[player_id] as Node3D
+	return null
+
+
+func _on_crystal_state_received(state: Dictionary) -> void:
+	if not network_play or NetworkManager.server_protocol < 3:
+		return
+	var state_name := String(state.get("state", "none"))
+	var x := float(state.get("x", 0.0))
+	var y := float(state.get("y", 0.5))
+	var z := float(state.get("z", 0.0))
+	var carrier_id := int(state.get("carrier_id", 0))
+	_clear_network_carrier()
+	if state_name == "none" or state_name == "delivered":
+		crystal_state = "none"
+		if crystal_node != null and is_instance_valid(crystal_node):
+			crystal_node.queue_free()
+			crystal_node = null
+		return
+	if state_name == "ground":
+		crystal_state = "ground"
+		if crystal_node == null or not is_instance_valid(crystal_node):
+			spawn_crystal(Vector3(x, y, z), true)
+		crystal_node.global_position = Vector3(x, 1.3, z)
+		crystal_timer = 0.0
+		pickup_delay = 0.0
+		return
+	if state_name == "carried":
+		crystal_state = "carried"
+		var node := _node_for_network_id(carrier_id)
+		crystal_carrier_node = node
+		carrier = node
+		if node != null:
+			_set_carrier_state(node, true)
+		if crystal_node == null or not is_instance_valid(crystal_node):
+			spawn_crystal(node.global_position if node != null else Vector3(x, y, z), true)
+		crystal_node.global_position = (node.global_position if node != null else Vector3(x, y, z)) + Vector3(0.0, 2.9, 0.0)
+
+
 func _try_pickup() -> void:
 	var best: HeroUnit = null
 	var best_d := CRYSTAL_PICKUP_RADIUS
@@ -2177,6 +2304,8 @@ func _try_pickup() -> void:
 
 
 func _deliver(h: HeroUnit) -> void:
+	if network_play and NetworkManager.server_protocol >= 3:
+		return
 	if tutorial_mode:
 		h.carrying = false
 		carrier = null
@@ -2225,6 +2354,8 @@ func _deliver(h: HeroUnit) -> void:
 
 
 func drop_crystal(pos: Vector3) -> void:
+	if network_play and NetworkManager.server_protocol >= 3:
+		return
 	if crystal_node == null or not is_instance_valid(crystal_node):
 		return
 	crystal_state = "ground"
@@ -3028,6 +3159,8 @@ func _setup_network_play() -> void:
 		NetworkManager.shell_state_received.connect(_on_shell_state_received)
 	if not NetworkManager.shell_damage_received.is_connected(_on_shell_damage_received):
 		NetworkManager.shell_damage_received.connect(_on_shell_damage_received)
+	if not NetworkManager.crystal_state_received.is_connected(_on_crystal_state_received):
+		NetworkManager.crystal_state_received.connect(_on_crystal_state_received)
 	if not NetworkManager.bot_roster_received.is_connected(_on_bot_roster_received):
 		NetworkManager.bot_roster_received.connect(_on_bot_roster_received)
 	if not NetworkManager.host_changed.is_connected(_on_network_host_changed):

@@ -23,6 +23,7 @@ var health := 0.0
 var max_health := 0.0
 var attack_damage := 0.0
 var dead := false
+var carrying := false
 var is_bot := false
 var game: Node = null
 var target_position := Vector3.ZERO

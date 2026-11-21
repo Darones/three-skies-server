@@ -44,8 +44,8 @@ func TestWebSocketBotSyncAndServerValidation(t *testing.T) {
 	guest := dialTestClient(t, server.URL)
 	hostWelcome := readUntilType(t, host, "welcome")
 	guestWelcome := readUntilType(t, guest, "welcome")
-	if hostWelcome.Protocol != 2 || guestWelcome.Protocol != 2 {
-		t.Fatalf("expected protocol 2, got host=%d guest=%d", hostWelcome.Protocol, guestWelcome.Protocol)
+	if hostWelcome.Protocol != 3 || guestWelcome.Protocol != 3 {
+		t.Fatalf("expected protocol 3, got host=%d guest=%d", hostWelcome.Protocol, guestWelcome.Protocol)
 	}
 
 	if err := host.WriteJSON(map[string]any{
@@ -238,6 +238,33 @@ func TestWebSocketBotSyncAndServerValidation(t *testing.T) {
 	if shellEvent.Event != "shell_destroyed" {
 		t.Fatalf("expected shell_destroyed, got %+v", shellEvent)
 	}
+	crystalState := readUntilType(t, guest, "crystal_state")
+	if crystalState.Crystal == nil || crystalState.Crystal.State != "ground" {
+		t.Fatalf("shell death did not spawn a ground crystal: %+v", crystalState.Crystal)
+	}
+	if err := guest.WriteJSON(map[string]any{"type": "crystal_pickup"}); err != nil {
+		t.Fatalf("crystal pickup: %v", err)
+	}
+	crystalState = readUntilType(t, guest, "crystal_state")
+	if crystalState.Crystal == nil || crystalState.Crystal.State != "carried" || crystalState.Crystal.CarrierID == 0 {
+		t.Fatalf("crystal pickup not owned by server: %+v", crystalState.Crystal)
+	}
+	if err := guest.WriteJSON(map[string]any{"type": "state", "x": 0.0, "y": 0.76, "z": -27.0, "rotation": 0.0}); err != nil {
+		t.Fatalf("guest base state: %v", err)
+	}
+	if err := guest.WriteJSON(map[string]any{"type": "crystal_deliver"}); err != nil {
+		t.Fatalf("crystal deliver: %v", err)
+	}
+	crystalState = readUntilType(t, guest, "crystal_state")
+	if crystalState.Crystal == nil || crystalState.Crystal.State != "none" {
+		t.Fatalf("crystal delivery not owned by server: %+v", crystalState.Crystal)
+	}
+	crystalScore := readUntilType(t, guest, "match_score")
+	if crystalScore.Score0 != 0 || crystalScore.Score1 != 1 {
+		t.Fatalf("unexpected score after crystal delivery: %+v", crystalScore)
+	}
+	// The host also received the 0:1 score; drain it before the 3 shard loop.
+	_ = readUntilType(t, host, "match_score")
 
 	for delivery := 0; delivery < crystalsToWin; delivery++ {
 		if err := host.WriteJSON(map[string]any{
