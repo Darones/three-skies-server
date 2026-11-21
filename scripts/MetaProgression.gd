@@ -16,6 +16,7 @@ const LEVEL_UP_SHARD_REWARDS: Dictionary = {
 var sky_shards: int = 0
 var player_nickname: String = ""
 var player_id: int = 0
+var session_token: String = ""
 var profile_loaded: bool = false
 var nickname_custom: bool = false
 var char_levels: Dictionary = {"warrior": 1, "mage": 1, "fairy": 1}
@@ -49,6 +50,9 @@ var stats_last := {
 func _ready() -> void:
 	_load_loadout()
 	_load_meta()
+	NetworkClient.session_token = session_token
+	if not NetworkClient.session_ready.is_connected(_on_session_ready):
+		NetworkClient.session_ready.connect(_on_session_ready)
 	var stats_config := ConfigFile.new()
 	if stats_config.load(STATS_PATH) == OK:
 		for key in stats_all.keys():
@@ -69,6 +73,7 @@ func _load_meta() -> void:
 		return
 	player_id = int(config.get_value("progression", "player_id", 0))
 	player_nickname = String(config.get_value("progression", "player_nickname", ""))
+	session_token = String(config.get_value("progression", "session_token", ""))
 	sky_shards = maxi(0, int(config.get_value("progression", "sky_shards", 0)))
 	var levels: Variant = config.get_value("progression", "char_levels", {})
 	if levels is Dictionary:
@@ -80,10 +85,16 @@ func _load_meta() -> void:
 			char_xps[key] = maxi(0, int(xps.get(key, 0)))
 
 
+func _on_session_ready(token: String) -> void:
+	session_token = token
+	_save_meta()
+
+
 func _save_meta() -> void:
 	var config := ConfigFile.new()
 	config.set_value("progression", "player_id", player_id)
 	config.set_value("progression", "player_nickname", player_nickname)
+	config.set_value("progression", "session_token", session_token)
 	config.set_value("progression", "sky_shards", sky_shards)
 	config.set_value("progression", "char_levels", char_levels)
 	config.set_value("progression", "char_xps", char_xps)
@@ -183,7 +194,10 @@ func add_shards(shards_amount: int) -> void:
 func grant_match_reward(amount: int) -> bool:
 	if amount <= 0 or player_id <= 0:
 		return false
-	NetworkClient.grant_match_reward(player_id, amount)
+	var room_id := int(NetworkManager.room_id)
+	if room_id <= 0:
+		return false
+	NetworkClient.grant_match_reward(player_id, amount, room_id)
 	return true
 
 

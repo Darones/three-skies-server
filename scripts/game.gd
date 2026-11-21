@@ -102,7 +102,7 @@ var player: HeroUnit = null
 var shell: SkyShell = null
 var shell_pool: SkyShell = null
 var crystal_node: Node3D = null
-var carrier: Node3D = null
+var carrier = null
 var crystal_carrier_node: Node3D = null
 var crystal_intent_timer := 0.0
 
@@ -899,6 +899,8 @@ func _update_gold_fountain(delta: float) -> void:
 			if collector.is_player:
 				play_sfx("coin_pickup", -10.0)
 				award_gold(coin_value)
+				if network_play and NetworkManager.server_protocol >= 4:
+					NetworkManager.send_coin_pickup(coin_value)
 				if tutorial_mode and tutorial_controller != null:
 					tutorial_controller.call("on_coin_collected")
 			else:
@@ -1609,7 +1611,14 @@ func buy_item(item_id: String, from_afk := false) -> bool:
 		if String(item["id"]) != item_id:
 			continue
 		var price := int(item["price"])
-		if gold < price or not player.apply_shop_item(item_id):
+		if gold < price:
+			return false
+		if network_play and NetworkManager.server_protocol >= 4:
+			# The server owns the match wallet and the purchase validation; the
+			# item is applied only after shop_purchase confirms it.
+			NetworkManager.send_buy_item(item_id)
+			return true
+		if not player.apply_shop_item(item_id):
 			return false
 		gold -= price
 		player.match_gold_spent += price
@@ -2315,6 +2324,11 @@ func _award_network_delivery(team: int, source_id: int) -> void:
 		var bot = network_bots.get(source_id)
 		if bot != null and is_instance_valid(bot):
 			bot.bot_gold += 100
+			bot.match_crystals += 1
+	elif source_id > 0 and remote_players.has(source_id):
+		var remote = remote_players[source_id]
+		if remote != null and is_instance_valid(remote):
+			remote.match_crystals += 1
 
 
 func _try_pickup() -> void:
@@ -2506,6 +2520,18 @@ func end_match(team_zero_won: bool) -> void:
 			"crystals": h.match_crystals,
 			"is_player": h.is_player,
 		})
+	for remote in remote_players.values():
+		if remote == null or not is_instance_valid(remote):
+			continue
+		players_table.append({
+			"name": remote.display_name,
+			"team": remote.team,
+			"kills": remote.match_kills,
+			"deaths": remote.match_deaths,
+			"damage": int(remote.match_damage_dealt),
+			"crystals": remote.match_crystals,
+			"is_player": false,
+		})
 	get_tree().set_meta("last_match_players", players_table)
 	if player != null and is_instance_valid(player):
 		get_tree().set_meta("selected_class", player.hero_class)
@@ -2524,6 +2550,13 @@ func _hero_performance_score(hero: HeroUnit) -> float:
 		+ float(hero.match_gold_spent) * 0.02
 
 
+func _remote_performance_score(remote: Node) -> float:
+	return float(remote.get("match_kills")) * 3.0 \
+		+ float(remote.get("match_damage_dealt")) / 100.0 \
+		+ float(remote.get("match_shells")) * 2.0 \
+		+ float(remote.get("match_crystals")) * 3.0
+
+
 func _get_player_place() -> int:
 	if player == null or not is_instance_valid(player):
 		return 4
@@ -2533,6 +2566,11 @@ func _get_player_place() -> int:
 		if hero == null or not is_instance_valid(hero) or hero == player:
 			continue
 		if _hero_performance_score(hero) > player_score:
+			place += 1
+	for remote in remote_players.values():
+		if remote == null or not is_instance_valid(remote):
+			continue
+		if _remote_performance_score(remote) > player_score:
 			place += 1
 	return place
 
@@ -2545,6 +2583,11 @@ func _is_player_mvp() -> bool:
 		if hero == null or not is_instance_valid(hero) or hero == player:
 			continue
 		if _hero_performance_score(hero) >= player_score:
+			return false
+	for remote in remote_players.values():
+		if remote == null or not is_instance_valid(remote):
+			continue
+		if _remote_performance_score(remote) >= player_score:
 			return false
 	return true
 
@@ -2771,15 +2814,22 @@ func alive_heroes_near(center: Vector3, radius: float) -> int:
 	return count
 
 
-func pick_shell_target() -> HeroUnit:
-	var options: Array[HeroUnit] = []
+func pick_shell_target() -> Node3D:
+	var options: Array[Node3D] = []
 	for h in heroes:
 		if not h.dead and h.global_position.distance_to(Vector3.ZERO) < 14.5:
 			options.append(h)
+	# Guests are RemotePlayers on the host; the shell must be able to hit them
+	# too (their HP is server-owned, damage goes through world_damage).
+	if network_play and network_host:
+		for remote in remote_players.values():
+			if remote != null and is_instance_valid(remote) and not remote.dead:
+				if remote.global_position.distance_to(Vector3.ZERO) < 14.5:
+					options.append(remote as Node3D)
 	if options.is_empty():
 		return null
-	if carrier != null and not carrier.dead and randf() < 0.55:
-		return carrier
+	if carrier != null and is_instance_valid(carrier) and not bool(carrier.get("dead")) and randf() < 0.55:
+		return carrier as Node3D
 	return options[randi() % options.size()]
 
 
@@ -2966,6 +3016,16 @@ func shell_bolt(pos: Vector3, radius: float, damage: float) -> void:
 		if not h.dead and h.global_position.distance_to(pos) <= radius:
 			h.take_damage(damage, null, "magic")
 			h.stun(1.0)
+	if network_play and network_host:
+		# Guests are RemotePlayers on the host: their HP is server-owned, so the
+		# hit goes as a world_damage intent. The bolt VFX is relayed separately.
+		for remote_id in remote_players.keys():
+			var remote = remote_players[remote_id]
+			if remote == null or not is_instance_valid(remote) or remote.dead:
+				continue
+			if remote.global_position.distance_to(pos) <= radius:
+				NetworkManager.send_world_damage(int(remote_id), damage)
+		NetworkManager.send_match_event_at("shell_bolt", pos.x, pos.z)
 
 
 func telegraph(pos: Vector3, radius: float, duration: float) -> void:
@@ -3202,6 +3262,10 @@ func _setup_network_play() -> void:
 		NetworkManager.bot_roster_received.connect(_on_bot_roster_received)
 	if not NetworkManager.host_changed.is_connected(_on_network_host_changed):
 		NetworkManager.host_changed.connect(_on_network_host_changed)
+	if not NetworkManager.gold_updated.is_connected(_on_gold_updated):
+		NetworkManager.gold_updated.connect(_on_gold_updated)
+	if not NetworkManager.shop_purchase_received.is_connected(_on_shop_purchase_received):
+		NetworkManager.shop_purchase_received.connect(_on_shop_purchase_received)
 	if not NetworkManager.attack_denied.is_connected(_on_attack_denied):
 		NetworkManager.attack_denied.connect(_on_attack_denied)
 	if not NetworkManager.sync_received.is_connected(_on_network_sync):
@@ -3314,6 +3378,10 @@ func _on_remote_damage_received(source_id: int, target_id: int, amount: float, s
 	if source_id == NetworkManager.local_peer_id:
 		player.match_damage_dealt += maxf(amount, 0.0)
 		p_damage += maxf(amount, 0.0)
+	elif source_id > 0 and remote_players.has(source_id):
+		var source_remote = remote_players[source_id]
+		if source_remote != null and is_instance_valid(source_remote):
+			source_remote.match_damage_dealt += maxf(amount, 0.0)
 	elif source_id < 0 and network_host:
 		var killer_bot = network_bots.get(source_id)
 		if killer_bot != null and is_instance_valid(killer_bot) and int(killer_bot.team) != target_team:
@@ -3335,6 +3403,10 @@ func _credit_network_kill(source_id: int, victim_name: String, victim_team: int)
 		if killer_bot != null and is_instance_valid(killer_bot):
 			killer_bot.match_kills += 1
 			killer_bot.bot_gold += 50
+	elif source_id > 0 and remote_players.has(source_id):
+		var killer_remote = remote_players[source_id]
+		if killer_remote != null and is_instance_valid(killer_remote):
+			killer_remote.match_kills += 1
 	if source_id != 0 and hud != null:
 		var killer_node := _node_for_network_id(source_id)
 		var killer_name := "?"
@@ -3358,12 +3430,16 @@ func _on_remote_death_received(player_id: int, source_id: int = 0) -> void:
 		if bot != null and is_instance_valid(bot):
 			victim_name = String(bot.display_name)
 			victim_team = int(bot.team)
+			if not bot.dead:
+				bot.match_deaths += 1
 			bot.apply_network_damage(bot.health, false)
 	elif remote_players.has(player_id):
 		var remote = remote_players[player_id]
 		if remote != null and is_instance_valid(remote):
 			victim_name = String(remote.display_name)
 			victim_team = int(remote.team)
+			if not remote.dead:
+				remote.match_deaths += 1
 			remote.apply_network_death()
 	if victim_team < 0:
 		return
@@ -3509,6 +3585,10 @@ func _on_shell_destroyed_network(team: int = -1, source_id: int = 0) -> void:
 		if killer_bot != null and is_instance_valid(killer_bot):
 			killer_bot.bot_gold += 100
 			killer_bot.match_shells += 1
+	elif source_id > 0 and remote_players.has(source_id):
+		var killer_remote = remote_players[source_id]
+		if killer_remote != null and is_instance_valid(killer_remote):
+			killer_remote.match_shells += 1
 	if shell != null and is_instance_valid(shell):
 		# The server event is the only "destroyed" signal; a normal despawn
 		# only hides the shell and must not create a crystal.
@@ -3523,6 +3603,35 @@ func _on_shell_damage_received(amount: float, source_id: int) -> void:
 		return
 	if shell != null and is_instance_valid(shell):
 		damage_number(shell.global_position + Vector3(0.0, 3.4, 0.0), amount, 1, true)
+
+
+func _on_gold_updated(amount: int) -> void:
+	if not network_play:
+		return
+	gold = maxi(0, amount)
+	if hud != null:
+		hud.update_gold()
+		if shop_open:
+			hud.update_shop()
+
+
+func _on_shop_purchase_received(item_id: String, ok: bool, server_gold: int) -> void:
+	if not network_play:
+		return
+	gold = maxi(0, server_gold)
+	if ok and player != null and is_instance_valid(player) and not item_id in purchased_shop_items:
+		player.apply_shop_item(item_id)
+		for item in SHOP_ITEMS:
+			if String(item["id"]) == item_id:
+				player.match_gold_spent += int(item["price"])
+				break
+		purchased_shop_items.append(item_id)
+		play_sfx("shop_purchase", -7.0)
+	elif not ok:
+		announce("Покупка не подтверждена: недостаточно золота", Color(1.0, 0.62, 0.4), 1.8)
+	if hud != null:
+		hud.update_gold()
+		hud.update_shop()
 
 
 func _on_network_host_changed(new_host_id: int) -> void:
@@ -3627,13 +3736,19 @@ func _on_match_score_updated(score_0: int, score_1: int, server_sudden_death: bo
 		announce("Решающий осколок!", Color(1.0, 0.75, 0.35), 3.0)
 
 
-func _on_match_event_received(event: String, team: int, source_id: int) -> void:
+func _on_match_event_received(event: String, team: int, source_id: int, x := 0.0, z := 0.0) -> void:
 	if not network_play:
 		return
 	if event == "shell_destroyed" and NetworkManager.server_protocol >= 2:
 		_on_shell_destroyed_network(team, source_id)
 	elif event == "shard_delivered" and NetworkManager.server_protocol >= 4:
 		_award_network_delivery(team, source_id)
+	elif event == "shell_bolt":
+		if not network_host:
+			var bolt_pos := Vector3(x, 0.0, z)
+			lightning_strike_fx(bolt_pos, Color(0.85, 0.65, 1.0))
+			ring_fx(Vector3(bolt_pos.x, 0.2, bolt_pos.z), Color(0.85, 0.65, 1.0), 2.7)
+			shake(0.35)
 	elif event == "sudden_death" and not sudden_death:
 		sudden_death = true
 		announce("Решающий осколок!", Color(1.0, 0.75, 0.35), 3.0)

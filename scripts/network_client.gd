@@ -9,10 +9,12 @@ signal purchase_completed(success: bool, purchase_type: String, item_id: int, ne
 signal match_reward_completed(success: bool, amount: int, new_shards: int)
 signal rename_completed(success: bool, nickname: String, error: String, charged: bool, cost: int, new_shards: int)
 signal report_completed(success: bool, error: String)
+signal session_ready(token: String)
 
 const API_BASE_URL := "https://three-skies-server.relaxdev.ru"
 
 var api_base_url := API_BASE_URL
+var session_token := ""
 var http_request: HTTPRequest
 var http_request_busy := false
 var current_http_request: Dictionary = {}
@@ -55,12 +57,13 @@ func buy_weapon_server(player_id: int, weapon_id: int, cost: int) -> void:
 	}, "purchase", "weapon", weapon_id)
 
 
-func grant_match_reward(player_id: int, amount: int) -> void:
-	if player_id <= 0 or amount <= 0:
+func grant_match_reward(player_id: int, amount: int, room_id: int) -> void:
+	if player_id <= 0 or amount <= 0 or room_id <= 0:
 		match_reward_completed.emit(false, amount, 0)
 		return
 	_send_post("/match_reward", {
 		"player_id": player_id,
+		"room_id": room_id,
 		"amount": amount,
 	}, "match_reward")
 
@@ -124,6 +127,10 @@ func _start_next_http_request() -> void:
 	current_http_request = http_request_queue.pop_front()
 	http_request_busy = true
 	var headers := PackedStringArray(["Content-Type: application/json"])
+	if not session_token.is_empty():
+		headers.append("X-Session-Token: " + session_token)
+	elif String(current_http_request["path"]).begins_with("/profile"):
+		headers.append("X-Claim-Session: 1")
 	var request_method := int(current_http_request["method"])
 	var request_body := "" if request_method == HTTPClient.METHOD_GET else JSON.stringify(current_http_request["payload"])
 	var error := http_request.request(api_base_url + String(current_http_request["path"]), headers, request_method, request_body)
@@ -144,9 +151,19 @@ func _on_http_request_completed(result: int, response_code: int, _headers: Packe
 		success = false
 	if request["request_type"] == "register":
 		var player_id := int(response.get("player_id", 0)) if response is Dictionary else 0
+		if success and response is Dictionary:
+			var token := String(response.get("token", ""))
+			if not token.is_empty():
+				session_token = token
+				session_ready.emit(token)
 		registration_completed.emit(success and player_id > 0, player_id if success else 0)
 	elif request["request_type"] == "profile":
 		var player_id := int(request["player_id"])
+		if success and response is Dictionary:
+			var profile_token := String(response.get("session_token", ""))
+			if not profile_token.is_empty() and profile_token != session_token:
+				session_token = profile_token
+				session_ready.emit(profile_token)
 		var sky_shards := int(response.get("sky_shards", 0)) if response is Dictionary else 0
 		var wings_value: Variant = response.get("unlocked_wings", []) if response is Dictionary else []
 		var weapons_value: Variant = response.get("unlocked_weapons", []) if response is Dictionary else []

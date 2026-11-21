@@ -25,8 +25,10 @@ signal match_started(room_id: int, host_id: int, players: Array)
 signal lobby_state_received(players: Array, starts_in_ms: int)
 signal match_finished(winning_team: int)
 signal match_score_updated(score_0: int, score_1: int, sudden_death: bool)
-signal match_event_received(event: String, team: int, source_id: int)
+signal match_event_received(event: String, team: int, source_id: int, x: float, z: float)
 signal host_changed(new_host_id: int)
+signal gold_updated(amount: int)
+signal shop_purchase_received(item_id: String, ok: bool, gold: int)
 
 enum State { DISCONNECTED, CONNECTING, CONNECTED }
 
@@ -191,6 +193,40 @@ func send_attack_intent(target_id: int, skill: String, source_id: int = 0, amoun
 	if crit:
 		payload["crit"] = true
 	_send_json(payload)
+
+
+func send_coin_pickup(amount: int) -> void:
+	if state != State.CONNECTED or amount <= 0:
+		return
+	_send_json({"type": "coin_pickup", "amount": amount})
+
+
+func send_buy_item(item_id: String) -> void:
+	if state != State.CONNECTED or item_id.is_empty():
+		return
+	_send_json({"type": "buy_item", "item_id": item_id})
+
+
+func send_world_damage(target_id: int, amount: float, kind := "shell") -> void:
+	if state != State.CONNECTED or target_id <= 0 or amount <= 0.0:
+		return
+	_send_json({
+		"type": "world_damage",
+		"target_id": target_id,
+		"amount": amount,
+		"kind": kind,
+	})
+
+
+func send_match_event_at(event: String, x: float, z: float) -> void:
+	if state != State.CONNECTED or event.is_empty():
+		return
+	_send_json({
+		"type": "match_event",
+		"event": event,
+		"x": x,
+		"z": z,
+	})
 
 
 func send_match_event(event: String, team: int) -> void:
@@ -361,14 +397,17 @@ func _process(delta: float) -> void:
 
 
 func _send_join() -> void:
-	_send_json({
+	var payload := {
 		"type": "join",
 		"name": _pending_name if not _pending_name.is_empty() else "Игрок",
 		"class": _pending_class,
 		"class_name": ["warrior", "mage", "fairy"][_pending_class],
 		"team": _pending_team,
 		"player_id": _pending_player_id,
-	})
+	}
+	if not NetworkClient.session_token.is_empty():
+		payload["token"] = NetworkClient.session_token
+	_send_json(payload)
 
 
 func _send_local_state(delta: float) -> void:
@@ -487,11 +526,21 @@ func _handle_message(text: String) -> void:
 				int(message.get("score_1", 0)),
 				bool(message.get("sudden_death", false))
 			)
+		"gold":
+			gold_updated.emit(int(message.get("gold", 0)))
+		"shop_purchase":
+			shop_purchase_received.emit(
+				String(message.get("item_id", "")),
+				bool(message.get("ok", false)),
+				int(message.get("gold", 0))
+			)
 		"match_event":
 			match_event_received.emit(
 				String(message.get("event", "")),
 				int(message.get("team", 0)),
-				int(message.get("source_id", 0))
+				int(message.get("source_id", 0)),
+				float(message.get("x", 0.0)),
+				float(message.get("z", 0.0))
 			)
 		"match_finished":
 			if message.has("score_0") or message.has("score_1"):

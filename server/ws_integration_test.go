@@ -83,7 +83,7 @@ func TestWebSocketBotSyncAndServerValidation(t *testing.T) {
 	}
 
 	botState := []map[string]any{{
-		"id": enemyBotID, "x": -2.0, "y": 0.76, "z": 26.0, "rotation": 0.0,
+		"id": enemyBotID, "x": -2.0, "y": 0.76, "z": 20.0, "rotation": 0.0,
 		"max_hp": 450.0, "hp": 400.0, "attack_damage": 30.0, "alive": true, "animation": "run",
 	}}
 	if err := host.WriteJSON(map[string]any{"type": "bot_states", "bots": botState}); err != nil {
@@ -144,7 +144,7 @@ func TestWebSocketBotSyncAndServerValidation(t *testing.T) {
 
 	// Server owns bot HP: the host's own snapshot must not raise it.
 	if err := host.WriteJSON(map[string]any{"type": "bot_states", "bots": []map[string]any{{
-		"id": enemyBotID, "x": -2.0, "y": 0.76, "z": 26.0, "rotation": 0.0,
+		"id": enemyBotID, "x": -2.0, "y": 0.76, "z": 20.0, "rotation": 0.0,
 		"max_hp": enemyBotMaxHP, "hp": enemyBotMaxHP, "attack_damage": 30.0, "alive": true, "animation": "run",
 	}}}); err != nil {
 		t.Fatalf("host bot state after damage: %v", err)
@@ -163,7 +163,7 @@ func TestWebSocketBotSyncAndServerValidation(t *testing.T) {
 		t.Fatalf("server bot HP did not follow confirmed damage: %+v", hostBotState.Bots)
 	}
 	if err := host.WriteJSON(map[string]any{"type": "bot_states", "bots": []map[string]any{{
-		"id": enemyBotID, "x": -2.0, "y": 0.76, "z": 26.0, "rotation": 0.0,
+		"id": enemyBotID, "x": -2.0, "y": 0.76, "z": 20.0, "rotation": 0.0,
 		"max_hp": enemyBotMaxHP, "hp": enemyBotMaxHP, "attack_damage": 30.0, "alive": true, "animation": "run",
 	}}}); err != nil {
 		t.Fatalf("host stale bot state: %v", err)
@@ -179,7 +179,7 @@ func TestWebSocketBotSyncAndServerValidation(t *testing.T) {
 		t.Fatalf("host bot heal: %v", err)
 	}
 	if err := host.WriteJSON(map[string]any{"type": "bot_states", "bots": []map[string]any{{
-		"id": enemyBotID, "x": -2.0, "y": 0.76, "z": 26.0, "rotation": 0.0,
+		"id": enemyBotID, "x": -2.0, "y": 0.76, "z": 20.0, "rotation": 0.0,
 		"max_hp": enemyBotMaxHP, "hp": enemyBotMaxHP, "attack_damage": 30.0, "alive": true, "animation": "run",
 	}}}); err != nil {
 		t.Fatalf("host bot state after heal: %v", err)
