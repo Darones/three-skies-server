@@ -3,6 +3,8 @@ import subprocess
 import time
 from pathlib import Path
 
+from patch_chunk_loader import patch as patch_chunk_loader
+
 ROOT = Path(__file__).resolve().parents[1]
 PROJECT = ROOT / "project.godot"
 BACKUP = ROOT / "project.godot.web_backup"
@@ -171,6 +173,7 @@ def main() -> None:
         print("RESTORED project.godot")
 
     bust_pck()
+    patch_chunk_loader(OUT_DIR / "index.html")
     patch_vk_bridge()
     patch_splash()
     copy_editor_page()

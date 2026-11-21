@@ -11,6 +11,8 @@ index.pck keeps the repository small and the HTML simple.
 import shutil
 from pathlib import Path
 
+from patch_chunk_loader import patch as patch_chunk_loader
+
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "build" / "web"
 DST = ROOT / "server" / "web"
@@ -46,6 +48,7 @@ def main() -> None:
 
     html = html.replace(str(pack.name), "index.pck")
     (DST / "index.html").write_text(html, encoding="utf-8", newline="")
+    patch_chunk_loader(DST / "index.html")
     print(f"SERVER_WEB {DST} files={len(list(DST.iterdir()))} bytes={total}")
     print(f"PCK {pack.name} -> index.pck")
 

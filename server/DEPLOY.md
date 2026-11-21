@@ -89,8 +89,14 @@ The web export is served from the same container, so players do not download
   them in the background from `WEB_ORIGIN` (a comma-separated list of mirrors,
   GitHub raw first, ghproxy second) and caches them in `/app/web`. The first
   request waits for the download; later requests are served locally.
+- The edge proxy also drops a **single response** above ~20 MB with
+  `ERR_HTTP2_PROTOCOL_ERROR`. `tools/patch_chunk_loader.py` injects a loader
+  that fetches the 46 MB PCK in 10 MB `Range` requests and merges it in JS.
+  `tools/web_export.py` and `tools/server_web.py` run the patcher on every
+  build; do not strip the `PACK_RANGE_CHUNK` block from `index.html`.
 - The pre-compressed `.gz` copies cut the wasm transfer from 39 MB to about
-  10 MB.
+  10 MB. The PCK is always served raw: its gzip stream has no
+  `Content-Length`, and the proxy mishandles it over HTTP/2.
 
 Client defaults:
 
