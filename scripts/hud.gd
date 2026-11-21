@@ -646,7 +646,7 @@ func _build_top(root: Control) -> void:
 	shell_timer_label.visible = false
 
 	_build_player_panel(root)
-	if true:
+	if not _mobile_ui():
 		pause_button = Button.new()
 		pause_button.name = "MobilePauseButton"
 		pause_button.text = "II"

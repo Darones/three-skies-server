@@ -52,8 +52,6 @@ func _ready() -> void:
 		elif arg.begins_with("--screenshot="):
 			_screenshot_path = arg.trim_prefix("--screenshot=")
 		elif arg.begins_with("--screenshot-delay="):
-			_screenshot_delay = maxf(0.0, float(arg.trim_prefix("--screenshot-delay=")))
-		elif arg.begins_with("--screenshot-delay="):
 			_screenshot_delay = maxf(0.5, float(arg.trim_prefix("--screenshot-delay=")))
 
 	if OS.has_feature("web") and Engine.has_singleton("JavaScriptBridge"):
