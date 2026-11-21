@@ -13,7 +13,7 @@ COPY schema.sql /app/schema.sql
 COPY web /app/web
 # Pre-compress the small assets that are present in the build context. The two
 # large files are fetched at runtime when the context drops them.
-RUN cd /app/web && for f in index.wasm index.js index.html index.pck; do \
+RUN cd /app/web && for f in index.wasm index.js index.html; do \
         [ -f "$f" ] && gzip -9 -c "$f" > "$f.gz"; \
     done; true
 # RelaxDev's build context silently drops files above ~20 MB, so the server

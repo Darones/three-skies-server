@@ -14,7 +14,7 @@ WORKDIR /app
 COPY --from=build /out/server /app/server
 COPY server/schema.sql /app/schema.sql
 COPY server/web /app/web
-RUN cd /app/web && for f in index.wasm index.js index.html index.pck; do \
+RUN cd /app/web && for f in index.wasm index.js index.html; do \
         [ -f "$f" ] && gzip -9 -c "$f" > "$f.gz"; \
     done; true
 ENV WEB_ORIGIN=https://raw.githubusercontent.com/Darones/three-skies-server/main/server/web,https://ghproxy.net/https://raw.githubusercontent.com/Darones/three-skies-server/main/server/web
