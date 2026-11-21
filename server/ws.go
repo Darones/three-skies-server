@@ -65,6 +65,7 @@ type wsRoom struct {
 	startsAt     time.Time
 	fillTimer    *time.Timer
 	finishTimer  *time.Timer
+	matchEndsAt  time.Time
 	resultSaved  bool
 	score        [2]int
 	suddenDeath  bool
@@ -222,45 +223,46 @@ type wsMatchPlayer struct {
 }
 
 type wsOutgoing struct {
-	Type         string          `json:"type"`
-	ID           int64           `json:"id,omitempty"`
-	RoomID       int64           `json:"room_id,omitempty"`
-	HostID       int64           `json:"host_id,omitempty"`
-	Name         string          `json:"name,omitempty"`
-	Class        int             `json:"class"`
-	Team         int             `json:"team"`
-	Slot         int             `json:"slot,omitempty"`
-	X            float64         `json:"x"`
-	Y            float64         `json:"y"`
-	Z            float64         `json:"z"`
-	Rotation     float64         `json:"rotation"`
-	TargetID     int64           `json:"target_id,omitempty"`
-	SourceID     int64           `json:"source_id,omitempty"`
-	AttackType   string          `json:"attack_type,omitempty"`
-	Skill        string          `json:"skill,omitempty"`
-	Crit         bool            `json:"crit,omitempty"`
-	Amount       float64         `json:"amount,omitempty"`
-	MaxHP        float64         `json:"max_hp,omitempty"`
-	HP           float64         `json:"hp,omitempty"`
-	Alive        bool            `json:"alive"`
-	AttackDamage float64         `json:"attack_damage,omitempty"`
-	WinningTeam  int             `json:"winning_team,omitempty"`
-	MatchPlayers []wsMatchPlayer `json:"match_players,omitempty"`
-	StartsInMS   int64           `json:"starts_in_ms,omitempty"`
-	Bots         []wsBotSnapshot `json:"bots,omitempty"`
-	Shell        *wsShellState   `json:"shell,omitempty"`
-	Crystal      *wsCrystalState `json:"crystal,omitempty"`
-	Protocol     int             `json:"protocol,omitempty"`
-	Score0       int             `json:"score_0,omitempty"`
-	Score1       int             `json:"score_1,omitempty"`
-	SuddenDeath  bool            `json:"sudden_death,omitempty"`
-	Event        string          `json:"event,omitempty"`
-	Reason       string          `json:"reason,omitempty"`
-	Error        string          `json:"error,omitempty"`
-	Gold         int             `json:"gold,omitempty"`
-	ItemID       string          `json:"item_id,omitempty"`
-	OK           bool            `json:"ok,omitempty"`
-	Stun         float64         `json:"stun,omitempty"`
+	Type            string          `json:"type"`
+	ID              int64           `json:"id,omitempty"`
+	RoomID          int64           `json:"room_id,omitempty"`
+	HostID          int64           `json:"host_id,omitempty"`
+	Name            string          `json:"name,omitempty"`
+	Class           int             `json:"class"`
+	Team            int             `json:"team"`
+	Slot            int             `json:"slot,omitempty"`
+	X               float64         `json:"x"`
+	Y               float64         `json:"y"`
+	Z               float64         `json:"z"`
+	Rotation        float64         `json:"rotation"`
+	TargetID        int64           `json:"target_id,omitempty"`
+	SourceID        int64           `json:"source_id,omitempty"`
+	AttackType      string          `json:"attack_type,omitempty"`
+	Skill           string          `json:"skill,omitempty"`
+	Crit            bool            `json:"crit,omitempty"`
+	Amount          float64         `json:"amount,omitempty"`
+	MaxHP           float64         `json:"max_hp,omitempty"`
+	HP              float64         `json:"hp,omitempty"`
+	Alive           bool            `json:"alive"`
+	AttackDamage    float64         `json:"attack_damage,omitempty"`
+	WinningTeam     int             `json:"winning_team,omitempty"`
+	MatchPlayers    []wsMatchPlayer `json:"match_players,omitempty"`
+	StartsInMS      int64           `json:"starts_in_ms,omitempty"`
+	MatchTimeLeftMS int64           `json:"match_time_left_ms,omitempty"`
+	Bots            []wsBotSnapshot `json:"bots,omitempty"`
+	Shell           *wsShellState   `json:"shell,omitempty"`
+	Crystal         *wsCrystalState `json:"crystal,omitempty"`
+	Protocol        int             `json:"protocol,omitempty"`
+	Score0          int             `json:"score_0,omitempty"`
+	Score1          int             `json:"score_1,omitempty"`
+	SuddenDeath     bool            `json:"sudden_death,omitempty"`
+	Event           string          `json:"event,omitempty"`
+	Reason          string          `json:"reason,omitempty"`
+	Error           string          `json:"error,omitempty"`
+	Gold            int             `json:"gold,omitempty"`
+	ItemID          string          `json:"item_id,omitempty"`
+	OK              bool            `json:"ok,omitempty"`
+	Stun            float64         `json:"stun,omitempty"`
 }
 
 func newWebSocketHub(db *sql.DB) *wsHub {
@@ -834,11 +836,13 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 	}
 	roomID := room.id
 	room.finishTimer = time.AfterFunc(matchLength, func() { h.finishMatchByTimeout(roomID) })
+	room.matchEndsAt = time.Now().Add(matchLength)
 	return wsOutgoing{
-		Type:         "match_start",
-		RoomID:       room.id,
-		HostID:       room.hostID,
-		MatchPlayers: players,
+		Type:            "match_start",
+		RoomID:          room.id,
+		HostID:          room.hostID,
+		MatchPlayers:    players,
+		MatchTimeLeftMS: maxInt64(0, time.Until(room.matchEndsAt).Milliseconds()),
 	}, clients
 }
 
@@ -887,12 +891,13 @@ func (h *wsHub) updateState(client *wsClient, message wsIncoming) {
 		client.lastSync = time.Now()
 	}
 	syncMessage := wsOutgoing{
-		Type:   "sync",
-		ID:     client.id,
-		RoomID: room.id,
-		HP:     client.hp,
-		MaxHP:  client.maxHP,
-		Alive:  client.alive,
+		Type:            "sync",
+		ID:              client.id,
+		RoomID:          room.id,
+		HP:              client.hp,
+		MaxHP:           client.maxHP,
+		Alive:           client.alive,
+		MatchTimeLeftMS: maxInt64(0, time.Until(room.matchEndsAt).Milliseconds()),
 	}
 	var crystalMoved *wsCrystalState
 	if room.crystal != nil && room.crystal.State == "ground" && !room.crystal.GroundSince.IsZero() && now.Sub(room.crystal.GroundSince) >= 30*time.Second {
