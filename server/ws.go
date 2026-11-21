@@ -338,6 +338,11 @@ func (h *wsHub) removeClient(client *wsClient) {
 			}
 			if room.hostID != 0 {
 				hostChanged = &wsOutgoing{Type: "host_changed", RoomID: room.id, ID: room.hostID, HostID: room.hostID}
+				// A new host starts its local shell_spawn_id from 0/1. Reset the
+				// server counter on every host change, even when the old shell is
+				// already dead; otherwise the new host's first spawn is treated
+				// as a stale packet and the shell never appears.
+				room.shellSpawnID = 0
 				// The guest copy of the shell cannot simulate strikes. Reset it
 				// so the new host spawns a fresh local shell instead of the old
 				// remote one standing idle for two minutes.
@@ -345,7 +350,6 @@ func (h *wsHub) removeClient(client *wsClient) {
 					room.shell.Alive = false
 					room.shell.HP = 0
 					room.shellDiedAt = time.Now()
-					room.shellSpawnID = 0
 					s := *room.shell
 					shellReset = &wsOutgoing{Type: "shell_state", RoomID: room.id, Shell: &s}
 				}
