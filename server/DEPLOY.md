@@ -73,8 +73,28 @@ Attach the domain `three-skies-server.relaxdev.ru` to the service and route it t
 container port `8080`. The same HTTP listener serves REST and the WebSocket
 endpoint at `/ws`; RelaxDev's proxy must allow WebSocket upgrades.
 
+## HTML5 client at /game/
+
+The web export is served from the same container, so players do not download
+86 MB from GitHub Pages (which is very slow from Russia):
+
+- `server/web/` contains the exported build (`index.html`, `index.js`,
+  `index.wasm`, `index.pck`, worklets, fonts, VK bridge).
+- The container serves it at `https://three-skies-server.relaxdev.ru/game/`.
+- `WEB_DIR` defaults to `/app/web`; the image sets it explicitly.
+- `index.html` and `index.pck` are sent with `Cache-Control: no-cache`; other
+  assets are cached for a day. The PCK has a fixed name on this host.
+- RelaxDev's clone drops blobs above ~20 MB, so `index.wasm` and `index.pck`
+  may be missing from the build context. On first start the server downloads
+  them in the background from `WEB_ORIGIN` (a comma-separated list of mirrors,
+  GitHub raw first, ghproxy second) and caches them in `/app/web`. The first
+  request waits for the download; later requests are served locally.
+- The pre-compressed `.gz` copies cut the wasm transfer from 39 MB to about
+  10 MB.
+
 Client defaults:
 
+- Game page: `https://three-skies-server.relaxdev.ru/game/`
 - REST: `https://three-skies-server.relaxdev.ru`
 - WebSocket: `wss://three-skies-server.relaxdev.ru/ws`
 

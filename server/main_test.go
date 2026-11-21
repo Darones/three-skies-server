@@ -230,6 +230,12 @@ func TestGameStaticFilesAreServedFromTheGameServer(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "index.wasm.gz"), []byte("gzipped-wasm"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(dir, "index.pck"), []byte("pck-bytes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "index.pck.gz"), []byte("gzipped-pck"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv("WEB_DIR", dir)
 	service := &api{} // database is down: the game page must still load
 	router := newRouter(service, newWebSocketHub(nil))
@@ -256,5 +262,18 @@ func TestGameStaticFilesAreServedFromTheGameServer(t *testing.T) {
 	}
 	if recorder.Body.String() != "gzipped-wasm" {
 		t.Fatalf("wrong wasm body: %q", recorder.Body.String())
+	}
+
+	// The PCK must stay raw: a 43 MB gzip stream breaks behind the platform
+	// proxy over HTTP/2, while the raw file has Content-Length.
+	recorder = httptest.NewRecorder()
+	request = httptest.NewRequest(http.MethodGet, "/game/index.pck", nil)
+	request.Header.Set("Accept-Encoding", "gzip")
+	router.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK || recorder.Body.String() != "pck-bytes" {
+		t.Fatalf("pck should be served raw: %d %q", recorder.Code, recorder.Body.String())
+	}
+	if got := recorder.Header().Get("Content-Encoding"); got != "" {
+		t.Fatalf("pck must not be gzip-encoded, got %q", got)
 	}
 }

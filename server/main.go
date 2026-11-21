@@ -351,10 +351,11 @@ func staticGameHandler(dir string) http.Handler {
 		default:
 			w.Header().Set("Cache-Control", "public, max-age=86400")
 		}
-		// Serve the pre-compressed copy when one exists: wasm is 39 MB raw
-		// and about a quarter of that over the wire.
+		// Serve the pre-compressed copy when one exists. The PCK stays raw:
+		// its 43 MB gzip stream breaks behind the platform proxy over HTTP/2,
+		// while the raw file has Content-Length and downloads at full speed.
 		servePath := full
-		if r.Header.Get("Range") == "" && strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+		if r.Header.Get("Range") == "" && strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") && filepath.Ext(name) != ".pck" {
 			if gzInfo, gzErr := os.Stat(full + ".gz"); gzErr == nil && !gzInfo.IsDir() {
 				servePath = full + ".gz"
 				w.Header().Set("Content-Encoding", "gzip")
@@ -464,6 +465,10 @@ func prefetchGameAssets(dir string) {
 	for _, name := range []string{"/index.wasm", "/index.pck"} {
 		if err := fetchGameAsset(dir, name); err != nil {
 			log.Printf("game asset %s: %v", name, err)
+			continue
+		}
+		if name == "/index.pck" {
+			// The raw PCK must keep Content-Length; see staticGameHandler.
 			continue
 		}
 		full := filepath.Join(dir, filepath.FromSlash(name))
