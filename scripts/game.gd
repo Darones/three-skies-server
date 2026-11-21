@@ -3344,7 +3344,7 @@ func _on_remote_attack_received(player_id: int, attack_type: String, _target_id:
 		remote.play_attack(attack_type)
 
 
-func _on_remote_damage_received(source_id: int, target_id: int, amount: float, skill: String, crit := false) -> void:
+func _on_remote_damage_received(source_id: int, target_id: int, amount: float, skill: String, crit := false, stun := 0.0) -> void:
 	if CombatProfiler.enabled:
 		print("[DMG] source=%d target=%d amount=%.0f skill=%s" % [source_id, target_id, amount, skill])
 	var show_number := source_id == NetworkManager.local_peer_id or target_id == NetworkManager.local_peer_id
@@ -3371,6 +3371,16 @@ func _on_remote_damage_received(source_id: int, target_id: int, amount: float, s
 			killed = remote.apply_network_damage(amount, show_number, crit)
 			target_team = int(remote.team)
 			target_name = String(remote.display_name)
+	# Stun is server-confirmed. Only the target's own client applies it to the
+	# local hero; the host also applies it to its simulated bots.
+	if stun > 0.0:
+		if target_id == NetworkManager.local_peer_id:
+			if player != null and is_instance_valid(player):
+				player.stun(stun)
+		elif network_bots.has(target_id):
+			var stunned_bot = network_bots[target_id]
+			if stunned_bot != null and is_instance_valid(stunned_bot):
+				stunned_bot.stun(stun)
 	if player == null or not is_instance_valid(player) or target_team == player.team:
 		return
 	# Damage stats come from the confirmed hit; kills are credited once from

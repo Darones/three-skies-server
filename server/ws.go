@@ -159,6 +159,7 @@ type wsIncoming struct {
 	Event        string          `json:"event"`
 	Token        string          `json:"token"`
 	ItemID       string          `json:"item_id"`
+	Stun         float64         `json:"stun"`
 	Bots         []wsBotSnapshot `json:"bots"`
 	Shell        *wsShellState   `json:"shell"`
 }
@@ -255,6 +256,7 @@ type wsOutgoing struct {
 	Gold         int             `json:"gold,omitempty"`
 	ItemID       string          `json:"item_id,omitempty"`
 	OK           bool            `json:"ok,omitempty"`
+	Stun         float64         `json:"stun,omitempty"`
 }
 
 func newWebSocketHub(db *sql.DB) *wsHub {
@@ -754,6 +756,10 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 			player.bought = nil
 			player.coinTokens = 0
 			player.lastCoin = time.Time{}
+			player.maxHP, player.attackDamage = statsForClient(player)
+			if player.hp <= 0 || player.hp > player.maxHP {
+				player.hp = player.maxHP
+			}
 			players = append(players, wsMatchPlayer{
 				ID:           player.id,
 				Bot:          false,
@@ -840,6 +846,9 @@ func (h *wsHub) updateState(client *wsClient, message wsIncoming) {
 		elapsed := now.Sub(client.lastRegen).Seconds()
 		if elapsed > 0.0 && elapsed <= 1.0 && (client.lastDamaged.IsZero() || now.Sub(client.lastDamaged) >= 5*time.Second) {
 			rate := 10.0
+			if client.bought != nil && client.bought["revival_talisman"] {
+				rate += 10.0
+			}
 			baseZ := 27.5
 			if client.team == 1 {
 				baseZ = -27.5
@@ -966,23 +975,11 @@ func (h *wsHub) relayStats(client *wsClient, message wsIncoming) {
 		return
 	}
 	hp := math.Min(message.HP, message.MaxHP)
-	newMax := math.Min(message.MaxHP, maxCap)
-	client.maxHP = newMax
-	client.attackDamage = message.AttackDamage
-	// HP is owned by the server. A client "stats" packet may only add a
-	// bounded amount of HP per second (lifesteal / a bought life amulet),
-	// never restore a full bar after taking damage. Passive regen is applied
-	// by the server from movement updates, and respawn sets full HP.
-	now := time.Now()
-	if now.Sub(client.lastStatGain) >= time.Second {
-		client.lastStatGain = now
-		client.statHpBudget = 300.0
-	}
-	if client.hp < client.maxHP {
-		gain := math.Max(0.0, math.Min(hp, client.maxHP)-client.hp)
-		gain = math.Min(gain, client.statHpBudget)
-		client.hp = math.Min(client.maxHP, client.hp+gain)
-		client.statHpBudget -= gain
+	// Combat stats are derived from the class and bought items; the packet's
+	// values are ignored. The client's HP is not raised from this packet.
+	client.maxHP, client.attackDamage = statsForClient(client)
+	if client.hp > client.maxHP {
+		client.hp = client.maxHP
 	}
 	hp = client.hp
 	maxHP := client.maxHP
@@ -1308,7 +1305,22 @@ func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
 			damage = math.Round(message.Amount*100) / 100
 		}
 	}
+	if target.client != nil {
+		damage *= 1.0 - damageReductionFor(target.client)
+	}
+	stun := stunForSkill(skill)
+	if target.client != nil && stun > 0 {
+		stun *= 1.0 - stunReductionFor(target.client)
+	}
 	died := target.applyDamage(damage)
+	// Lifesteal is a server rule too: 15% of the confirmed hit returns as HP.
+	var stealHeal float64
+	if damage > 0 && source.client != nil && source.client.bought != nil && source.client.bought["vampire_fang"] {
+		stealHeal = math.Min(damage*0.15, source.client.maxHP-source.client.hp)
+		if stealHeal > 0 {
+			source.client.hp += stealHeal
+		}
+	}
 	if died && source.client != nil {
 		source.client.gold += 50
 		source.client.sendJSON(wsOutgoing{Type: "gold", Gold: source.client.gold})
@@ -1335,8 +1347,19 @@ func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
 		TargetID: targetID,
 		Skill:    skill,
 		Crit:     message.Crit,
+		Stun:     stun,
 		Amount:   damage,
 	})
+	if stealHeal > 0 {
+		h.broadcastRoom(roomID, 0, wsOutgoing{
+			Type:     "heal",
+			ID:       sourceID,
+			RoomID:   roomID,
+			SourceID: sourceID,
+			TargetID: sourceID,
+			Amount:   stealHeal,
+		})
+	}
 	if died {
 		h.broadcastRoom(roomID, 0, wsOutgoing{Type: "death", ID: targetID, RoomID: roomID, SourceID: sourceID})
 		if crystal != nil {
@@ -1540,6 +1563,60 @@ var matchItemPrices = map[string]int{
 	"cleansing_charm":  350,
 }
 
+// The server derives combat stats from the class and the purchased items, so a
+// modified client cannot declare 100000 damage or HP.
+func statsForClient(client *wsClient) (float64, float64) {
+	class := clampClass(client.class)
+	maxHP := classBaseHP[class]
+	damage := classBaseDamage[class]
+	if client.bought != nil {
+		if client.bought["life_amulet"] {
+			maxHP += 150
+		}
+		if client.bought["power_glove"] {
+			damage += 25
+		}
+	}
+	return maxHP, damage
+}
+
+func damageReductionFor(client *wsClient) float64 {
+	if client != nil && client.bought != nil && client.bought["titan_shell"] {
+		return 0.15
+	}
+	return 0
+}
+
+func stunReductionFor(client *wsClient) float64 {
+	if client != nil && client.bought != nil && client.bought["cleansing_charm"] {
+		return 0.2
+	}
+	return 0
+}
+
+func stunForSkill(skill string) float64 {
+	switch strings.ToLower(skill) {
+	case "fear_ult", "stun", "stun_shot":
+		return 1.5
+	case "shell":
+		return 1.0
+	}
+	return 0
+}
+
+func (combatant *wsCombatant) cooldownFor(skill string) time.Duration {
+	cooldown := attackCooldownFor(combatant.class, skill)
+	if combatant.client != nil && combatant.client.bought != nil {
+		if combatant.client.bought["hourglass"] {
+			cooldown = time.Duration(float64(cooldown) * 0.85)
+		}
+		if combatant.client.bought["agility_mark"] && strings.ToLower(skill) == "auto" {
+			cooldown = time.Duration(float64(cooldown) / 1.2)
+		}
+	}
+	return cooldown
+}
+
 // Gold is a match-scoped currency. The server owns the ledger so a modified
 // client cannot buy items it did not earn; the client still applies the item
 // effect after the server confirms the purchase.
@@ -1619,8 +1696,24 @@ func (h *wsHub) handleBuyItem(client *wsClient, message wsIncoming) {
 	client.gold -= price
 	client.bought[itemID] = true
 	gold := client.gold
+	client.maxHP, client.attackDamage = statsForClient(client)
+	if itemID == "life_amulet" {
+		client.hp = math.Min(client.maxHP, client.hp+150)
+	}
+	if client.hp > client.maxHP {
+		client.hp = client.maxHP
+	}
+	maxHP, hp, attackDamage := client.maxHP, client.hp, client.attackDamage
+	targets := roomClientsLocked(room, client.id)
 	h.mu.Unlock()
 	client.sendJSON(wsOutgoing{Type: "shop_purchase", ItemID: itemID, OK: true, Gold: gold})
+	h.sendToClients(targets, wsOutgoing{
+		Type:         "stats",
+		ID:           client.id,
+		MaxHP:        maxHP,
+		HP:           hp,
+		AttackDamage: attackDamage,
+	})
 }
 
 func (h *wsHub) handleWorldDamage(client *wsClient, message wsIncoming) {
@@ -1653,7 +1746,9 @@ func (h *wsHub) handleWorldDamage(client *wsClient, message wsIncoming) {
 		h.mu.Unlock()
 		return
 	}
-	died := combatantFromClient(target).applyDamage(message.Amount)
+	damage := message.Amount * (1.0 - damageReductionFor(target))
+	stun := stunForSkill("shell") * (1.0 - stunReductionFor(target))
+	died := combatantFromClient(target).applyDamage(damage)
 	targetID := target.id
 	roomID := room.id
 	var crystal *wsCrystalState
@@ -1667,7 +1762,8 @@ func (h *wsHub) handleWorldDamage(client *wsClient, message wsIncoming) {
 		SourceID: 0,
 		TargetID: targetID,
 		Skill:    "shell",
-		Amount:   message.Amount,
+		Stun:     stun,
+		Amount:   damage,
 	})
 	if died {
 		h.broadcastRoom(roomID, 0, wsOutgoing{Type: "death", ID: targetID, RoomID: roomID})
@@ -2091,7 +2187,7 @@ func (combatant *wsCombatant) cooldownReady(skill string) bool {
 	now := time.Now()
 	if last, ok := combatant.lastAttacks[skill]; ok {
 		elapsed := now.Sub(last)
-		if elapsed < attackCooldownFor(combatant.class, skill) {
+		if elapsed < combatant.cooldownFor(skill) {
 			// One AoE cast sends one intent per target. Those targets arrive
 			// within a few milliseconds; allow them without refreshing the
 			// cooldown, otherwise only the first target took damage.
@@ -2167,14 +2263,14 @@ func (combatant *wsCombatant) allowAttack(skill string, targetID int64) bool {
 			hits[targetID] = now
 			return true
 		}
-		if !start.IsZero() && now.Sub(start) < attackCooldownFor(combatant.class, skill) {
+		if !start.IsZero() && now.Sub(start) < combatant.cooldownFor(skill) {
 			return false
 		}
 		combatant.lastAttacks[skill] = now
 		combatant.castHits[skill] = map[int64]time.Time{targetID: now}
 		return true
 	}
-	if last, ok := combatant.lastAttacks[skill]; ok && now.Sub(last) < attackCooldownFor(combatant.class, skill) {
+	if last, ok := combatant.lastAttacks[skill]; ok && now.Sub(last) < combatant.cooldownFor(skill) {
 		return false
 	}
 	combatant.lastAttacks[skill] = now

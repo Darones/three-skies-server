@@ -135,6 +135,45 @@ func TestKillCreditsGoldOnce(t *testing.T) {
 	}
 }
 
+func TestItemsAffectServerDamageAndLifesteal(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	first := newTestClient(1, 0, 0, 0)
+	second := newTestClient(2, 1, 0, 3)
+	room := newTestRoom(first, second)
+	hub.rooms[room.id] = room
+
+	first.bought = map[string]bool{"vampire_fang": true, "power_glove": true}
+	first.maxHP, first.attackDamage = statsForClient(first)
+	if first.attackDamage != classBaseDamage[0]+25 {
+		t.Fatalf("power glove was not applied: %v", first.attackDamage)
+	}
+	first.hp = first.maxHP - 100
+
+	second.bought = map[string]bool{"titan_shell": true}
+	second.maxHP, second.attackDamage = statsForClient(second)
+	hub.handleAttackIntent(first, wsIncoming{TargetID: second.id, Skill: "auto", Amount: 100})
+	expected := second.maxHP - 85 // -15% from titan shell
+	if second.hp != expected {
+		t.Fatalf("titan shell reduction not applied: hp=%v want=%v", second.hp, expected)
+	}
+	if first.hp <= first.maxHP-100 {
+		t.Fatalf("vampire fang did not heal the attacker: %v", first.hp)
+	}
+
+	// Stun is derived from the skill and sent with the damage packet.
+	hub.handleAttackIntent(first, wsIncoming{TargetID: second.id, Skill: "fear_ult", Amount: 10})
+	messages := collectMessages(t, first)
+	stunned := false
+	for _, message := range messages {
+		if message.Type == "damage" && message.Skill == "fear_ult" && message.Stun > 0 {
+			stunned = true
+		}
+	}
+	if !stunned {
+		t.Fatalf("fear_ult did not carry a stun: %+v", messages)
+	}
+}
+
 func TestAttackIntentRejectsDistanceAndCooldown(t *testing.T) {
 	hub := newWebSocketHub(nil)
 	first := newTestClient(1, 0, 0, 0)
@@ -571,12 +610,15 @@ func TestRelayStatsNeverLowersServerHP(t *testing.T) {
 	}
 
 	hub.relayStats(client, wsIncoming{MaxHP: 1050, HP: 950, AttackDamage: 50})
-	if client.hp != 950 {
-		t.Fatalf("respawn/heal packet did not raise HP: %v", client.hp)
+	if client.hp != 700 {
+		t.Fatalf("client-declared HP must not change authoritative HP: %v", client.hp)
+	}
+	if client.maxHP != classBaseHP[0] || client.attackDamage != classBaseDamage[0] {
+		t.Fatalf("stats must come from class+items, got max=%v dmg=%v", client.maxHP, client.attackDamage)
 	}
 
 	hub.relayStats(client, wsIncoming{MaxHP: 1050, HP: 500, AttackDamage: 50})
-	if client.hp != 950 {
+	if client.hp != 700 {
 		t.Fatalf("client lowered authoritative HP to %v", client.hp)
 	}
 }

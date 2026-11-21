@@ -9,7 +9,7 @@ signal remote_player_joined(player_id: int, info: Dictionary)
 signal remote_player_state(player_id: int, position: Vector3, rotation: float)
 signal remote_player_left(player_id: int)
 signal remote_attack_received(player_id: int, attack_type: String, target_id: int)
-signal remote_damage_received(source_id: int, target_id: int, amount: float, skill: String, crit: bool)
+signal remote_damage_received(source_id: int, target_id: int, amount: float, skill: String, crit: bool, stun: float)
 signal remote_death_received(player_id: int, source_id: int)
 signal remote_respawn_received(player_id: int, position: Vector3, rotation: float)
 signal remote_heal_received(source_id: int, target_id: int, amount: float)
@@ -827,7 +827,7 @@ func _handle_damage(message: Dictionary) -> void:
 	var amount := float(message.get("amount", 0.0))
 	if target_id == 0 or amount <= 0.0:
 		return
-	remote_damage_received.emit(source_id, target_id, amount, String(message.get("skill", "auto")), bool(message.get("crit", false)))
+	remote_damage_received.emit(source_id, target_id, amount, String(message.get("skill", "auto")), bool(message.get("crit", false)), float(message.get("stun", 0.0)))
 
 
 func _handle_heal(message: Dictionary) -> void:
