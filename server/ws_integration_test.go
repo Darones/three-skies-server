@@ -226,7 +226,7 @@ func TestWebSocketBotSyncAndServerValidation(t *testing.T) {
 	}
 	// The same 700 broadcast is queued for the guest; drain it before the kill.
 	_ = readUntilType(t, guest, "shell_state")
-	time.Sleep(600 * time.Millisecond)
+	time.Sleep(1100 * time.Millisecond)
 	if err := guest.WriteJSON(map[string]any{"type": "shell_attack", "amount": 800.0}); err != nil {
 		t.Fatalf("guest killing shell attack: %v", err)
 	}
@@ -386,15 +386,15 @@ func TestHumanCarrierDropsCrystalOnDeath(t *testing.T) {
 	if err := host.WriteJSON(map[string]any{"type": "state", "x": ground.X + 1.0, "y": 0.76, "z": ground.Z, "rotation": 0.0}); err != nil {
 		t.Fatalf("host attack position: %v", err)
 	}
-	// 400 is within the server's per-hit cap for every class; the auto skill
-	// has a 250 ms cooldown, so a few spaced hits kill any class.
-	for hit := 0; hit < 4; hit++ {
+	// The server caps a hit at base ×2 ×2.6 and rate-limits the warrior auto
+	// attack to 600 ms, so space the hits and send enough of them.
+	for hit := 0; hit < 6; hit++ {
 		if err := host.WriteJSON(map[string]any{
 			"type": "attack_intent", "target_id": guestWelcome.ID, "skill": "auto", "amount": 400.0,
 		}); err != nil {
 			t.Fatalf("host attack %d: %v", hit, err)
 		}
-		time.Sleep(300 * time.Millisecond)
+		time.Sleep(650 * time.Millisecond)
 	}
 	death := readUntilType(t, host, "death")
 	if death.ID != guestWelcome.ID {
