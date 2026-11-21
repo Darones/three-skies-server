@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -92,6 +93,7 @@ type wsBot struct {
 	lastRegen    time.Time
 	deadSince    time.Time
 	lastAttacks  map[string]time.Time
+	castHits     map[string]map[int64]time.Time
 }
 
 type wsClient struct {
@@ -126,6 +128,11 @@ type wsClient struct {
 	healTokens   float64
 	lastHeal     time.Time
 	diedAt       time.Time
+	castHits     map[string]map[int64]time.Time
+	gold         int
+	bought       map[string]bool
+	coinTokens   float64
+	lastCoin     time.Time
 }
 
 type wsIncoming struct {
@@ -150,6 +157,8 @@ type wsIncoming struct {
 	AttackDamage float64         `json:"attack_damage"`
 	WinningTeam  int             `json:"winning_team"`
 	Event        string          `json:"event"`
+	Token        string          `json:"token"`
+	ItemID       string          `json:"item_id"`
 	Bots         []wsBotSnapshot `json:"bots"`
 	Shell        *wsShellState   `json:"shell"`
 }
@@ -243,6 +252,9 @@ type wsOutgoing struct {
 	Event        string          `json:"event,omitempty"`
 	Reason       string          `json:"reason,omitempty"`
 	Error        string          `json:"error,omitempty"`
+	Gold         int             `json:"gold,omitempty"`
+	ItemID       string          `json:"item_id,omitempty"`
+	OK           bool            `json:"ok,omitempty"`
 }
 
 func newWebSocketHub(db *sql.DB) *wsHub {
@@ -424,6 +436,28 @@ func botFromClient(client *wsClient, slot int) *wsBot {
 	}
 }
 
+func (h *wsHub) sessionAllowed(playerID int64, token string) bool {
+	if playerID <= 0 || h.db == nil {
+		return true
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	var stored string
+	err := h.db.QueryRowContext(ctx, `SELECT COALESCE(session_token, '') FROM players WHERE id = $1`, playerID).Scan(&stored)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false
+	}
+	if err != nil {
+		// A database hiccup must not lock players out of a match.
+		return true
+	}
+	if stored == "" {
+		// Legacy account that has not claimed a token yet.
+		return true
+	}
+	return strings.TrimSpace(token) == stored
+}
+
 func (h *wsHub) joinMatchmaking(client *wsClient, message wsIncoming) {
 	class := resolveClass(message)
 	if class < 0 {
@@ -436,6 +470,10 @@ func (h *wsHub) joinMatchmaking(client *wsClient, message wsIncoming) {
 	runes := []rune(name)
 	if len(runes) > 32 {
 		name = string(runes[:32])
+	}
+	if !h.sessionAllowed(message.PlayerID, message.Token) {
+		client.sendJSON(wsOutgoing{Type: "error", Error: "invalid_session"})
+		return
 	}
 
 	h.mu.Lock()
@@ -712,6 +750,10 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 				}
 				player.hasState = true
 			}
+			player.gold = 0
+			player.bought = nil
+			player.coinTokens = 0
+			player.lastCoin = time.Time{}
 			players = append(players, wsMatchPlayer{
 				ID:           player.id,
 				Bot:          false,
@@ -1100,6 +1142,7 @@ type wsCombatant struct {
 	rotation     float64
 	hasState     bool
 	lastAttacks  map[string]time.Time
+	castHits     map[string]map[int64]time.Time
 	client       *wsClient
 	bot          *wsBot
 }
@@ -1197,6 +1240,17 @@ func (h *wsHub) relayBotStates(client *wsClient, message wsIncoming) {
 	}
 }
 
+// The base shield is a hard rule: a defender standing on their own base cannot
+// be damaged. It used to exist only in the local client, so network attacks
+// ignored it completely.
+func underBaseShield(team int, x, z float64) bool {
+	baseZ := 27.5
+	if team == 1 {
+		baseZ = -27.5
+	}
+	return math.Hypot(x, z-baseZ) <= 5.0
+}
+
 func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
 	skill := normalizeSkill(message.Skill)
 	h.mu.Lock()
@@ -1225,12 +1279,22 @@ func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
 		denyAttack(client, message.TargetID, skill, "invalid_target")
 		return
 	}
+	if underBaseShield(target.team, target.x, target.z) {
+		h.mu.Unlock()
+		denyAttack(client, message.TargetID, skill, "base_shield")
+		return
+	}
 	if !inAttackRange(source, target, skill) {
 		h.mu.Unlock()
 		denyAttack(client, message.TargetID, skill, "out_of_range")
 		return
 	}
-	if !source.cooldownReady(skill) {
+	if !skillAllowedForClass(source.class, skill) {
+		h.mu.Unlock()
+		denyAttack(client, message.TargetID, skill, "invalid_skill")
+		return
+	}
+	if !source.allowAttack(skill, target.id) {
 		h.mu.Unlock()
 		denyAttack(client, message.TargetID, skill, "cooldown")
 		return
@@ -1245,6 +1309,10 @@ func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
 		}
 	}
 	died := target.applyDamage(damage)
+	if died && source.client != nil {
+		source.client.gold += 50
+		source.client.sendJSON(wsOutgoing{Type: "gold", Gold: source.client.gold})
+	}
 	sourceID := source.id
 	targetID := target.id
 	roomID := room.id
@@ -1371,6 +1439,7 @@ func (h *wsHub) handleShellAttack(client *wsClient, message wsIncoming) {
 	var crystal *wsCrystalState
 	if died {
 		room.shellDiedAt = time.Now()
+		teamGoldLocked(room, source.team, 100)
 		if room.crystal == nil || room.crystal.State == "none" {
 			room.crystal = &wsCrystalState{State: "ground", X: shell.X, Y: 0.5, Z: shell.Z, GroundSince: time.Now()}
 			c := *room.crystal
@@ -1445,6 +1514,157 @@ func (h *wsHub) handleBotDamage(client *wsClient, message wsIncoming) {
 	h.broadcastRoom(roomID, 0, wsOutgoing{
 		Type:     "damage",
 		RoomID:   roomID,
+		TargetID: targetID,
+		Skill:    "shell",
+		Amount:   message.Amount,
+	})
+	if died {
+		h.broadcastRoom(roomID, 0, wsOutgoing{Type: "death", ID: targetID, RoomID: roomID})
+		if crystal != nil {
+			h.broadcastRoom(roomID, 0, wsOutgoing{Type: "crystal_state", RoomID: roomID, Crystal: crystal})
+		}
+	}
+}
+
+// The host simulates the shell; its PvE damage on remote humans must go through
+// the server, otherwise guests are immune to the shell (it only knows heroes).
+var matchItemPrices = map[string]int{
+	"life_amulet":      500,
+	"revival_talisman": 450,
+	"titan_shell":      450,
+	"power_glove":      500,
+	"vampire_fang":     500,
+	"agility_mark":     450,
+	"wind_boots":       350,
+	"hourglass":        450,
+	"cleansing_charm":  350,
+}
+
+// Gold is a match-scoped currency. The server owns the ledger so a modified
+// client cannot buy items it did not earn; the client still applies the item
+// effect after the server confirms the purchase.
+func teamGoldLocked(room *wsRoom, team int, amount int) {
+	for _, player := range room.players {
+		if player == nil || player.team != team {
+			continue
+		}
+		player.gold += amount
+		if player.gold < 0 {
+			player.gold = 0
+		}
+		player.sendJSON(wsOutgoing{Type: "gold", Gold: player.gold})
+	}
+}
+
+func (h *wsHub) handleCoinPickup(client *wsClient, message wsIncoming) {
+	amount := int(math.Round(message.Amount))
+	if amount <= 0 || amount > 5 {
+		return
+	}
+	h.mu.Lock()
+	room := h.rooms[client.roomID]
+	if room == nil || room.state != "live" || !client.alive {
+		h.mu.Unlock()
+		return
+	}
+	now := time.Now()
+	if client.lastCoin.IsZero() {
+		client.coinTokens = 6
+	} else {
+		client.coinTokens = math.Min(6, client.coinTokens+now.Sub(client.lastCoin).Seconds()*6)
+	}
+	client.lastCoin = now
+	if client.coinTokens < float64(amount) {
+		h.mu.Unlock()
+		return
+	}
+	client.coinTokens -= float64(amount)
+	client.gold += amount
+	gold := client.gold
+	h.mu.Unlock()
+	client.sendJSON(wsOutgoing{Type: "gold", Gold: gold})
+}
+
+func (h *wsHub) handleBuyItem(client *wsClient, message wsIncoming) {
+	itemID := strings.TrimSpace(message.ItemID)
+	price, known := matchItemPrices[itemID]
+	if !known {
+		return
+	}
+	h.mu.Lock()
+	room := h.rooms[client.roomID]
+	if room == nil || room.state != "live" || !client.alive {
+		h.mu.Unlock()
+		return
+	}
+	if client.bought == nil {
+		client.bought = make(map[string]bool)
+	}
+	reject := func() {
+		client.sendJSON(wsOutgoing{Type: "shop_purchase", ItemID: itemID, OK: false, Gold: client.gold})
+		h.mu.Unlock()
+	}
+	if client.bought[itemID] {
+		reject()
+		return
+	}
+	if math.Hypot(client.x-(-40.0), client.z-0.0) > 6.0 {
+		reject()
+		return
+	}
+	if client.gold < price {
+		reject()
+		return
+	}
+	client.gold -= price
+	client.bought[itemID] = true
+	gold := client.gold
+	h.mu.Unlock()
+	client.sendJSON(wsOutgoing{Type: "shop_purchase", ItemID: itemID, OK: true, Gold: gold})
+}
+
+func (h *wsHub) handleWorldDamage(client *wsClient, message wsIncoming) {
+	if !finite(message.Amount) || message.Amount <= 0 || message.Amount > 300 {
+		return
+	}
+	if message.TargetID <= 0 {
+		return
+	}
+	h.mu.Lock()
+	room := h.rooms[client.roomID]
+	if room == nil || room.state != "live" || room.hostID != client.id {
+		h.mu.Unlock()
+		return
+	}
+	if room.shell == nil || !room.shell.Alive {
+		h.mu.Unlock()
+		return
+	}
+	target := findRoomPlayerLocked(room, message.TargetID)
+	if target == nil || !target.alive || !target.hasState {
+		h.mu.Unlock()
+		return
+	}
+	if math.Hypot(target.x-room.shell.X, target.z-room.shell.Z) > 15.0 {
+		h.mu.Unlock()
+		return
+	}
+	if underBaseShield(target.team, target.x, target.z) {
+		h.mu.Unlock()
+		return
+	}
+	died := combatantFromClient(target).applyDamage(message.Amount)
+	targetID := target.id
+	roomID := room.id
+	var crystal *wsCrystalState
+	if died {
+		crystal = h.dropCrystalForLocked(room, target.id, target.x, target.z)
+	}
+	h.mu.Unlock()
+	h.broadcastRoom(roomID, 0, wsOutgoing{
+		Type:     "damage",
+		RoomID:   roomID,
+		SourceID: 0,
 		TargetID: targetID,
 		Skill:    "shell",
 		Amount:   message.Amount,
@@ -1545,6 +1765,7 @@ func (h *wsHub) handleCrystalDeliver(client *wsClient, message wsIncoming) {
 		return
 	}
 	room.score[team]++
+	teamGoldLocked(room, team, 100)
 	score0, score1 := room.score[0], room.score[1]
 	winner := -1
 	var players []matchResultPlayer
@@ -1629,6 +1850,27 @@ func (h *wsHub) handleMatchEvent(client *wsClient, message wsIncoming) {
 			RoomID: roomID,
 			Event:  "shell_destroyed",
 			Team:   team,
+		})
+	case "shell_bolt":
+		// Visual only: guests cannot simulate the shell, so the host tells them
+		// where the lightning landed. No damage is derived from this event.
+		if client.id != room.hostID {
+			h.mu.Unlock()
+			return
+		}
+		x, z := message.X, message.Z
+		if !finite(x) || !finite(z) {
+			h.mu.Unlock()
+			return
+		}
+		targets := roomClientsLocked(room, client.id)
+		h.mu.Unlock()
+		h.sendToClients(targets, wsOutgoing{
+			Type:   "match_event",
+			RoomID: roomID,
+			Event:  "shell_bolt",
+			X:      clampArenaX(x),
+			Z:      clampArenaZ(z),
 		})
 	default:
 		h.mu.Unlock()
@@ -1740,6 +1982,7 @@ func combatantFromClient(client *wsClient) *wsCombatant {
 		rotation:     client.rotation,
 		hasState:     client.hasState,
 		lastAttacks:  client.lastAttacks,
+		castHits:     client.castHits,
 		client:       client,
 	}
 }
@@ -1759,6 +2002,7 @@ func combatantFromBot(bot *wsBot) *wsCombatant {
 		rotation:     bot.rotation,
 		hasState:     bot.hasState,
 		lastAttacks:  bot.lastAttacks,
+		castHits:     bot.castHits,
 		bot:          bot,
 	}
 }
@@ -1867,6 +2111,74 @@ func isMultiTargetSkill(skill string) bool {
 		return true
 	}
 	return false
+}
+
+// Each class may only use its own abilities. Without this a warrior could
+// spam the fairy's 18 m stun or the mage's storm, and every skill was accepted
+// from any client.
+func skillAllowedForClass(class int, skill string) bool {
+	switch strings.ToLower(skill) {
+	case "auto":
+		return true
+	case "shadow_assassin", "fear_ult":
+		return class == 0
+	case "root", "ult_lightning_storm":
+		return class == 1
+	case "stun", "stun_shot", "fairy_ult", "crit_shot":
+		return class == 2
+	}
+	return false
+}
+
+// allowAttack applies the per-skill cooldown and, for one AoE cast that sends
+// one intent per target, allows each target exactly once per cast window.
+// The old check allowed unlimited hits for 350 ms after every cast.
+func (combatant *wsCombatant) allowAttack(skill string, targetID int64) bool {
+	now := time.Now()
+	if combatant.lastAttacks == nil {
+		combatant.lastAttacks = make(map[string]time.Time)
+		if combatant.client != nil {
+			combatant.client.lastAttacks = combatant.lastAttacks
+		}
+		if combatant.bot != nil {
+			combatant.bot.lastAttacks = combatant.lastAttacks
+		}
+	}
+	if combatant.castHits == nil {
+		combatant.castHits = make(map[string]map[int64]time.Time)
+		if combatant.client != nil {
+			combatant.client.castHits = combatant.castHits
+		}
+		if combatant.bot != nil {
+			combatant.bot.castHits = combatant.castHits
+		}
+	}
+	if isMultiTargetSkill(skill) {
+		start := combatant.lastAttacks[skill]
+		if !start.IsZero() && now.Sub(start) <= 400*time.Millisecond {
+			hits := combatant.castHits[skill]
+			if hits == nil {
+				hits = make(map[int64]time.Time)
+				combatant.castHits[skill] = hits
+			}
+			if _, seen := hits[targetID]; seen {
+				return false
+			}
+			hits[targetID] = now
+			return true
+		}
+		if !start.IsZero() && now.Sub(start) < attackCooldownFor(combatant.class, skill) {
+			return false
+		}
+		combatant.lastAttacks[skill] = now
+		combatant.castHits[skill] = map[int64]time.Time{targetID: now}
+		return true
+	}
+	if last, ok := combatant.lastAttacks[skill]; ok && now.Sub(last) < attackCooldownFor(combatant.class, skill) {
+		return false
+	}
+	combatant.lastAttacks[skill] = now
+	return true
 }
 
 func normalizeSkill(skill string) string {
@@ -2150,6 +2462,12 @@ func (c *wsClient) readPump() {
 			c.hub.relayShellState(c, message)
 		case "shell_attack":
 			c.hub.handleShellAttack(c, message)
+		case "world_damage":
+			c.hub.handleWorldDamage(c, message)
+		case "coin_pickup":
+			c.hub.handleCoinPickup(c, message)
+		case "buy_item":
+			c.hub.handleBuyItem(c, message)
 		case "crystal_pickup":
 			c.hub.handleCrystalPickup(c, message)
 		case "crystal_deliver":

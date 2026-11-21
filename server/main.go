@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -27,8 +29,10 @@ const maxRequestBody = 1 << 20
 const dbMonitorInterval = 15 * time.Second
 
 // maxMatchReward is a sanity limit so a malformed client cannot add an
-// arbitrary amount of shards in one request.
-const maxMatchReward = 100000
+// arbitrary amount of shards in one request. The client's reward is 1/3/5.
+const maxMatchReward = 10
+
+const sessionHeader = "X-Session-Token"
 
 // nicknameChangeCost is charged for every rename after the first one.
 const nicknameChangeCost = 100
@@ -83,7 +87,18 @@ type registerRequest struct {
 type registerResponse struct {
 	Success  bool   `json:"success"`
 	PlayerID int64  `json:"player_id,omitempty"`
+	Token    string `json:"token,omitempty"`
 	Error    string `json:"error,omitempty"`
+}
+
+type sessionRequest struct {
+	PlayerID int64 `json:"player_id"`
+}
+
+type sessionResponse struct {
+	Success bool   `json:"success"`
+	Token   string `json:"token,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 type playerProfileResponse struct {
@@ -94,6 +109,7 @@ type playerProfileResponse struct {
 	SkyShards       int    `json:"sky_shards,omitempty"`
 	UnlockedWings   []int  `json:"unlocked_wings,omitempty"`
 	UnlockedWeapons []int  `json:"unlocked_weapons,omitempty"`
+	SessionToken    string `json:"session_token,omitempty"`
 	Error           string `json:"error,omitempty"`
 }
 
@@ -142,6 +158,7 @@ type reportResponse struct {
 
 type matchRewardRequest struct {
 	PlayerID int64 `json:"player_id"`
+	RoomID   int64 `json:"room_id"`
 	Amount   int   `json:"amount"`
 	Shards   int   `json:"shards"`
 }
@@ -256,6 +273,7 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	mux.HandleFunc("/rules", service.handleRules)
 	mux.HandleFunc("/ws", hub.handleWebSocket)
 	mux.HandleFunc("/register", service.handleRegister)
+	mux.HandleFunc("/session", service.handleSession)
 	mux.HandleFunc("/profile", service.handleProfile)
 	mux.HandleFunc("/rename", service.handleRename)
 	mux.HandleFunc("/report", service.handleReport)
@@ -273,7 +291,7 @@ func cors(next http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Add("Vary", "Origin")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Session-Token, X-Claim-Session")
 			w.Header().Set("Access-Control-Max-Age", "86400")
 		}
 		if r.Method == http.MethodOptions {
@@ -402,6 +420,10 @@ func createPlayersTable(ctx context.Context, db *sql.DB) error {
 	if err != nil {
 		return err
 	}
+	_, err = db.ExecContext(ctx, `ALTER TABLE players ADD COLUMN IF NOT EXISTS session_token TEXT`)
+	if err != nil {
+		return err
+	}
 	// Ник — отображаемое имя, а не логин: уникальность не нужна и мешает
 	// игрокам брать понравившиеся имена. Личность определяется по id.
 	return dropNicknameUniqueness(ctx, db)
@@ -503,7 +525,58 @@ func createMatchesTable(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 	_, err = db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS matches_player_id_idx ON matches (player_id)`)
+	if err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `ALTER TABLE matches ADD COLUMN IF NOT EXISTS rewarded BOOLEAN DEFAULT FALSE`)
+	if err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS matches_room_player_uidx ON matches (room_id, player_id)`)
 	return err
+}
+
+func newSessionToken() (string, error) {
+	buffer := make([]byte, 32)
+	if _, err := rand.Read(buffer); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buffer), nil
+}
+
+func (service *api) sessionTokenFromRequest(r *http.Request) string {
+	return strings.TrimSpace(r.Header.Get(sessionHeader))
+}
+
+func (service *api) sessionTokenFor(ctx context.Context, playerID int64) (string, error) {
+	var token string
+	err := service.db.QueryRowContext(ctx, `SELECT COALESCE(session_token, '') FROM players WHERE id = $1`, playerID).Scan(&token)
+	return token, err
+}
+
+func (service *api) sessionValid(ctx context.Context, playerID int64, token string) bool {
+	if playerID <= 0 || token == "" {
+		return false
+	}
+	var exists bool
+	err := service.db.QueryRowContext(ctx,
+		`SELECT EXISTS(SELECT 1 FROM players WHERE id = $1 AND session_token = $2 AND session_token <> '')`,
+		playerID, token,
+	).Scan(&exists)
+	return err == nil && exists
+}
+
+func (service *api) requireSession(w http.ResponseWriter, r *http.Request, playerID int64) bool {
+	if service.sessionValid(r.Context(), playerID, service.sessionTokenFromRequest(r)) {
+		return true
+	}
+	// Legacy migration: an account that never claimed a token may keep using
+	// the old API. Once the new client claims it, the token is mandatory.
+	if token, err := service.sessionTokenFor(r.Context(), playerID); err == nil && token == "" {
+		return true
+	}
+	writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid session"})
+	return false
 }
 
 func (service *api) handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -528,8 +601,14 @@ func (service *api) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	var playerID int64
 	customNickname := !strings.HasPrefix(nickname, "Игрок ")
+	token, tokenErr := newSessionToken()
+	if tokenErr != nil {
+		log.Printf("generate session token: %v", tokenErr)
+		writeJSON(w, http.StatusInternalServerError, registerResponse{Error: "Internal server error"})
+		return
+	}
 	err := service.db.QueryRowContext(r.Context(),
-		`INSERT INTO players (nickname, nickname_custom) VALUES ($1, $2) RETURNING id`, nickname, customNickname,
+		`INSERT INTO players (nickname, nickname_custom, session_token) VALUES ($1, $2, $3) RETURNING id`, nickname, customNickname, token,
 	).Scan(&playerID)
 	if err != nil {
 		var postgresError *pq.Error
@@ -542,7 +621,7 @@ func (service *api) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, registerResponse{Success: true, PlayerID: playerID})
+	writeJSON(w, http.StatusCreated, registerResponse{Success: true, PlayerID: playerID, Token: token})
 }
 
 func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
@@ -562,9 +641,10 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 	var shards int
 	var unlockedWings string
 	var unlockedWeapons string
+	var storedToken string
 	err = service.db.QueryRowContext(r.Context(),
-		`SELECT nickname, COALESCE(nickname_custom, FALSE), sky_shards, COALESCE(unlocked_wings, ''), COALESCE(unlocked_weapons, '') FROM players WHERE id = $1`, playerID,
-	).Scan(&nickname, &nicknameCustom, &shards, &unlockedWings, &unlockedWeapons)
+		`SELECT nickname, COALESCE(nickname_custom, FALSE), sky_shards, COALESCE(unlocked_wings, ''), COALESCE(unlocked_weapons, ''), COALESCE(session_token, '') FROM players WHERE id = $1`, playerID,
+	).Scan(&nickname, &nicknameCustom, &shards, &unlockedWings, &unlockedWeapons, &storedToken)
 	if errors.Is(err, sql.ErrNoRows) {
 		writeJSON(w, http.StatusNotFound, playerProfileResponse{Error: "Player not found"})
 		return
@@ -572,6 +652,46 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("load player profile: %v", err)
 		writeJSON(w, http.StatusInternalServerError, playerProfileResponse{Error: "Internal server error"})
+		return
+	}
+	sessionToken := storedToken
+	if sessionToken == "" {
+		// Only the new client asks to claim a session. An old client keeps a
+		// tokenless read-only profile so it is not locked out mid-update.
+		if strings.TrimSpace(r.Header.Get("X-Claim-Session")) != "1" {
+			writeJSON(w, http.StatusOK, playerProfileResponse{
+				Success:         true,
+				PlayerID:        playerID,
+				Nickname:        nickname,
+				NicknameCustom:  nicknameCustom,
+				SkyShards:       shards,
+				UnlockedWings:   parseItemIDs(unlockedWings),
+				UnlockedWeapons: parseItemIDs(unlockedWeapons),
+			})
+			return
+		}
+		newToken, tokenErr := newSessionToken()
+		if tokenErr != nil {
+			log.Printf("generate session token: %v", tokenErr)
+			writeJSON(w, http.StatusInternalServerError, playerProfileResponse{Error: "Internal server error"})
+			return
+		}
+		if _, err := service.db.ExecContext(r.Context(),
+			`UPDATE players SET session_token = $1 WHERE id = $2 AND COALESCE(session_token, '') = ''`,
+			newToken, playerID,
+		); err != nil {
+			log.Printf("claim session token: %v", err)
+			writeJSON(w, http.StatusInternalServerError, playerProfileResponse{Error: "Internal server error"})
+			return
+		}
+		// Re-read: a concurrent request may have claimed it first.
+		if token, tokenErr := service.sessionTokenFor(r.Context(), playerID); tokenErr == nil {
+			sessionToken = token
+		} else {
+			sessionToken = newToken
+		}
+	} else if !service.sessionValid(r.Context(), playerID, service.sessionTokenFromRequest(r)) {
+		writeJSON(w, http.StatusUnauthorized, playerProfileResponse{Error: "Invalid session"})
 		return
 	}
 
@@ -583,7 +703,66 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 		SkyShards:       shards,
 		UnlockedWings:   parseItemIDs(unlockedWings),
 		UnlockedWeapons: parseItemIDs(unlockedWeapons),
+		SessionToken:    sessionToken,
 	})
+}
+
+func (service *api) handleSession(w http.ResponseWriter, r *http.Request) {
+	if !requirePost(w, r) {
+		return
+	}
+	var request sessionRequest
+	if err := decodeJSON(w, r, &request); err != nil {
+		writeJSON(w, http.StatusBadRequest, sessionResponse{Error: "Invalid JSON"})
+		return
+	}
+	if request.PlayerID <= 0 {
+		writeJSON(w, http.StatusBadRequest, sessionResponse{Error: "Invalid player ID"})
+		return
+	}
+	token, err := service.sessionTokenFor(r.Context(), request.PlayerID)
+	if errors.Is(err, sql.ErrNoRows) {
+		writeJSON(w, http.StatusNotFound, sessionResponse{Error: "Player not found"})
+		return
+	}
+	if err != nil {
+		log.Printf("load session token: %v", err)
+		writeJSON(w, http.StatusInternalServerError, sessionResponse{Error: "Internal server error"})
+		return
+	}
+	supplied := service.sessionTokenFromRequest(r)
+	if token != "" {
+		if supplied != token {
+			writeJSON(w, http.StatusUnauthorized, sessionResponse{Error: "Invalid session"})
+			return
+		}
+		writeJSON(w, http.StatusOK, sessionResponse{Success: true, Token: token})
+		return
+	}
+	newToken, tokenErr := newSessionToken()
+	if tokenErr != nil {
+		log.Printf("generate session token: %v", tokenErr)
+		writeJSON(w, http.StatusInternalServerError, sessionResponse{Error: "Internal server error"})
+		return
+	}
+	result, err := service.db.ExecContext(r.Context(),
+		`UPDATE players SET session_token = $1 WHERE id = $2 AND COALESCE(session_token, '') = ''`,
+		newToken, request.PlayerID,
+	)
+	if err != nil {
+		log.Printf("claim session token: %v", err)
+		writeJSON(w, http.StatusInternalServerError, sessionResponse{Error: "Internal server error"})
+		return
+	}
+	if affected, _ := result.RowsAffected(); affected == 0 {
+		if raced, raceErr := service.sessionTokenFor(r.Context(), request.PlayerID); raceErr == nil && raced != "" {
+			writeJSON(w, http.StatusOK, sessionResponse{Success: true, Token: raced})
+			return
+		}
+		writeJSON(w, http.StatusConflict, sessionResponse{Error: "Session already claimed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, sessionResponse{Success: true, Token: newToken})
 }
 
 func (service *api) handleRename(w http.ResponseWriter, r *http.Request) {
@@ -593,6 +772,9 @@ func (service *api) handleRename(w http.ResponseWriter, r *http.Request) {
 	var request renameRequest
 	if err := decodeJSON(w, r, &request); err != nil {
 		writeJSON(w, http.StatusBadRequest, renameResponse{Error: "Invalid JSON"})
+		return
+	}
+	if !service.requireSession(w, r, request.PlayerID) {
 		return
 	}
 	nickname := strings.TrimSpace(request.Nickname)
@@ -681,6 +863,9 @@ func (service *api) handleReport(w http.ResponseWriter, r *http.Request) {
 	var request reportRequest
 	if err := decodeJSON(w, r, &request); err != nil {
 		writeJSON(w, http.StatusBadRequest, reportResponse{Error: "Invalid JSON"})
+		return
+	}
+	if !service.requireSession(w, r, request.PlayerID) {
 		return
 	}
 	nickname := strings.TrimSpace(request.Nickname)
@@ -796,6 +981,9 @@ func (service *api) handleBuyWing(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, buyWingResponse{Error: "Invalid JSON"})
 		return
 	}
+	if !service.requireSession(w, r, request.PlayerID) {
+		return
+	}
 
 	price, knownWing := wingPrices[request.WingID]
 	if request.PlayerID <= 0 || !knownWing || request.Cost != price {
@@ -867,6 +1055,9 @@ func (service *api) handleBuyWeapon(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, buyWeaponResponse{Error: "Invalid JSON"})
 		return
 	}
+	if !service.requireSession(w, r, request.PlayerID) {
+		return
+	}
 
 	price, knownWeapon := weaponPrices[request.WeaponID]
 	if request.PlayerID <= 0 || !knownWeapon || request.Cost != price {
@@ -934,6 +1125,9 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, matchRewardResponse{Error: "Invalid JSON"})
 		return
 	}
+	if !service.requireSession(w, r, request.PlayerID) {
+		return
+	}
 
 	// amount is the canonical field; shards is accepted as an alias for
 	// clients that name the currency explicitly.
@@ -945,13 +1139,38 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 	if amount == 0 {
 		amount = request.Shards
 	}
-	if request.PlayerID <= 0 || amount <= 0 || amount > maxMatchReward {
+	if request.PlayerID <= 0 || request.RoomID <= 0 || amount <= 0 || amount > maxMatchReward {
 		writeJSON(w, http.StatusBadRequest, matchRewardResponse{Error: "Invalid reward"})
 		return
 	}
 
+	transaction, err := service.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		log.Printf("begin match reward: %v", err)
+		writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
+		return
+	}
+	defer transaction.Rollback()
+
+	// One reward per finished match: the row is marked atomically, so a retry
+	// or a replayed request cannot grant shards twice.
+	var won bool
+	err = transaction.QueryRowContext(r.Context(),
+		`UPDATE matches SET rewarded = TRUE WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = FALSE RETURNING won`,
+		request.RoomID, request.PlayerID,
+	).Scan(&won)
+	if errors.Is(err, sql.ErrNoRows) {
+		writeJSON(w, http.StatusConflict, matchRewardResponse{Error: "Reward already claimed"})
+		return
+	}
+	if err != nil {
+		log.Printf("claim match reward: %v", err)
+		writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
+		return
+	}
+
 	var newShards int
-	err := service.db.QueryRowContext(r.Context(),
+	err = transaction.QueryRowContext(r.Context(),
 		`UPDATE players SET sky_shards = COALESCE(sky_shards, 0) + $1 WHERE id = $2 RETURNING sky_shards`,
 		amount, request.PlayerID,
 	).Scan(&newShards)
@@ -961,6 +1180,11 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		log.Printf("grant match reward: %v", err)
+		writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
+		return
+	}
+	if err := transaction.Commit(); err != nil {
+		log.Printf("commit match reward: %v", err)
 		writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
 		return
 	}

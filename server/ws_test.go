@@ -71,6 +71,70 @@ func deliverTestShard(hub *wsHub, room *wsRoom, client *wsClient) {
 	hub.handleCrystalDeliver(client, wsIncoming{})
 }
 
+func TestServerOwnsMatchGoldAndPurchases(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	first := newTestClient(1, 0, -40, 0)
+	room := newTestRoom(first)
+	hub.rooms[room.id] = room
+
+	hub.handleCoinPickup(first, wsIncoming{Amount: 1})
+	if first.gold != 1 {
+		t.Fatalf("coin pickup did not credit gold: %d", first.gold)
+	}
+
+	first.gold = 600
+	hub.handleBuyItem(first, wsIncoming{ItemID: "life_amulet"})
+	messages := collectMessages(t, first)
+	purchased := false
+	for _, message := range messages {
+		if message.Type == "shop_purchase" && message.ItemID == "life_amulet" && message.OK && message.Gold == 100 {
+			purchased = true
+		}
+	}
+	if !purchased {
+		t.Fatalf("server did not confirm the item purchase: %+v", messages)
+	}
+	hub.handleBuyItem(first, wsIncoming{ItemID: "life_amulet"})
+	messages = collectMessages(t, first)
+	for _, message := range messages {
+		if message.Type == "shop_purchase" && message.OK {
+			t.Fatalf("duplicate purchase was accepted: %+v", message)
+		}
+	}
+
+	// A purchase without enough gold must be rejected.
+	second := newTestClient(2, 1, -40, 0)
+	room.players[1] = second
+	second.roomID = room.id
+	second.gold = 10
+	hub.handleBuyItem(second, wsIncoming{ItemID: "power_glove"})
+	messages = collectMessages(t, second)
+	for _, message := range messages {
+		if message.Type == "shop_purchase" && message.OK {
+			t.Fatalf("purchase without gold was accepted: %+v", message)
+		}
+	}
+}
+
+func TestKillCreditsGoldOnce(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	first := newTestClient(1, 0, 0, 0)
+	second := newTestClient(2, 1, 0, 3)
+	room := newTestRoom(first, second)
+	hub.rooms[room.id] = room
+
+	second.hp = 10
+	hub.handleAttackIntent(first, wsIncoming{TargetID: second.id, Skill: "auto", Amount: 50})
+	if first.gold != 50 {
+		t.Fatalf("kill did not credit 50 gold: %d", first.gold)
+	}
+	// A second hit on a dead target must not pay again.
+	hub.handleAttackIntent(first, wsIncoming{TargetID: second.id, Skill: "auto", Amount: 50})
+	if first.gold != 50 {
+		t.Fatalf("dead target paid gold twice: %d", first.gold)
+	}
+}
+
 func TestAttackIntentRejectsDistanceAndCooldown(t *testing.T) {
 	hub := newWebSocketHub(nil)
 	first := newTestClient(1, 0, 0, 0)
