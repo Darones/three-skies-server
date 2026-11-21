@@ -69,6 +69,7 @@ type wsRoom struct {
 	suddenDeath  bool
 	lastDelivery [2]time.Time
 	shell        *wsShellState
+	shellDiedAt  time.Time
 	crystal      *wsCrystalState
 }
 
@@ -122,6 +123,9 @@ type wsClient struct {
 	lastRegen    time.Time
 	lastStatGain time.Time
 	statHpBudget float64
+	healTokens   float64
+	lastHeal     time.Time
+	diedAt       time.Time
 }
 
 type wsIncoming struct {
@@ -140,6 +144,7 @@ type wsIncoming struct {
 	AttackType   string          `json:"attack_type"`
 	Skill        string          `json:"skill"`
 	Amount       float64         `json:"amount"`
+	Crit         bool            `json:"crit"`
 	MaxHP        float64         `json:"max_hp"`
 	HP           float64         `json:"hp"`
 	AttackDamage float64         `json:"attack_damage"`
@@ -177,11 +182,12 @@ type wsShellState struct {
 }
 
 type wsCrystalState struct {
-	State     string  `json:"state"`
-	X         float64 `json:"x"`
-	Y         float64 `json:"y"`
-	Z         float64 `json:"z"`
-	CarrierID int64   `json:"carrier_id,omitempty"`
+	State       string    `json:"state"`
+	X           float64   `json:"x"`
+	Y           float64   `json:"y"`
+	Z           float64   `json:"z"`
+	CarrierID   int64     `json:"carrier_id,omitempty"`
+	GroundSince time.Time `json:"-"`
 }
 
 type matchResultPlayer struct {
@@ -218,6 +224,7 @@ type wsOutgoing struct {
 	SourceID     int64           `json:"source_id,omitempty"`
 	AttackType   string          `json:"attack_type,omitempty"`
 	Skill        string          `json:"skill,omitempty"`
+	Crit         bool            `json:"crit,omitempty"`
 	Amount       float64         `json:"amount,omitempty"`
 	MaxHP        float64         `json:"max_hp,omitempty"`
 	HP           float64         `json:"hp,omitempty"`
@@ -359,7 +366,17 @@ func botFromClient(client *wsClient, slot int) *wsBot {
 		maxHP = classBaseHP[class]
 	}
 	hp := client.hp
-	if hp <= 0 || hp > maxHP {
+	if hp < 0 {
+		hp = 0
+	}
+	if hp > maxHP {
+		hp = maxHP
+	}
+	alive := client.alive
+	if !alive {
+		hp = 0
+	}
+	if alive && hp <= 0 {
 		hp = maxHP
 	}
 	damage := client.attackDamage
@@ -384,6 +401,10 @@ func botFromClient(client *wsClient, slot int) *wsBot {
 	if name == "" {
 		name = fmt.Sprintf("Игрок %d", client.id)
 	}
+	var deadSince time.Time
+	if !alive {
+		deadSince = time.Now()
+	}
 	return &wsBot{
 		id:           -int64(slot + 1),
 		name:         name,
@@ -396,7 +417,8 @@ func botFromClient(client *wsClient, slot int) *wsBot {
 		maxHP:        maxHP,
 		hp:           hp,
 		attackDamage: damage,
-		alive:        true,
+		alive:        alive,
+		deadSince:    deadSince,
 		hasState:     true,
 		lastAttacks:  make(map[string]time.Time),
 	}
@@ -802,6 +824,17 @@ func (h *wsHub) updateState(client *wsClient, message wsIncoming) {
 		MaxHP:  client.maxHP,
 		Alive:  client.alive,
 	}
+	var crystalMoved *wsCrystalState
+	if room.crystal != nil && room.crystal.State == "ground" && !room.crystal.GroundSince.IsZero() && now.Sub(room.crystal.GroundSince) >= 30*time.Second {
+		// A dropped shard must never stall the match: after 30 s it returns to
+		// the altar, exactly like the offline rule.
+		room.crystal.X = 0
+		room.crystal.Y = 0.5
+		room.crystal.Z = 0
+		room.crystal.GroundSince = now
+		c := *room.crystal
+		crystalMoved = &c
+	}
 	stateX, stateY, stateZ, stateRot := client.x, client.y, client.z, client.rotation
 	stateHP, stateMaxHP, stateAlive := client.hp, client.maxHP, client.alive
 	roomID := room.id
@@ -810,6 +843,8 @@ func (h *wsHub) updateState(client *wsClient, message wsIncoming) {
 		Type:     "state",
 		ID:       client.id,
 		RoomID:   roomID,
+		Class:    client.class,
+		Team:     client.team,
 		X:        stateX,
 		Y:        stateY,
 		Z:        stateZ,
@@ -820,6 +855,13 @@ func (h *wsHub) updateState(client *wsClient, message wsIncoming) {
 	})
 	if syncDue {
 		client.sendJSON(syncMessage)
+	}
+	if crystalMoved != nil {
+		h.broadcastRoom(roomID, 0, wsOutgoing{
+			Type:    "crystal_state",
+			RoomID:  roomID,
+			Crystal: crystalMoved,
+		})
 	}
 }
 
@@ -853,22 +895,37 @@ func (h *wsHub) relayAttack(client *wsClient, message wsIncoming) {
 }
 
 func (h *wsHub) relayStats(client *wsClient, message wsIncoming) {
-	if !finite(message.MaxHP) || message.MaxHP <= 0 || message.MaxHP > 100000 {
+	if !finite(message.MaxHP) || message.MaxHP <= 0 {
 		return
 	}
-	if !finite(message.HP) || message.HP < 0 || !finite(message.AttackDamage) || message.AttackDamage < 0 || message.AttackDamage > 100000 {
+	if !finite(message.HP) || message.HP < 0 || !finite(message.AttackDamage) || message.AttackDamage < 0 {
 		return
 	}
-	hp := math.Min(message.HP, message.MaxHP)
 	h.mu.Lock()
 	if _, exists := h.clients[client.id]; !exists {
 		h.mu.Unlock()
 		return
 	}
-	newMax := math.Min(message.MaxHP, 100000)
-	if newMax > 0 {
-		client.maxHP = newMax
+	room := h.rooms[client.roomID]
+	if room == nil {
+		h.mu.Unlock()
+		return
 	}
+	class := client.class
+	if class < 0 || class >= len(classBaseHP) {
+		class = 0
+	}
+	// The client may buy upgrades, but never declare arbitrary combat stats:
+	// an unchecked stats packet used to allow 100000 HP / damage.
+	maxCap := classBaseHP[class] * 1.6
+	damageCap := classBaseDamage[class] * 2.5
+	if message.MaxHP > maxCap || message.AttackDamage > damageCap {
+		h.mu.Unlock()
+		return
+	}
+	hp := math.Min(message.HP, message.MaxHP)
+	newMax := math.Min(message.MaxHP, maxCap)
+	client.maxHP = newMax
 	client.attackDamage = message.AttackDamage
 	// HP is owned by the server. A client "stats" packet may only add a
 	// bounded amount of HP per second (lifesteal / a bought life amulet),
@@ -886,21 +943,16 @@ func (h *wsHub) relayStats(client *wsClient, message wsIncoming) {
 		client.statHpBudget -= gain
 	}
 	hp = client.hp
-	room := h.rooms[client.roomID]
-	var targets []*wsClient
-	if room != nil {
-		targets = roomClientsLocked(room, client.id)
-	}
+	maxHP := client.maxHP
+	attackDamage := client.attackDamage
+	targets := roomClientsLocked(room, client.id)
 	h.mu.Unlock()
-	if room == nil {
-		return
-	}
 	h.sendToClients(targets, wsOutgoing{
 		Type:         "stats",
 		ID:           client.id,
-		MaxHP:        client.maxHP,
+		MaxHP:        maxHP,
 		HP:           hp,
-		AttackDamage: message.AttackDamage,
+		AttackDamage: attackDamage,
 	})
 }
 
@@ -908,13 +960,28 @@ func (h *wsHub) relayHeal(client *wsClient, message wsIncoming) {
 	if message.TargetID == 0 || message.TargetID == client.id || !finite(message.Amount) || message.Amount <= 0 {
 		return
 	}
-	amount := math.Min(message.Amount, 800)
+	amount := math.Min(message.Amount, 400)
 	h.mu.Lock()
 	room := h.rooms[client.roomID]
-	if room == nil || room.state != "live" {
+	if room == nil || room.state != "live" || !client.alive {
 		h.mu.Unlock()
 		return
 	}
+	// A dead healer used to keep allies immortal, and an unlimited packet rate
+	// meant infinite healing. Budget a few heals per second per client
+	// (an AoE heal sends one packet per ally, so allow a small burst).
+	now := time.Now()
+	if client.lastHeal.IsZero() {
+		client.healTokens = 4.0
+	} else {
+		client.healTokens = math.Min(4.0, client.healTokens+now.Sub(client.lastHeal).Seconds()*4.0)
+	}
+	client.lastHeal = now
+	if client.healTokens < 1.0 {
+		h.mu.Unlock()
+		return
+	}
+	client.healTokens -= 1.0
 	var targetID int64
 	if target := findRoomPlayerLocked(room, message.TargetID); target != nil {
 		if !target.alive || target.team != client.team || target.maxHP <= 0 {
@@ -954,8 +1021,15 @@ func (h *wsHub) relayDeath(client *wsClient) {
 		h.mu.Unlock()
 		return
 	}
+	// Death is server-owned. A client could otherwise drop the shard anywhere
+	// for free while still at full HP.
+	if client.hp > 0 {
+		h.mu.Unlock()
+		return
+	}
 	client.alive = false
 	client.hp = 0
+	client.diedAt = time.Now()
 	crystal := h.dropCrystalForLocked(room, client.id, client.x, client.z)
 	targets := roomClientsLocked(room, client.id)
 	roomID := room.id
@@ -976,15 +1050,28 @@ func (h *wsHub) relayRespawn(client *wsClient, message wsIncoming) {
 		h.mu.Unlock()
 		return
 	}
+	// Respawn is only legal after a real death and after a minimum delay;
+	// otherwise a live player could teleport home with a full health bar.
+	if client.alive {
+		h.mu.Unlock()
+		return
+	}
+	deadFor := time.Since(client.diedAt)
+	if client.diedAt.IsZero() || deadFor < 4*time.Second {
+		h.mu.Unlock()
+		return
+	}
 	client.alive = true
 	client.hp = client.maxHP
+	client.diedAt = time.Time{}
 	client.lastDamaged = time.Time{}
 	client.lastRegen = time.Now()
-	client.x = message.X
+	client.x = clampArenaX(message.X)
 	client.y = message.Y
-	client.z = message.Z
+	client.z = clampArenaZ(message.Z)
 	client.rotation = message.Rotation
 	client.hasState = true
+	x, y, z, rotation := client.x, client.y, client.z, client.rotation
 	targets := roomClientsLocked(room, client.id)
 	roomID := room.id
 	h.mu.Unlock()
@@ -992,10 +1079,10 @@ func (h *wsHub) relayRespawn(client *wsClient, message wsIncoming) {
 		Type:     "respawn",
 		ID:       client.id,
 		RoomID:   roomID,
-		X:        message.X,
-		Y:        message.Y,
-		Z:        message.Z,
-		Rotation: message.Rotation,
+		X:        x,
+		Y:        y,
+		Z:        z,
+		Rotation: rotation,
 	})
 }
 
@@ -1028,6 +1115,7 @@ func (h *wsHub) relayBotStates(client *wsClient, message wsIncoming) {
 		return
 	}
 	changed := false
+	var crystalOut *wsCrystalState
 	now := time.Now()
 	for _, state := range message.Bots {
 		bot := findRoomBotLocked(room, state.ID)
@@ -1040,14 +1128,24 @@ func (h *wsHub) relayBotStates(client *wsClient, message wsIncoming) {
 		if math.Abs(state.X) > 1000 || math.Abs(state.Z) > 1000 {
 			continue
 		}
-		// The host is the trusted movement/AI simulator, but the server owns
-		// the bot's HP, death and respawn. HP fields in this packet are
-		// deliberately ignored.
 		bot.x = state.X
 		bot.y = state.Y
 		bot.z = state.Z
 		bot.rotation = state.Rotation
 		bot.animation = truncateText(state.Animation, 24)
+		if bot.alive && !state.Alive {
+			// The host saw the bot die (a local DoT, an environment kill, or
+			// a hit the server did not confirm). Accept the death so a bot
+			// carrying the shard cannot leave it stuck in "carried".
+			bot.hp = 0
+			bot.alive = false
+			bot.deadSince = now
+			if crystal := h.dropCrystalForLocked(room, bot.id, bot.x, bot.z); crystal != nil {
+				crystalOut = crystal
+			}
+			changed = true
+			continue
+		}
 		if bot.alive {
 			if bot.lastRegen.IsZero() {
 				bot.lastRegen = now
@@ -1090,6 +1188,13 @@ func (h *wsHub) relayBotStates(client *wsClient, message wsIncoming) {
 		RoomID: roomID,
 		Bots:   snapshots,
 	})
+	if crystalOut != nil {
+		h.broadcastRoom(roomID, 0, wsOutgoing{
+			Type:    "crystal_state",
+			RoomID:  roomID,
+			Crystal: crystalOut,
+		})
+	}
 }
 
 func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
@@ -1144,8 +1249,13 @@ func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
 	targetID := target.id
 	roomID := room.id
 	var crystal *wsCrystalState
-	if died && target.bot != nil {
-		crystal = h.dropCrystalForLocked(room, target.bot.id, target.bot.x, target.bot.z)
+	if died {
+		switch {
+		case target.bot != nil:
+			crystal = h.dropCrystalForLocked(room, target.bot.id, target.bot.x, target.bot.z)
+		case target.client != nil:
+			crystal = h.dropCrystalForLocked(room, target.client.id, target.client.x, target.client.z)
+		}
 	}
 	h.mu.Unlock()
 
@@ -1156,10 +1266,11 @@ func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
 		SourceID: sourceID,
 		TargetID: targetID,
 		Skill:    skill,
+		Crit:     message.Crit,
 		Amount:   damage,
 	})
 	if died {
-		h.broadcastRoom(roomID, 0, wsOutgoing{Type: "death", ID: targetID, RoomID: roomID})
+		h.broadcastRoom(roomID, 0, wsOutgoing{Type: "death", ID: targetID, RoomID: roomID, SourceID: sourceID})
 		if crystal != nil {
 			h.broadcastRoom(roomID, 0, wsOutgoing{Type: "crystal_state", RoomID: roomID, Crystal: crystal})
 		}
@@ -1183,10 +1294,24 @@ func (h *wsHub) relayShellState(client *wsClient, message wsIncoming) {
 	if room.shell == nil {
 		room.shell = &wsShellState{Alive: true, HP: 1000, MaxHP: 1000}
 	}
+	if !finite(state.X) || !finite(state.Y) || !finite(state.Z) {
+		h.mu.Unlock()
+		return
+	}
+	state.X = clampArenaX(state.X)
+	state.Z = clampArenaZ(state.Z)
 	if state.Alive && !room.shell.Alive {
-		// A new shell cycle starts at full HP. The host's HP is ignored.
-		room.shell.HP = 1000
-		room.shell.MaxHP = 1000
+		// A new shell must not start while the shard from the previous one is
+		// still on the field, and a stale "alive" packet sent before the host
+		// learned about the death must not resurrect it.
+		shardActive := room.crystal != nil && room.crystal.State != "none"
+		tooSoon := !room.shellDiedAt.IsZero() && time.Since(room.shellDiedAt) < 2*time.Second
+		if shardActive || tooSoon {
+			state.Alive = false
+		} else {
+			room.shell.HP = 1000
+			room.shell.MaxHP = 1000
+		}
 	}
 	room.shell.Alive = state.Alive
 	room.shell.X = state.X
@@ -1245,9 +1370,12 @@ func (h *wsHub) handleShellAttack(client *wsClient, message wsIncoming) {
 	shell := *room.shell
 	var crystal *wsCrystalState
 	if died {
-		room.crystal = &wsCrystalState{State: "ground", X: shell.X, Y: 0.5, Z: shell.Z}
-		c := *room.crystal
-		crystal = &c
+		room.shellDiedAt = time.Now()
+		if room.crystal == nil || room.crystal.State == "none" {
+			room.crystal = &wsCrystalState{State: "ground", X: shell.X, Y: 0.5, Z: shell.Z, GroundSince: time.Now()}
+			c := *room.crystal
+			crystal = &c
+		}
 	}
 	roomID := room.id
 	sourceID := source.id
@@ -1266,9 +1394,11 @@ func (h *wsHub) handleShellAttack(client *wsClient, message wsIncoming) {
 	})
 	if died {
 		h.broadcastRoom(roomID, 0, wsOutgoing{
-			Type:   "match_event",
-			RoomID: roomID,
-			Event:  "shell_destroyed",
+			Type:     "match_event",
+			RoomID:   roomID,
+			Event:    "shell_destroyed",
+			Team:     source.team,
+			SourceID: sourceID,
 		})
 		if crystal != nil {
 			h.broadcastRoom(roomID, 0, wsOutgoing{
@@ -1332,10 +1462,11 @@ func (h *wsHub) dropCrystalForLocked(room *wsRoom, id int64, x float64, z float6
 		return nil
 	}
 	room.crystal.State = "ground"
-	room.crystal.X = x
+	room.crystal.X = clampArenaX(x)
 	room.crystal.Y = 0.5
-	room.crystal.Z = z
+	room.crystal.Z = clampArenaZ(z)
 	room.crystal.CarrierID = 0
+	room.crystal.GroundSince = time.Now()
 	crystal := *room.crystal
 	return &crystal
 }
@@ -1363,13 +1494,14 @@ func (h *wsHub) handleCrystalPickup(client *wsClient, message wsIncoming) {
 		h.mu.Unlock()
 		return
 	}
-	if math.Hypot(x-room.crystal.X, z-room.crystal.Z) > 2.5 {
+	if math.Hypot(x-room.crystal.X, z-room.crystal.Z) > 3.2 {
 		h.mu.Unlock()
 		return
 	}
 	_ = team
 	room.crystal.State = "carried"
 	room.crystal.CarrierID = sourceID
+	room.crystal.GroundSince = time.Time{}
 	crystal := *room.crystal
 	roomID := room.id
 	targets := roomClientsLocked(room, 0)
@@ -1422,14 +1554,25 @@ func (h *wsHub) handleCrystalDeliver(client *wsClient, message wsIncoming) {
 	}
 	room.crystal.State = "none"
 	room.crystal.CarrierID = 0
+	room.crystal.GroundSince = time.Time{}
 	crystal := *room.crystal
 	roomID := room.id
+	deliveredBy := sourceID
 	targets := roomClientsLocked(room, 0)
 	h.mu.Unlock()
 	h.sendToClients(targets, wsOutgoing{
 		Type:    "crystal_state",
 		RoomID:  roomID,
 		Crystal: &crystal,
+	})
+	// Gold is a client-side match reward, but the server must say who scored:
+	// clients cannot infer the carrier after crystal_state drops to "none".
+	h.broadcastRoom(roomID, 0, wsOutgoing{
+		Type:     "match_event",
+		RoomID:   roomID,
+		Event:    "shard_delivered",
+		Team:     team,
+		SourceID: deliveredBy,
 	})
 	h.broadcastRoom(roomID, 0, wsOutgoing{
 		Type:        "match_score",
@@ -1465,56 +1608,18 @@ func (h *wsHub) handleMatchEvent(client *wsClient, message wsIncoming) {
 	roomID := room.id
 	switch event {
 	case "shard_delivered":
-		team := message.Team
-		if team < 0 || team > 1 {
-			h.mu.Unlock()
-			return
-		}
-		if client.id != room.hostID && team != client.team {
-			h.mu.Unlock()
-			return
-		}
-		if !room.lastDelivery[team].IsZero() && time.Since(room.lastDelivery[team]) < deliveryLockout {
-			score0, score1, sudden := room.score[0], room.score[1], room.suddenDeath
-			h.mu.Unlock()
-			client.sendJSON(wsOutgoing{Type: "match_score", Score0: score0, Score1: score1, SuddenDeath: sudden})
-			return
-		}
-		room.lastDelivery[team] = time.Now()
-		room.score[team]++
-		score0, score1, sudden := room.score[0], room.score[1], room.suddenDeath
-		log.Printf("shard delivered room=%d team=%d by=%d score=%d:%d", room.id, team, client.id, score0, score1)
-		winner := -1
-		if sudden || room.score[team] >= crystalsToWin {
-			winner = team
-		}
-		var players []matchResultPlayer
-		if winner >= 0 {
-			players = h.finishMatchLocked(room)
-		}
+		// Legacy clients report the delivery themselves. Never award a free
+		// point: run the same checks as crystal_deliver (carried shard, the
+		// sender is the carrier, own base) so the shard is actually consumed.
 		h.mu.Unlock()
-
-		h.broadcastRoom(roomID, 0, wsOutgoing{
-			Type:        "match_score",
-			RoomID:      roomID,
-			Score0:      score0,
-			Score1:      score1,
-			SuddenDeath: sudden,
-		})
-		if winner >= 0 {
-			h.saveMatch(roomID, players, winner)
-			h.broadcastRoom(roomID, 0, wsOutgoing{
-				Type:        "match_finished",
-				RoomID:      roomID,
-				WinningTeam: winner,
-				Score0:      score0,
-				Score1:      score1,
-				Reason:      "score",
-			})
-		}
+		delivery := message
+		delivery.SourceID = 0
+		h.handleCrystalDeliver(client, delivery)
 	case "shell_destroyed":
+		// Only the host simulates the shell; a guest could otherwise disable
+		// every shard spawn by faking this event.
 		team := message.Team
-		if team < 0 || team > 1 || (client.id != room.hostID && team != client.team) {
+		if team < 0 || team > 1 || client.id != room.hostID {
 			h.mu.Unlock()
 			return
 		}
@@ -1538,8 +1643,15 @@ func (h *wsHub) finishMatchByTimeout(roomID int64) {
 		return
 	}
 	score0, score1 := room.score[0], room.score[1]
-	if score0 == score1 {
+	if score0 == score1 && !room.suddenDeath {
 		room.suddenDeath = true
+		if room.finishTimer != nil {
+			room.finishTimer.Stop()
+		}
+		// Sudden death must not hang forever if nobody can score.
+		room.finishTimer = time.AfterFunc(2*time.Minute, func() {
+			h.finishMatchByTimeout(roomID)
+		})
 		h.mu.Unlock()
 		h.broadcastRoom(roomID, 0, wsOutgoing{
 			Type:        "match_score",
@@ -1705,6 +1817,9 @@ func (combatant *wsCombatant) applyDamage(amount float64) bool {
 	if combatant.client != nil {
 		combatant.client.hp = combatant.hp
 		combatant.client.alive = combatant.alive
+		if !combatant.alive && combatant.client.diedAt.IsZero() {
+			combatant.client.diedAt = time.Now()
+		}
 		combatant.client.lastDamaged = time.Now()
 		combatant.client.lastRegen = time.Now()
 	}
@@ -2106,4 +2221,14 @@ func (c *wsClient) close() {
 
 func finite(value float64) bool {
 	return !math.IsNaN(value) && !math.IsInf(value, 0) && math.Abs(value) < 1e7
+}
+
+// The arena is roughly 80x60; clamp every server-owned drop/respawn point so
+// a broken or hostile client cannot park the shard out of reach.
+func clampArenaX(value float64) float64 {
+	return math.Max(-100, math.Min(100, value))
+}
+
+func clampArenaZ(value float64) float64 {
+	return math.Max(-100, math.Min(100, value))
 }

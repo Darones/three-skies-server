@@ -56,6 +56,21 @@ func collectMessages(t *testing.T, client *wsClient) []wsOutgoing {
 	}
 }
 
+// deliverTestShard hands the test client a carried shard and runs the real
+// delivery path, so tests exercise the same validation as a live match.
+func deliverTestShard(hub *wsHub, room *wsRoom, client *wsClient) {
+	hub.mu.Lock()
+	room.crystal = &wsCrystalState{State: "carried", CarrierID: client.id}
+	hub.mu.Unlock()
+	baseZ := 27.5
+	if client.team == 1 {
+		baseZ = -27.5
+	}
+	client.x = 0
+	client.z = baseZ
+	hub.handleCrystalDeliver(client, wsIncoming{})
+}
+
 func TestAttackIntentRejectsDistanceAndCooldown(t *testing.T) {
 	hub := newWebSocketHub(nil)
 	first := newTestClient(1, 0, 0, 0)
@@ -247,10 +262,7 @@ func TestServerDeterminesWinnerFromDeliveries(t *testing.T) {
 	}
 
 	for delivery := 0; delivery < crystalsToWin; delivery++ {
-		hub.mu.Lock()
-		room.lastDelivery = [2]time.Time{}
-		hub.mu.Unlock()
-		hub.handleMatchEvent(first, wsIncoming{Event: "shard_delivered", Team: 0})
+		deliverTestShard(hub, room, first)
 	}
 	if room.state != "finished" || room.score[0] != crystalsToWin {
 		t.Fatalf("server did not finish match: state=%s score=%v", room.state, room.score)
@@ -274,16 +286,16 @@ func TestDeliveriesFromBothTeamsWithinLockoutBothCount(t *testing.T) {
 	room := newTestRoom(first, second)
 	hub.rooms[room.id] = room
 
-	hub.handleMatchEvent(first, wsIncoming{Event: "shard_delivered", Team: 0})
-	hub.handleMatchEvent(second, wsIncoming{Event: "shard_delivered", Team: 1})
+	deliverTestShard(hub, room, first)
+	deliverTestShard(hub, room, second)
 	if room.score[0] != 1 || room.score[1] != 1 {
 		t.Fatalf("deliveries from both teams must count, got %v", room.score)
 	}
 
-	// Повторное событие той же команды в пределах блокировки не должно начислять очко
+	// A duplicate event without a carried shard must not score again.
 	hub.handleMatchEvent(first, wsIncoming{Event: "shard_delivered", Team: 0})
 	if room.score[0] != 1 {
-		t.Fatalf("duplicate delivery must be ignored, got %v", room.score)
+		t.Fatalf("delivery without a carried shard must be ignored, got %v", room.score)
 	}
 }
 
