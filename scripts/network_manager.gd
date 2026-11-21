@@ -277,7 +277,7 @@ func send_bot_damage(target_id: int, amount: float) -> void:
 	})
 
 
-func send_shell_state(alive: bool, x: float, y: float, z: float, phase: String, timer: float) -> void:
+func send_shell_state(alive: bool, x: float, y: float, z: float, phase: String, timer: float, spawn_id: int = 0) -> void:
 	if state != State.CONNECTED:
 		return
 	_send_json({
@@ -289,6 +289,7 @@ func send_shell_state(alive: bool, x: float, y: float, z: float, phase: String, 
 			"z": z,
 			"phase": phase,
 			"timer": timer,
+			"spawn_id": spawn_id,
 		},
 	})
 

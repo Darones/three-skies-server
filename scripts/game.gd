@@ -153,6 +153,7 @@ var shell_window := SHELL_WINDOW
 var shell_stuck_timer := 0.0
 var shell_hold_timer := 0.0
 var shell_death_event_seen := false
+var shell_spawn_id := 0
 var crystal_state := "none"
 var crystal_timer := 0.0
 var pickup_delay := 0.0
@@ -1675,7 +1676,7 @@ func _process(delta: float) -> void:
 			var shell_pos := Vector3(0.0, 0.45, 0.0)
 			if shell_alive:
 				shell_pos = shell.global_position
-			NetworkManager.send_shell_state(shell_alive, shell_pos.x, shell_pos.y, shell_pos.z, shell_phase, shell_timer)
+			NetworkManager.send_shell_state(shell_alive, shell_pos.x, shell_pos.y, shell_pos.z, shell_phase, shell_timer, shell_spawn_id)
 	if not shop_pending_item.is_empty() and state == "live":
 		shop_pending_timer -= delta
 		if shop_pending_timer <= 0.0:
@@ -1981,6 +1982,7 @@ func _update_match(delta: float) -> void:
 func _spawn_shell() -> void:
 	if CombatProfiler.enabled:
 		CombatProfiler.mark("shell", "spawn")
+	shell_spawn_id += 1
 	var s := shell_pool
 	if s == null or not is_instance_valid(s):
 		s = SkyShell.new()
@@ -3781,15 +3783,21 @@ func _on_network_host_changed(new_host_id: int) -> void:
 	network_host = NetworkManager.is_host
 	print("[NET] host changed -> ", new_host_id, " local_host=", network_host)
 	if network_host and state == "live":
-		# We inherited the shell simulation: drop the guest copy and let the
-		# normal cycle spawn a fresh, locally simulated shell in a few seconds.
+		# We inherited the shell simulation: drop the guest copy and wait for
+		# the next fixed 2/4/6/8 boundary instead of restarting a 5 s cycle.
 		if shell != null and is_instance_valid(shell):
 			shell.queue_free()
 		shell = null
 		shell_phase = "idle"
 		shell_timer = 0.0
 		shell_window = SHELL_WINDOW
-		shell_cycle_timer = 5.0
+		var wait_for_shell := 5.0
+		if not sudden_death:
+			var elapsed := float(MATCH_LENGTH) - match_time
+			var boundary := ceilf(elapsed / float(SHELL_SPAWN_INTERVAL)) * float(SHELL_SPAWN_INTERVAL)
+			wait_for_shell = maxf(5.0, boundary - elapsed)
+		shell_cycle_timer = wait_for_shell
+		shell_timer = wait_for_shell
 		shell_hold_timer = 0.0
 		shell_death_event_seen = false
 

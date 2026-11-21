@@ -667,12 +667,15 @@ func _build_reward_banner() -> void:
 	reward_banner.anchor_bottom = 0.5
 	reward_banner.offset_left = -370.0
 	reward_banner.offset_right = 370.0
-	reward_banner.offset_top = -220.0
-	reward_banner.offset_bottom = -120.0
+	reward_banner.offset_top = -70.0
+	reward_banner.offset_bottom = 30.0
 	reward_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	reward_banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	reward_banner.add_theme_font_override("font", UI_FONT_BOLD)
 	reward_banner.add_theme_font_size_override("font_size", _fs(42))
+	# The old position sat exactly on top of "ВЫ ЛУЧШИЙ ИГРОК МАТЧА!".
+	# Move it to the middle and give it a solid dark plate.
+	reward_banner.add_theme_stylebox_override("normal", _panel_style(GOLD, Color(0.015, 0.018, 0.03, 0.94)))
 	reward_banner.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.95))
 	reward_banner.add_theme_constant_override("shadow_offset_x", 3)
 	reward_banner.add_theme_constant_override("shadow_offset_y", 3)

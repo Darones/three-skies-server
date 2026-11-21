@@ -661,6 +661,49 @@ func TestHealEchoReachesTheHealer(t *testing.T) {
 	}
 }
 
+func TestShellSpawnIDBeatsTheDeathCooldown(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	host := newTestClient(1, 0, 0, 0)
+	room := newTestRoom(host)
+	hub.rooms[room.id] = room
+	host.x, host.z = 0, 0
+	host.hasState = true
+	host.alive = true
+	host.lastAttacks = make(map[string]time.Time)
+
+	spawn := func(id int64) {
+		hub.relayShellState(host, wsIncoming{Shell: &wsShellState{
+			Alive: true, X: 0, Y: 0.45, Z: 0, Phase: "active", SpawnID: id,
+		}})
+	}
+	kill := func() {
+		host.lastAttacks["shell"] = time.Now().Add(-time.Second)
+		hub.handleShellAttack(host, wsIncoming{Amount: 800, SourceID: 0})
+		host.lastAttacks["shell"] = time.Now().Add(-time.Second)
+		hub.handleShellAttack(host, wsIncoming{Amount: 300, SourceID: 0})
+	}
+
+	spawn(1)
+	if room.shell == nil || !room.shell.Alive || room.shellSpawnID != 1 {
+		t.Fatalf("first spawn not accepted: %+v id=%d", room.shell, room.shellSpawnID)
+	}
+	kill()
+	if room.shell.Alive {
+		t.Fatalf("shell did not die: %+v", room.shell)
+	}
+	// A genuinely new shell may start immediately after a death.
+	spawn(2)
+	if !room.shell.Alive || room.shellSpawnID != 2 {
+		t.Fatalf("new spawn id rejected by the old cooldown: %+v id=%d", room.shell, room.shellSpawnID)
+	}
+	kill()
+	// The old packet must not resurrect the dead shell.
+	spawn(2)
+	if room.shell.Alive {
+		t.Fatalf("stale spawn id resurrected the shell: %+v", room.shell)
+	}
+}
+
 func TestAoESkillAllowsMultipleTargetsInOneCast(t *testing.T) {
 	combatant := &wsCombatant{class: 0, lastAttacks: make(map[string]time.Time)}
 	if !combatant.cooldownReady("fear_ult") {
