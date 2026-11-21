@@ -532,8 +532,10 @@ func createMatchesTable(ctx context.Context, db *sql.DB) error {
 	if err != nil {
 		return err
 	}
-	_, err = db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS matches_room_player_uidx ON matches (room_id, player_id)`)
-	return err
+	// No unique index here: old deployments already contain duplicate
+	// (room_id, player_id) rows, and CREATE UNIQUE INDEX aborted the whole
+	// schema setup. Reward idempotency is guarded by SELECT ... FOR UPDATE.
+	return nil
 }
 
 func newSessionToken() (string, error) {
@@ -1155,16 +1157,27 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 	// One reward per finished match: the row is marked atomically, so a retry
 	// or a replayed request cannot grant shards twice.
 	var won bool
+	var matchID int64
 	err = transaction.QueryRowContext(r.Context(),
-		`UPDATE matches SET rewarded = TRUE WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = FALSE RETURNING won`,
+		`SELECT id, won FROM matches WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = FALSE ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED`,
 		request.RoomID, request.PlayerID,
-	).Scan(&won)
+	).Scan(&matchID, &won)
 	if errors.Is(err, sql.ErrNoRows) {
 		writeJSON(w, http.StatusConflict, matchRewardResponse{Error: "Reward already claimed"})
 		return
 	}
 	if err != nil {
 		log.Printf("claim match reward: %v", err)
+		writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
+		return
+	}
+	// Mark every duplicate row for this room/player as rewarded so a retry
+	// cannot farm the same match more than once.
+	if _, err := transaction.ExecContext(r.Context(),
+		`UPDATE matches SET rewarded = TRUE WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = FALSE`,
+		request.RoomID, request.PlayerID,
+	); err != nil {
+		log.Printf("mark match reward: %v", err)
 		writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
 		return
 	}
