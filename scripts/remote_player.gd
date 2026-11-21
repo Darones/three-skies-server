@@ -35,6 +35,9 @@ var target_position := Vector3.ZERO
 var target_rotation := 0.0
 var _has_target := false
 var _last_bot_animation := ""
+var _move_anim := ""
+var _last_state_msec := 0
+var _attack_lock_msec := 0
 var last_damage_msec := 0
 var _name_label: Label3D = null
 var _health_back: MeshInstance3D = null
@@ -90,12 +93,27 @@ func apply_stats(stats_max_hp: float, stats_hp: float, stats_attack_damage: floa
 
 
 func apply_state(position: Vector3, rotation_y: float) -> void:
+	var previous := target_position
+	var moved := previous.distance_to(position) if _has_target else 0.0
 	target_position = position
 	target_rotation = rotation_y
 	if not _has_target:
 		global_position = position
 		rotation.y = rotation_y
 		_has_target = true
+	# Human players do not send current_anim over the wire; infer locomotion
+	# from the position delta so they do not slide on other clients.
+	var now := Time.get_ticks_msec()
+	if now >= _attack_lock_msec:
+		if moved > 0.02:
+			_last_state_msec = now
+			var desired := "run" if moved > 0.22 else "walk"
+			if desired != _move_anim:
+				_move_anim = desired
+				_play_bot_animation(desired)
+		elif now - _last_state_msec > 220 and _move_anim != "idle":
+			_move_anim = "idle"
+			_play_bot_animation("idle")
 
 
 func apply_bot_state(info: Dictionary) -> void:
@@ -151,10 +169,16 @@ func _play_bot_animation(anim_name: String) -> void:
 	for animation_name in _animation_player.get_animation_list():
 		var lower := String(animation_name).to_lower()
 		if lower == wanted or lower.contains(wanted):
+			var anim := _animation_player.get_animation(animation_name)
+			if anim != null:
+				anim.loop_mode = Animation.LOOP_LINEAR if wanted in ["idle", "run", "walk"] else Animation.LOOP_NONE
 			_animation_player.play(animation_name)
 			return
 	for animation_name in _animation_player.get_animation_list():
 		if String(animation_name).to_lower().contains("idle"):
+			var anim := _animation_player.get_animation(animation_name)
+			if anim != null:
+				anim.loop_mode = Animation.LOOP_LINEAR
 			_animation_player.play(animation_name)
 			return
 
@@ -176,9 +200,21 @@ func _build_visual() -> void:
 	holder.name = "Model"
 	add_child(holder)
 	holder.add_child(model)
+	_configure_gear(model)
 	_model_root = holder
 	_fit_model(holder)
 	_play_idle(holder)
+
+
+func _configure_gear(model: Node) -> void:
+	# The rig ships every weapon mesh visible. Remote heroes must show only
+	# the class default, otherwise the archer runs with daggers + crossbow.
+	var selected: Array = HeroUnit.GEAR_DEFAULT.get(hero_class, [])
+	for child in model.find_children("*", "MeshInstance3D", true, false):
+		var mesh := child as MeshInstance3D
+		var mesh_name := String(mesh.name)
+		if mesh_name in HeroUnit.GEAR_NAMES:
+			mesh.visible = mesh_name in selected
 
 
 func _load_model() -> Node3D:
@@ -248,9 +284,15 @@ func _play_idle(holder: Node3D) -> void:
 	var animations := _animation_player.get_animation_list()
 	for animation_name in animations:
 		if String(animation_name).to_lower().contains("idle"):
+			var anim := _animation_player.get_animation(animation_name)
+			if anim != null:
+				anim.loop_mode = Animation.LOOP_LINEAR
 			_animation_player.play(animation_name)
 			return
 	if not animations.is_empty():
+		var anim := _animation_player.get_animation(animations[0])
+		if anim != null:
+			anim.loop_mode = Animation.LOOP_LINEAR
 		_animation_player.play(animations[0])
 
 
@@ -408,7 +450,24 @@ func apply_network_respawn(position: Vector3, rotation_y: float) -> void:
 func play_attack(_attack_type: String) -> void:
 	if dead:
 		return
+	_attack_lock_msec = Time.get_ticks_msec() + 450
 	if _animation_player != null:
+		var preferred: Array[String] = []
+		match hero_class:
+			1:
+				preferred = ["spellcast", "cast", "ranged_shoot", "shoot"]
+			2:
+				preferred = ["1h_ranged_shoot", "ranged_shoot", "shoot", "attack"]
+			_:
+				preferred = ["1h_melee_attack", "attack", "cast"]
+		for want in preferred:
+			for animation_name in _animation_player.get_animation_list():
+				if String(animation_name).to_lower().contains(want):
+					var anim := _animation_player.get_animation(animation_name)
+					if anim != null:
+						anim.loop_mode = Animation.LOOP_NONE
+					_animation_player.play(animation_name)
+					return
 		for animation_name in _animation_player.get_animation_list():
 			var lower := String(animation_name).to_lower()
 			if lower.contains("attack") or lower.contains("cast"):

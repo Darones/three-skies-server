@@ -214,7 +214,7 @@ func _strike() -> void:
 	game.shell_bolt(pos, 2.7, 44.0)
 
 
-func take_damage(amount: float, source: Node = null, _damage_type: String = "physical", _skill: String = "") -> void:
+func take_damage(amount: float, source: Node = null, _damage_type: String = "physical", _skill: String = "", _is_crit: bool = false) -> void:
 	if not alive:
 		return
 	if game != null and bool(game.get("network_play")) and NetworkManager.server_protocol >= 2:

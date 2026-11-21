@@ -154,6 +154,7 @@ var shell_stuck_timer := 0.0
 var shell_hold_timer := 0.0
 var shell_death_event_seen := false
 var shell_spawn_id := 0
+var shell_audit := false
 var crystal_state := "none"
 var crystal_timer := 0.0
 var pickup_delay := 0.0
@@ -195,6 +196,7 @@ var sfx_index := 0
 
 func _ready() -> void:
 	randomize()
+	shell_audit = OS.get_cmdline_user_args().has("--shell-audit")
 	tutorial_mode = bool(get_tree().get_meta("tutorial_mode", false))
 	network_play = bool(get_tree().get_meta("network_play", false))
 	network_host = bool(get_tree().get_meta("network_host", false))
@@ -1979,10 +1981,20 @@ func _update_match(delta: float) -> void:
 					shell_stuck_timer = 0.0
 
 
+func _shell_log(tag: String) -> void:
+	if not shell_audit:
+		return
+	print("[SHELL-AUDIT] %s t=%.1f phase=%s cycle=%.1f hold=%.1f spawn_id=%d crystal=%s" % [
+		tag, float(MATCH_LENGTH) - match_time, shell_phase, shell_cycle_timer,
+		shell_hold_timer, shell_spawn_id, crystal_state,
+	])
+
+
 func _spawn_shell() -> void:
 	if CombatProfiler.enabled:
 		CombatProfiler.mark("shell", "spawn")
 	shell_spawn_id += 1
+	_shell_log("spawn")
 	var s := shell_pool
 	if s == null or not is_instance_valid(s):
 		s = SkyShell.new()
@@ -2011,6 +2023,7 @@ func _spawn_shell() -> void:
 func on_shell_died(s: SkyShell, source: Node = null) -> void:
 	if s != shell:
 		return
+	_shell_log("died")
 	if source == player and not tutorial_mode:
 		p_shells_destroyed += 1
 	if not tutorial_mode and source is HeroUnit:
@@ -3050,7 +3063,7 @@ func mage_storm_tick(mage: HeroUnit, radius: float, damage: float) -> void:
 		_activate_shell_beam(enemy.global_position, Color(0.38, 0.82, 1.0, 0.95))
 		mage.spawn_ability_vfx(2, enemy.global_position + Vector3(0.0, 0.1, 0.0))
 		var rolled_damage := mage.roll_ultimate_damage(damage)
-		enemy.take_damage(mage._outgoing_damage(rolled_damage) * mage.get_blessing_damage_multiplier(), mage, "magic")
+		enemy.take_damage(mage._outgoing_damage(rolled_damage) * mage.get_blessing_damage_multiplier(), mage, "magic", "ult_lightning_storm")
 	if mage.is_player:
 		for remote_enemy in network_enemies_in_radius(mage.global_position, radius, mage.team):
 			lightning_strike_fx(remote_enemy.global_position)
@@ -3365,6 +3378,8 @@ func _setup_network_play() -> void:
 		NetworkManager.attack_denied.connect(_on_attack_denied)
 	if not NetworkManager.sync_received.is_connected(_on_network_sync):
 		NetworkManager.sync_received.connect(_on_network_sync)
+	if not NetworkManager.match_time_sync.is_connected(_on_match_time_sync):
+		NetworkManager.match_time_sync.connect(_on_match_time_sync)
 	if not NetworkManager.match_score_updated.is_connected(_on_match_score_updated):
 		NetworkManager.match_score_updated.connect(_on_match_score_updated)
 	if not NetworkManager.match_event_received.is_connected(_on_match_event_received):
@@ -3440,6 +3455,8 @@ func _on_remote_attack_received(player_id: int, attack_type: String, _target_id:
 
 
 func _on_remote_damage_received(source_id: int, target_id: int, amount: float, skill: String, crit := false, stun := 0.0) -> void:
+	if shell_audit and skill.to_lower() == "ult_lightning_storm":
+		print("[DMG-AUDIT] source=%d target=%d amount=%.1f skill=%s" % [source_id, target_id, amount, skill])
 	if CombatProfiler.enabled:
 		print("[DMG] source=%d target=%d amount=%.0f skill=%s" % [source_id, target_id, amount, skill])
 	var show_number := source_id == NetworkManager.local_peer_id or target_id == NetworkManager.local_peer_id
@@ -3487,6 +3504,7 @@ func _on_remote_damage_received(source_id: int, target_id: int, amount: float, s
 		var source_remote = remote_players[source_id]
 		if source_remote != null and is_instance_valid(source_remote):
 			source_remote.match_damage_dealt += maxf(amount, 0.0)
+			source_remote.play_attack(skill)
 	elif source_id < 0:
 		var source_bot = _network_combatant(source_id)
 		if source_bot != null and is_instance_valid(source_bot) and int(source_bot.get("team")) != target_team:
@@ -3658,6 +3676,7 @@ func _on_shell_state_received(state: Dictionary) -> void:
 				shell_window = SHELL_WINDOW
 				shell_hold_timer = 0.5
 				shell_death_event_seen = false
+				_shell_log("state_dead")
 			if shell.has_method("deactivate"):
 				shell.deactivate()
 			return
@@ -3737,6 +3756,7 @@ func _on_shell_destroyed_network(team: int = -1, source_id: int = 0) -> void:
 	shell_phase = "idle"
 	shell_timer = SHELL_SPAWN_INTERVAL
 	shell_window = SHELL_WINDOW
+	_shell_log("event_destroyed")
 
 
 func _on_shell_damage_received(amount: float, source_id: int) -> void:
@@ -3800,6 +3820,7 @@ func _on_network_host_changed(new_host_id: int) -> void:
 		shell_timer = wait_for_shell
 		shell_hold_timer = 0.0
 		shell_death_event_seen = false
+		_shell_log("host_changed")
 
 
 func _on_bot_roster_received(bots: Array) -> void:
@@ -3879,6 +3900,17 @@ func _on_network_sync(hp: float, max_hp: float, alive: bool) -> void:
 	if not network_play or player == null or not is_instance_valid(player):
 		return
 	player.apply_network_sync(hp, max_hp, alive)
+
+
+func _on_match_time_sync(seconds: float) -> void:
+	# Both devices must show the same clock. The server owns match time; only
+	# correct a real drift so the local countdown stays smooth.
+	if not network_play or state != "live":
+		return
+	var left := maxf(0.0, seconds)
+	if absf(match_time - left) > 0.75:
+		match_time = left
+		time_up_announced = false
 
 
 func _on_match_score_updated(score_0: int, score_1: int, server_sudden_death: bool) -> void:

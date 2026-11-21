@@ -21,6 +21,7 @@ signal shell_damage_received(amount: float, source_id: int)
 signal crystal_state_received(crystal: Dictionary)
 signal attack_denied(target_id: int, skill: String, reason: String)
 signal sync_received(hp: float, max_hp: float, alive: bool)
+signal match_time_sync(seconds: float)
 signal match_started(room_id: int, host_id: int, players: Array)
 signal lobby_state_received(players: Array, starts_in_ms: int)
 signal match_finished(winning_team: int)
@@ -581,6 +582,9 @@ func _handle_message(text: String) -> void:
 				float(message.get("max_hp", 0.0)),
 				bool(message.get("alive", true))
 			)
+			var time_left_ms := int(message.get("match_time_left_ms", -1))
+			if time_left_ms >= 0:
+				match_time_sync.emit(float(time_left_ms) / 1000.0)
 		"host_changed":
 			host_id = int(message.get("host_id", message.get("id", 0)))
 			is_host = host_id == local_peer_id
