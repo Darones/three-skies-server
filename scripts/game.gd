@@ -3632,7 +3632,7 @@ func _on_match_event_received(event: String, team: int, source_id: int) -> void:
 		return
 	if event == "shell_destroyed" and NetworkManager.server_protocol >= 2:
 		_on_shell_destroyed_network(team, source_id)
-	elif event == "shard_delivered" and NetworkManager.server_protocol >= 3:
+	elif event == "shard_delivered" and NetworkManager.server_protocol >= 4:
 		_award_network_delivery(team, source_id)
 	elif event == "sudden_death" and not sudden_death:
 		sudden_death = true
