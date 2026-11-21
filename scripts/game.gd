@@ -151,7 +151,6 @@ var shell_cycle_timer := SHELL_SPAWN_INTERVAL
 var shell_timer := SHELL_SPAWN_INTERVAL
 var shell_window := SHELL_WINDOW
 var shell_stuck_timer := 0.0
-var shell_wait_announced := false
 var crystal_state := "none"
 var crystal_timer := 0.0
 var pickup_delay := 0.0
@@ -1444,7 +1443,6 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	shell_phase = "idle"
 	shell_cycle_timer = SHELL_SPAWN_INTERVAL
 	shell_timer = SHELL_SPAWN_INTERVAL
-	shell_wait_announced = false
 	if not tutorial_mode:
 		play_sfx("match_start", -4.0)
 	if hud != null:
@@ -1941,34 +1939,11 @@ func _update_match(delta: float) -> void:
 	else:
 		shell_timer = shell_cycle_timer
 		if shell_phase == "idle" and shell_cycle_timer <= SHELL_WARNING_TIME:
-			if _shard_blocks_shell():
-				shell_phase = "waiting"
-				shell_cycle_timer = 0.0
-				shell_timer = 0.0
-				if not shell_wait_announced:
-					shell_wait_announced = true
-					announce("Оболочка ждёт, пока осколок доставят", Color(0.78, 0.6, 1.0), 2.0)
-			else:
-				shell_phase = "warning"
-				announce("Оболочка пробуждается — 10 секунд!", Color(0.78, 0.6, 1.0), 2.4)
+			shell_phase = "warning"
+			announce("Оболочка пробуждается — 10 секунд!", Color(0.78, 0.6, 1.0), 2.4)
 		if shell_phase == "warning":
-			if _shard_blocks_shell():
-				# Do not spawn and hide: hold the cycle until the shard is gone.
-				shell_phase = "waiting"
-				shell_cycle_timer = 0.0
-				shell_timer = 0.0
-				if not shell_wait_announced:
-					shell_wait_announced = true
-					announce("Оболочка ждёт, пока осколок доставят", Color(0.78, 0.6, 1.0), 2.0)
-			elif shell_cycle_timer <= 0.0:
+			if shell_cycle_timer <= 0.0:
 				_spawn_shell()
-		elif shell_phase == "waiting":
-			if not _shard_blocks_shell():
-				shell_wait_announced = false
-				shell_phase = "warning"
-				shell_cycle_timer = SHELL_WARNING_TIME
-				shell_timer = shell_cycle_timer
-				announce("Оболочка пробуждается — 10 секунд!", Color(0.78, 0.6, 1.0), 2.4)
 		elif shell_phase == "active":
 			shell_window -= delta
 			if shell_window <= 0.0 and shell != null and is_instance_valid(shell) and shell.alive:
@@ -1990,21 +1965,7 @@ func _update_match(delta: float) -> void:
 				shell_stuck_timer = 0.0
 
 
-func _shard_blocks_shell() -> bool:
-	if crystal_state != "none":
-		return true
-	return crystal_node != null and is_instance_valid(crystal_node)
-
-
 func _spawn_shell() -> void:
-	if _shard_blocks_shell():
-		shell_phase = "waiting"
-		shell_cycle_timer = 0.0
-		shell_timer = 0.0
-		if not shell_wait_announced:
-			shell_wait_announced = true
-			announce("Оболочка ждёт, пока осколок доставят", Color(0.78, 0.6, 1.0), 2.0)
-		return
 	if CombatProfiler.enabled:
 		CombatProfiler.mark("shell", "spawn")
 	var s := shell_pool
@@ -2023,7 +1984,6 @@ func _spawn_shell() -> void:
 	shell_window = SHELL_WINDOW
 	shell_cycle_timer = SHELL_SPAWN_INTERVAL
 	shell_timer = shell_cycle_timer
-	shell_wait_announced = false
 	announce("Оболочка здесь", Color(0.85, 0.62, 1.0), 2.6)
 	play_sfx("thunder", -3.0)
 	shake(0.6)
@@ -2061,7 +2021,6 @@ func on_shell_died(s: SkyShell, source: Node = null) -> void:
 	s.retire(0.5)
 	shell = null
 	shell_phase = "idle"
-	shell_wait_announced = false
 	if network_play and NetworkManager.server_protocol < 3:
 		var event_team := 0
 		if source is HeroUnit:
@@ -2480,7 +2439,6 @@ func _deliver(h: HeroUnit) -> void:
 		print("[SCORE] deliver team=", h.team, " ws=", NetworkManager.state, " assigned=", NetworkManager.assigned_team)
 		NetworkManager.send_match_event("shard_delivered", h.team)
 		shell_phase = "idle"
-		shell_wait_announced = false
 		# Счёт на клиенте — только отображение. Третье очко подтверждает
 		# сервер через match_finished; локальный счёт не обрывает бой.
 		if score[h.team] >= CRYSTALS_TO_WIN:
@@ -3761,7 +3719,6 @@ func _on_shell_destroyed_network(team: int = -1, source_id: int = 0) -> void:
 	shell_phase = "idle"
 	shell_timer = SHELL_SPAWN_INTERVAL
 	shell_window = SHELL_WINDOW
-	shell_wait_announced = false
 
 
 func _on_shell_damage_received(amount: float, source_id: int) -> void:
@@ -3817,7 +3774,6 @@ func _on_network_host_changed(new_host_id: int) -> void:
 		shell_timer = 0.0
 		shell_window = SHELL_WINDOW
 		shell_cycle_timer = 5.0
-		shell_wait_announced = false
 
 
 func _on_bot_roster_received(bots: Array) -> void:
