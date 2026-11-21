@@ -2253,9 +2253,13 @@ func _on_crystal_state_received(state: Dictionary) -> void:
 	var y := float(state.get("y", 0.5))
 	var z := float(state.get("z", 0.0))
 	var carrier_id := int(state.get("carrier_id", 0))
+	var delivered_node := crystal_carrier_node
+	var was_carried := crystal_state == "carried"
 	_clear_network_carrier()
 	if state_name == "none" or state_name == "delivered":
 		crystal_state = "none"
+		if was_carried and NetworkManager.server_protocol < 4:
+			_legacy_award_delivery(delivered_node)
 		if crystal_node != null and is_instance_valid(crystal_node):
 			crystal_node.queue_free()
 			crystal_node = null
@@ -2280,6 +2284,22 @@ func _on_crystal_state_received(state: Dictionary) -> void:
 		if node != null:
 			_set_carrier_state(node, true)
 		crystal_node.global_position = (node.global_position if node != null else Vector3(x, y, z)) + Vector3(0.0, 2.9, 0.0)
+
+
+func _legacy_award_delivery(node: Node3D) -> void:
+	# Protocol 3 servers do not send the shard_delivered event; infer the
+	# delivery from the crystal state transition instead.
+	if node == null or not is_instance_valid(node):
+		return
+	var team := int(node.get("team"))
+	var source_id := 0
+	if node == player:
+		source_id = NetworkManager.local_peer_id
+	elif network_host and node is HeroUnit:
+		var bot_id := int(node.get("network_id"))
+		if bot_id < 0:
+			source_id = bot_id
+	_award_network_delivery(team, source_id)
 
 
 func _award_network_delivery(team: int, source_id: int) -> void:
@@ -3269,23 +3289,28 @@ func _on_remote_damage_received(source_id: int, target_id: int, amount: float, s
 		if source_bot != null and is_instance_valid(source_bot):
 			source_bot.play_attack(skill)
 	var target_team := -1
+	var target_name := ""
+	var killed := false
 	var target_bot = network_bots.get(target_id)
 	if target_bot != null and is_instance_valid(target_bot):
-		target_bot.apply_network_damage(amount, show_number, crit)
+		killed = target_bot.apply_network_damage(amount, show_number, crit)
 		target_team = int(target_bot.team)
+		target_name = String(target_bot.display_name)
 	elif target_id == NetworkManager.local_peer_id:
 		if player != null and is_instance_valid(player):
-			player.apply_network_damage(amount, show_number, crit)
+			killed = player.apply_network_damage(amount, show_number, crit)
 			target_team = int(player.team)
+			target_name = String(player.display_name)
 	else:
 		var remote = remote_players.get(target_id)
 		if remote != null and is_instance_valid(remote):
-			remote.apply_network_damage(amount, show_number, crit)
+			killed = remote.apply_network_damage(amount, show_number, crit)
 			target_team = int(remote.team)
+			target_name = String(remote.display_name)
 	if player == null or not is_instance_valid(player) or target_team == player.team:
 		return
-	# Damage stats come from the confirmed hit; kills are credited once in the
-	# server death packet (which carries the killer id).
+	# Damage stats come from the confirmed hit; kills are credited once from
+	# the server death packet (protocol 4), or from this hit on protocol 3.
 	if source_id == NetworkManager.local_peer_id:
 		player.match_damage_dealt += maxf(amount, 0.0)
 		p_damage += maxf(amount, 0.0)
@@ -3293,6 +3318,31 @@ func _on_remote_damage_received(source_id: int, target_id: int, amount: float, s
 		var killer_bot = network_bots.get(source_id)
 		if killer_bot != null and is_instance_valid(killer_bot) and int(killer_bot.team) != target_team:
 			killer_bot.match_damage_dealt += maxf(amount, 0.0)
+	if killed and NetworkManager.server_protocol < 4:
+		_credit_network_kill(source_id, target_name, target_team)
+
+
+func _credit_network_kill(source_id: int, victim_name: String, victim_team: int) -> void:
+	if player == null or not is_instance_valid(player) or victim_team == player.team:
+		return
+	if source_id == NetworkManager.local_peer_id:
+		p_kills += 1
+		player.match_kills += 1
+		award_gold(50)
+		announce("Ты убил %s  +50 золота" % victim_name, Color(1.0, 0.85, 0.35), 1.8)
+	elif source_id < 0 and network_host:
+		var killer_bot = network_bots.get(source_id)
+		if killer_bot != null and is_instance_valid(killer_bot):
+			killer_bot.match_kills += 1
+			killer_bot.bot_gold += 50
+	if source_id != 0 and hud != null:
+		var killer_node := _node_for_network_id(source_id)
+		var killer_name := "?"
+		var killer_team := -1
+		if killer_node != null:
+			killer_name = String(killer_node.get("display_name"))
+			killer_team = int(killer_node.get("team"))
+		hud.call("show_kill_feed", killer_name, victim_name, killer_team, victim_team)
 
 
 func _on_remote_death_received(player_id: int, source_id: int = 0) -> void:
@@ -3317,27 +3367,8 @@ func _on_remote_death_received(player_id: int, source_id: int = 0) -> void:
 			remote.apply_network_death()
 	if victim_team < 0:
 		return
-	# One death packet per kill: credit gold, stats and the kill feed here so
-	# a dropped/duplicate damage packet cannot change the reward.
-	if player != null and is_instance_valid(player) and victim_team != player.team:
-		if source_id == NetworkManager.local_peer_id:
-			p_kills += 1
-			player.match_kills += 1
-			award_gold(50)
-			announce("Ты убил %s  +50 золота" % victim_name, Color(1.0, 0.85, 0.35), 1.8)
-		elif source_id < 0 and network_host:
-			var killer_bot = network_bots.get(source_id)
-			if killer_bot != null and is_instance_valid(killer_bot):
-				killer_bot.match_kills += 1
-				killer_bot.bot_gold += 50
-	if source_id != 0 and hud != null:
-		var killer_node := _node_for_network_id(source_id)
-		var killer_name := "?"
-		var killer_team := -1
-		if killer_node != null:
-			killer_name = String(killer_node.get("display_name"))
-			killer_team = int(killer_node.get("team"))
-		hud.call("show_kill_feed", killer_name, victim_name, killer_team, victim_team)
+	if NetworkManager.server_protocol >= 4:
+		_credit_network_kill(source_id, victim_name, victim_team)
 
 
 func _on_remote_respawn_received(player_id: int, position: Vector3, rotation_y: float) -> void:

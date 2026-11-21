@@ -44,8 +44,8 @@ func TestWebSocketBotSyncAndServerValidation(t *testing.T) {
 	guest := dialTestClient(t, server.URL)
 	hostWelcome := readUntilType(t, host, "welcome")
 	guestWelcome := readUntilType(t, guest, "welcome")
-	if hostWelcome.Protocol != 3 || guestWelcome.Protocol != 3 {
-		t.Fatalf("expected protocol 3, got host=%d guest=%d", hostWelcome.Protocol, guestWelcome.Protocol)
+	if hostWelcome.Protocol != 4 || guestWelcome.Protocol != 4 {
+		t.Fatalf("expected protocol 4, got host=%d guest=%d", hostWelcome.Protocol, guestWelcome.Protocol)
 	}
 
 	if err := host.WriteJSON(map[string]any{
