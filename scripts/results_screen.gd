@@ -193,7 +193,8 @@ func _ready() -> void:
 		AdManager.rewarded_ad_completed.connect(_on_rewarded_ad_completed)
 	selected_class = clampi(int(get_tree().get_meta("selected_class", 0)), 0, 2)
 	player_team = clampi(int(get_tree().get_meta("last_match_team", get_tree().get_meta("selected_team", 0))), 0, 1)
-	player_won = bool(get_tree().get_meta("last_match_won", true))
+	var has_match := get_tree().has_meta("last_match_score") and get_tree().has_meta("last_match_stats")
+	player_won = bool(get_tree().get_meta("last_match_won", true)) if has_match else false
 	score = get_tree().get_meta("last_match_score", [0, 0])
 	match_stats = get_tree().get_meta("last_match_stats", {})
 	player_place = maxi(1, int(get_tree().get_meta("last_match_place", 4)))
@@ -203,17 +204,18 @@ func _ready() -> void:
 	var kills := int(match_stats.get("p_kills", 0))
 	var shells_destroyed := int(match_stats.get("p_shells_destroyed", 0))
 	var crystals_delivered := int(match_stats.get("p_crystals", 0))
-	final_shards = 5 if player_won and player_is_mvp else 3 if player_won or player_is_mvp else 1
-	final_xp = kills * 10 + shells_destroyed * 25 + crystals_delivered * 25 + (50 if player_won else 20)
-	MetaProgression.record_match_result(player_won, player_place, match_stats, final_xp, final_shards)
-	_grant_match_reward_to_server(final_shards)
-	if not rewards_committed:
-		var character_key := CHARACTER_KEYS[selected_class]
-		var level_before := int(MetaProgression.char_levels.get(character_key, 1))
-		MetaProgression.add_character_xp(character_key, final_xp)
-		entry_level = int(MetaProgression.char_levels.get(character_key, level_before))
-		entry_leveled_up = entry_level > level_before
-		rewards_committed = true
+	final_shards = 0 if not has_match else (5 if player_won and player_is_mvp else 3 if player_won or player_is_mvp else 1)
+	final_xp = 0 if not has_match else kills * 10 + shells_destroyed * 25 + crystals_delivered * 25 + (50 if player_won else 20)
+	if has_match:
+		MetaProgression.record_match_result(player_won, player_place, match_stats, final_xp, final_shards)
+		_grant_match_reward_to_server(final_shards)
+		if not rewards_committed:
+			var character_key := CHARACTER_KEYS[selected_class]
+			var level_before := int(MetaProgression.char_levels.get(character_key, 1))
+			MetaProgression.add_character_xp(character_key, final_xp)
+			entry_level = int(MetaProgression.char_levels.get(character_key, level_before))
+			entry_leveled_up = entry_level > level_before
+			rewards_committed = true
 	_build_screen()
 	_build_reward_banner()
 	_animate_rewards()

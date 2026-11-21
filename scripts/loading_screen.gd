@@ -81,7 +81,7 @@ func _start_network_flow() -> void:
 		MetaProgression.player_id
 	)
 	if error != OK:
-		_on_network_failed('РќРµ СѓРґР°Р»РѕСЃСЊ РЅР°С‡Р°С‚СЊ РїРѕРґРєР»СЋС‡РµРЅРёРµ')
+		_on_network_failed('Не удалось начать подключение')
 
 
 func _on_network_connected() -> void:
@@ -94,7 +94,7 @@ func _on_network_connected() -> void:
 				var local_class := clampi(int(get_tree().get_meta('selected_class', 0)), 0, 2)
 				var local_name := MetaProgression.player_nickname
 				if local_name.is_empty():
-					local_name = 'РРіСЂРѕРє'
+					local_name = 'Игрок'
 				_set_slot_entry(0, slot_index, local_name, local_class, false)
 				network_player_slots[-1] = true
 				break
@@ -121,7 +121,7 @@ func _on_network_player_joined(player_id: int, info: Dictionary) -> void:
 	if slot_index < 0:
 		return
 	var class_index := clampi(int(info.get('class', 0)), 0, 2)
-	var player_name := String(info.get('name', 'РРіСЂРѕРє'))
+	var player_name := String(info.get('name', 'Игрок'))
 	_set_slot_entry(team, slot_index, player_name, class_index, false)
 	network_player_slots[player_id] = true
 	# Сервер перезапускает таймер ботов на каждом входе — держим

@@ -1171,9 +1171,9 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 		// The rewarded-ad bonus is a second, separately idempotent payout for
 		// a match whose base reward was already claimed.
 		err = transaction.QueryRowContext(r.Context(),
-			`SELECT id FROM matches WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = TRUE AND COALESCE(rewarded_bonus, FALSE) = FALSE ORDER BY id LIMIT 1 FOR UPDATE`,
+			`SELECT id, won FROM matches WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = TRUE AND COALESCE(rewarded_bonus, FALSE) = FALSE ORDER BY id LIMIT 1 FOR UPDATE`,
 			request.RoomID, request.PlayerID,
-		).Scan(&matchID)
+		).Scan(&matchID, &won)
 		if errors.Is(err, sql.ErrNoRows) {
 			writeJSON(w, http.StatusConflict, matchRewardResponse{Error: "Reward already claimed"})
 			return
@@ -1218,6 +1218,15 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var newShards int
+	// The server owns the payout ceiling even though the client picks the
+	// 1/3/5 tier: a win can pay at most 5, a loss at most 3.
+	maxAward := 3
+	if won {
+		maxAward = 5
+	}
+	if amount > maxAward {
+		amount = maxAward
+	}
 	err = transaction.QueryRowContext(r.Context(),
 		`UPDATE players SET sky_shards = COALESCE(sky_shards, 0) + $1 WHERE id = $2 RETURNING sky_shards`,
 		amount, request.PlayerID,

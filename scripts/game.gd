@@ -1,4 +1,4 @@
-extends Node3D
+﻿extends Node3D
 
 const MATCH_LENGTH := 600.0
 const RESPAWN_TIME := 8.0
@@ -20,7 +20,7 @@ const DEATH_CAM_HALF_Z := 35.0
 const DEATH_CAM_MIN_HEIGHT := 4.0
 const DEATH_CAM_MAX_HEIGHT := 55.0
 const VISIBILITY_COLLISION_MASK := 3
-const VISIBILITY_REFRESH_INTERVAL := 0.12
+const VISIBILITY_REFRESH_INTERVAL := 0.2
 const VFX_POOL_SIZE := 10
 const SHELL_BEAM_POOL_SIZE := 5
 const PROJECTILE_POOL_SIZE := 16
@@ -107,6 +107,7 @@ var crystal_carrier_node: Node3D = null
 var crystal_intent_timer := 0.0
 
 var state := "select"
+var match_started := false
 var match_time := MATCH_LENGTH
 var time_up_announced := false
 var match_end_reason := ""
@@ -124,6 +125,8 @@ var used_bot_callsigns: Array[String] = []
 var gold_fountain: Node3D = null
 var gold_coin_timer := GOLD_COIN_INTERVAL
 var gold_coins: Array[Node3D] = []
+var gold_coin_mesh: CylinderMesh = null
+var gold_coin_material: StandardMaterial3D = null
 var shop_pending_item := ""
 var shop_pending_timer := 0.0
 var tutorial_mode := false
@@ -236,7 +239,6 @@ func _ready() -> void:
 				bush.body_exited.connect(_on_bush_body_exited.bind(bush))
 	if DeviceProfile.mobile_ui:
 		await _warm_battle_world()
-	state = "select"
 	if get_tree().has_meta("selected_class"):
 		var selected_class := int(get_tree().get_meta("selected_class"))
 		if selected_class >= 0 and selected_class <= 2:
@@ -843,20 +845,22 @@ func _spawn_gold_coin(gold_value: int = 1, tutorial_spawn: bool = false) -> void
 
 	var coin := MeshInstance3D.new()
 	coin.name = "GoldCoin"
-	var coin_mesh := CylinderMesh.new()
-	coin_mesh.top_radius = 0.22
-	coin_mesh.bottom_radius = 0.22
-	coin_mesh.height = 0.075
-	coin_mesh.radial_segments = 12
-	coin.mesh = coin_mesh
-	var coin_material := StandardMaterial3D.new()
-	coin_material.albedo_color = Color(1.0, 0.68, 0.12)
-	coin_material.metallic = 0.78
-	coin_material.roughness = 0.22
-	coin_material.emission_enabled = true
-	coin_material.emission = Color(1.0, 0.48, 0.04)
-	coin_material.emission_energy_multiplier = 0.8
-	coin.material_override = coin_material
+	if gold_coin_mesh == null:
+		gold_coin_mesh = CylinderMesh.new()
+		gold_coin_mesh.top_radius = 0.22
+		gold_coin_mesh.bottom_radius = 0.22
+		gold_coin_mesh.height = 0.075
+		gold_coin_mesh.radial_segments = 12
+	if gold_coin_material == null:
+		gold_coin_material = StandardMaterial3D.new()
+		gold_coin_material.albedo_color = Color(1.0, 0.68, 0.12)
+		gold_coin_material.metallic = 0.78
+		gold_coin_material.roughness = 0.22
+		gold_coin_material.emission_enabled = true
+		gold_coin_material.emission = Color(1.0, 0.48, 0.04)
+		gold_coin_material.emission_energy_multiplier = 0.8
+	coin.mesh = gold_coin_mesh
+	coin.material_override = gold_coin_material
 	add_child(coin)
 	var coin_angle := randf_range(0.0, TAU)
 	var coin_radius := randf_range(0.35, 1.0) if tutorial_spawn else GOLD_COIN_SPAWN_BASE_RADIUS + randf_range(0.0, GOLD_COIN_SPAWN_EXTRA_RADIUS)
@@ -1381,8 +1385,10 @@ func play_sfx(key: String, volume_db := -4.0, pitch := 1.0) -> void:
 
 
 func start_match(player_class: int, requested_team: int = -1) -> void:
-	if state != "select":
+	if state != "select" or match_started:
 		return
+	match_started = true
+	state = "starting"
 	p_kills = 0
 	p_deaths = 0
 	p_damage = 0.0
@@ -3212,50 +3218,74 @@ func root_snare_fx(pos: Vector3, color: Color) -> void:
 			break
 
 
-func damage_number(pos: Vector3, amount: float, _team: int, is_shell := false, is_crit := false) -> void:
-	var profiler_start := Time.get_ticks_usec() if CombatProfiler.enabled else 0
+var number_label_pool: Array[Label3D] = []
+
+
+func _acquire_number_label() -> Label3D:
+	while not number_label_pool.is_empty():
+		var node = number_label_pool.pop_back()
+		if node != null and is_instance_valid(node):
+			var old_tween = node.get_meta("number_tween", null)
+			if old_tween is Tween:
+				(old_tween as Tween).kill()
+			node.visible = true
+			node.modulate.a = 1.0
+			return node
 	var label := Label3D.new()
 	label.font = UI_FONT
-	label.text = str(int(round(amount)))
-	label.font_size = 76 if is_crit else 64
 	label.pixel_size = 0.008
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
+	label.outline_size = 12
+	add_child(label)
+	return label
+
+
+func _release_number_label(label: Label3D) -> void:
+	if not is_instance_valid(label):
+		return
+	label.visible = false
+	label.modulate.a = 1.0
+	if number_label_pool.size() < 32:
+		number_label_pool.append(label)
+	else:
+		label.queue_free()
+
+
+func damage_number(pos: Vector3, amount: float, _team: int, is_shell := false, is_crit := false) -> void:
+	var profiler_start := Time.get_ticks_usec() if CombatProfiler.enabled else 0
+	var label := _acquire_number_label()
+	label.text = str(int(round(amount)))
+	label.font_size = 76 if is_crit else 64
 	if is_shell:
 		label.modulate = Color(0.85, 0.9, 1.0)
 	elif is_crit:
 		label.modulate = Color(1.0, 0.25, 0.2)
 	else:
 		label.modulate = Color(1.0, 0.92, 0.65)
-	label.outline_size = 12
 	label.outline_modulate = Color(0.05, 0.03, 0.08, 0.9)
-	add_child(label)
 	label.global_position = pos + Vector3(randf_range(-0.3, 0.3), 0.0, randf_range(-0.3, 0.3))
 	var tween := create_tween()
+	label.set_meta("number_tween", tween)
 	tween.tween_property(label, "global_position", label.global_position + Vector3(0.0, 1.1, 0.0), 0.7)
 	tween.parallel().tween_property(label, "modulate:a", 0.0, 0.7)
-	tween.tween_callback(label.queue_free)
+	tween.tween_callback(_release_number_label.bind(label))
 	if CombatProfiler.enabled:
 		CombatProfiler.mark("number", "%.0f crit=%s %.1fms" % [amount, str(is_crit), (Time.get_ticks_usec() - profiler_start) / 1000.0])
 
 
 func heal_number(pos: Vector3, amount: float) -> void:
-	var label := Label3D.new()
-	label.font = UI_FONT
+	var label := _acquire_number_label()
 	label.text = "+" + str(int(round(amount)))
 	label.font_size = 56
-	label.pixel_size = 0.008
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.no_depth_test = true
 	label.modulate = Color(0.6, 1.0, 0.7)
-	label.outline_size = 12
 	label.outline_modulate = Color(0.03, 0.08, 0.05, 0.9)
-	add_child(label)
 	label.global_position = pos
 	var tween := create_tween()
+	label.set_meta("number_tween", tween)
 	tween.tween_property(label, "global_position", pos + Vector3(0.0, 1.0, 0.0), 0.7)
 	tween.parallel().tween_property(label, "modulate:a", 0.0, 0.7)
-	tween.tween_callback(label.queue_free)
+	tween.tween_callback(_release_number_label.bind(label))
 
 
 func shake(amount: float) -> void:
@@ -3699,6 +3729,16 @@ func _on_shop_purchase_received(item_id: String, ok: bool, server_gold: int) -> 
 func _on_network_host_changed(new_host_id: int) -> void:
 	network_host = NetworkManager.is_host
 	print("[NET] host changed -> ", new_host_id, " local_host=", network_host)
+	if network_host and state == "live":
+		# We inherited the shell simulation: drop the guest copy and let the
+		# normal cycle spawn a fresh, locally simulated shell in a few seconds.
+		if shell != null and is_instance_valid(shell):
+			shell.queue_free()
+		shell = null
+		shell_phase = "idle"
+		shell_timer = 0.0
+		shell_window = SHELL_WINDOW
+		shell_cycle_timer = 5.0
 
 
 func _on_bot_roster_received(bots: Array) -> void:

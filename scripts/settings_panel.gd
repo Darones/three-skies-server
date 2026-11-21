@@ -275,7 +275,8 @@ func _build_credits_overlay() -> void:
 	credits_overlay.add_child(center)
 	var panel := PanelContainer.new()
 	panel.name = "CreditsPanel"
-	panel.custom_minimum_size = Vector2(760, 600)
+	var view_size := get_viewport_rect().size
+	panel.custom_minimum_size = Vector2(minf(760.0, view_size.x * 0.92), minf(600.0, view_size.y * 0.9))
 	var panel_style := StyleBoxFlat.new()
 	panel_style.bg_color = Color(0.035, 0.045, 0.07, 0.99)
 	panel_style.border_color = Color(0.78, 0.62, 0.32)

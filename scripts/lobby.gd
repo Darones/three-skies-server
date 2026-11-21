@@ -1448,7 +1448,7 @@ func _build_player_menu() -> void:
 	preview_viewport.name = "HeroPreviewViewport"
 	preview_viewport.own_world_3d = true
 	preview_viewport.transparent_bg = true
-	preview_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	preview_viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
 	preview_container.add_child(preview_viewport)
 	preview_root = Node3D.new()
 	preview_root.name = "PreviewRoot"

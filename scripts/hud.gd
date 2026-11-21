@@ -1,4 +1,4 @@
-extends CanvasLayer
+﻿extends CanvasLayer
 
 class AbilityCooldownWipe extends Control:
 	var mask_material: ShaderMaterial
@@ -60,6 +60,7 @@ var center_respawn_label: Label
 var ability_buttons: Array[Button] = []
 var icon_class := -1
 var ability_wipes: Array[AbilityCooldownWipe] = []
+var ability_wipe_progress: Array[float] = [-1.0, -1.0, -1.0]
 var ability_ready: Array[bool] = []
 var ability_name_labels: Array[Label] = []
 var ability_key_labels: Array[Label] = []
@@ -101,6 +102,7 @@ var tutorial_secondary_action := Callable()
 var tutorial_ability_index := -1
 var tutorial_press_label: Label
 var tutorial_pulse := 0.0
+var tutorial_style_pulse := -1.0
 var hud_tick := 0.0
 var low_health_overlay: ColorRect
 var low_health_material: ShaderMaterial
@@ -644,7 +646,7 @@ func _build_top(root: Control) -> void:
 	shell_timer_label.visible = false
 
 	_build_player_panel(root)
-	if _mobile_ui():
+	if true:
 		pause_button = Button.new()
 		pause_button.name = "MobilePauseButton"
 		pause_button.text = "II"
@@ -1134,6 +1136,7 @@ func _set_ability_ready(index: int, is_ready: bool) -> void:
 func _refresh_ability_icons(cls: int) -> void:
 	if cls < 0 or cls >= ABILITY_ICONS.size():
 		return
+	ability_wipe_progress = [-1.0, -1.0, -1.0]
 	for index in ability_buttons.size():
 		var icon_rect := ability_buttons[index].get_node_or_null("AbilityIcon") as TextureRect
 		if icon_rect != null:
@@ -1162,6 +1165,7 @@ func _refresh_ability_button_style(index: int) -> void:
 func set_tutorial_ability(index: int) -> void:
 	if tutorial_ability_index == index:
 		return
+	tutorial_style_pulse = -1.0
 	var previous := tutorial_ability_index
 	tutorial_ability_index = index
 	_refresh_ability_button_style(previous)
@@ -1194,7 +1198,11 @@ func _update_tutorial_press_hint() -> void:
 		tutorial_press_label.visible = false
 		return
 	tutorial_pulse = 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.008)
-	_refresh_ability_button_style(index)
+	if absf(tutorial_pulse - tutorial_style_pulse) >= 0.08:
+		tutorial_style_pulse = tutorial_pulse
+		# Rebuilding three StyleBoxFlat every frame is heavy; step the border
+		# pulse instead.
+		_refresh_ability_button_style(index)
 	tutorial_press_label.modulate.a = 0.55 + 0.45 * tutorial_pulse
 	var width := maxf(150.0, button.size.x + 40.0)
 	tutorial_press_label.size = Vector2(width, 30.0)
@@ -1617,7 +1625,7 @@ func _process(_delta: float) -> void:
 		icon_class = game.player.hero_class
 		_refresh_ability_icons(icon_class)
 	if pause_button != null:
-		pause_button.visible = game.state == "live" and not _mobile_ui()
+		pause_button.visible = game.state == "live"
 	hud_tick += _delta
 	var slow_ui := hud_tick >= 0.1
 	if slow_ui:
@@ -1649,14 +1657,18 @@ func _process(_delta: float) -> void:
 	if ability_row != null:
 		ability_row.visible = game.state != "select"
 
-	if game.player != null:
+	if game.player != null and is_instance_valid(game.player):
 		var p = game.player
 		for i in 3:
 			var data: Dictionary = HeroUnit.CLASS_DATA[p.hero_class]["abilities"][i]
 			var cd: float = p.ability_cds[i]
 			var cooldown_length := maxf(0.001, float(data["cd"]) * (1.0 - p.cooldown_reduction))
 			var progress := 1.0 if cd <= 0.01 else clampf(1.0 - cd / cooldown_length, 0.0, 1.0)
-			ability_wipes[i].set_progress(progress)
+			# Updating the shader parameter and queueing a redraw every frame for
+			# three buttons cost more than the whole HUD; only change on movement.
+			if absf(progress - ability_wipe_progress[i]) > 0.01:
+				ability_wipe_progress[i] = progress
+				ability_wipes[i].set_progress(progress)
 			_set_ability_ready(i, cd <= 0.01)
 	else:
 		if center_respawn_label != null:

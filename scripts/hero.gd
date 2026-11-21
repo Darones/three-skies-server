@@ -568,6 +568,74 @@ func spawn_ability_vfx(index: int, pos: Vector3) -> void:
 	spawn_vfx(scene, pos, effect_scale, effect_emission, effect_light, palette["primary"], palette["secondary"], palette["light"])
 
 
+static var _vfx_pool: Dictionary = {}
+
+
+func _vfx_key(scene: PackedScene) -> String:
+	var path := scene.resource_path
+	return path if not path.is_empty() else str(scene)
+
+
+func _acquire_vfx(scene: PackedScene) -> Node3D:
+	var key := _vfx_key(scene)
+	var pool: Array = _vfx_pool.get(key, [])
+	while not pool.is_empty():
+		var node = pool.pop_back()
+		if node != null and is_instance_valid(node):
+			return node as Node3D
+	return scene.instantiate() as Node3D
+
+
+func _prepare_vfx(effect: Node3D, _scene: PackedScene) -> void:
+	if DeviceProfile.mobile_ui:
+		# Mobile GPUs choke on large particle bursts; halve the count and
+		# simulate at 30 Hz, which is visually indistinguishable in combat.
+		for node in effect.find_children("*", "GPUParticles3D", true, false):
+			var particles := node as GPUParticles3D
+			particles.amount = maxi(4, particles.amount / 2)
+			particles.fixed_fps = 30
+		for node in effect.find_children("*", "CPUParticles3D", true, false):
+			var particles := node as CPUParticles3D
+			particles.amount = maxi(4, particles.amount / 2)
+			particles.fixed_fps = 30
+		for node in effect.find_children("*", "Light3D", true, false):
+			(node as Light3D).visible = false
+	effect.set_meta("vfx_geo", effect.find_children("*", "GeometryInstance3D"))
+	effect.set_meta("vfx_lights", effect.find_children("*", "Light3D"))
+	effect.set_meta("vfx_particles", effect.find_children("*", "GPUParticles3D") + effect.find_children("*", "CPUParticles3D"))
+	var audio_player := effect.find_child("AudioStreamPlayer3D", true, false) as AudioStreamPlayer3D
+	if audio_player != null:
+		audio_player.max_polyphony = 1
+		audio_player.max_distance = 80.0
+		audio_player.unit_size = 14.0
+		audio_player.volume_db = -6.0
+		audio_player.bus = "Master"
+	effect.set_meta("vfx_audio", audio_player)
+	effect.set_meta("vfx_anim", effect.find_child("AnimationPlayer", true, false) as AnimationPlayer)
+	effect.set_meta("vfx_ready", true)
+
+
+func _release_vfx(effect: Node3D, key: String) -> void:
+	if not is_instance_valid(effect):
+		return
+	effect.visible = false
+	var audio_player := effect.get_meta("vfx_audio", null) as AudioStreamPlayer3D
+	if audio_player != null:
+		audio_player.stop()
+	for node in effect.get_meta("vfx_particles", []):
+		if is_instance_valid(node):
+			if node is GPUParticles3D:
+				(node as GPUParticles3D).emitting = false
+			elif node is CPUParticles3D:
+				(node as CPUParticles3D).emitting = false
+	var pool: Array = _vfx_pool.get(key, [])
+	if pool.size() < 4:
+		pool.append(effect)
+		_vfx_pool[key] = pool
+	else:
+		effect.queue_free()
+
+
 func spawn_vfx(
 	vfx_scene: PackedScene,
 	pos: Vector3,
@@ -582,46 +650,42 @@ func spawn_vfx(
 	if vfx_scene == null:
 		return
 	var profiler_start := Time.get_ticks_usec() if CombatProfiler.enabled else 0
-	var effect := vfx_scene.instantiate() as Node3D
+	var key := _vfx_key(vfx_scene)
+	var effect := _acquire_vfx(vfx_scene)
 	if effect == null:
 		return
 	var effect_parent: Node = game if game != null and is_instance_valid(game) else get_tree().current_scene
 	if effect_parent == null:
 		effect.free()
 		return
-	effect_parent.add_child(effect)
-	if DeviceProfile.mobile_ui:
-		# Mobile GPUs choke on large particle bursts; halve the count and
-		# simulate at 30 Hz, which is visually indistinguishable in combat.
-		for node in effect.find_children("*", "GPUParticles3D", true, false):
-			var particles := node as GPUParticles3D
-			particles.amount = maxi(4, particles.amount / 2)
-			particles.fixed_fps = 30
-		for node in effect.find_children("*", "CPUParticles3D", true, false):
-			var particles := node as CPUParticles3D
-			particles.amount = maxi(4, particles.amount / 2)
-			particles.fixed_fps = 30
-		for node in effect.find_children("*", "Light3D", true, false):
-			(node as Light3D).visible = false
+	if effect.get_parent() == null:
+		effect_parent.add_child(effect)
+	elif effect.get_parent() != effect_parent:
+		effect.reparent(effect_parent)
+	if not bool(effect.get_meta("vfx_ready", false)):
+		_prepare_vfx(effect, vfx_scene)
 	var effect_position := pos
 	effect_position.y += 0.6
-	effect.global_position = effect_position
 	effect.visible = true
+	effect.process_mode = Node.PROCESS_MODE_INHERIT
+	effect.global_position = effect_position
 	effect.scale = Vector3.ONE * effect_scale
 	# Apply emission to GeometryInstance3D nodes that have StandardMaterial3D
-	for child in effect.find_children("*", "GeometryInstance3D"):
+	for child in effect.get_meta("vfx_geo", []):
+		if not is_instance_valid(child):
+			continue
 		var mat := child.get("material_override") as StandardMaterial3D
 		if mat != null:
 			mat.emission_enabled = true
 			mat.emission = primary_tint
 			mat.emission_energy_multiplier = effect_emission
 	# Apply light properties only to Light3D nodes
-	for child in effect.find_children("*", "Light3D"):
+	for child in effect.get_meta("vfx_lights", []):
 		var light := child as Light3D
-		if light != null:
+		if light != null and light.visible:
 			light.light_energy = effect_light_energy
 			light.light_color = light_tint
-	var audio_player := effect.find_child("AudioStreamPlayer3D", true, false) as AudioStreamPlayer3D
+	var audio_player := effect.get_meta("vfx_audio", null) as AudioStreamPlayer3D
 	if audio_player != null:
 		if play_vfx_audio:
 			var mapped_stream := _vfx_audio_for_scene(vfx_scene)
@@ -630,19 +694,15 @@ func spawn_vfx(
 		else:
 			audio_player.stop()
 			audio_player.stream = null
-		audio_player.max_polyphony = 1
-		audio_player.max_distance = 80.0
-		audio_player.unit_size = 14.0
-		audio_player.volume_db = -6.0
-		audio_player.bus = "Master"
 	# Apply custom script properties only if the effect node supports them
 	if effect.has_method("_set_vfx_params"):
 		effect.call("_set_vfx_params", primary_tint, secondary_tint, effect_emission)
-	var animation_player := effect.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	var animation_player := effect.get_meta("vfx_anim", null) as AnimationPlayer
 	var lifetime := 1.0
 	if animation_player != null and animation_player.has_animation("main"):
 		lifetime = maxf(animation_player.get_animation("main").length, 0.6) + 0.25
 	if animation_player != null and animation_player.has_animation("main"):
+		animation_player.stop()
 		animation_player.speed_scale = 1.0
 		animation_player.play("main")
 		animation_player.seek(0.0, true)
@@ -651,9 +711,28 @@ func spawn_vfx(
 	else:
 		effect.queue_free()
 		return
-	if audio_player != null and audio_player.stream != null and not audio_player.is_playing():
+	for node in effect.get_meta("vfx_particles", []):
+		if not is_instance_valid(node):
+			continue
+		if node is GPUParticles3D:
+			var gp := node as GPUParticles3D
+			gp.emitting = false
+			gp.restart()
+			gp.emitting = true
+		elif node is CPUParticles3D:
+			var cp := node as CPUParticles3D
+			cp.emitting = false
+			cp.restart()
+			cp.emitting = true
+	if audio_player != null and audio_player.stream != null:
+		audio_player.stop()
 		audio_player.play()
-	get_tree().create_timer(lifetime).timeout.connect(Callable(effect, "queue_free"), CONNECT_ONE_SHOT)
+	var token := Time.get_ticks_msec() + randi()
+	effect.set_meta("vfx_token", token)
+	get_tree().create_timer(lifetime).timeout.connect(func() -> void:
+		if is_instance_valid(effect) and int(effect.get_meta("vfx_token", 0)) == token:
+			_release_vfx(effect, key)
+	, CONNECT_ONE_SHOT)
 	if CombatProfiler.enabled:
 		CombatProfiler.mark("vfx", "%s %.1fms" % [vfx_scene.resource_path.get_file(), (Time.get_ticks_usec() - profiler_start) / 1000.0])
 

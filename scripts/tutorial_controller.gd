@@ -279,8 +279,8 @@ func _start_ability_training() -> void:
 func _ability_hint(index: int) -> String:
 	var name := _ability_name(index)
 	if _uses_touch_controls():
-		return "Нажми мигающую кнопку «%s» справа" % name
-	return "Нажми «%s» — клавиша %d (или Num %d)" % [name, index + 1, index + 1]
+		return "Нажми мигающую кнопку %d справа (%s)" % [index + 1, name]
+	return "Кнопка %d — %s (клавиша %d)" % [index + 1, name, index + 1]
 
 
 func return_to_lobby() -> void:
