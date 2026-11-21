@@ -304,6 +304,7 @@ func (h *wsHub) removeClient(client *wsClient) {
 	var botRoster *wsOutgoing
 	var lobbyState *wsOutgoing
 	var crystalState *wsOutgoing
+	var shellReset *wsOutgoing
 	h.mu.Lock()
 	delete(h.clients, client.id)
 	room := h.rooms[client.roomID]
@@ -332,6 +333,16 @@ func (h *wsHub) removeClient(client *wsClient) {
 			}
 			if room.hostID != 0 {
 				hostChanged = &wsOutgoing{Type: "host_changed", RoomID: room.id, ID: room.hostID, HostID: room.hostID}
+				// The guest copy of the shell cannot simulate strikes. Reset it
+				// so the new host spawns a fresh local shell instead of the old
+				// remote one standing idle for two minutes.
+				if room.state == "live" && room.shell != nil && room.shell.Alive {
+					room.shell.Alive = false
+					room.shell.HP = 0
+					room.shellDiedAt = time.Now()
+					s := *room.shell
+					shellReset = &wsOutgoing{Type: "shell_state", RoomID: room.id, Shell: &s}
+				}
 			}
 		}
 		if room.humanCount <= 0 {
@@ -361,6 +372,9 @@ func (h *wsHub) removeClient(client *wsClient) {
 		h.broadcastRoom(roomID, client.id, wsOutgoing{Type: "player_left", ID: client.id})
 		if hostChanged != nil {
 			h.broadcastRoom(roomID, 0, *hostChanged)
+		}
+		if shellReset != nil {
+			h.broadcastRoom(roomID, 0, *shellReset)
 		}
 		if botRoster != nil {
 			h.broadcastRoom(roomID, 0, *botRoster)
@@ -2016,6 +2030,9 @@ func (h *wsHub) finishMatchByTimeout(roomID int64) {
 	winner := 0
 	if score1 > score0 {
 		winner = 1
+	} else if score0 == score1 {
+		// A draw after sudden death must not always favour team 0.
+		winner = int(time.Now().UnixNano() % 2)
 	}
 	players := h.finishMatchLocked(room)
 	h.mu.Unlock()
