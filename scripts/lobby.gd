@@ -252,6 +252,8 @@ func _ready() -> void:
 	add_child(touch_keyboard)
 	if OS.get_cmdline_user_args().has("--auto-play"):
 		_auto_play_after_delay()
+	if OS.get_cmdline_user_args().has("--auto-online"):
+		_auto_online_after_delay()
 	if OS.get_cmdline_user_args().has("--auto-tutorial") or DeviceProfile.auto_tutorial:
 		_auto_tutorial_after_delay()
 	if OS.get_cmdline_user_args().has("--shop-lobby-preview"):
@@ -338,6 +340,12 @@ func _auto_play_after_delay() -> void:
 	await get_tree().create_timer(1.0).timeout
 	if is_inside_tree():
 		_start_battle()
+
+
+func _auto_online_after_delay() -> void:
+	await get_tree().create_timer(1.5).timeout
+	if is_inside_tree():
+		_start_network_battle()
 
 
 func _auto_tutorial_after_delay() -> void:

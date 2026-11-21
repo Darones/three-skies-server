@@ -2014,9 +2014,9 @@ func _update_health_display() -> void:
 
 
 
-func apply_network_damage(amount: float) -> void:
+func apply_network_damage(amount: float, show_number := true, is_crit := false) -> bool:
 	if dead:
-		return
+		return false
 	if is_player and amount > 0.0:
 		Haptics.vibrate(50)
 	health = clampf(health - maxf(amount, 0.0), 0.0, max_health)
@@ -2024,10 +2024,12 @@ func apply_network_damage(amount: float) -> void:
 	_update_health_display()
 	if is_player and game != null and game.hud != null:
 		game.hud.call("flash_damage", clampf(0.22 + maxf(amount, 0.0) / 260.0, 0.22, 0.6))
-	if game != null and game.has_method("damage_number"):
-		game.call("damage_number", global_position + Vector3(0.0, 2.0, 0.0), amount, team)
+	if show_number and game != null and game.has_method("damage_number"):
+		game.call("damage_number", global_position + Vector3(0.0, 2.0, 0.0), amount, team, false, is_crit)
 	if health <= 0.0:
 		_die()
+		return true
+	return false
 
 
 func apply_network_heal(amount: float) -> void:
@@ -2099,7 +2101,8 @@ func take_damage(amount: float, source: Node = null, damage_type: String = "phys
 		# other player saw the host as immortal after every bot fight.
 		if not network_source.is_player and int(network_source.network_id) < 0:
 			var network_skill := _skill if not _skill.is_empty() else "auto"
-			NetworkManager.send_attack_intent(NetworkManager.local_peer_id, network_skill, int(network_source.network_id), amount)
+			var intent_damage := amount * HERO_OUTGOING_DAMAGE_MULTIPLIER
+			NetworkManager.send_attack_intent(NetworkManager.local_peer_id, network_skill, int(network_source.network_id), intent_damage, is_crit)
 			return
 	if game != null and bool(game.get("network_play")) and NetworkManager.server_protocol >= 2 and not is_player and int(network_id) < 0:
 		# The host moves the bot, but the server owns its HP. Every local hit
@@ -2111,7 +2114,8 @@ func take_damage(amount: float, source: Node = null, damage_type: String = "phys
 				source_id = NetworkManager.local_peer_id
 			if source_id != 0:
 				var source_skill := _skill if not _skill.is_empty() else "auto"
-				NetworkManager.send_attack_intent(network_id, source_skill, source_id, amount)
+				var intent_damage := amount * HERO_OUTGOING_DAMAGE_MULTIPLIER
+				NetworkManager.send_attack_intent(network_id, source_skill, source_id, intent_damage, is_crit)
 				return
 		NetworkManager.send_bot_damage(network_id, amount)
 		return

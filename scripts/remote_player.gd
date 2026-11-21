@@ -329,16 +329,18 @@ func take_damage(amount: float, source: Node = null, _damage_type := "physical",
 		game.call("damage_number", global_position + Vector3(0.0, 2.0, 0.0), applied, team)
 
 
-func apply_network_damage(amount: float, show_number := true) -> void:
+func apply_network_damage(amount: float, show_number := true, is_crit := false) -> bool:
 	if dead:
-		return
+		return false
 	last_damage_msec = Time.get_ticks_msec()
 	health = maxf(0.0, health - maxf(amount, 0.0))
 	_update_health_bar()
 	if show_number and game != null and game.has_method("damage_number"):
-		game.call("damage_number", global_position + Vector3(0.0, 2.0, 0.0), amount, team)
+		game.call("damage_number", global_position + Vector3(0.0, 2.0, 0.0), amount, team, false, is_crit)
 	if health <= 0.0:
 		apply_network_death()
+		return true
+	return false
 
 
 func receive_heal(amount: float, source: Node = null) -> void:

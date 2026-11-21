@@ -223,9 +223,13 @@ func take_damage(amount: float, source: Node = null, _damage_type: String = "phy
 			source_id = int((source as HeroUnit).network_id)
 			if source_id == 0 and (source as HeroUnit).is_player:
 				source_id = NetworkManager.local_peer_id
+		# The server applies the intent as-is, so include the same outgoing
+		# multiplier the offline branch applies below.
+		var source_multiplier := HeroUnit.HERO_OUTGOING_DAMAGE_MULTIPLIER if source is HeroUnit else 1.0
+		var intent_damage := maxf(amount, 0.0) * source_multiplier
 		if CombatProfiler.enabled:
-			print("[SHELL] intent amount=%.0f source=%d hp_local=%.0f" % [amount, source_id, health])
-		NetworkManager.send_shell_attack(amount, source_id)
+			print("[SHELL] intent amount=%.0f source=%d hp_local=%.0f" % [intent_damage, source_id, health])
+		NetworkManager.send_shell_attack(intent_damage, source_id)
 		return
 	if CombatProfiler.enabled:
 		print("[SHELL] dmg=%.0f hp_before=%.0f/%.0f source=%s" % [amount, health, max_health, str(source.name) if source != null else "?"])

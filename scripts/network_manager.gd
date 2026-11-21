@@ -9,8 +9,8 @@ signal remote_player_joined(player_id: int, info: Dictionary)
 signal remote_player_state(player_id: int, position: Vector3, rotation: float)
 signal remote_player_left(player_id: int)
 signal remote_attack_received(player_id: int, attack_type: String, target_id: int)
-signal remote_damage_received(source_id: int, target_id: int, amount: float, skill: String)
-signal remote_death_received(player_id: int)
+signal remote_damage_received(source_id: int, target_id: int, amount: float, skill: String, crit: bool)
+signal remote_death_received(player_id: int, source_id: int)
 signal remote_respawn_received(player_id: int, position: Vector3, rotation: float)
 signal remote_heal_received(source_id: int, target_id: int, amount: float)
 signal remote_stats_updated(player_id: int, max_hp: float, hp: float, attack_damage: float)
@@ -25,7 +25,7 @@ signal match_started(room_id: int, host_id: int, players: Array)
 signal lobby_state_received(players: Array, starts_in_ms: int)
 signal match_finished(winning_team: int)
 signal match_score_updated(score_0: int, score_1: int, sudden_death: bool)
-signal match_event_received(event: String, team: int)
+signal match_event_received(event: String, team: int, source_id: int)
 signal host_changed(new_host_id: int)
 
 enum State { DISCONNECTED, CONNECTING, CONNECTED }
@@ -100,6 +100,7 @@ func connect_to_server(hero_class: int = 0, team: int = 0, player_name := "", pl
 	_pending_name = String(player_name).strip_edges()
 	_pending_player_id = int(player_id)
 	local_peer_id = 0
+	server_protocol = 0
 	local_bots.clear()
 	remote_players.clear()
 	match_players.clear()
@@ -145,6 +146,7 @@ func disconnect_from_server(notify := true) -> void:
 	assigned_team = 0
 	local_class = 0
 	is_host = false
+	server_protocol = 0
 	if was_active:
 		connection_state_changed.emit(state)
 		if notify:
@@ -174,7 +176,7 @@ func get_remote_snapshot() -> Dictionary:
 	return remote_players.duplicate(true)
 
 
-func send_attack_intent(target_id: int, skill: String, source_id: int = 0, amount := -1.0) -> void:
+func send_attack_intent(target_id: int, skill: String, source_id: int = 0, amount := -1.0, crit := false) -> void:
 	if state != State.CONNECTED or target_id == 0:
 		return
 	var payload := {
@@ -186,6 +188,8 @@ func send_attack_intent(target_id: int, skill: String, source_id: int = 0, amoun
 		payload["source_id"] = source_id
 	if amount > 0.0:
 		payload["amount"] = amount
+	if crit:
+		payload["crit"] = true
 	_send_json(payload)
 
 
@@ -486,7 +490,8 @@ func _handle_message(text: String) -> void:
 		"match_event":
 			match_event_received.emit(
 				String(message.get("event", "")),
-				int(message.get("team", 0))
+				int(message.get("team", 0)),
+				int(message.get("source_id", 0))
 			)
 		"match_finished":
 			if message.has("score_0") or message.has("score_1"):
@@ -563,10 +568,9 @@ func _handle_state(message: Dictionary) -> void:
 		remote_players[player_id] = info
 	else:
 		info = remote_players[player_id]
-		if message.has("class"):
-			info["class"] = clampi(int(message.get("class", 0)), 0, 2)
-		if message.has("team"):
-			info["team"] = clampi(int(message.get("team", 0)), 0, 1)
+		# class/team never change during a match; roster messages own them.
+		# (Older servers sent class:0/team:0 in every state packet and this
+		# used to turn every opponent into a teammate.)
 		info["position"] = position
 		info["rotation"] = rotation_y
 		info["has_state"] = true
@@ -582,6 +586,10 @@ func _handle_state(message: Dictionary) -> void:
 			# A missed death/respawn packet used to leave the remote node
 			# invisible forever. The 12 Hz state packet now repairs it.
 			remote_respawn_received.emit(player_id, position, rotation_y)
+		elif was_alive and not now_alive:
+			# A missed death packet used to leave a corpse standing with a
+			# full health bar, immune to server-side attacks.
+			remote_death_received.emit(player_id, 0)
 		remote_stats_updated.emit(player_id, synced_max, synced_hp, float(info.get("attack_damage", 0.0)))
 	if is_new:
 		remote_player_joined.emit(player_id, info)
@@ -770,7 +778,7 @@ func _handle_damage(message: Dictionary) -> void:
 	var amount := float(message.get("amount", 0.0))
 	if target_id == 0 or amount <= 0.0:
 		return
-	remote_damage_received.emit(source_id, target_id, amount, String(message.get("skill", "auto")))
+	remote_damage_received.emit(source_id, target_id, amount, String(message.get("skill", "auto")), bool(message.get("crit", false)))
 
 
 func _handle_heal(message: Dictionary) -> void:
@@ -809,7 +817,7 @@ func _handle_death(message: Dictionary) -> void:
 	if remote_players.has(player_id):
 		var info: Dictionary = remote_players[player_id]
 		info["alive"] = false
-	remote_death_received.emit(player_id)
+	remote_death_received.emit(player_id, int(message.get("source_id", 0)))
 
 
 func _handle_respawn(message: Dictionary) -> void:

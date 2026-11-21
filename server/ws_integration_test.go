@@ -238,6 +238,9 @@ func TestWebSocketBotSyncAndServerValidation(t *testing.T) {
 	if shellEvent.Event != "shell_destroyed" {
 		t.Fatalf("expected shell_destroyed, got %+v", shellEvent)
 	}
+	if shellEvent.Team != 1 || shellEvent.SourceID != guestWelcome.ID {
+		t.Fatalf("shell kill was not attributed to the guest: %+v", shellEvent)
+	}
 	crystalState := readUntilType(t, guest, "crystal_state")
 	if crystalState.Crystal == nil || crystalState.Crystal.State != "ground" {
 		t.Fatalf("shell death did not spawn a ground crystal: %+v", crystalState.Crystal)
@@ -259,6 +262,10 @@ func TestWebSocketBotSyncAndServerValidation(t *testing.T) {
 	if crystalState.Crystal == nil || crystalState.Crystal.State != "none" {
 		t.Fatalf("crystal delivery not owned by server: %+v", crystalState.Crystal)
 	}
+	deliveryEvent := readUntilType(t, guest, "match_event")
+	if deliveryEvent.Event != "shard_delivered" || deliveryEvent.Team != 1 || deliveryEvent.SourceID != guestWelcome.ID {
+		t.Fatalf("shard delivery was not attributed to the guest: %+v", deliveryEvent)
+	}
 	crystalScore := readUntilType(t, guest, "match_score")
 	if crystalScore.Score0 != 0 || crystalScore.Score1 != 1 {
 		t.Fatalf("unexpected score after crystal delivery: %+v", crystalScore)
@@ -266,24 +273,143 @@ func TestWebSocketBotSyncAndServerValidation(t *testing.T) {
 	// The host also received the 0:1 score; drain it before the 3 shard loop.
 	_ = readUntilType(t, host, "match_score")
 
+	if err := host.WriteJSON(map[string]any{"type": "state", "x": 0.0, "y": 0.76, "z": 27.0, "rotation": 0.0}); err != nil {
+		t.Fatalf("host base state: %v", err)
+	}
 	for delivery := 0; delivery < crystalsToWin; delivery++ {
-		if err := host.WriteJSON(map[string]any{
-			"type": "match_event", "event": "shard_delivered", "team": 0,
-		}); err != nil {
-			t.Fatalf("match event: %v", err)
+		hub.mu.Lock()
+		if room := hub.rooms[hostJoined.RoomID]; room != nil {
+			room.crystal = &wsCrystalState{State: "carried", CarrierID: hostWelcome.ID}
+		}
+		hub.mu.Unlock()
+		if err := host.WriteJSON(map[string]any{"type": "crystal_deliver"}); err != nil {
+			t.Fatalf("host crystal delivery %d: %v", delivery+1, err)
 		}
 		scoreMessage := readUntilType(t, host, "match_score")
 		if scoreMessage.Score0 != delivery+1 {
 			t.Fatalf("unexpected score after delivery %d: %+v", delivery+1, scoreMessage)
 		}
-		hub.mu.Lock()
-		if room := hub.rooms[hostJoined.RoomID]; room != nil {
-			room.lastDelivery = [2]time.Time{}
-		}
-		hub.mu.Unlock()
 	}
 	finished := readUntilType(t, guest, "match_finished")
 	if finished.WinningTeam != 0 {
 		t.Fatalf("expected server winner team 0, got %+v", finished)
+	}
+}
+
+// TestHumanCarrierDropsCrystalOnDeath covers the bug where a human carrier
+// kept the shard after dying: the server only dropped it for bots, so the
+// crystal stayed "carried" by a corpse and could never be picked up.
+func TestHumanCarrierDropsCrystalOnDeath(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	server := httptest.NewServer(http.HandlerFunc(hub.handleWebSocket))
+	defer server.Close()
+
+	host := dialTestClient(t, server.URL)
+	guest := dialTestClient(t, server.URL)
+	hostWelcome := readUntilType(t, host, "welcome")
+	guestWelcome := readUntilType(t, guest, "welcome")
+
+	if err := host.WriteJSON(map[string]any{
+		"type": "join", "name": "Host", "class": 0, "class_name": "warrior", "player_id": 201,
+	}); err != nil {
+		t.Fatalf("host join: %v", err)
+	}
+	if err := guest.WriteJSON(map[string]any{
+		"type": "join", "name": "Guest", "class": 1, "class_name": "mage", "player_id": 202,
+	}); err != nil {
+		t.Fatalf("guest join: %v", err)
+	}
+	hostJoined := readUntilType(t, host, "room_joined")
+	_ = readUntilType(t, guest, "room_joined")
+	hub.startRoom(hostJoined.RoomID)
+	_ = readUntilType(t, host, "match_start")
+	_ = readUntilType(t, guest, "match_start")
+
+	if err := host.WriteJSON(map[string]any{"type": "shell_state", "shell": map[string]any{
+		"alive": true, "x": 0.0, "y": 0.45, "z": 0.0, "phase": "active",
+	}}); err != nil {
+		t.Fatalf("shell state: %v", err)
+	}
+	_ = readUntilType(t, host, "shell_state")
+	_ = readUntilType(t, guest, "shell_state")
+
+	if err := host.WriteJSON(map[string]any{"type": "state", "x": 0.0, "y": 0.76, "z": 2.0, "rotation": 0.0}); err != nil {
+		t.Fatalf("host state: %v", err)
+	}
+	if err := guest.WriteJSON(map[string]any{"type": "state", "x": 0.0, "y": 0.76, "z": -2.0, "rotation": 0.0}); err != nil {
+		t.Fatalf("guest state: %v", err)
+	}
+	if err := host.WriteJSON(map[string]any{"type": "shell_attack", "amount": 500.0}); err != nil {
+		t.Fatalf("host shell attack: %v", err)
+	}
+	for {
+		state := readUntilType(t, host, "shell_state")
+		if state.Shell != nil && state.Shell.HP == 500 {
+			break
+		}
+	}
+	if err := guest.WriteJSON(map[string]any{"type": "shell_attack", "amount": 500.0}); err != nil {
+		t.Fatalf("guest shell attack: %v", err)
+	}
+	for {
+		state := readUntilType(t, guest, "shell_state")
+		if state.Shell != nil && !state.Shell.Alive {
+			break
+		}
+	}
+
+	var ground *wsCrystalState
+	for {
+		state := readUntilType(t, guest, "crystal_state")
+		if state.Crystal != nil && state.Crystal.State == "ground" {
+			ground = state.Crystal
+			break
+		}
+	}
+	if ground == nil {
+		t.Fatal("shell death did not drop a crystal")
+	}
+
+	if err := guest.WriteJSON(map[string]any{"type": "state", "x": ground.X, "y": 0.76, "z": ground.Z, "rotation": 0.0}); err != nil {
+		t.Fatalf("guest pickup position: %v", err)
+	}
+	if err := guest.WriteJSON(map[string]any{"type": "crystal_pickup"}); err != nil {
+		t.Fatalf("crystal pickup: %v", err)
+	}
+	for {
+		state := readUntilType(t, host, "crystal_state")
+		if state.Crystal != nil && state.Crystal.State == "carried" && state.Crystal.CarrierID == guestWelcome.ID {
+			break
+		}
+	}
+
+	if err := host.WriteJSON(map[string]any{"type": "state", "x": ground.X + 1.0, "y": 0.76, "z": ground.Z, "rotation": 0.0}); err != nil {
+		t.Fatalf("host attack position: %v", err)
+	}
+	// 400 is within the server's per-hit cap for every class; the auto skill
+	// has a 250 ms cooldown, so a few spaced hits kill any class.
+	for hit := 0; hit < 4; hit++ {
+		if err := host.WriteJSON(map[string]any{
+			"type": "attack_intent", "target_id": guestWelcome.ID, "skill": "auto", "amount": 400.0,
+		}); err != nil {
+			t.Fatalf("host attack %d: %v", hit, err)
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+	death := readUntilType(t, host, "death")
+	if death.ID != guestWelcome.ID {
+		t.Fatalf("expected guest death, got %+v", death)
+	}
+	if death.SourceID != hostWelcome.ID {
+		t.Fatalf("death was not attributed to the host: %+v", death)
+	}
+	for {
+		state := readUntilType(t, guest, "crystal_state")
+		if state.Crystal != nil && state.Crystal.State == "ground" {
+			if state.Crystal.CarrierID != 0 {
+				t.Fatalf("dropped crystal still has a carrier: %+v", state.Crystal)
+			}
+			return
+		}
 	}
 }
