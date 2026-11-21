@@ -71,6 +71,7 @@ type wsRoom struct {
 	lastDelivery [2]time.Time
 	shell        *wsShellState
 	shellDiedAt  time.Time
+	shellSpawnID int64
 	lastShellHit map[int64]time.Time
 	crystal      *wsCrystalState
 }
@@ -182,14 +183,15 @@ type wsBotSnapshot struct {
 }
 
 type wsShellState struct {
-	Alive bool    `json:"alive"`
-	HP    float64 `json:"hp,omitempty"`
-	MaxHP float64 `json:"max_hp,omitempty"`
-	X     float64 `json:"x"`
-	Y     float64 `json:"y"`
-	Z     float64 `json:"z"`
-	Phase string  `json:"phase,omitempty"`
-	Timer float64 `json:"timer,omitempty"`
+	Alive   bool    `json:"alive"`
+	HP      float64 `json:"hp,omitempty"`
+	MaxHP   float64 `json:"max_hp,omitempty"`
+	X       float64 `json:"x"`
+	Y       float64 `json:"y"`
+	Z       float64 `json:"z"`
+	Phase   string  `json:"phase,omitempty"`
+	Timer   float64 `json:"timer,omitempty"`
+	SpawnID int64   `json:"spawn_id,omitempty"`
 }
 
 type wsCrystalState struct {
@@ -341,6 +343,7 @@ func (h *wsHub) removeClient(client *wsClient) {
 					room.shell.Alive = false
 					room.shell.HP = 0
 					room.shellDiedAt = time.Now()
+					room.shellSpawnID = 0
 					s := *room.shell
 					shellReset = &wsOutgoing{Type: "shell_state", RoomID: room.id, Shell: &s}
 				}
@@ -1429,7 +1432,7 @@ func (h *wsHub) relayShellState(client *wsClient, message wsIncoming) {
 		return
 	}
 	if room.shell == nil {
-		room.shell = &wsShellState{Alive: true, HP: 1000, MaxHP: 1000}
+		room.shell = &wsShellState{}
 	}
 	if !finite(state.X) || !finite(state.Y) || !finite(state.Z) {
 		h.mu.Unlock()
@@ -1439,13 +1442,21 @@ func (h *wsHub) relayShellState(client *wsClient, message wsIncoming) {
 	state.Z = clampArenaZ(state.Z)
 	if state.Alive && !room.shell.Alive {
 		// A stale "alive" packet sent before the host learned about the death
-		// must not resurrect the old shell. An active shard no longer blocks a
-		// new shell: the two can coexist and only the shell death creates a
-		// shard when none is active.
-		tooSoon := !room.shellDiedAt.IsZero() && time.Since(room.shellDiedAt) < 2*time.Second
-		if tooSoon {
+		// must not resurrect the old shell. SpawnID lets a genuinely new shell
+		// start even immediately after a death; without it fall back to the
+		// old 2 s guard.
+		stale := false
+		if state.SpawnID > 0 {
+			stale = state.SpawnID <= room.shellSpawnID
+		} else {
+			stale = !room.shellDiedAt.IsZero() && time.Since(room.shellDiedAt) < 2*time.Second
+		}
+		if stale {
 			state.Alive = false
 		} else {
+			if state.SpawnID > 0 {
+				room.shellSpawnID = state.SpawnID
+			}
 			room.shell.HP = 1000
 			room.shell.MaxHP = 1000
 		}
