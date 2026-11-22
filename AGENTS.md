@@ -45,8 +45,8 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
 - Проверка: `GET /health` → `status=ok`, `database=ok`; `GET /game/index.pck` → актуальный `Content-Length`.
 - Деплой: пуш в `origin/main` → RelaxDev пересобирает и перезапускает. Иногда нужен пустой commit для повторного деплоя. После деплоя проверять uptime в `/health` и размер PCK, а не верить пушу.
 - **Текущий прод (на 22.11.2026):**
-  - PCK: `index_20261122_092355.pck`, **45 932 032 байт**.
-  - `main`: `6df2137` (билд `fd431c9` + redeploy).
+  - PCK: `index_20261122_213705.pck`, **45 932 224 байт** (боты снова дерутся за Оболочку).
+  - `main`: `ac7cce7` (билд `1ff2657` + redeploy).
   - Исходники: ветка `mobile-ui`, последний коммит — этот файл памяти (см. `git log`).
   - Сервер: `server/ws.go` + `server/web/index.pck` в `main`.
 
@@ -78,7 +78,7 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
 - 10 QA-боёв (6 с одним человеком + боты, 4 с двумя людьми) — 0 `SCRIPT ERROR`.
 - **3 онлайн-боя 1v1** (по 2 живых сетевых клиента, разные классы: Воин+Маг, Маг+Арбалетчица, Арбалетчица+Воин), матчи по 10 минут. В каждой комнате Оболочка появилась на **2:00, 4:00, 6:00, 8:00**; в 6 логах 0 ошибок.
 - **Production-веб:** Оболочка появилась в 2:00, прожила полное 45-секундное окно, видна на экране. Скриншот: `docs/qa-web-shell-2min.jpg`.
-- `go test ./...` проходит.
+- `go test ./...` проходит, в т.ч. `TestBotDamageAppliesToShell` (урон бота по Оболочке применяется).
 
 ## Что не проверено / риски
 
