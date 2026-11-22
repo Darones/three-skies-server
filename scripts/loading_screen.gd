@@ -14,7 +14,21 @@ const SLOTS_PER_TEAM := 3
 const SIMULATED_TARGET := 4
 const FONT: FontFile = preload('res://assets/fonts/Philosopher-Regular.ttf')
 var team_slots: Array = [[], []]
-var searching_spinners: Array[Label] = []
+class SpinnerRing extends Control:
+	func _ready() -> void:
+		custom_minimum_size = Vector2(26.0, 26.0)
+		size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		pivot_offset = Vector2(13.0, 13.0)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var center := size * 0.5
+		draw_arc(center, 9.0, 0.0, TAU * 0.72, 28, Color(0.62, 0.65, 0.72), 2.5, true)
+		draw_circle(center + Vector2(9.0, 0.0), 2.5, Color(0.85, 0.75, 0.45))
+
+
+var searching_spinners: Array[Control] = []
 var progress_bar: ProgressBar
 var search_label: Label
 var connection_hint: Label
@@ -510,11 +524,7 @@ func _build_player_slot(team_index: int, slot_index: int, parent: VBoxContainer)
 	slot_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slot_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	row.add_child(slot_name)
-	var spinner := _make_label('\u25cc', 20, Color(0.62, 0.65, 0.72))
-	spinner.custom_minimum_size = Vector2(26.0, 26.0)
-	spinner.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	spinner.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	spinner.pivot_offset = Vector2(13.0, 13.0)
+	var spinner := SpinnerRing.new()
 	row.add_child(spinner)
 	searching_spinners.append(spinner)
 	return {'panel': panel, 'portrait': portrait, 'name': slot_name, 'spinner': spinner, 'state': 'searching'}

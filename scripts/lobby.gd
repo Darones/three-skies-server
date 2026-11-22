@@ -1294,8 +1294,8 @@ func _build_player_menu() -> void:
 
 	var profile_panel := PanelContainer.new()
 	profile_panel.name = "PlayerMenuProfile"
-	_place_inventory_column(profile_panel, 0.0, 0.36)
-	profile_panel.custom_minimum_size = Vector2(260, 0)
+	_place_inventory_column(profile_panel, 0.0, 0.35)
+	profile_panel.custom_minimum_size = Vector2(250 if DeviceProfile.mobile_ui else 260, 0)
 	profile_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.4, 0.48, 0.63, 0.8), Color(0.045, 0.055, 0.085, 0.97)))
 	columns.add_child(profile_panel)
 	player_menu_profile = profile_panel
@@ -1321,7 +1321,7 @@ func _build_player_menu() -> void:
 	nickname_row.add_child(nickname_display_label)
 	var change_nickname_button := _make_action_button("Сменить ник", false)
 	change_nickname_button.name = "NicknameChangeButton"
-	change_nickname_button.custom_minimum_size = Vector2(140, 42)
+	change_nickname_button.custom_minimum_size = Vector2(110, 40) if DeviceProfile.mobile_ui else Vector2(140, 42)
 	change_nickname_button.add_theme_font_size_override("font_size", _fs(14))
 	change_nickname_button.pressed.connect(_open_nickname_popup)
 	nickname_row.add_child(change_nickname_button)
@@ -1331,14 +1331,14 @@ func _build_player_menu() -> void:
 	var nickname_cost_row := HBoxContainer.new()
 	nickname_cost_row.add_theme_constant_override("separation", 4)
 	profile_content.add_child(nickname_cost_row)
-	nickname_cost_label = _make_label("Ник: бесплатно", 13, Color(0.76, 0.8, 0.89))
+	nickname_cost_label = _make_label("Ник: бесплатно", 12 if DeviceProfile.mobile_ui else 13, Color(0.76, 0.8, 0.89))
 	nickname_cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	nickname_cost_label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	nickname_cost_row.add_child(nickname_cost_label)
 	nickname_cost_icon = _shard_icon(20)
 	nickname_cost_icon.visible = false
 	nickname_cost_row.add_child(nickname_cost_icon)
-	menu_shard_label = _make_label("Баланс: 0", 13, Color(0.43, 0.84, 1.0))
+	menu_shard_label = _make_label("Баланс: 0", 12 if DeviceProfile.mobile_ui else 13, Color(0.43, 0.84, 1.0))
 	menu_shard_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var cost_spacer := Control.new()
 	cost_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1393,11 +1393,13 @@ func _build_player_menu() -> void:
 	stats_tabs.add_theme_constant_override("separation", 4)
 	profile_content.add_child(stats_tabs)
 	var tab_defs := [["all", "Всё время"], ["last", "Последний бой"], ["session", "Сессия"]]
+	if DeviceProfile.mobile_ui:
+		tab_defs = [["all", "Всё"], ["last", "Последний"], ["session", "Сессия"]]
 	for tab_def in tab_defs:
 		var tab_button := _make_action_button(String(tab_def[1]), false)
 		tab_button.custom_minimum_size = Vector2(0, 28)
 		tab_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		tab_button.add_theme_font_size_override("font_size", _fs(13))
+		tab_button.add_theme_font_size_override("font_size", _fs(12) if DeviceProfile.mobile_ui else _fs(13))
 		tab_button.pressed.connect(_set_stats_tab.bind(String(tab_def[0])))
 		stats_tabs.add_child(tab_button)
 		stats_tab_buttons[String(tab_def[0])] = tab_button
@@ -1408,8 +1410,8 @@ func _build_player_menu() -> void:
 
 	var hero_panel := PanelContainer.new()
 	hero_panel.name = "PlayerMenuHero"
-	_place_inventory_column(hero_panel, 0.372, 0.652)
-	hero_panel.custom_minimum_size = Vector2(280, 0)
+	_place_inventory_column(hero_panel, 0.37, 0.63)
+	hero_panel.custom_minimum_size = Vector2(240 if DeviceProfile.mobile_ui else 280, 0)
 	hero_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.57, 0.48, 0.31, 0.8), Color(0.025, 0.032, 0.05, 0.98)))
 	columns.add_child(hero_panel)
 	player_menu_hero = hero_panel
@@ -1423,8 +1425,8 @@ func _build_player_menu() -> void:
 	hero_content.add_child(hero_selector)
 	var previous_hero_button := _make_action_button("<", false)
 	previous_hero_button.name = "PreviousHeroButton"
-	previous_hero_button.custom_minimum_size = Vector2(46, 40)
-	previous_hero_button.add_theme_font_size_override("font_size", _fs(22))
+	previous_hero_button.custom_minimum_size = Vector2(36, 40) if DeviceProfile.mobile_ui else Vector2(46, 40)
+	previous_hero_button.add_theme_font_size_override("font_size", _fs(18) if DeviceProfile.mobile_ui else _fs(22))
 	previous_hero_button.pressed.connect(_cycle_selected_hero.bind(-1))
 	hero_selector.add_child(previous_hero_button)
 	menu_hero_name_label = _make_label("Воин", 20, PALE)
@@ -1432,8 +1434,8 @@ func _build_player_menu() -> void:
 	hero_selector.add_child(menu_hero_name_label)
 	var next_hero_button := _make_action_button(">", false)
 	next_hero_button.name = "NextHeroButton"
-	next_hero_button.custom_minimum_size = Vector2(46, 40)
-	next_hero_button.add_theme_font_size_override("font_size", _fs(22))
+	next_hero_button.custom_minimum_size = Vector2(36, 40) if DeviceProfile.mobile_ui else Vector2(46, 40)
+	next_hero_button.add_theme_font_size_override("font_size", _fs(18) if DeviceProfile.mobile_ui else _fs(22))
 	next_hero_button.pressed.connect(_cycle_selected_hero.bind(1))
 	hero_selector.add_child(next_hero_button)
 	var portrait_frame := PanelContainer.new()
@@ -1460,8 +1462,8 @@ func _build_player_menu() -> void:
 
 	var wardrobe_panel := PanelContainer.new()
 	wardrobe_panel.name = "PlayerMenuWardrobe"
-	_place_inventory_column(wardrobe_panel, 0.664, 1.0)
-	wardrobe_panel.custom_minimum_size = Vector2(280, 0)
+	_place_inventory_column(wardrobe_panel, 0.65, 1.0)
+	wardrobe_panel.custom_minimum_size = Vector2(260 if DeviceProfile.mobile_ui else 280, 0)
 	wardrobe_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.4, 0.48, 0.63, 0.8), Color(0.045, 0.055, 0.085, 0.97)))
 	columns.add_child(wardrobe_panel)
 	player_menu_wardrobe = wardrobe_panel
@@ -1474,11 +1476,17 @@ func _build_player_menu() -> void:
 	wardrobe_content.add_child(inventory_tab)
 	var inventory_grid := GridContainer.new()
 	inventory_grid.name = "LegendaryWeaponInventory"
-	inventory_grid.columns = 2
+	inventory_grid.columns = 1 if DeviceProfile.mobile_ui else 2
+	inventory_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	inventory_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	inventory_grid.add_theme_constant_override("h_separation", 8)
 	inventory_grid.add_theme_constant_override("v_separation", 8)
-	wardrobe_content.add_child(inventory_grid)
+	var inventory_scroll := ScrollContainer.new()
+	inventory_scroll.name = "InventoryScroll"
+	inventory_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	inventory_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	inventory_scroll.add_child(inventory_grid)
+	wardrobe_content.add_child(inventory_scroll)
 	default_weapon_card = PanelContainer.new()
 	default_weapon_card.name = "DefaultWeaponCard"
 	default_weapon_card.custom_minimum_size = Vector2(110, 140)
