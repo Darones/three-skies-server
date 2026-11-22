@@ -3725,12 +3725,12 @@ func _on_shell_state_received(state: Dictionary) -> void:
 	if not network_play or NetworkManager.server_protocol < 2 or state.is_empty():
 		return
 	var state_spawn_id := int(state.get("spawn_id", 0))
-	if state_spawn_id > 0:
+	if shell_spawn_id > 0 and state_spawn_id < shell_spawn_id:
 		# Packets from the previous shell can arrive right after a new spawn
-		# (death echo, despawn echo). Never let an older spawn id hide or
-		# destroy the shell we just created.
-		if shell_spawn_id > 0 and state_spawn_id < shell_spawn_id:
-			return
+		# (death echo, despawn echo). A stale "alive=false" without a spawn id
+		# (id 0) is the usual cause of "explosion, then the shell is gone".
+		return
+	if state_spawn_id > 0:
 		shell_spawn_id = maxi(shell_spawn_id, state_spawn_id)
 	var alive := bool(state.get("alive", false))
 	var hp := float(state.get("hp", 0.0))
