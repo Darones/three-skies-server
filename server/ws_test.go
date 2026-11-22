@@ -574,6 +574,28 @@ func TestShellStateAndDamageAreServerOwned(t *testing.T) {
 	}
 }
 
+func TestShellStateEchoKeepsSpawnID(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	host := newTestClient(1, 0, 0, 0)
+	room := newTestRoom(host)
+	hub.rooms[room.id] = room
+	host.x, host.z = 0, 0
+	host.lastAttacks = make(map[string]time.Time)
+
+	hub.relayShellState(host, wsIncoming{Shell: &wsShellState{
+		Alive: true, X: 0, Y: 0.45, Z: 0, Phase: "active", SpawnID: 4,
+	}})
+	messages := collectMessages(t, host)
+	if len(messages) != 1 || messages[0].Shell == nil {
+		t.Fatalf("host did not receive its shell echo: %+v", messages)
+	}
+	// The client drops every shell_state whose spawn id is lower than the one
+	// it already saw; an echo without the id froze the host's shell health bar.
+	if messages[0].Shell.SpawnID != 4 {
+		t.Fatalf("echo lost the shell spawn id: got %d want 4", messages[0].Shell.SpawnID)
+	}
+}
+
 func TestBotDamageAppliesToShell(t *testing.T) {
 	hub := newWebSocketHub(nil)
 	host := newTestClient(1, 0, 0, 2)

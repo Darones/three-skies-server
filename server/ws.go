@@ -1477,6 +1477,10 @@ func (h *wsHub) relayShellState(client *wsClient, message wsIncoming) {
 	room.shell.Z = state.Z
 	room.shell.Phase = truncateText(state.Phase, 16)
 	room.shell.Timer = state.Timer
+	// Every broadcast must carry the current spawn id. The client drops
+	// shell_state packets with an older id, so an echo without it left the
+	// host's shell health bar frozen at full HP.
+	room.shell.SpawnID = room.shellSpawnID
 	shell := *room.shell
 	roomID := room.id
 	targets := roomClientsLocked(room, 0)
