@@ -154,6 +154,7 @@ var shell_stuck_timer := 0.0
 var shell_hold_timer := 0.0
 var shell_death_event_seen := false
 var shell_spawn_id := 0
+var shell_last_boundary := 0
 var shell_audit := false
 var crystal_state := "none"
 var crystal_timer := 0.0
@@ -1494,6 +1495,7 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 		music.play()
 	match_time = MATCH_LENGTH
 	shell_phase = "idle"
+	shell_last_boundary = 0
 	shell_cycle_timer = SHELL_SPAWN_INTERVAL
 	shell_timer = SHELL_SPAWN_INTERVAL
 	shell_hold_timer = 0.0
@@ -1986,13 +1988,11 @@ func _update_match(delta: float) -> void:
 				end_match(score[0] > score[1])
 				return
 
-	shell_cycle_timer = maxf(0.0, shell_cycle_timer - delta)
 	if network_play and not network_host and NetworkManager.server_protocol >= 2:
 		# The host simulates the shell; the guest only renders the server
 		# state. No local spawn, timer or shell AI on the guest.
 		pass
 	else:
-		shell_timer = shell_cycle_timer
 		if shell_hold_timer > 0.0:
 			# The server said "not alive". Wait for the shell_destroyed event:
 			# a real death keeps the fixed 2/4/6/8 schedule; a refused spawn
@@ -2002,12 +2002,31 @@ func _update_match(delta: float) -> void:
 				shell_cycle_timer = SHELL_SPAWN_INTERVAL
 				shell_timer = shell_cycle_timer
 		else:
+			# The schedule is the server match clock, not the local scene
+			# clock. On web the Game scene can load 30-90 s after match_start;
+			# a free-running 120 s timer then spawned the first shell at 3:30
+			# instead of 2:00, and the player never saw it.
+			var elapsed := maxf(0.0, float(MATCH_LENGTH) - match_time)
+			var boundary_index := floori(elapsed / float(SHELL_SPAWN_INTERVAL))
+			var next_boundary := ceilf(maxf(elapsed, 0.001) / float(SHELL_SPAWN_INTERVAL)) * float(SHELL_SPAWN_INTERVAL)
+			shell_cycle_timer = maxf(0.0, next_boundary - elapsed)
+			shell_timer = shell_cycle_timer
+			var since_boundary := elapsed - float(boundary_index) * float(SHELL_SPAWN_INTERVAL)
+			if shell_phase == "idle" and boundary_index > shell_last_boundary and since_boundary < SHELL_WINDOW and match_time > 0.0:
+				# The scene loaded after the boundary but the 45 s shell window
+				# is still open: show the shell the player expected at 2/4/6/8.
+				shell_last_boundary = boundary_index
+				_spawn_shell()
 			if shell_phase == "idle" and shell_cycle_timer <= SHELL_WARNING_TIME:
 				shell_phase = "warning"
 				announce("Оболочка пробуждается — 10 секунд!", Color(0.78, 0.6, 1.0), 2.4)
 			if shell_phase == "warning":
-				if shell_cycle_timer <= 0.0:
-					_spawn_shell()
+				if boundary_index > shell_last_boundary:
+					shell_last_boundary = boundary_index
+					if match_time > 0.0:
+						_spawn_shell()
+					else:
+						shell_phase = "idle"
 			elif shell_phase == "active":
 				shell_window -= delta
 				if shell_window <= 0.0 and shell != null and is_instance_valid(shell) and shell.alive:
@@ -2023,6 +2042,7 @@ func _update_match(delta: float) -> void:
 						shell_stuck_timer = 0.0
 						shell_phase = "idle"
 						shell_window = SHELL_WINDOW
+						shell_last_boundary = boundary_index
 						shell_cycle_timer = SHELL_SPAWN_INTERVAL
 						shell_timer = shell_cycle_timer
 				else:
@@ -3881,9 +3901,14 @@ func _on_network_host_changed(new_host_id: int) -> void:
 		shell_window = SHELL_WINDOW
 		var wait_for_shell := 5.0
 		if not sudden_death:
-			var elapsed := float(MATCH_LENGTH) - match_time
-			var boundary := ceilf(elapsed / float(SHELL_SPAWN_INTERVAL)) * float(SHELL_SPAWN_INTERVAL)
-			wait_for_shell = maxf(5.0, boundary - elapsed)
+			var elapsed := maxf(0.0, float(MATCH_LENGTH) - match_time)
+			var boundary_index := floori(elapsed / float(SHELL_SPAWN_INTERVAL))
+			var since_boundary := elapsed - float(boundary_index) * float(SHELL_SPAWN_INTERVAL)
+			shell_last_boundary = boundary_index - 1 if boundary_index > 0 and since_boundary < SHELL_WINDOW else boundary_index
+			var next_boundary := ceilf(maxf(elapsed, 0.001) / float(SHELL_SPAWN_INTERVAL)) * float(SHELL_SPAWN_INTERVAL)
+			wait_for_shell = maxf(0.0, next_boundary - elapsed)
+		else:
+			shell_last_boundary = floori(maxf(0.0, float(MATCH_LENGTH) - match_time) / float(SHELL_SPAWN_INTERVAL))
 		shell_cycle_timer = wait_for_shell
 		shell_timer = wait_for_shell
 		shell_hold_timer = 0.0
