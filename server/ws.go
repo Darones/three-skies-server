@@ -1498,13 +1498,6 @@ func (h *wsHub) handleShellAttack(client *wsClient, message wsIncoming) {
 		h.mu.Unlock()
 		return
 	}
-	if message.SourceID < 0 {
-		// Bots must not solo the shell before a human can reach the centre.
-		// The host still simulates their swings; the server just refuses to
-		// credit bot damage. Only real players can damage the shell.
-		h.mu.Unlock()
-		return
-	}
 	var source *wsCombatant
 	switch {
 	case message.SourceID == 0 || message.SourceID == client.id:
