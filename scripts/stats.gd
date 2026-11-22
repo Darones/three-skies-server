@@ -96,7 +96,6 @@ func track(event: String, payload: Dictionary = {}) -> void:
 	if event.is_empty():
 		return
 	events.append({
-		"ts": Time.get_unix_time_from_system(),
 		"event": event,
 		"player_id": _player_id(),
 		"session": session_id,
