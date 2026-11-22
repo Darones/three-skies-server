@@ -156,6 +156,10 @@ var shell_death_event_seen := false
 var shell_spawn_id := 0
 var shell_last_boundary := 0
 var shell_audit := false
+var sudden_death_shell_spawned := false
+var shell_trace_timer := 0.0
+var shell_echo_phase := ""
+var shell_echo_alive := false
 var crystal_state := "none"
 var crystal_timer := 0.0
 var pickup_delay := 0.0
@@ -1500,6 +1504,10 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	shell_timer = SHELL_SPAWN_INTERVAL
 	shell_hold_timer = 0.0
 	shell_death_event_seen = false
+	shell_trace_timer = 0.0
+	shell_echo_phase = ""
+	shell_echo_alive = false
+	sudden_death_shell_spawned = false
 	if not tutorial_mode:
 		play_sfx("match_start", -4.0)
 	if hud != null:
@@ -1993,6 +2001,16 @@ func _update_match(delta: float) -> void:
 		# state. No local spawn, timer or shell AI on the guest.
 		pass
 	else:
+		if sudden_death:
+			# A tie at 10:00 must be decided by a shard, not by two silent
+			# minutes and a coin flip. Spawn one decisive shell; the server
+			# ends the match on the next delivery (handleCrystalDeliver).
+			if not sudden_death_shell_spawned:
+				sudden_death_shell_spawned = true
+				if shell == null or not is_instance_valid(shell) or not shell.alive:
+					_shell_log("sudden_death_spawn")
+					_spawn_shell()
+			return
 		if shell_hold_timer > 0.0:
 			# The server said "not alive". Wait for the shell_destroyed event:
 			# a real death keeps the fixed 2/4/6/8 schedule; a refused spawn
@@ -2012,6 +2030,15 @@ func _update_match(delta: float) -> void:
 			shell_cycle_timer = maxf(0.0, next_boundary - elapsed)
 			shell_timer = shell_cycle_timer
 			var since_boundary := elapsed - float(boundary_index) * float(SHELL_SPAWN_INTERVAL)
+			if shell_audit:
+				shell_trace_timer += delta
+				if shell_trace_timer >= 5.0:
+					shell_trace_timer = 0.0
+					print("[SHELL-TRACE] t=%.1f phase=%s cycle=%.1f window=%.1f hold=%.1f last_boundary=%d boundary=%d since=%.1f crystal=%s shell=%s" % [
+						elapsed, shell_phase, shell_cycle_timer, shell_window, shell_hold_timer,
+						shell_last_boundary, boundary_index, since_boundary, crystal_state,
+						"none" if shell == null or not is_instance_valid(shell) else ("alive" if shell.alive else "dead"),
+					])
 			if shell_phase == "idle" and boundary_index > shell_last_boundary and since_boundary < SHELL_WINDOW and match_time > 0.0:
 				# The scene loaded after the boundary but the 45 s shell window
 				# is still open: show the shell the player expected at 2/4/6/8.
@@ -3738,8 +3765,21 @@ func _on_shell_state_received(state: Dictionary) -> void:
 	var x := float(state.get("x", 0.0))
 	var y := float(state.get("y", 0.45))
 	var z := float(state.get("z", 0.0))
-	shell_phase = String(state.get("phase", "idle"))
-	shell_timer = float(state.get("timer", 0.0))
+	if shell_audit:
+		var echo_phase := String(state.get("phase", "idle"))
+		if echo_phase != shell_echo_phase or alive != shell_echo_alive:
+			print("[SHELL-ECHO] alive=%s phase=%s local_phase=%s spawn=%d local_spawn=%d" % [
+				str(alive), echo_phase, shell_phase, state_spawn_id, shell_spawn_id,
+			])
+			shell_echo_phase = echo_phase
+			shell_echo_alive = alive
+	if not network_host:
+		# The host owns the 2/4/6/8 schedule and its own shell timer. Taking
+		# them from the server echo (a 100 ms old copy of the host's own
+		# packet) can flip the phase around a spawn and skip a cycle. Only the
+		# server-authoritative HP and alive flag are applied below.
+		shell_phase = String(state.get("phase", "idle"))
+		shell_timer = float(state.get("timer", 0.0))
 	if network_host:
 		if shell == null or not is_instance_valid(shell):
 			return
