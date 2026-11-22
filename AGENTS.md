@@ -47,7 +47,7 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
 - **Текущий прод (на 22.11.2026):**
   - PCK: `index_20261122_092355.pck`, **45 932 032 байт**.
   - `main`: `6df2137` (билд `fd431c9` + redeploy).
-  - Исходники: `7ed14f7` (ветка `mobile-ui`).
+  - Исходники: ветка `mobile-ui`, последний коммит — этот файл памяти (см. `git log`).
   - Сервер: `server/ws.go` + `server/web/index.pck` в `main`.
 
 ## Что уже сделано
