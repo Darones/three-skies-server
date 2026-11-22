@@ -574,6 +574,45 @@ func TestShellStateAndDamageAreServerOwned(t *testing.T) {
 	}
 }
 
+func TestBotDamageDoesNotKillTheShell(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	host := newTestClient(1, 0, 0, 2)
+	guest := newTestClient(2, 1, 0, 2)
+	room := newTestRoom(host, guest)
+	hub.rooms[room.id] = room
+	room.bots[2] = &wsBot{
+		id:           -3,
+		class:        0,
+		team:         1,
+		x:            0,
+		z:            0,
+		hasState:     true,
+		alive:        true,
+		maxHP:        classBaseHP[0],
+		hp:           classBaseHP[0],
+		attackDamage: classBaseDamage[0],
+		lastAttacks:  make(map[string]time.Time),
+	}
+	hub.relayShellState(host, wsIncoming{Shell: &wsShellState{
+		Alive: true, X: 0, Y: 0.45, Z: 0, Phase: "active", SpawnID: 1,
+	}})
+	if room.shell == nil || !room.shell.Alive {
+		t.Fatalf("shell did not spawn: %+v", room.shell)
+	}
+	// The host may simulate bot swings, but the server must not credit them:
+	// otherwise four bots delete the shell before a human can cross the arena.
+	hub.handleShellAttack(host, wsIncoming{Amount: 800, SourceID: -3})
+	if room.shell.HP != 1000 || !room.shell.Alive {
+		t.Fatalf("bot damaged the shell: %+v", room.shell)
+	}
+	// A real player hit still works.
+	host.lastAttacks["shell"] = time.Now().Add(-time.Second)
+	hub.handleShellAttack(host, wsIncoming{Amount: 200, SourceID: 0})
+	if room.shell.HP != 800 {
+		t.Fatalf("player damage was rejected: %+v", room.shell)
+	}
+}
+
 func TestNewShellSpawnsWhileShardActive(t *testing.T) {
 	hub := newWebSocketHub(nil)
 	host := newTestClient(1, 0, 0, 0)

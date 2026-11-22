@@ -192,6 +192,8 @@ var ambient: AudioStreamPlayer
 var sfx_streams := {}
 var sfx_players: Array[AudioStreamPlayer] = []
 var sfx_index := 0
+var _master_muted_before_blur := false
+var _audio_muted_by_blur := false
 
 
 func _ready() -> void:
@@ -940,8 +942,17 @@ func _setup_audio() -> void:
 	music.name = "Music"
 	var stream := load(MUSIC_PATH) as AudioStream
 	if stream != null:
+		# The battle theme is 72 s. Without loop it ended before the match
+		# started and the arena was silent. Loop it and restart on live.
+		if stream is AudioStreamMP3:
+			(stream as AudioStreamMP3).loop = true
+		elif stream is AudioStreamWAV:
+			var wav := stream as AudioStreamWAV
+			wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
+			wav.loop_begin = 0
+			wav.loop_end = int(wav.get_length() * float(wav.mix_rate))
 		music.stream = stream
-		music.volume_db = -10.0
+		music.volume_db = -8.0
 		add_child(music)
 		music.play()
 	ambient = AudioStreamPlayer.new()
@@ -969,6 +980,39 @@ func _setup_audio() -> void:
 		p.max_polyphony = 1
 		add_child(p)
 		sfx_players.append(p)
+
+
+func _notification(what: int) -> void:
+	# A VK mini app can be hidden without unloading the page: the iframe keeps
+	# running and the arena wind/music keeps sounding behind the feed. Mute the
+	# whole master bus while the app has no focus and restore it on return.
+	if not is_inside_tree():
+		return
+	match what:
+		NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_WM_WINDOW_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED:
+			_mute_master_for_blur()
+		NOTIFICATION_APPLICATION_FOCUS_IN, NOTIFICATION_WM_WINDOW_FOCUS_IN, NOTIFICATION_APPLICATION_RESUMED:
+			_restore_master_audio()
+
+
+func _mute_master_for_blur() -> void:
+	if _audio_muted_by_blur:
+		return
+	var bus := AudioServer.get_bus_index("Master")
+	if bus < 0:
+		return
+	_master_muted_before_blur = AudioServer.is_bus_mute(bus)
+	AudioServer.set_bus_mute(bus, true)
+	_audio_muted_by_blur = true
+
+
+func _restore_master_audio() -> void:
+	if not _audio_muted_by_blur:
+		return
+	var bus := AudioServer.get_bus_index("Master")
+	if bus >= 0:
+		AudioServer.set_bus_mute(bus, _master_muted_before_blur)
+	_audio_muted_by_blur = false
 
 
 func _prepare_effect_pools() -> void:
@@ -1444,6 +1488,10 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	state = "live"
 	if network_play:
 		_setup_network_play()
+	if music != null and is_instance_valid(music):
+		# Start the battle loop from the beginning, not from the class-select
+		# time; otherwise a long lobby eats most of the track.
+		music.play()
 	match_time = MATCH_LENGTH
 	shell_phase = "idle"
 	shell_cycle_timer = SHELL_SPAWN_INTERVAL
@@ -1991,13 +2039,6 @@ func _shell_log(tag: String) -> void:
 
 
 func _spawn_shell() -> void:
-	if crystal_state != "none" or (crystal_node != null and is_instance_valid(crystal_node)):
-		# Never spawn a second shell while a shard is still on the field.
-		# Skip this cycle; the next 2-minute boundary will try again.
-		shell_phase = "idle"
-		shell_cycle_timer = SHELL_SPAWN_INTERVAL
-		shell_timer = shell_cycle_timer
-		return
 	if CombatProfiler.enabled:
 		CombatProfiler.mark("shell", "spawn")
 	shell_spawn_id += 1
@@ -2054,7 +2095,12 @@ func on_shell_died(s: SkyShell, source: Node = null) -> void:
 		pass
 	else:
 		spawn_crystal(pos, true)
-	announce("Оболочка пала! Осколок свободен", Color(0.8, 0.95, 1.0), 2.4)
+	if not network_play or NetworkManager.server_protocol < 3 or crystal_state == "none":
+		# In server-owned mode the shard is created only when no other shard is
+		# active. Do not promise a shard that the server did not create.
+		announce("Оболочка пала! Осколок свободен", Color(0.8, 0.95, 1.0), 2.4)
+	else:
+		announce("Оболочка пала!", Color(0.8, 0.95, 1.0), 2.4)
 	s.retire(0.5)
 	shell = null
 	shell_phase = "idle"
@@ -3658,6 +3704,14 @@ func _on_bot_state_updated(bot_id: int, info: Dictionary) -> void:
 func _on_shell_state_received(state: Dictionary) -> void:
 	if not network_play or NetworkManager.server_protocol < 2 or state.is_empty():
 		return
+	var state_spawn_id := int(state.get("spawn_id", 0))
+	if state_spawn_id > 0:
+		# Packets from the previous shell can arrive right after a new spawn
+		# (death echo, despawn echo). Never let an older spawn id hide or
+		# destroy the shell we just created.
+		if shell_spawn_id > 0 and state_spawn_id < shell_spawn_id:
+			return
+		shell_spawn_id = maxi(shell_spawn_id, state_spawn_id)
 	var alive := bool(state.get("alive", false))
 	var hp := float(state.get("hp", 0.0))
 	var max_hp := maxf(float(state.get("max_hp", 1000.0)), 1.0)
@@ -3732,9 +3786,14 @@ func _ensure_remote_shell(pos: Vector3, hp: float, max_hp: float) -> void:
 	shell._refresh_health_bar()
 
 
-func _on_shell_destroyed_network(team: int = -1, source_id: int = 0) -> void:
+func _on_shell_destroyed_network(team: int = -1, source_id: int = 0, spawn_id: int = 0) -> void:
 	if state != "live" or NetworkManager.server_protocol < 2:
 		return
+	if spawn_id > 0 and shell_spawn_id > 0 and spawn_id < shell_spawn_id:
+		# A late "destroyed" from the previous shell must not kill the new one.
+		return
+	if spawn_id > 0:
+		shell_spawn_id = maxi(shell_spawn_id, spawn_id)
 	# The server owns the shell kill and reports who landed it.
 	if not tutorial_mode and player != null and is_instance_valid(player) and team == player.team:
 		if NetworkManager.server_protocol < 4:
@@ -3769,6 +3828,8 @@ func _on_shell_destroyed_network(team: int = -1, source_id: int = 0) -> void:
 func _on_shell_damage_received(amount: float, source_id: int) -> void:
 	if NetworkManager.server_protocol < 2 or amount <= 0.0 or source_id != NetworkManager.local_peer_id:
 		return
+	if shell_audit:
+		print("[SHELL-AUDIT] damage amount=%.0f source=%d" % [amount, source_id])
 	if shell != null and is_instance_valid(shell):
 		damage_number(shell.global_position + Vector3(0.0, 3.4, 0.0), amount, 1, true)
 
@@ -3938,11 +3999,11 @@ func _on_match_score_updated(score_0: int, score_1: int, server_sudden_death: bo
 		announce("Решающий осколок!", Color(1.0, 0.75, 0.35), 3.0)
 
 
-func _on_match_event_received(event: String, team: int, source_id: int, x := 0.0, z := 0.0) -> void:
+func _on_match_event_received(event: String, team: int, source_id: int, x := 0.0, z := 0.0, spawn_id := 0) -> void:
 	if not network_play:
 		return
 	if event == "shell_destroyed" and NetworkManager.server_protocol >= 2:
-		_on_shell_destroyed_network(team, source_id)
+		_on_shell_destroyed_network(team, source_id, spawn_id)
 	elif event == "shard_delivered" and NetworkManager.server_protocol >= 4:
 		_award_network_delivery(team, source_id)
 	elif event == "shell_bolt":
@@ -3981,6 +4042,11 @@ func _on_network_disconnected() -> void:
 
 
 func _exit_tree() -> void:
+	if music != null and is_instance_valid(music):
+		music.stop()
+	if ambient != null and is_instance_valid(ambient):
+		ambient.stop()
+	_restore_master_audio()
 	if network_play:
 		network_shutting_down = true
 		NetworkManager.unregister_local_player()

@@ -1662,10 +1662,6 @@ func _ai_pick_goal() -> void:
 	if game.crystal_state == "ground" and crystal_node != null and is_instance_valid(crystal_node):
 		ai_goal = _crystal_approach_point(crystal_node)
 		return
-	var shell = game.shell
-	if shell != null and is_instance_valid(shell) and shell.alive:
-		ai_goal = _shell_approach_point(shell)
-		return
 	var enemy_distance := global_position.distance_to(target.global_position) if target != null else INF
 	if enemy_distance > 16.0:
 		if game.bot_has_affordable_shop_item(self):
@@ -1838,6 +1834,10 @@ func _attack_target() -> Node3D:
 		if network_target != null:
 			return network_target
 	var shell_target: SkyShell = game.shell
+	if not is_player and shell_target != null:
+		# The server rejects bot damage to the shell; do not target it or bots
+		# would stand at the centre swinging at nothing.
+		return null
 	if shell_target != null and is_instance_valid(shell_target) and shell_target.alive:
 		var direction_to_shell := shell_target.global_position - global_position
 		direction_to_shell.y = 0.0

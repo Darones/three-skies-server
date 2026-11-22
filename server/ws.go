@@ -252,6 +252,7 @@ type wsOutgoing struct {
 	Bots            []wsBotSnapshot `json:"bots,omitempty"`
 	Shell           *wsShellState   `json:"shell,omitempty"`
 	Crystal         *wsCrystalState `json:"crystal,omitempty"`
+	ShellSpawnID    int64           `json:"shell_spawn_id,omitempty"`
 	Protocol        int             `json:"protocol,omitempty"`
 	Score0          int             `json:"score_0,omitempty"`
 	Score1          int             `json:"score_1,omitempty"`
@@ -1497,6 +1498,13 @@ func (h *wsHub) handleShellAttack(client *wsClient, message wsIncoming) {
 		h.mu.Unlock()
 		return
 	}
+	if message.SourceID < 0 {
+		// Bots must not solo the shell before a human can reach the centre.
+		// The host still simulates their swings; the server just refuses to
+		// credit bot damage. Only real players can damage the shell.
+		h.mu.Unlock()
+		return
+	}
 	var source *wsCombatant
 	switch {
 	case message.SourceID == 0 || message.SourceID == client.id:
@@ -1540,6 +1548,7 @@ func (h *wsHub) handleShellAttack(client *wsClient, message wsIncoming) {
 	}
 	roomID := room.id
 	sourceID := source.id
+	spawnID := room.shellSpawnID
 	targets := roomClientsLocked(room, 0)
 	h.mu.Unlock()
 	h.sendToClients(targets, wsOutgoing{
@@ -1555,11 +1564,12 @@ func (h *wsHub) handleShellAttack(client *wsClient, message wsIncoming) {
 	})
 	if died {
 		h.broadcastRoom(roomID, 0, wsOutgoing{
-			Type:     "match_event",
-			RoomID:   roomID,
-			Event:    "shell_destroyed",
-			Team:     source.team,
-			SourceID: sourceID,
+			Type:         "match_event",
+			RoomID:       roomID,
+			Event:        "shell_destroyed",
+			Team:         source.team,
+			SourceID:     sourceID,
+			ShellSpawnID: spawnID,
 		})
 		if crystal != nil {
 			h.broadcastRoom(roomID, 0, wsOutgoing{
@@ -2019,10 +2029,11 @@ func (h *wsHub) handleMatchEvent(client *wsClient, message wsIncoming) {
 		}
 		h.mu.Unlock()
 		h.broadcastRoom(roomID, 0, wsOutgoing{
-			Type:   "match_event",
-			RoomID: roomID,
-			Event:  "shell_destroyed",
-			Team:   team,
+			Type:         "match_event",
+			RoomID:       roomID,
+			Event:        "shell_destroyed",
+			Team:         team,
+			ShellSpawnID: room.shellSpawnID,
 		})
 	case "shell_bolt":
 		// Visual only: guests cannot simulate the shell, so the host tells them

@@ -26,7 +26,7 @@ signal match_started(room_id: int, host_id: int, players: Array)
 signal lobby_state_received(players: Array, starts_in_ms: int)
 signal match_finished(winning_team: int)
 signal match_score_updated(score_0: int, score_1: int, sudden_death: bool)
-signal match_event_received(event: String, team: int, source_id: int, x: float, z: float)
+signal match_event_received(event: String, team: int, source_id: int, x: float, z: float, spawn_id: int)
 signal host_changed(new_host_id: int)
 signal gold_updated(amount: int)
 signal shop_purchase_received(item_id: String, ok: bool, gold: int)
@@ -542,7 +542,8 @@ func _handle_message(text: String) -> void:
 				int(message.get("team", 0)),
 				int(message.get("source_id", 0)),
 				float(message.get("x", 0.0)),
-				float(message.get("z", 0.0))
+				float(message.get("z", 0.0)),
+				int(message.get("shell_spawn_id", 0))
 			)
 		"match_finished":
 			if message.has("score_0") or message.has("score_1"):
