@@ -45,7 +45,13 @@ SCRIPT = """
 					next = end + 1;
 					return fetch(mainPack, {
 						credentials: 'same-origin',
-						headers: { 'Range': 'bytes=' + start + '-' + end },
+						headers: {
+							'Range': 'bytes=' + start + '-' + end,
+							// The CDN may gzip the PCK. fetch() decompresses it
+							// transparently, so a 10 MB range becomes a much
+							// larger buffer and the merged size check fails.
+							'Accept-Encoding': 'identity',
+						},
 					}).then(function (response) {
 						if (!response.ok) {
 							throw new Error('Failed to load game data: ' + response.status);
