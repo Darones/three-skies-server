@@ -1728,19 +1728,20 @@ func _escort_threat(carrier_node: Node3D) -> HeroUnit:
 	var best: HeroUnit = null
 	var best_score := 14.0
 	for h in game.heroes:
-		if h == self or h.team == team or h.dead or not is_instance_valid(h):
+		var enemy := h as HeroUnit
+		if enemy == null or enemy == self or enemy.team == team or enemy.dead or not is_instance_valid(enemy):
 			continue
-		if h.is_hidden_from(self):
+		if enemy.is_hidden_from(self):
 			continue
-		var d := h.global_position.distance_to(carrier_node.global_position)
+		var d: float = enemy.global_position.distance_to(carrier_node.global_position)
 		if d > 14.0:
 			continue
-		var score := d
-		if h.ai_attack_target == carrier_node:
+		var score: float = d
+		if enemy.ai_attack_target == carrier_node:
 			score -= 5.0
 		if score < best_score:
 			best_score = score
-			best = h
+			best = enemy
 	return best
 
 

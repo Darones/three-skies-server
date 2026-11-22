@@ -388,7 +388,7 @@ func (service *api) handleStatsReset(w http.ResponseWriter, r *http.Request) {
 
 func (service *api) trackGamePage(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
+		if r.URL.Path == "/game/" || r.URL.Path == "/game/index.html" {
 			ua := r.UserAgent()
 			service.recordStats(statsEvent{
 				Event:     "page_view",

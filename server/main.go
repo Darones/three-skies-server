@@ -298,7 +298,7 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	if gameDir := gameWebDir(); gameDir != "" {
 		// Serve the HTML5 build from the same origin as REST/WS. GitHub Pages
 		// is not reachable at usable speed from Russia, while this host is.
-		mux.Handle("/game/", http.StripPrefix("/game/", service.trackGamePage(staticGameHandler(gameDir))))
+		mux.Handle("/game/", service.trackGamePage(http.StripPrefix("/game/", staticGameHandler(gameDir))))
 		// Large files are sometimes missing from the build context; warm the
 		// cache in the background so the first player does not wait.
 		go prefetchGameAssets(gameDir)
