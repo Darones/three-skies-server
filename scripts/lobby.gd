@@ -181,6 +181,9 @@ var weapon_status_labels: Array[Label] = []
 var ui_click_player: AudioStreamPlayer
 var tutorial_button: Button
 var pending_nickname := ""
+var _native_nick_installed := false
+var _js_nick_changed_cb = null
+var _js_nick_submit_cb = null
 var guest_attempts := 0
 var skills_info_box: VBoxContainer
 var stats_box: VBoxContainer
@@ -1827,6 +1830,14 @@ func _on_nickname_input(event: InputEvent) -> void:
 func _show_nickname_keyboard() -> void:
 	if nickname_line_edit == null or not is_instance_valid(nickname_line_edit):
 		return
+	# On the web the custom canvas keyboard is a last resort: VK webviews
+	# have a real system keyboard. Focus a hidden HTML input; if the webview
+	# refuses focus, fall back to the on-screen keyboard we ship.
+	if OS.has_feature("web") and Engine.has_singleton("JavaScriptBridge"):
+		if _open_native_nickname_input():
+			if touch_keyboard != null:
+				touch_keyboard.call("close")
+			return
 	if DeviceProfile.mobile_ui or DisplayServer.is_touchscreen_available():
 		if touch_keyboard != null:
 			touch_keyboard.call("open", nickname_line_edit, "СМЕНА НИКА", 12)
@@ -1844,7 +1855,73 @@ func _show_nickname_keyboard() -> void:
 	)
 
 
+func _open_native_nickname_input() -> bool:
+	var bridge := Engine.get_singleton("JavaScriptBridge")
+	if not _native_nick_installed:
+		var window = bridge.call("get_interface", "window")
+		if window == null:
+			return false
+		_js_nick_changed_cb = bridge.call("create_callback", Callable(self, "_on_native_nick_changed"))
+		_js_nick_submit_cb = bridge.call("create_callback", Callable(self, "_on_native_nick_submit"))
+		window.__tsNickChanged = _js_nick_changed_cb
+		window.__tsNickSubmit = _js_nick_submit_cb
+		_native_nick_installed = true
+	var script := (
+		"(function(){var el=document.getElementById('ts-native-input');"
+		+ "if(!el){el=document.createElement('input');el.id='ts-native-input';el.type='text';el.maxLength="
+		+ str(nickname_line_edit.max_length)
+		+ ";el.setAttribute('autocapitalize','off');el.setAttribute('autocorrect','off');"
+		+ "el.setAttribute('spellcheck','false');el.setAttribute('inputmode','text');"
+		+ "el.style.position='fixed';el.style.left='50%';el.style.bottom='6px';"
+		+ "el.style.transform='translateX(-50%)';el.style.width='70%';el.style.height='46px';"
+		+ "el.style.fontSize='20px';el.style.padding='8px 14px';el.style.border='2px solid #f2c76e';"
+		+ "el.style.borderRadius='12px';el.style.background='#141821';el.style.color='#f4e6c8';"
+		+ "el.style.zIndex='999999';"
+		+ "el.oninput=function(){if(window.__tsNickChanged){window.__tsNickChanged(el.value);}};"
+		+ "el.onkeydown=function(ev){if(ev.key==='Enter'){ev.preventDefault();"
+		+ "if(window.__tsNickSubmit){window.__tsNickSubmit(el.value);}}};"
+		+ "document.body.appendChild(el);}"
+		+ "el.value=" + JSON.stringify(nickname_line_edit.text) + ";"
+		+ "el.style.display='block';el.focus();"
+		+ "try{el.setSelectionRange(el.value.length,el.value.length);}catch(e){}"
+		+ "return document.activeElement===el?'ok':'blocked';})()"
+	)
+	var result := String(bridge.call("eval", script, true))
+	if result != "ok":
+		_hide_native_nickname_input()
+		return false
+	return true
+
+
+func _on_native_nick_changed(args: Array) -> String:
+	if nickname_line_edit != null and not args.is_empty():
+		nickname_line_edit.text = String(args[0])
+		nickname_line_edit.caret_column = nickname_line_edit.text.length()
+	return ""
+
+
+func _on_native_nick_submit(args: Array) -> String:
+	if not args.is_empty():
+		_on_native_nick_changed(args)
+	_hide_native_nickname_input()
+	if nickname_line_edit != null:
+		_on_nickname_submitted(nickname_line_edit.text)
+	return ""
+
+
+func _hide_native_nickname_input() -> void:
+	if not OS.has_feature("web") or not Engine.has_singleton("JavaScriptBridge"):
+		return
+	var bridge := Engine.get_singleton("JavaScriptBridge")
+	bridge.call(
+		"eval",
+		"(function(){var el=document.getElementById('ts-native-input');if(el){el.blur();el.style.display='none';}})()",
+		true
+	)
+
+
 func _close_nickname_popup() -> void:
+	_hide_native_nickname_input()
 	if touch_keyboard != null:
 		touch_keyboard.call("close")
 	if DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
@@ -1973,15 +2050,42 @@ func _localize_nickname_error(error: String) -> String:
 func _load_player_id() -> int:
 	var config := ConfigFile.new()
 	if config.load(SAVE_PATH) != OK:
-		return 0
+		return _web_storage_get_int("three_skies_player_id")
 	return maxi(0, int(config.get_value("profile", "player_id", 0)))
 
 
 func _load_player_nickname() -> String:
 	var config := ConfigFile.new()
 	if config.load(SAVE_PATH) != OK:
-		return ""
+		return _web_storage_get("three_skies_nickname")
 	return String(config.get_value("profile", "nickname", ""))
+
+
+func _web_storage_get(key: String) -> String:
+	if not OS.has_feature("web") or not Engine.has_singleton("JavaScriptBridge"):
+		return ""
+	var bridge := Engine.get_singleton("JavaScriptBridge")
+	var value: Variant = bridge.call(
+		"eval",
+		"localStorage.getItem(%s)" % JSON.stringify(key),
+		true
+	)
+	return String(value) if value != null else ""
+
+
+func _web_storage_get_int(key: String) -> int:
+	return maxi(0, int(_web_storage_get(key)))
+
+
+func _web_storage_set(key: String, value: String) -> void:
+	if not OS.has_feature("web") or not Engine.has_singleton("JavaScriptBridge"):
+		return
+	var bridge := Engine.get_singleton("JavaScriptBridge")
+	bridge.call(
+		"eval",
+		"localStorage.setItem(%s, %s)" % [JSON.stringify(key), JSON.stringify(value)],
+		true
+	)
 
 
 func _save_player_id(player_id: int) -> void:
@@ -1992,6 +2096,8 @@ func _save_player_id(player_id: int) -> void:
 	var error := config.save(SAVE_PATH)
 	if error != OK:
 		push_error("Не удалось сохранить ID профиля: %s" % error_string(error))
+	_web_storage_set("three_skies_player_id", str(player_id))
+	_web_storage_set("three_skies_nickname", MetaProgression.player_nickname)
 
 
 func _on_registration_completed(success: bool, registered_player_id: int) -> void:

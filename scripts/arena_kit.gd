@@ -50,10 +50,6 @@ const KAYKIT_BARREL_SCENE: PackedScene = preload("res://assets/kaykit_arena/dung
 const KAYKIT_CRATES_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/crates_stacked.glb")
 const KAYKIT_PILLAR_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/pillar.glb")
 const KAYKIT_PILLAR_DECORATED_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/pillar_decorated.glb")
-const KAYKIT_BANNER_BLUE_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/banner_blue.glb")
-const KAYKIT_BANNER_RED_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/banner_red.glb")
-const KAYKIT_BANNER_BLUE_PATTERN_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/banner_patternA_blue.glb")
-const KAYKIT_BANNER_RED_PATTERN_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/banner_patternA_red.glb")
 const KAYKIT_TORCH_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/torch_lit.glb")
 const KAYKIT_CANDLE_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/candle_triple.glb")
 const KAYKIT_WELL_SCENE: PackedScene = preload("res://assets/kaykit_arena/medieval/building_well_green.gltf")
@@ -1369,33 +1365,19 @@ static func _add_kaykit_structures(decor: Node3D) -> void:
 		var pillar := _kaykit_scene(decor, KAYKIT_PILLAR_DECORATED_SCENE, pos, rad_to_deg(-ang) + 90.0, 0.95, "AltarPillar_%02d" % i)
 		_add_pillar_collision(pillar, 1.0, 4.0)
 	for i in 4:
-		var ang := TAU * float(i) / 4.0 + PI / 8.0
-		var pos := Vector3(cos(ang) * 12.5, 0.0, sin(ang) * 12.5)
-		var banner_scene: PackedScene = KAYKIT_BANNER_BLUE_PATTERN_SCENE if i % 2 == 0 else KAYKIT_BANNER_BLUE_SCENE
-		var banner := _kaykit_scene(decor, banner_scene, pos, rad_to_deg(-ang) + 90.0, 0.85, "AltarBanner_%02d" % i)
-		_disable_shadows(banner)
-	for i in 4:
 		var ang := TAU * float(i) / 4.0
 		var pos := Vector3(cos(ang) * 4.4, 0.16, sin(ang) * 4.4)
 		var candle := _kaykit_scene(decor, KAYKIT_CANDLE_SCENE, pos, 0.0, 1.4, "AltarCandle_%02d" % i)
 		_disable_shadows(candle)
-	for i in 4:
-		var ang := TAU * float(i) / 4.0 + PI / 4.0
-		var pos := Vector3(cos(ang) * 11.8, 0.0, sin(ang) * 11.8)
-		_add_kaykit_torch(decor, pos, 1.6, false)
-	# Базы: колонны и факелы в цветах команды.
+	# Базы: колонны в цветах команды. Факелы и знамёна убраны: огонь и
+	# висящие полотнища читались как баги, а не как декор.
 	for team in [0, 1]:
 		var base_z := 28.0 if team == 0 else -28.0
-		var front := -1.0 if team == 0 else 1.0
 		for i in 6:
 			var ang := TAU * float(i) / 6.0
 			var pos := Vector3(cos(ang) * 7.2, 0.0, base_z + sin(ang) * 7.2)
 			var pillar := _kaykit_scene(decor, KAYKIT_PILLAR_SCENE, pos, rad_to_deg(-ang) + 90.0, 0.8, "BasePillar_%d_%02d" % [team, i])
 			_add_pillar_collision(pillar, 1.0, 4.0)
-		# Знамёна баз убраны: их полотнища вблизи камеры читались как серые треугольники.
-		for side in [-1.0, 1.0]:
-			var pos := Vector3(side * 5.8, 0.0, base_z + front * 5.8)
-			_add_kaykit_torch(decor, pos, 1.7, true)
 	# Руины и упавшие колонны убраны: внутри арены не должно быть каменных обломков.
 
 
@@ -1604,17 +1586,17 @@ static func add_bushes(arena: Node3D) -> void:
 	bushes.name = "Bushes"
 	arena.add_child(bushes)
 	var spots: Array[Vector3] = [
-		Vector3(30.0, 0.0, 14.0),
-		Vector3(-16.0, 0.0, 24.0),
-		Vector3(-34.0, 0.0, -12.0),
-		Vector3(12.0, 0.0, -25.0),
-		Vector3(32.0, 0.0, -18.0),
+		Vector3(15.0, 0.0, 7.0),
+		Vector3(-8.0, 0.0, 12.0),
+		Vector3(-17.0, 0.0, -6.0),
+		Vector3(6.0, 0.0, -12.5),
+		Vector3(16.0, 0.0, -9.0),
 	]
 	for index in spots.size():
 		var zone := Area3D.new()
 		zone.name = "BushZone_%02d" % (index + 1)
 		zone.position = spots[index]
-		_occupy(zone.position, 3.4)
+		_occupy(zone.position, 3.9)
 		zone.collision_layer = 0
 		zone.collision_mask = 1
 		bushes.add_child(zone)
@@ -1622,7 +1604,7 @@ static func add_bushes(arena: Node3D) -> void:
 		detection.name = "StealthRange"
 		detection.position = Vector3(0.0, 1.5, 0.0)
 		var shape := SphereShape3D.new()
-		shape.radius = 3.4
+		shape.radius = 3.9
 		detection.shape = shape
 		zone.add_child(detection)
 	rebuild_bush_visuals(bushes)

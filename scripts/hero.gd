@@ -18,6 +18,7 @@ const HEALTH_REGEN_PER_SECOND := 10.0
 const BASE_REGEN_RADIUS := 6.5
 const BASE_SHIELD_RADIUS := 4.9
 const BUSH_REVEAL_DURATION := 3.0
+const BUSH_PROXIMITY_REVEAL := 5.0
 const BOT_DAMAGE_MULTIPLIER := 0.8
 const BOT_ATTACK_INTERVAL_MULTIPLIER := 1.15
 const BOT_ABILITY_COOLDOWN_MULTIPLIER := 1.2
@@ -220,6 +221,10 @@ var ability_sfx_player: AudioStreamPlayer
 var attack_cd := 0.0
 var attack_anim_time := 0.0
 var respawn_timer := 0.0
+var network_respawn_grace := 0.0
+var base_stand_timer := 0.0
+var spawn_protection := 0.0
+var base_heal_tick := 0.0
 var ability_cds: Array[float] = [0.0, 0.0, 0.0]
 var cast_flash := 0.0
 var lightning_storm_timer := 0.0
@@ -251,6 +256,10 @@ var ai_kiting := false
 var ai_aggression := 0.5
 var ai_strafe_sign := 1.0
 var ai_strafe_timer := 0.0
+var ai_target_lock := 0.0
+var ai_escort_angle := 0.0
+var ai_hesitation := 0.0
+var seen_enemies: Dictionary = {}
 
 var visual: Node3D
 var model_fit_scale := 1.0
@@ -269,6 +278,8 @@ var health_back: MeshInstance3D
 var health_fill: MeshInstance3D
 var health_label: Label3D
 var name_label: Label3D
+var stun_label: Label3D
+var stun_ring: MeshInstance3D
 var name_plate: Sprite3D
 var status_root: Node3D
 var preview_mode := false
@@ -307,11 +318,16 @@ func setup(p_game: Node, p_class: int, p_team: int, p_player: bool) -> void:
 	ai_think = randf_range(0.05, 0.35)
 	ai_strafe_sign = -1.0 if randf() < 0.5 else 1.0
 	ai_strafe_timer = randf_range(1.5, 3.0)
+	ai_escort_angle = randf() * TAU
+	ai_target_lock = 0.0
+	ai_hesitation = 0.0
 	if not is_player:
 		navigation_agent = NavigationAgent3D.new()
 		navigation_agent.name = "BotNavigationAgent"
 		navigation_agent.path_desired_distance = 0.55
 		navigation_agent.target_desired_distance = 0.8
+		navigation_agent.avoidance_enabled = true
+		navigation_agent.radius = 0.6
 		add_child(navigation_agent)
 	_build_body()
 	_build_visual()
@@ -358,6 +374,15 @@ func _update_weapon_transform() -> void:
 
 func _process(delta: float) -> void:
 	_update_weapon_transform()
+	if stun_label != null and is_instance_valid(stun_label):
+		var stunned := stun_timer > 0.0 and not dead and (is_player or not occluded_from_player)
+		stun_label.visible = stunned
+		if stun_ring != null and is_instance_valid(stun_ring):
+			stun_ring.visible = stunned
+			if stunned:
+				stun_ring.rotation.y += delta * 4.0
+		if stunned:
+			stun_label.text = "СТАН %.1f" % stun_timer
 	name_label_timer -= delta
 	if name_label_timer <= 0.0:
 		name_label_timer = 0.25
@@ -396,6 +421,7 @@ func _build_body() -> void:
 	_build_health_bar()
 	_build_health_label()
 	_build_name_label()
+	_build_stun_indicator()
 
 	carry_light = null
 	if not DeviceProfile.mobile_ui:
@@ -799,6 +825,45 @@ func _build_name_label() -> void:
 	name_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)
 	name_label.position = Vector3(0.0, 3.02, 0.0)
 	status_root.add_child(name_label)
+
+
+func _build_stun_indicator() -> void:
+	# A clear stun marker above the head and a glowing ring at the feet:
+	# on phones the old stun was invisible, players could not tell why they
+	# stopped moving and casting.
+	stun_label = Label3D.new()
+	stun_label.name = "StunLabel"
+	stun_label.font = ThemeDB.fallback_font
+	stun_label.font_size = 44
+	stun_label.pixel_size = 0.0055
+	stun_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	stun_label.no_depth_test = true
+	stun_label.modulate = Color(1.0, 0.82, 0.25)
+	stun_label.outline_size = 12
+	stun_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)
+	stun_label.position = Vector3(0.0, 3.55, 0.0)
+	stun_label.visible = false
+	status_root.add_child(stun_label)
+
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.55
+	torus.outer_radius = 0.72
+	torus.rings = 24
+	torus.ring_segments = 8
+	stun_ring = MeshInstance3D.new()
+	stun_ring.name = "StunRing"
+	stun_ring.mesh = torus
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color(1.0, 0.8, 0.25)
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.emission_enabled = true
+	material.emission = Color(1.0, 0.65, 0.15)
+	material.emission_energy_multiplier = 2.0
+	stun_ring.material_override = material
+	stun_ring.position = Vector3(0.0, GROUND_Y_OFFSET + 0.06, 0.0)
+	stun_ring.rotation_degrees.x = 90.0
+	stun_ring.visible = false
+	status_root.add_child(stun_ring)
 
 
 func set_display_name(value: String) -> void:
@@ -1234,18 +1299,31 @@ func _physics_process(delta: float) -> void:
 			_respawn()
 		return
 
+	_push_out_of_enemy_base()
+
+	network_respawn_grace = maxf(0.0, network_respawn_grace - delta)
+	spawn_protection = maxf(0.0, spawn_protection - delta)
+	if _is_at_own_base():
+		base_stand_timer += delta
+		if base_stand_timer >= 3.0 and health < max_health:
+			health = minf(max_health, health + 100.0 * delta)
+			base_heal_tick += delta
+			if base_heal_tick >= 0.1:
+				base_heal_tick = 0.0
+				_update_health_display()
+	else:
+		base_stand_timer = 0.0
+		base_heal_tick = 0.0
+		# Spawn protection only works while the hero stays on the base.
+		spawn_protection = 0.0
 	seconds_since_damage = minf(5.0, seconds_since_damage + delta)
 	_update_afk(delta)
 	_update_shop_proximity(delta)
 	bush_reveal_timer = maxf(0.0, bush_reveal_timer - delta)
 	_refresh_bush_visibility()
-	if seconds_since_damage >= 5.0 and health < max_health and not (game != null and bool(game.get("network_play")) and NetworkManager.server_protocol >= 2 and not is_player and int(network_id) < 0):
+	if not _is_at_own_base() and seconds_since_damage >= 5.0 and health < max_health and not (game != null and bool(game.get("network_play")) and NetworkManager.server_protocol >= 2 and not is_player and int(network_id) < 0):
 		var regen_multiplier := 1.0
-		if _is_at_own_base():
-			# 2x, not 6x: 60 HP/s out-healed a warrior's ~55 DPS and made
-			# the base a literal immortality zone in online matches.
-			regen_multiplier = 2.0
-		elif _is_bush_stealthed():
+		if _is_bush_stealthed():
 			regen_multiplier = 2.0
 		if blessing_timer > 0.0:
 			regen_multiplier *= 2.0
@@ -1451,6 +1529,8 @@ func _ensure_navigation_agent() -> void:
 	navigation_agent.name = "AfkNavigationAgent"
 	navigation_agent.path_desired_distance = 0.55
 	navigation_agent.target_desired_distance = 0.8
+	navigation_agent.avoidance_enabled = true
+	navigation_agent.radius = 0.6
 	add_child(navigation_agent)
 
 
@@ -1476,18 +1556,30 @@ func _ensure_afk_label() -> void:
 func _ai_dir(delta: float) -> Vector3:
 	ai_think -= delta
 	ai_strafe_timer -= delta
+	ai_target_lock = maxf(0.0, ai_target_lock - delta)
+	ai_hesitation = maxf(0.0, ai_hesitation - delta)
 	if ai_strafe_timer <= 0.0:
 		ai_strafe_timer = randf_range(1.5, 3.0)
 		ai_strafe_sign *= -1.0
 	if ai_think <= 0.0:
-		ai_think = randf_range(0.42, 0.62)
-		_ai_pick_goal()
-		ai_goal = game.clamp_to_arena(ai_goal)
-		if navigation_agent != null:
-			navigation_agent.target_position = Vector3(ai_goal.x, global_position.y, ai_goal.z)
-			navigation_target_set = true
-		if not carrying:
-			_ai_abilities()
+		# Humans do not re-plan ten times per second. A slower think tick and
+		# the occasional hesitation make the bots read as players, not as
+		# perfect pathfinding agents.
+		ai_think = randf_range(0.55, 0.9)
+		if ai_hesitation <= 0.0:
+			_update_seen_enemies()
+			_ai_pick_goal()
+			ai_goal = game.clamp_to_arena(ai_goal)
+			if navigation_agent != null:
+				var current_target := navigation_agent.target_position
+				var moved := Vector2(current_target.x - ai_goal.x, current_target.z - ai_goal.z).length()
+				if not navigation_target_set or moved > 1.2:
+					navigation_agent.target_position = Vector3(ai_goal.x, global_position.y, ai_goal.z)
+					navigation_target_set = true
+			if not carrying:
+				_ai_abilities()
+		else:
+			ai_hesitation = maxf(0.0, ai_hesitation - ai_think)
 	if carrying:
 		var base_goal := _base_position()
 		ai_goal = base_goal
@@ -1536,6 +1628,19 @@ func _ai_dir(delta: float) -> Vector3:
 				sep += delta_pos.normalized() * (1.35 - dd)
 	if carrying and dir.length_squared() > 0.01:
 		sep = sep.slide(dir.normalized())
+	# The fountain and the shop are round obstacles that the baked navmesh
+	# sometimes misses (they are created after the bake). A small steering
+	# repulsion keeps bots from pushing into them; skip it when the goal is
+	# the shop itself.
+	var obstacle_centers: Array[Vector3] = [Vector3(37.0, 0.0, 0.0), Vector3(-40.0, 0.0, 0.0)]
+	for obstacle_center in obstacle_centers:
+		if ai_goal.distance_to(obstacle_center) < 6.0:
+			continue
+		var away_obstacle: Vector3 = global_position - obstacle_center
+		away_obstacle.y = 0.0
+		var obstacle_dist: float = away_obstacle.length()
+		if obstacle_dist > 0.01 and obstacle_dist < 5.2:
+			dir += away_obstacle.normalized() * (1.0 - obstacle_dist / 5.2) * 0.9
 	dir += sep * 0.35
 	if stun_timer > 0.0:
 		return Vector3.ZERO
@@ -1576,19 +1681,85 @@ func _ai_abilities() -> void:
 				use_ability(2, false)
 
 
+func _update_seen_enemies() -> void:
+	if game == null:
+		return
+	var now := Time.get_ticks_msec()
+	for h in game.heroes:
+		if h.team == team or h.dead or not is_instance_valid(h):
+			continue
+		if global_position.distance_to(h.global_position) > 10.0:
+			continue
+		if h.is_hidden_from(self):
+			continue
+		seen_enemies[h.get_instance_id()] = {"pos": h.global_position, "at": now}
+	for key in seen_enemies.keys():
+		var entry: Dictionary = seen_enemies[key]
+		if now - int(entry.get("at", 0)) > 4000:
+			seen_enemies.erase(key)
+
+
+func _bush_search_point() -> Vector3:
+	# A bot only searches a bush if it actually saw the enemy enter it from
+	# within 10 m. No memory, no search: otherwise bots would "feel" players.
+	if game == null or seen_enemies.is_empty():
+		return Vector3.ZERO
+	var now := Time.get_ticks_msec()
+	var best := Vector3.ZERO
+	var best_age := 2500
+	for key in seen_enemies.keys():
+		var entry: Dictionary = seen_enemies[key]
+		var age := now - int(entry.get("at", 0))
+		if age > best_age:
+			continue
+		var pos: Vector3 = entry.get("pos", Vector3.ZERO)
+		if global_position.distance_to(pos) > 14.0:
+			continue
+		best = pos
+		best_age = age
+	return best
+
+
+func _escort_threat(carrier_node: Node3D) -> HeroUnit:
+	# The closest visible enemy around the carrier. Enemies that already
+	# target the carrier are treated as a bigger threat.
+	if game == null or carrier_node == null:
+		return null
+	var best: HeroUnit = null
+	var best_score := 14.0
+	for h in game.heroes:
+		if h == self or h.team == team or h.dead or not is_instance_valid(h):
+			continue
+		if h.is_hidden_from(self):
+			continue
+		var d := h.global_position.distance_to(carrier_node.global_position)
+		if d > 14.0:
+			continue
+		var score := d
+		if h.ai_attack_target == carrier_node:
+			score -= 5.0
+		if score < best_score:
+			best_score = score
+			best = h
+	return best
+
+
 func _ai_pick_target() -> Node3D:
 	if game == null:
 		return null
 	# 1. враг с осколком — главная цель
 	var carrier_node = game.get("carrier")
 	if carrier_node != null and is_instance_valid(carrier_node) and bool(carrier_node.get("carrying")):
-		if int(carrier_node.get("team")) != team and global_position.distance_to(carrier_node.global_position) < 34.0:
+		var carrier_hidden := carrier_node is HeroUnit and (carrier_node as HeroUnit).is_hidden_from(self)
+		if not carrier_hidden and int(carrier_node.get("team")) != team and global_position.distance_to(carrier_node.global_position) < 34.0:
 			return carrier_node
 	# 2. тяжело раненый враг рядом
 	var weakest: HeroUnit = null
 	var weakest_ratio := 1.0
 	for other in game.heroes:
 		if other == self or not is_instance_valid(other) or other.dead or other.team == team:
+			continue
+		if other.is_hidden_from(self):
 			continue
 		if global_position.distance_to(other.global_position) > 24.0:
 			continue
@@ -1633,6 +1804,12 @@ func _ai_pick_goal() -> void:
 		var new_distance := global_position.distance_to(target.global_position) if target != null else INF
 		if previous_distance < 30.0 and previous_distance <= new_distance * 1.18:
 			target = previous_target
+	# Humans need a moment to switch targets. Keep the old target for a short
+	# reaction window instead of snapping to the mathematically best one.
+	if ai_target_lock > 0.0 and previous_target != null and is_instance_valid(previous_target) and not previous_target.dead:
+		target = previous_target
+	if target != previous_target:
+		ai_target_lock = randf_range(0.3, 0.7)
 	ai_attack_target = target
 	if carrying:
 		ai_goal = _base_position()
@@ -1640,19 +1817,35 @@ func _ai_pick_goal() -> void:
 	var crystal_carrier = game.get("carrier")
 	if crystal_carrier != null and is_instance_valid(crystal_carrier) and bool(crystal_carrier.get("carrying")):
 		var carrier_team := int(crystal_carrier.get("team"))
-		if carrier_team == team:
-			# сопровождающие держат дистанцию и расходятся по кругу,
-			# иначе все боты липнут в одну точку и толкаются
-			var escort_angle := float(get_instance_id() % 628) * 0.01
-			var escort_point: Vector3 = crystal_carrier.global_position + Vector3(
-				cos(escort_angle) * 6.0,
-				0.0,
-				sin(escort_angle) * 6.0
-			)
-			ai_goal = game.clamp_to_arena(escort_point) if game.has_method("clamp_to_arena") else escort_point
-		else:
+		if carrier_team == team and crystal_carrier != self:
+			# Escort: stay with the carrier and jump on whoever threatens
+			# them. No coin farming or shop detours while the shard moves.
+			var threat := _escort_threat(crystal_carrier)
+			if threat != null:
+				ai_attack_target = threat
+				var carrier_pos: Vector3 = (crystal_carrier as Node3D).global_position
+				var intercept: Vector3 = threat.global_position
+				var from_carrier: Vector3 = intercept - carrier_pos
+				from_carrier.y = 0.0
+				if from_carrier.length() > 11.0:
+					intercept = carrier_pos + from_carrier.normalized() * 11.0
+				ai_goal = intercept
+			else:
+				ai_attack_target = game.nearest_enemy(crystal_carrier.global_position, team, 8.0, self)
+				var escort_point: Vector3 = (crystal_carrier as Node3D).global_position + Vector3(
+					cos(ai_escort_angle) * 5.5,
+					0.0,
+					sin(ai_escort_angle) * 5.5
+				)
+				ai_goal = game.clamp_to_arena(escort_point) if game.has_method("clamp_to_arena") else escort_point
+		elif carrier_team != team:
 			if crystal_carrier is HeroUnit:
-				ai_attack_target = crystal_carrier
+				var enemy_carrier := crystal_carrier as HeroUnit
+				if enemy_carrier.is_hidden_from(self):
+					ai_attack_target = null
+					ai_goal = _base_position()
+					return
+				ai_attack_target = enemy_carrier
 			ai_goal = crystal_carrier.global_position
 		return
 	if ai_retreating:
@@ -1666,6 +1859,12 @@ func _ai_pick_goal() -> void:
 	if shell != null and is_instance_valid(shell) and shell.alive:
 		ai_goal = _shell_approach_point(shell)
 		return
+	if not carrying and target == null:
+		var search_point := _bush_search_point()
+		if search_point != Vector3.ZERO:
+			ai_goal = search_point
+			ai_attack_target = null
+			return
 	var enemy_distance := global_position.distance_to(target.global_position) if target != null else INF
 	if enemy_distance > 16.0:
 		if game.bot_has_affordable_shop_item(self):
@@ -1735,13 +1934,40 @@ func _crystal_approach_point(crystal: Node3D) -> Vector3:
 
 func _base_spawn_position() -> Vector3:
 	var base_z := BASE_POSITION_Z if team == 0 else -BASE_POSITION_Z
-	var safe_x := clampf(ai_offset.x, -2.0, 2.0)
-	var spawn_position := Vector3(safe_x, 0.0, base_z)
+	# Spread the respawn: three heroes spawning on one point looked like a
+	# pile of bodies and let one enemy cleave the whole team.
+	var safe_x := clampf(ai_offset.x, -3.0, 3.0)
+	var safe_z := base_z + clampf(ai_offset.z, -1.5, 1.5)
+	var spawn_position := Vector3(safe_x, 0.0, safe_z)
 	return game.clamp_to_arena(spawn_position) if game != null and game.has_method("clamp_to_arena") else spawn_position
+
+
+func _push_out_of_enemy_base() -> void:
+	# The spawn dome is a safe zone: enemies can no longer stand inside it
+	# and kill heroes the moment they respawn (the 1:40 respawn-kill bug).
+	if game == null or dead:
+		return
+	var enemy_base_z := -BASE_POSITION_Z if team == 0 else BASE_POSITION_Z
+	var center := Vector3(0.0, 0.0, enemy_base_z)
+	var offset := global_position - center
+	offset.y = 0.0
+	var dist := offset.length()
+	var limit := BASE_SHIELD_RADIUS + 0.8
+	if dist >= limit:
+		return
+	if dist < 0.05:
+		offset = Vector3(0.0, 0.0, 1.0)
+	var outside := center + offset.normalized() * limit
+	global_position = Vector3(outside.x, global_position.y, outside.z)
+	velocity = Vector3.ZERO
 
 
 func _try_auto_attack(movement_direction: Vector3) -> void:
 	if attack_cd > 0.0:
+		return
+	# Ambush: while hidden in a bush the hero does not auto-attack, otherwise
+	# every bush instantly revealed the player. Skills still work and reveal.
+	if _is_bush_stealthed():
 		return
 	if game == null:
 		return
@@ -1910,7 +2136,14 @@ func _is_offensive_ability(ability_type: String) -> bool:
 
 
 func _is_bush_stealthed() -> bool:
-	return in_bush and bush_reveal_timer <= 0.0
+	if not in_bush or bush_reveal_timer > 0.0:
+		return false
+	# An enemy two or three bodies away sees through the leaves. The hidden
+	# player is revealed and auto-attack works again.
+	if game != null and game.has_method("enemy_within"):
+		if bool(game.call("enemy_within", global_position, team, BUSH_PROXIMITY_REVEAL)):
+			return false
+	return true
 
 
 func _is_at_own_base() -> bool:
@@ -2050,6 +2283,9 @@ func _health_bar_visible() -> bool:
 
 
 func is_hidden_from(observer: HeroUnit) -> bool:
+	if carrying:
+		# The shard carrier is the match objective: always visible.
+		return false
 	if not _is_bush_stealthed() or observer == null or observer.team == team:
 		return false
 	for zone in bush_zones:
@@ -2096,10 +2332,14 @@ func _update_health_display() -> void:
 func apply_network_damage(amount: float, show_number := true, is_crit := false) -> bool:
 	if dead:
 		return false
+	if amount > 0.0 and spawn_protection > 0.0 and _is_at_own_base():
+		return false
 	if is_player and amount > 0.0:
 		Haptics.vibrate(50)
 	health = clampf(health - maxf(amount, 0.0), 0.0, max_health)
 	seconds_since_damage = 0.0
+	base_stand_timer = 0.0
+	_break_bush_stealth()
 	_update_health_display()
 	if is_player and game != null and game.hud != null:
 		game.hud.call("flash_damage", clampf(0.22 + maxf(amount, 0.0) / 260.0, 0.22, 0.6))
@@ -2173,6 +2413,8 @@ func take_damage(amount: float, source: Node = null, damage_type: String = "phys
 		CombatProfiler.mark("hit", "%s -> %s %.0f" % [str(source.name) if source != null else "?", display_name, amount])
 	if dead:
 		return
+	if amount > 0.0 and spawn_protection > 0.0 and _is_at_own_base():
+		return
 	if is_player and game != null and bool(game.get("network_play")) and source is HeroUnit:
 		var network_source := source as HeroUnit
 		# A host-simulated bot hitting the host player must go through the
@@ -2209,6 +2451,8 @@ func take_damage(amount: float, source: Node = null, damage_type: String = "phys
 		return
 	if amount > 0.0:
 		seconds_since_damage = 0.0
+		base_stand_timer = 0.0
+		_break_bush_stealth()
 		if is_player and game != null:
 			shop_manual_dismissed = false
 			game.set_shop_open(false)
@@ -2358,6 +2602,13 @@ func _respawn() -> void:
 	dead = false
 	health = max_health
 	seconds_since_damage = 0.0
+	base_stand_timer = 0.0
+	base_heal_tick = 0.0
+	spawn_protection = 5.0
+	# The server needs up to 1.5 s to accept the host's "alive" bot state.
+	# During that window its old alive=false snapshots used to kill the bot
+	# again, producing an endless respawn/die loop at the base.
+	network_respawn_grace = 2.0
 	_update_health_display()
 	global_position = _base_spawn_position() + Vector3(0.0, 0.76, 0.0)
 	velocity = Vector3.ZERO

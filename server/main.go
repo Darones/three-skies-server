@@ -204,6 +204,9 @@ func main() {
 		service.setDatabaseError(err)
 	} else {
 		log.Print("database ready")
+		if err := initStatsTable(db); err != nil {
+			log.Printf("WARNING: stats table setup failed: %v", err)
+		}
 		service.setDatabaseReady()
 	}
 	cancel()
@@ -287,10 +290,15 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	mux.HandleFunc("/buy_wing", service.handleBuyWing)
 	mux.HandleFunc("/buy_weapon", service.handleBuyWeapon)
 	mux.HandleFunc("/match_reward", service.handleMatchReward)
+	mux.HandleFunc("/stats/event", service.handleStatsEvent)
+	mux.HandleFunc("/stats/data", service.handleStatsData)
+	mux.HandleFunc("/stats/dashboard", service.handleStatsDashboard)
+	mux.HandleFunc("/stats/player", service.handleStatsPlayer)
+	mux.HandleFunc("/stats/reset", service.handleStatsReset)
 	if gameDir := gameWebDir(); gameDir != "" {
 		// Serve the HTML5 build from the same origin as REST/WS. GitHub Pages
 		// is not reachable at usable speed from Russia, while this host is.
-		mux.Handle("/game/", http.StripPrefix("/game/", staticGameHandler(gameDir)))
+		mux.Handle("/game/", http.StripPrefix("/game/", service.trackGamePage(staticGameHandler(gameDir))))
 		// Large files are sometimes missing from the build context; warm the
 		// cache in the background so the first player does not wait.
 		go prefetchGameAssets(gameDir)
@@ -541,7 +549,7 @@ func cors(next http.Handler) http.Handler {
 // readable 503 instead of the platform reporting a dead backend.
 func databaseGate(next http.Handler, service *api) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/health" || r.URL.Path == "/ws" || strings.HasPrefix(r.URL.Path, "/game/") || service.dbReady.Load() {
+		if r.URL.Path == "/health" || r.URL.Path == "/ws" || strings.HasPrefix(r.URL.Path, "/game/") || strings.HasPrefix(r.URL.Path, "/stats/") || service.dbReady.Load() {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -605,6 +613,9 @@ func (service *api) monitorDatabase(db *sql.DB) {
 		err := db.PingContext(ctx)
 		if err == nil && !service.dbReady.Load() {
 			err = createSchema(ctx, db)
+			if err == nil {
+				err = initStatsTable(db)
+			}
 		}
 		cancel()
 

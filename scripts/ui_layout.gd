@@ -143,13 +143,15 @@ func _apply(id: String, rect: Rect2) -> void:
 	if viewport_size.y <= 0.0:
 		return
 	var design_scale := minf(viewport_size.x / REFERENCE_WIDTH, viewport_size.y / REFERENCE_HEIGHT)
-	var parent_rect: Rect2 = entry.get("parent_base_rect", Rect2(Vector2.ZERO, Vector2(REFERENCE_WIDTH, REFERENCE_HEIGHT)))
-	if parent_rect.size.x <= 0.0 or parent_rect.size.y <= 0.0:
-		parent_rect = Rect2(Vector2.ZERO, Vector2(REFERENCE_WIDTH, REFERENCE_HEIGHT))
-	var design_width := parent_rect.size.x
-	var design_height := parent_rect.size.y
-	var left := rect.position.x - parent_rect.position.x
-	var top := rect.position.y - parent_rect.position.y
+	# The layout is authored in the 844x390 design space. Classify and offset
+	# against that space, not against the real viewport: on a long iPhone
+	# screen (2.3:1) the viewport is wider than the reference, and elements
+	# meant for the right edge fell into the "center" third and were anchored
+	# to the middle of the screen.
+	var design_width := REFERENCE_WIDTH
+	var design_height := REFERENCE_HEIGHT
+	var left := rect.position.x
+	var top := rect.position.y
 	var right := left + rect.size.x
 	var bottom := top + rect.size.y
 	var center_x := (left + right) * 0.5

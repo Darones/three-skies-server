@@ -15,9 +15,10 @@ var touch_device := false
 func _ready() -> void:
 	touch_device = DeviceProfile.touch_controls
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	# Invisible but fully functional: modern mobile controls use the whole
-	# lower-left area as a stick without drawing a base or knob.
-	modulate = Color(1.0, 1.0, 1.0, 0.0)
+	# Visible on every phone: the stick used to be fully transparent and
+	# players could not find it. Keep the base and knob on screen; they only
+	# animate while the thumb is on the glass.
+	modulate = Color(1.0, 1.0, 1.0, 1.0)
 	queue_redraw()
 
 
@@ -89,10 +90,10 @@ func _reset() -> void:
 
 func _draw() -> void:
 	var center := _center()
-	draw_circle(center, BASE_RADIUS + 12.0, Color(0.03, 0.045, 0.07, 0.5))
-	draw_circle(center, BASE_RADIUS, Color(0.08, 0.1, 0.15, 0.32))
-	draw_arc(center, BASE_RADIUS + 12.0, 0.0, TAU, 64, Color(0.9, 0.78, 0.5, 0.55), 2.0)
-	draw_arc(center, BASE_RADIUS, 0.0, TAU, 64, Color(0.9, 0.78, 0.5, 0.22), 1.0)
+	draw_circle(center, BASE_RADIUS + 12.0, Color(0.03, 0.045, 0.07, 0.62))
+	draw_circle(center, BASE_RADIUS, Color(0.08, 0.1, 0.15, 0.42))
+	draw_arc(center, BASE_RADIUS + 12.0, 0.0, TAU, 64, Color(0.9, 0.78, 0.5, 0.72), 2.0)
+	draw_arc(center, BASE_RADIUS, 0.0, TAU, 64, Color(0.9, 0.78, 0.5, 0.35), 1.0)
 	var knob := center + knob_offset
-	draw_circle(knob, KNOB_RADIUS, Color(0.9, 0.78, 0.5, 0.5))
-	draw_arc(knob, KNOB_RADIUS, 0.0, TAU, 48, Color(1.0, 0.9, 0.62, 0.9), 2.0)
+	draw_circle(knob, KNOB_RADIUS, Color(0.9, 0.78, 0.5, 0.72))
+	draw_arc(knob, KNOB_RADIUS, 0.0, TAU, 48, Color(1.0, 0.9, 0.62, 0.95), 2.0)

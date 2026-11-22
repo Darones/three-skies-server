@@ -537,6 +537,11 @@ func _create_shop_stall() -> void:
 	stall_model.position.y = -model_bounds.position.y * model_scale
 	_disable_mesh_shadows(stall_model)
 	_add_box_collision(shop, Vector3(4.6, 3.4, 3.6), "ShopCollision")
+	var shop_obstacle := NavigationObstacle3D.new()
+	shop_obstacle.name = "ShopNavObstacle"
+	shop_obstacle.radius = 3.6
+	shop_obstacle.height = 3.2
+	shop.add_child(shop_obstacle)
 
 	var sign := MeshInstance3D.new()
 	sign.name = "ShopSign"
@@ -704,6 +709,11 @@ func _create_gold_fountain() -> void:
 	else:
 		_build_primitive_fountain(gold_fountain)
 	_add_box_collision(gold_fountain, Vector3(3.4, 3.0, 3.4), "FountainCollision")
+	var fountain_obstacle := NavigationObstacle3D.new()
+	fountain_obstacle.name = "FountainNavObstacle"
+	fountain_obstacle.radius = 3.2
+	fountain_obstacle.height = 3.0
+	gold_fountain.add_child(fountain_obstacle)
 
 	_add_kaykit_prop(gold_fountain, ArenaKit.KAYKIT_GOLD_BARS_SCENE, Vector3(-1.4, 0.1, 1.4), 1.3, 22.0)
 	_add_kaykit_prop(gold_fountain, ArenaKit.KAYKIT_GOLD_NUGGETS_SCENE, Vector3(1.5, 0.1, 1.2), 1.2, -18.0)
@@ -1444,6 +1454,10 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 		return
 	match_started = true
 	state = "starting"
+	Stats.track("match_start", {
+		"class": ["warrior", "mage", "fairy"][clampi(player_class, 0, 2)],
+		"network": network_play,
+	})
 	p_kills = 0
 	p_deaths = 0
 	p_damage = 0.0
@@ -1958,7 +1972,12 @@ func _has_clear_vision(space_state: PhysicsDirectSpaceState3D, from: Vector3, to
 
 
 func _is_small_vision_blocker(node: Node) -> bool:
-	if String(node.name) == "CrystalCollision" or String(node.name) == "ShellNavBlocker":
+	var node_name := String(node.name)
+	if node_name == "CrystalCollision" or node_name == "ShellNavBlocker":
+		return true
+	if node_name == "PillarCollision":
+		# Columns in the centre and at the bases must not turn heroes
+		# invisible; standing behind them gave free stealth.
 		return true
 	var parent := node.get_parent()
 	return parent != null and String(parent.name) == "Decor"
@@ -2667,6 +2686,16 @@ func end_match(team_zero_won: bool) -> void:
 	result_text = "ПОБЕДА" if player_won else "ПОРАЖЕНИЕ"
 	if match_end_reason.is_empty():
 		match_end_reason = "Матч завершён"
+	var stats_class := "unknown"
+	if player != null and is_instance_valid(player):
+		stats_class = ["warrior", "mage", "fairy"][clampi(int(player.hero_class), 0, 2)]
+	Stats.track("match_end", {
+		"result": result_text,
+		"score": "%d:%d" % [score[0], score[1]],
+		"reason": match_end_reason,
+		"class": stats_class,
+		"network": network_play,
+	})
 	get_tree().set_meta("last_match_won", player_won)
 	get_tree().set_meta("last_match_reason", match_end_reason)
 	get_tree().set_meta("last_match_score", score.duplicate())
@@ -2873,6 +2902,24 @@ func enemies_in_radius(center: Vector3, radius: float, team: int, observer: Hero
 		if enemy.global_position.distance_to(center) <= radius:
 			nearby.append(enemy)
 	return nearby
+
+
+func enemy_within(pos: Vector3, team: int, radius: float) -> bool:
+	# Used by the bush stealth: an enemy this close reveals the hidden hero.
+	var limit := radius * radius
+	for h in heroes:
+		if h.team == team or h.dead:
+			continue
+		if pos.distance_squared_to(h.global_position) <= limit:
+			return true
+	for remote in remote_players.values():
+		if remote == null or not is_instance_valid(remote):
+			continue
+		if int(remote.get("team")) == team or bool(remote.get("dead")):
+			continue
+		if pos.distance_squared_to((remote as Node3D).global_position) <= limit:
+			return true
+	return false
 
 
 func _on_bush_body_entered(body: Node3D, bush: Area3D) -> void:
@@ -3157,7 +3204,7 @@ func mage_storm_tick(mage: HeroUnit, radius: float, damage: float) -> void:
 		return
 	play_sfx("thunder", -16.0)
 	var struck := false
-	for enemy in enemies_in_radius(mage.global_position, radius, mage.team):
+	for enemy in enemies_in_radius(mage.global_position, radius, mage.team, mage):
 		lightning_strike_fx(enemy.global_position)
 		struck = true
 		_activate_shell_beam(enemy.global_position, Color(0.38, 0.82, 1.0, 0.95))
@@ -3728,11 +3775,18 @@ func _on_bot_state_updated(bot_id: int, info: Dictionary) -> void:
 		var alive := bool(info.get("alive", true))
 		bot.max_health = max_hp
 		if not alive:
+			if bot.network_respawn_grace > 0.0:
+				# A snapshot from before the host respawned the bot. The server
+				# restores it after the host reports alive; killing it here
+				# produced the "respawn and die instantly" loop.
+				return
 			if not bot.dead:
 				bot.apply_network_damage(bot.health, false)
 			return
 		if bot.dead:
 			bot._respawn()
+			if hp <= 0.0:
+				hp = max_hp
 		if hp > bot.health and bot.seconds_since_damage < 0.6:
 			# A snapshot created just before the server confirmed our hit can
 			# arrive after the damage packet. Hold the confirmed value briefly.

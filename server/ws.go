@@ -78,25 +78,26 @@ type wsRoom struct {
 }
 
 type wsBot struct {
-	id           int64
-	name         string
-	class        int
-	team         int
-	x            float64
-	y            float64
-	z            float64
-	rotation     float64
-	maxHP        float64
-	hp           float64
-	attackDamage float64
-	alive        bool
-	animation    string
-	hasState     bool
-	lastDamaged  time.Time
-	lastRegen    time.Time
-	deadSince    time.Time
-	lastAttacks  map[string]time.Time
-	castHits     map[string]map[int64]time.Time
+	id             int64
+	name           string
+	class          int
+	team           int
+	x              float64
+	y              float64
+	z              float64
+	rotation       float64
+	maxHP          float64
+	hp             float64
+	attackDamage   float64
+	alive          bool
+	animation      string
+	hasState       bool
+	lastDamaged    time.Time
+	lastRegen      time.Time
+	deadSince      time.Time
+	baseStandSince time.Time
+	lastAttacks    map[string]time.Time
+	castHits       map[string]map[int64]time.Time
 }
 
 type wsClient struct {
@@ -107,35 +108,36 @@ type wsClient struct {
 	done      chan struct{}
 	closeOnce sync.Once
 
-	roomID       int64
-	playerID     int64
-	name         string
-	class        int
-	team         int
-	x            float64
-	y            float64
-	z            float64
-	rotation     float64
-	hasState     bool
-	joined       bool
-	alive        bool
-	maxHP        float64
-	hp           float64
-	attackDamage float64
-	lastAttacks  map[string]time.Time
-	lastSync     time.Time
-	lastDamaged  time.Time
-	lastRegen    time.Time
-	lastStatGain time.Time
-	statHpBudget float64
-	healTokens   float64
-	lastHeal     time.Time
-	diedAt       time.Time
-	castHits     map[string]map[int64]time.Time
-	gold         int
-	bought       map[string]bool
-	coinTokens   float64
-	lastCoin     time.Time
+	roomID         int64
+	playerID       int64
+	name           string
+	class          int
+	team           int
+	x              float64
+	y              float64
+	z              float64
+	rotation       float64
+	hasState       bool
+	joined         bool
+	alive          bool
+	maxHP          float64
+	hp             float64
+	attackDamage   float64
+	lastAttacks    map[string]time.Time
+	lastSync       time.Time
+	lastDamaged    time.Time
+	lastRegen      time.Time
+	baseStandSince time.Time
+	lastStatGain   time.Time
+	statHpBudget   float64
+	healTokens     float64
+	lastHeal       time.Time
+	diedAt         time.Time
+	castHits       map[string]map[int64]time.Time
+	gold           int
+	bought         map[string]bool
+	coinTokens     float64
+	lastCoin       time.Time
 }
 
 type wsIncoming struct {
@@ -872,7 +874,7 @@ func (h *wsHub) updateState(client *wsClient, message wsIncoming) {
 			client.lastRegen = now
 		}
 		elapsed := now.Sub(client.lastRegen).Seconds()
-		if elapsed > 0.0 && elapsed <= 1.0 && (client.lastDamaged.IsZero() || now.Sub(client.lastDamaged) >= 5*time.Second) {
+		if elapsed > 0.0 && elapsed <= 1.0 {
 			rate := 10.0
 			if client.bought != nil && client.bought["revival_talisman"] {
 				rate += 10.0
@@ -882,11 +884,20 @@ func (h *wsHub) updateState(client *wsClient, message wsIncoming) {
 				baseZ = -27.5
 			}
 			if math.Hypot(client.x, client.z-baseZ) <= 6.5 {
-				// Base regen must stay below a warrior's ~55 DPS, otherwise
-				// the defender cannot die while standing on the base.
-				rate *= 2.0
+				// Base: 100 HP/s after three seconds of standing. Damage
+				// resets the timer; leaving the base resets it to zero.
+				if client.baseStandSince.IsZero() {
+					client.baseStandSince = now
+				}
+				if now.Sub(client.baseStandSince) >= 3*time.Second {
+					client.hp = math.Min(client.maxHP, client.hp+100.0*elapsed)
+				}
+			} else {
+				client.baseStandSince = time.Time{}
+				if client.lastDamaged.IsZero() || now.Sub(client.lastDamaged) >= 5*time.Second {
+					client.hp = math.Min(client.maxHP, client.hp+rate*elapsed)
+				}
 			}
-			client.hp = math.Min(client.maxHP, client.hp+rate*elapsed)
 		}
 		client.lastRegen = now
 	}
@@ -1253,16 +1264,24 @@ func (h *wsHub) relayBotStates(client *wsClient, message wsIncoming) {
 				bot.lastRegen = now
 			}
 			elapsed := now.Sub(bot.lastRegen).Seconds()
-			if elapsed > 0.0 && elapsed <= 1.0 && (bot.lastDamaged.IsZero() || now.Sub(bot.lastDamaged) >= 5*time.Second) {
-				rate := 10.0
+			if elapsed > 0.0 && elapsed <= 1.0 {
 				baseZ := 27.5
 				if bot.team == 1 {
 					baseZ = -27.5
 				}
 				if math.Hypot(bot.x, bot.z-baseZ) <= 6.5 {
-					rate *= 2.0
+					if bot.baseStandSince.IsZero() {
+						bot.baseStandSince = now
+					}
+					if now.Sub(bot.baseStandSince) >= 3*time.Second {
+						bot.hp = math.Min(bot.maxHP, bot.hp+100.0*elapsed)
+					}
+				} else {
+					bot.baseStandSince = time.Time{}
+					if bot.lastDamaged.IsZero() || now.Sub(bot.lastDamaged) >= 5*time.Second {
+						bot.hp = math.Min(bot.maxHP, bot.hp+10.0*elapsed)
+					}
 				}
-				bot.hp = math.Min(bot.maxHP, bot.hp+rate*elapsed)
 			}
 			bot.lastRegen = now
 		}
@@ -1272,6 +1291,7 @@ func (h *wsHub) relayBotStates(client *wsClient, message wsIncoming) {
 			bot.hp = bot.maxHP
 			bot.alive = true
 			bot.deadSince = time.Time{}
+			bot.baseStandSince = now
 			bot.lastRegen = now
 		}
 		changed = true
@@ -1372,6 +1392,14 @@ func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
 	}
 	stun := stunForSkill(skill)
 	died := target.applyDamage(damage)
+	if target.client != nil {
+		target.client.lastDamaged = time.Now()
+		target.client.baseStandSince = time.Time{}
+	}
+	if target.bot != nil {
+		target.bot.lastDamaged = time.Now()
+		target.bot.baseStandSince = time.Time{}
+	}
 	// Lifesteal is a server rule too: 15% of the confirmed hit returns as HP.
 	var stealHeal float64
 	if damage > 0 && source.client != nil && source.client.bought != nil && source.client.bought["vampire_fang"] {
@@ -1596,6 +1624,7 @@ func (h *wsHub) handleBotDamage(client *wsClient, message wsIncoming) {
 	bot.hp = math.Max(0, bot.hp-message.Amount)
 	bot.lastDamaged = time.Now()
 	bot.lastRegen = time.Now()
+	bot.baseStandSince = time.Time{}
 	died := bot.hp <= 0
 	if died {
 		bot.alive = false

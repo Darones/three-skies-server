@@ -57,6 +57,8 @@ var player_panel_class := -1
 var player_panel_team := -1
 var announce_label: Label
 var center_respawn_label: Label
+var stun_badge: PanelContainer
+var stun_badge_label: Label
 var ability_buttons: Array[Button] = []
 var icon_class := -1
 var ability_wipes: Array[AbilityCooldownWipe] = []
@@ -146,6 +148,7 @@ func _ready() -> void:
 	_apply_safe_area(root)
 
 	_build_top(root)
+	_build_stun_badge(root)
 	_build_kill_feed(root)
 	_build_carrier_panel(root)
 	_build_abilities(root)
@@ -1621,12 +1624,54 @@ func show_announcement(text: String, color: Color, duration: float) -> void:
 	announce_tween.tween_property(announce_label, "modulate:a", 0.0, 0.7)
 
 
+func _build_stun_badge(root: Control) -> void:
+	stun_badge = PanelContainer.new()
+	stun_badge.name = "StunBadge"
+	stun_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stun_badge.anchor_left = 0.5
+	stun_badge.anchor_right = 0.5
+	stun_badge.anchor_top = 0.0
+	stun_badge.anchor_bottom = 0.0
+	stun_badge.offset_left = -155.0
+	stun_badge.offset_right = 155.0
+	stun_badge.offset_top = 96.0
+	stun_badge.offset_bottom = 152.0
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.34, 0.05, 0.04, 0.93)
+	style.border_color = Color(1.0, 0.78, 0.25)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(14)
+	stun_badge.add_theme_stylebox_override("panel", style)
+	root.add_child(stun_badge)
+	stun_badge_label = Label.new()
+	stun_badge_label.text = "ОГЛУШЕНИЕ"
+	stun_badge_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stun_badge_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	stun_badge_label.add_theme_font_override("font", UI_FONT)
+	stun_badge_label.add_theme_font_size_override("font_size", 24)
+	stun_badge_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.55))
+	stun_badge.add_child(stun_badge_label)
+	stun_badge.visible = false
+
+
 func _process(_delta: float) -> void:
 	_update_low_health_vignette(_delta)
 	_update_tutorial_press_hint()
 	_update_focus_panel()
 	if game == null:
 		return
+	if stun_badge != null:
+		var stunned_player = game.player
+		var is_stunned: bool = (
+			stunned_player != null
+			and is_instance_valid(stunned_player)
+			and not stunned_player.dead
+			and float(stunned_player.stun_timer) > 0.05
+			and game.state == "live"
+		)
+		stun_badge.visible = is_stunned
+		if is_stunned:
+			stun_badge_label.text = "ОГЛУШЕНИЕ  %.1f" % float(stunned_player.stun_timer)
 	if touch_joystick != null:
 		touch_joystick.visible = game.state != "select"
 	if game.player != null and is_instance_valid(game.player) and game.player.hero_class != icon_class:
