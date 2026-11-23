@@ -255,7 +255,7 @@ func _ready() -> void:
 				var bush := bush_node as Area3D
 				bush.body_entered.connect(_on_bush_body_entered.bind(bush))
 				bush.body_exited.connect(_on_bush_body_exited.bind(bush))
-	if DeviceProfile.mobile_ui:
+	if DeviceProfile.mobile_ui or OS.has_feature("web"):
 		await _warm_battle_world()
 	if get_tree().has_meta("selected_class"):
 		var selected_class := int(get_tree().get_meta("selected_class"))
@@ -1511,10 +1511,13 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 				_spawn_hero(classes[i], enemy_team, false, enemy_spots[mini(i, 2)])
 				if DeviceProfile.mobile_ui:
 					await get_tree().process_frame
-	if DeviceProfile.mobile_ui:
+	var needs_shader_warmup := DeviceProfile.mobile_ui or OS.has_feature("web")
+	if needs_shader_warmup:
 		# Warm the freshly spawned hero models and every hit VFX while the
 		# class-select panel still covers the screen. Without this the first
-		# frames of the match hitch on shader compilation.
+		# frames of the match hitch on shader compilation. Web/Compatibility
+		# has no ubershaders, so this must run on desktop web too, not only on
+		# phones.
 		await _warm_combat_world()
 		await _warm_first_clash_vfx()
 	state = "live"
