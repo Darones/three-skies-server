@@ -1,17 +1,23 @@
 """Patch a Godot web export so the main PCK is fetched with Range requests.
 
 RelaxDev's edge proxy drops a single response larger than about 20 MB with
-ERR_HTTP2_PROTOCOL_ERROR. The PCK is 45.9 MB, so the loader would stop at the
+ERR_HTTP2_PROTOCOL_ERROR. The PCK is ~49 MB, so the loader would stop at the
 splash screen. Fetch it in 10 MB ranges and hand the merged buffer to the
 engine instead of the single response.
+
+The merge buffer is allocated once and each chunk is copied into it. The old
+loader kept every 10 MB chunk alive and then allocated another 49 MB buffer,
+which could push an iPhone tab over Safari's memory limit ("Load failed").
+Chunks also retry three times, and a proxy that ignores Range (HTTP 200) is
+accepted as a full pack instead of failing with a size mismatch.
 
 No 1-byte probe: on iOS/VK webview a probe Range request was unreliable and the
 engine reported "Load failed". The real size is taken from the Content-Range
 of the first chunk, so a cached index.html with an old fileSizes value cannot
 truncate or overrun the pack either.
 
-On failure a readable DOM overlay shows the exact reason instead of only the
-engine's "Load failed" dialog.
+On failure a readable DOM overlay shows the exact reason and a retry button
+instead of only the engine's "Load failed" dialog.
 """
 
 import sys
@@ -50,7 +56,23 @@ SCRIPT = """
 						box.style.zIndex = '999999';
 						document.body.appendChild(box);
 					}
-					box.textContent = 'Не удалось загрузить игру: ' + message;
+					while (box.firstChild) {
+						box.removeChild(box.firstChild);
+					}
+					const text = document.createElement('div');
+					text.textContent = 'Не удалось загрузить игру: ' + message;
+					box.appendChild(text);
+					const retry = document.createElement('button');
+					retry.textContent = 'Повторить';
+					retry.style.marginTop = '12px';
+					retry.style.padding = '10px 22px';
+					retry.style.border = '2px solid #ffb3b3';
+					retry.style.borderRadius = '10px';
+					retry.style.background = '#5b1d24';
+					retry.style.color = '#ffffff';
+					retry.style.font = '18px system-ui, sans-serif';
+					retry.onclick = function () { window.location.reload(); };
+					box.appendChild(retry);
 				} catch (ignored) {}
 				if (window.console) {
 					console.error('[PACK] ' + message);
@@ -69,7 +91,8 @@ SCRIPT = """
 					bar.max = total;
 					bar.value = 0;
 				}
-				const parts = [];
+				let merged = new Uint8Array(total);
+				let filled = 0;
 				let next = 0;
 				function loadNext() {
 					if (next >= total) {
@@ -77,52 +100,81 @@ SCRIPT = """
 					}
 					const start = next;
 					const end = Math.min(start + PACK_RANGE_CHUNK, total) - 1;
-					next = end + 1;
-					return fetch(mainPack, {
-						credentials: 'same-origin',
-						// A redeploy swaps index.pck in place. Without no-store
-						// the browser can merge a cached old PCK with fresh
-						// ranges ("Game data is incomplete").
-						cache: 'no-store',
-						headers: { 'Range': 'bytes=' + start + '-' + end },
-					}).then(function (response) {
-						if (!response.ok) {
-							throw new Error('HTTP ' + response.status);
-						}
-						const contentRange = response.headers.get('Content-Range') || '';
-						const match = /\\/(\\d+)$/.exec(contentRange);
-						if (match) {
-							const real = parseInt(match[1], 10);
-							if (real > 0 && real !== total) {
-								total = real;
-								if (bar) {
-									bar.max = total;
+					function fetchChunk(attempt) {
+						return fetch(mainPack, {
+							credentials: 'same-origin',
+							// A redeploy swaps index.pck in place. Without no-store
+							// the browser can merge a cached old PCK with fresh
+							// ranges ("Game data is incomplete").
+							cache: 'no-store',
+							headers: { 'Range': 'bytes=' + start + '-' + end },
+						}).then(function (response) {
+							if (response.status === 200) {
+								// A proxy ignored Range and sent the whole pack.
+								return response.arrayBuffer().then(function (buffer) {
+									merged = new Uint8Array(buffer);
+									filled = merged.byteLength;
+									total = filled;
+									next = total;
+									if (bar) {
+										bar.max = total;
+										bar.value = total;
+									}
+								});
+							}
+							if (response.status !== 206) {
+								throw new Error('HTTP ' + response.status + ' (range)');
+							}
+							const contentRange = response.headers.get('Content-Range') || '';
+							const match = /\\/(\\d+)$/.exec(contentRange);
+							if (match) {
+								const real = parseInt(match[1], 10);
+								if (real > 0 && real !== total) {
+									const resized = new Uint8Array(real);
+									resized.set(merged.subarray(0, filled));
+									merged = resized;
+									total = real;
+									if (bar) {
+										bar.max = total;
+									}
 								}
 							}
-						}
-						return response.arrayBuffer();
-					}).then(function (buffer) {
-						parts.push(new Uint8Array(buffer));
-						if (bar) {
-							bar.max = total;
-							bar.value = Math.min(next, total);
-						}
-						return loadNext();
-					});
+							return response.arrayBuffer();
+						}).then(function (buffer) {
+							if (next >= total) {
+								return;
+							}
+							const chunk = new Uint8Array(buffer);
+							const expected = end - start + 1;
+							if (chunk.byteLength !== expected) {
+								throw new Error('чанк ' + chunk.byteLength + '/' + expected);
+							}
+							if (filled + chunk.byteLength > merged.byteLength) {
+								throw new Error('переполнение PCK');
+							}
+							merged.set(chunk, filled);
+							filled += chunk.byteLength;
+							next = end + 1;
+							if (bar) {
+								bar.max = total;
+								bar.value = Math.min(filled, total);
+							}
+						}).catch(function (err) {
+							if (attempt < 3) {
+								return new Promise(function (resolve) {
+									setTimeout(resolve, 600 * attempt);
+								}).then(function () {
+									return fetchChunk(attempt + 1);
+								});
+							}
+							throw err;
+						});
+					}
+					return fetchChunk(1).then(loadNext);
 				}
 				return loadNext().then(function () {
-					let size = 0;
-					for (const part of parts) {
-						size += part.byteLength;
-					}
-					if (size !== total) {
-						throw new Error('данные неполные: ' + size + '/' + total);
-					}
-					const merged = new Uint8Array(size);
-					let offset = 0;
-					for (const part of parts) {
-						merged.set(part, offset);
-						offset += part.byteLength;
+					if (filled !== total) {
+						throw new Error('данные неполные: ' + filled + '/' + total);
 					}
 					return originalPreloadFile(merged.buffer, path);
 				}).catch(function (err) {
