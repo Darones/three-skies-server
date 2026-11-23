@@ -115,6 +115,12 @@ func _ready() -> void:
 		min_zoom_distance = MOBILE_MIN_ZOOM
 		max_zoom_distance = MOBILE_MAX_ZOOM
 
+	if mobile_ui and graphics_quality == QUALITY_HIGH:
+		# A saved "high" on a phone/VK webview caused a near-timeout at the
+		# first clash: 0.9 render scale plus MSAA is too heavy there.
+		graphics_quality = QUALITY_LOW
+		_quality_saved = true
+		_save_display_value("video", "quality", QUALITY_LOW)
 	if not _quality_saved:
 		# Phones start on low: less heat and a steadier frame rate. Desktop
 		# keeps the full look. The player can change this in the settings.
@@ -165,6 +171,9 @@ func apply_graphics_quality() -> void:
 func set_graphics_quality(value: String) -> void:
 	if not QUALITY_VALUES.has(value):
 		return
+	if mobile_ui and value == QUALITY_HIGH:
+		# High is desktop-only; on mobile/VK it can freeze the first clash.
+		value = QUALITY_LOW
 	graphics_quality = value
 	_quality_saved = true
 	apply_graphics_quality()
