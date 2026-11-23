@@ -57,6 +57,7 @@ var weaponPrices = map[int]int{
 }
 
 var startedAt = time.Now()
+var webBuildVersion = "dev"
 
 type api struct {
 	db      *sql.DB
@@ -177,6 +178,7 @@ type matchRewardResponse struct {
 }
 
 func main() {
+	webBuildVersion = time.Now().Format("20060102_150405")
 	databaseURL := normalizeDatabaseURL(strings.TrimSpace(os.Getenv("DATABASE_URL")))
 
 	db, err := sql.Open("postgres", databaseURL)
@@ -355,7 +357,7 @@ func staticGameHandler(dir string) http.Handler {
 		case ".html", ".pck":
 			// A new PCK keeps the same name on this host; never cache the
 			// entry point or the game data, or players stay on an old build.
-			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Cache-Control", "no-store")
 		default:
 			w.Header().Set("Cache-Control", "public, max-age=86400")
 		}

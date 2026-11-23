@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -243,6 +244,15 @@ func TestGameStaticFilesAreServedFromTheGameServer(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/game/", nil)
 	router.ServeHTTP(recorder, request)
+	if recorder.Code == http.StatusFound {
+		location := recorder.Header().Get("Location")
+		if !strings.HasPrefix(location, "/game/?v=") {
+			t.Fatalf("game entry redirect target = %q", location)
+		}
+		recorder = httptest.NewRecorder()
+		request = httptest.NewRequest(http.MethodGet, location, nil)
+		router.ServeHTTP(recorder, request)
+	}
 	if recorder.Code != http.StatusOK || recorder.Body.String() != "<html>game</html>" {
 		t.Fatalf("game index not served: %d %q", recorder.Code, recorder.Body.String())
 	}
