@@ -6,7 +6,7 @@ extends Control
 const HEROES := {
 	"warrior": {"name": "Воин", "class": HeroUnit.Cls.WARRIOR},
 	"mage": {"name": "Маг", "class": HeroUnit.Cls.MAGE},
-	"fairy": {"name": "Арбалетчица", "class": HeroUnit.Cls.FAIRY},
+	"fairy": {"name": "Охотница", "class": HeroUnit.Cls.FAIRY},
 }
 
 const WEAPONS := {

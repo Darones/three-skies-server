@@ -48,6 +48,7 @@ const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const CLOUD_WALL_SHADER: Shader = preload("res://shaders/cloud_wall.gdshader")
 const FOG_OF_WAR_SHADER_PATH := "res://shaders/fog_of_war.gdshader"
 const FOG_VIEW_RADIUS := 10.0
+const FOG_OF_WAR_VISUAL := false
 const SHOP_STALL_SCENE: PackedScene = preload("res://assets/shop_stall/3d_4f92fe433b084100af7a1d7f_1790958942025.glb")
 const TUTORIAL_CONTROLLER_SCRIPT: Script = preload("res://scripts/tutorial_controller.gd")
 const REMOTE_PLAYER_SCRIPT: Script = preload("res://scripts/remote_player.gd")
@@ -1827,6 +1828,10 @@ func _process(delta: float) -> void:
 
 
 func _create_fog_of_war() -> void:
+	if not FOG_OF_WAR_VISUAL:
+		# Visual fog is an expensive full-arena overdraw pass. Enemy visibility
+		# is scripted, so turning the plane off does not change gameplay.
+		return
 	if DeviceProfile.mobile_ui:
 		# Full-arena transparent shader plane; one of the most expensive
 		# overdraw passes on phone GPUs. Enemy visibility is scripted, so
@@ -1855,6 +1860,8 @@ func _create_fog_of_war() -> void:
 
 
 func _update_fog_of_war() -> void:
+	if not FOG_OF_WAR_VISUAL:
+		return
 	if fog_of_war_plane == null or fog_of_war_material == null:
 		return
 	fog_of_war_plane.visible = state == "live"
@@ -4270,7 +4277,7 @@ func _ability_index_from_event(event: InputEventKey) -> int:
 
 func objective_text() -> String:
 	if state == "select":
-		return "Выбери класс — 1 Воин · 2 Маг · 3 Арбалетчица"
+		return "Выбери класс — 1 Воин · 2 Маг · 3 Охотница"
 	if state == "over":
 		return ""
 	if crystal_state == "carried" and carrier != null and is_instance_valid(carrier):

@@ -14,7 +14,7 @@ const ITEMS := {
 		"description": "Дикие топоры, меховая шапка и ярость севера.",
 	},
 	2: {
-		"id": 2, "class": 2, "name": "Арбалетчица в капюшоне", "short_name": "Арбалетчица",
+		"id": 2, "class": 2, "name": "Охотница в капюшоне", "short_name": "Охотница",
 		"rarity": "Скин", "price": 1000,
 		"icon": "res://ui/icons/skin_archer_hood.png",
 		"model": "res://art/generated/fairy_hooded/character.tscn",

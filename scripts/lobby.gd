@@ -1,4 +1,4 @@
-﻿extends Control
+extends Control
 
 const HERO_FACE := [
 	"res://assets/ui/heroes/warrior_face.webp",
@@ -10,7 +10,7 @@ const HERO_CARD_ART := [
 	"res://assets/ui/heroes/mage_keyart.webp",
 	"res://assets/ui/heroes/archer_keyart.webp",
 ]
-const HERO_NAMES := ["Воин", "Маг", "Арбалетчица"]
+const HERO_NAMES := ["Воин", "Маг", "Охотница"]
 const CLASS_FRAME_COLORS := {
 	0: Color(0.95, 0.78, 0.36),
 	1: Color(0.45, 0.78, 1.0),
@@ -71,7 +71,7 @@ const GEAR_1H_SWORD_ICON: Texture2D = preload("res://ui/icons/gear_1h_sword.png"
 const GEAR_STAFF_ICON: Texture2D = preload("res://ui/icons/gear_staff.png")
 const GEAR_1H_CROSSBOW_ICON: Texture2D = preload("res://ui/icons/gear_1h_crossbow.png")
 const SHOP_HERO_TABS := [
-	{"key": "fairy", "class": 2, "name": "Арбалетчица", "portrait": "res://assets/ui/heroes/archer_face.webp"},
+	{"key": "fairy", "class": 2, "name": "Охотница", "portrait": "res://assets/ui/heroes/archer_face.webp"},
 	{"key": "mage", "class": 1, "name": "Маг", "portrait": "res://assets/ui/heroes/mage_face.webp"},
 	{"key": "warrior", "class": 0, "name": "Воин", "portrait": "res://assets/ui/heroes/warrior_face.webp"},
 ]
@@ -143,6 +143,7 @@ var preview_camera: Camera3D
 var preview_hero: HeroUnit
 var preview_class := -1
 var preview_weapon_signature := ""
+var preview_skin_signature := ""
 var preview_render_generation := 0
 var menu_level_label: Label
 var menu_xp_bar: ProgressBar
@@ -1114,15 +1115,20 @@ func _weapon_character_key(weapon_id: int) -> String:
 func _refresh_weapon_shop() -> void:
 	# Показываем только оружие текущего героя: воину мечи/топоры, фее луки,
 	# магу посохи. У каждого класса три предмета разной редкости.
-	var allowed_weapons: Array[int] = WeaponCatalog.item_ids_for_class(selected_class)
+	var shop_weapons: Array[int] = WeaponCatalog.item_ids_for_class(selected_class)
+	var inventory_weapons: Array[int] = []
+	for weapon_id in WeaponCatalog.all_item_ids_for_class(selected_class):
+		if int(weapon_id) in MetaProgression.unlocked_weapons:
+			inventory_weapons.append(int(weapon_id))
 	for weapon_id in weapon_cards.keys():
 		var shop_card := weapon_cards[weapon_id] as Control
 		if shop_card != null:
-			shop_card.visible = int(weapon_id) in allowed_weapons
+			shop_card.visible = int(weapon_id) in shop_weapons
 	for weapon_id in weapon_inventory_cards.keys():
 		var inventory_card := weapon_inventory_cards[weapon_id] as Control
 		if inventory_card != null:
-			inventory_card.visible = int(weapon_id) in allowed_weapons
+			# The inventory is a wardrobe, not a second shop: only owned items.
+			inventory_card.visible = int(weapon_id) in inventory_weapons
 	for weapon_id in weapon_buttons.keys():
 		var button := weapon_buttons[weapon_id] as Button
 		var card := weapon_cards[weapon_id] as PanelContainer
@@ -1156,7 +1162,9 @@ func _refresh_weapon_shop() -> void:
 		default_weapon_card.add_theme_stylebox_override("panel", _wing_card_style(default_active))
 	var allowed_skins: Array[int] = []
 	for skin in SkinCatalog.items_for_class(selected_class):
-		allowed_skins.append(int(skin["id"]))
+		var skin_id := int(skin["id"])
+		if MetaProgression.is_skin_unlocked(skin_id):
+			allowed_skins.append(skin_id)
 	for skin_id in skin_inventory_cards.keys():
 		var skin_card := skin_inventory_cards[skin_id] as Control
 		if skin_card != null:
@@ -1462,7 +1470,7 @@ func _build_player_menu() -> void:
 	wardrobe_content.add_child(inventory_tab)
 	var inventory_grid := GridContainer.new()
 	inventory_grid.name = "LegendaryWeaponInventory"
-	inventory_grid.columns = 2
+	inventory_grid.columns = 2 if DeviceProfile.mobile_ui else 3
 	inventory_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	inventory_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	inventory_grid.add_theme_constant_override("h_separation", 8)
@@ -1476,6 +1484,7 @@ func _build_player_menu() -> void:
 	default_weapon_card = PanelContainer.new()
 	default_weapon_card.name = "DefaultWeaponCard"
 	default_weapon_card.custom_minimum_size = Vector2(110, 140)
+	default_weapon_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	default_weapon_card.add_theme_stylebox_override("panel", _panel_style(Color(0.34, 0.37, 0.44), Color(0.065, 0.072, 0.09, 0.92)))
 	inventory_grid.add_child(default_weapon_card)
 	var default_content := VBoxContainer.new()
@@ -1505,6 +1514,7 @@ func _build_player_menu() -> void:
 		var weapon_card := PanelContainer.new()
 		weapon_card.name = "LegendaryWeapon%d" % weapon_id
 		weapon_card.custom_minimum_size = Vector2(110, 140)
+		weapon_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		weapon_card.add_theme_stylebox_override("panel", _panel_style(Color(0.34, 0.37, 0.44), Color(0.065, 0.072, 0.09, 0.92)))
 		inventory_grid.add_child(weapon_card)
 		var weapon_content := VBoxContainer.new()
@@ -1533,6 +1543,7 @@ func _build_player_menu() -> void:
 	default_skin_card = PanelContainer.new()
 	default_skin_card.name = "DefaultSkinCard"
 	default_skin_card.custom_minimum_size = Vector2(110, 140)
+	default_skin_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	default_skin_card.add_theme_stylebox_override("panel", _panel_style(Color(0.4, 0.48, 0.63, 0.8), Color(0.065, 0.072, 0.09, 0.92)))
 	inventory_grid.add_child(default_skin_card)
 	var default_skin_content := VBoxContainer.new()
@@ -1559,6 +1570,7 @@ func _build_player_menu() -> void:
 		var skin_card := PanelContainer.new()
 		skin_card.name = "SkinCard%d" % int(skin_id)
 		skin_card.custom_minimum_size = Vector2(110, 140)
+		skin_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		skin_card.add_theme_stylebox_override("panel", _panel_style(Color(0.4, 0.48, 0.63, 0.8), Color(0.065, 0.072, 0.09, 0.92)))
 		inventory_grid.add_child(skin_card)
 		var skin_content := VBoxContainer.new()
@@ -1687,13 +1699,20 @@ func _refresh_hero_preview() -> void:
 	if preview_root == null:
 		return
 	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
-	var signature := "%d:%d:%d" % [selected_class, MetaProgression.get_equipped_weapon(character_key), MetaProgression.get_equipped_skin(character_key)]
-	if preview_hero != null and is_instance_valid(preview_hero) and preview_class == selected_class and preview_weapon_signature == signature:
-		preview_hero.pose_preview_idle()
+	var skin_id := MetaProgression.get_equipped_skin(character_key)
+	var signature := "%d:%d:%d" % [selected_class, MetaProgression.get_equipped_weapon(character_key), skin_id]
+	var skin_signature := "%d:%d" % [selected_class, skin_id]
+	if preview_hero != null and is_instance_valid(preview_hero) and preview_class == selected_class and preview_skin_signature == skin_signature:
+		# Same model/skin, only the weapon changed. Re-applying the gear is much
+		# cheaper than freeing and reloading the whole rig (legendary equip
+		# used to hitch for about a second).
+		preview_weapon_signature = signature
+		preview_hero.refresh_equipped_gear()
 		_mark_preview_dirty()
 		return
 	preview_class = selected_class
 	preview_weapon_signature = signature
+	preview_skin_signature = skin_signature
 	if preview_hero != null and is_instance_valid(preview_hero):
 		preview_hero.queue_free()
 	preview_hero = HeroUnit.new()
@@ -2514,10 +2533,7 @@ func _localize_report_error(error: String) -> String:
 
 
 func _hero_display_name() -> String:
-	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
-	var skin := SkinCatalog.get_item(MetaProgression.get_equipped_skin(character_key))
-	if not skin.is_empty():
-		return String(skin.get("short_name", skin["name"]))
+	# A skin is cosmetic; the profile and inventory title show the base class.
 	return HERO_NAMES[selected_class]
 
 

@@ -136,8 +136,8 @@ const CLASS_DATA := {
 		],
 	},
 	Cls.FAIRY: {
-		"name": "Арбалетчица",
-		"title": "Арбалетчица",
+		"name": "Охотница",
+		"title": "Охотница",
 		"hp": 950.0,
 		"speed": 4.5,
 		"range": 11.0,
@@ -2376,6 +2376,13 @@ func pose_preview_idle(pose_time := 0.6) -> void:
 	anim_player.pause()
 	current_anim = "idle"
 	_update_weapon_transform()
+
+
+func refresh_equipped_gear() -> void:
+	# Reuse the preview rig when only the weapon changes. Reloading the whole
+	# character model on every legendary equip caused a ~1 s inventory hitch.
+	_apply_gear_selection()
+	pose_preview_idle()
 
 
 func _is_at_own_base() -> bool:

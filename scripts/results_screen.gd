@@ -5,7 +5,7 @@ const CHARACTER_ART := [
 	"res://assets/ui/heroes/mage_keyart.webp",
 	"res://assets/ui/heroes/archer_keyart.webp",
 ]
-const CHARACTER_CLASS_NAMES := ["Воин", "Маг", "Арбалетчица"]
+const CHARACTER_CLASS_NAMES := ["Воин", "Маг", "Охотница"]
 const CHARACTER_KEYS := ["warrior", "mage", "fairy"]
 const SkinCatalog = preload("res://scripts/skin_catalog.gd")
 const REPLAY_SCENE := "res://scenes/LoadingScreen.tscn"
@@ -479,7 +479,7 @@ func _build_content() -> void:
 
 func _get_player_character_name() -> String:
 	var faction := "Света" if player_team == 0 else "Тьмы"
-	# A skin is cosmetic: the class in the results stays Воин/Маг/Арбалетчица.
+	# A skin is cosmetic: the class in the results stays Воин/Маг/Охотница.
 	var display_class: String = String(CHARACTER_CLASS_NAMES[selected_class])
 	var hero := "%s %s" % [display_class, faction]
 	var nickname := MetaProgression.player_nickname.strip_edges()

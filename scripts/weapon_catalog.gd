@@ -44,7 +44,7 @@ const ITEMS := {
 		"rarity": "Редкое", "price": 100,
 		"icon": "res://addons/low_poly_rpg_items/icons/short_bow.png",
 		"builtin": false,
-		"shop_enabled": true,
+		"shop_enabled": false,
 		"model": "res://addons/low_poly_rpg_items/models/short_bow_model.glb",
 		"hand": "handslot.l", "scale": 1.0,
 		"rotation": Vector3(-52.83, 9.05, -15.1), "offset": Vector3(-0.6, -0.05, -0.09),
@@ -70,7 +70,7 @@ const ITEMS := {
 		"rarity": "Обычное", "price": 400,
 		"icon": "res://addons/low_poly_rpg_items/icons/longsword.png",
 		"builtin": false,
-		"shop_enabled": true,
+		"shop_enabled": false,
 		"model": "res://addons/low_poly_rpg_items/models/longsword_model.glb",
 		"hand": "handslot.r", "scale": 1.0,
 		"rotation": Vector3(45.6, 27.7, 60.8), "offset": Vector3(0.0, 0.0, 0.05),
@@ -83,7 +83,7 @@ const ITEMS := {
 		"rarity": "Легендарное", "price": 800,
 		"icon": "res://ui/icons/legendary_bow.png",
 		"builtin": false,
-		"shop_enabled": true,
+		"shop_enabled": false,
 		"model": "res://scenes/LegendaryBow.tscn",
 		"hand": "handslot.l", "scale": 1.43,
 		"rotation": Vector3(-47.4, 6.4, -3.39), "offset": Vector3(0.06, -0.02, -0.04),
@@ -161,6 +161,16 @@ static func item_ids_for_class(hero_class: int) -> Array[int]:
 		if int(item["class"]) != hero_class:
 			continue
 		if not bool(item.get("shop_enabled", true)):
+			continue
+		result.append(item_id)
+	return result
+
+
+static func all_item_ids_for_class(hero_class: int) -> Array[int]:
+	var result: Array[int] = []
+	for item_id in ORDER:
+		var item: Dictionary = ITEMS[item_id]
+		if int(item["class"]) != hero_class:
 			continue
 		result.append(item_id)
 	return result
