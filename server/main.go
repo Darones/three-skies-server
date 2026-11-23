@@ -17,6 +17,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -382,6 +383,17 @@ func staticGameHandler(dir string) http.Handler {
 			return
 		}
 		full := filepath.Join(dir, filepath.FromSlash(name))
+		if strings.HasSuffix(name, ".pck") {
+			packName, expectedPackSize := mainPackInfo(dir)
+			if name == "/"+packName && expectedPackSize > 0 {
+				if packInfo, statErr := os.Stat(full); statErr == nil && !packInfo.IsDir() && packInfo.Size() != expectedPackSize {
+					log.Printf("game asset %s size mismatch (%d != %d); refetching", name, packInfo.Size(), expectedPackSize)
+					if removeErr := os.Remove(full); removeErr != nil {
+						log.Printf("game asset remove %s: %v", name, removeErr)
+					}
+				}
+			}
+		}
 		info, err := os.Stat(full)
 		if (err != nil || info.IsDir()) && fetchableGameAsset(name) {
 			// RelaxDev's build context drops files above ~20 MB. Fetch them
@@ -429,12 +441,10 @@ func staticGameHandler(dir string) http.Handler {
 var gameAssetLocks sync.Map
 
 func fetchableGameAsset(name string) bool {
-	switch name {
-	case "/index.wasm", "/index.pck":
+	if name == "/index.wasm" || name == "/index.pck" {
 		return true
-	default:
-		return false
 	}
+	return strings.HasPrefix(name, "/index_") && strings.HasSuffix(name, ".pck")
 }
 
 // gameOrigins reads a comma-separated list of mirrors of the published build.
@@ -516,24 +526,57 @@ func prefetchGameAssets(dir string) {
 	if len(gameOrigins()) == 0 {
 		return
 	}
-	for _, name := range []string{"/index.wasm", "/index.pck"} {
-		if err := fetchGameAsset(dir, name); err != nil {
-			log.Printf("game asset %s: %v", name, err)
-			continue
+	packName, expected := mainPackInfo(dir)
+	if packName != "" {
+		full := filepath.Join(dir, filepath.FromSlash(packName))
+		if info, err := os.Stat(full); err == nil && !info.IsDir() && expected > 0 && info.Size() != expected {
+			// The persistent /app/web cache can keep an old PCK while the new
+			// index.html already advertises the new size. Refetch instead of
+			// serving a mismatched pack to the browser.
+			log.Printf("game asset %s size mismatch (%d != %d); refetching", packName, info.Size(), expected)
+			if err := os.Remove(full); err != nil {
+				log.Printf("game asset remove %s: %v", packName, err)
+			}
 		}
-		if name == "/index.pck" {
-			// The raw PCK must keep Content-Length; see staticGameHandler.
-			continue
-		}
-		full := filepath.Join(dir, filepath.FromSlash(name))
-		gz := full + ".gz"
-		if info, err := os.Stat(gz); err == nil && !info.IsDir() {
-			continue
-		}
-		if err := gzipFile(full, gz); err != nil {
-			log.Printf("game asset gzip %s: %v", name, err)
+		if err := fetchGameAsset(dir, "/"+packName); err != nil {
+			log.Printf("game asset %s: %v", packName, err)
 		}
 	}
+	name := "/index.wasm"
+	if err := fetchGameAsset(dir, name); err != nil {
+		log.Printf("game asset %s: %v", name, err)
+		return
+	}
+	full := filepath.Join(dir, filepath.FromSlash(name))
+	gz := full + ".gz"
+	if info, err := os.Stat(gz); err == nil && !info.IsDir() {
+		return
+	}
+	if err := gzipFile(full, gz); err != nil {
+		log.Printf("game asset gzip %s: %v", name, err)
+	}
+}
+
+// mainPackInfo reads the PCK name and expected size from the exported HTML.
+// The HTML is small and always ships in the build context, so it is the
+// authoritative description of which pack the browser will request.
+func mainPackInfo(dir string) (string, int64) {
+	name := "index.pck"
+	data, err := os.ReadFile(filepath.Join(dir, "index.html"))
+	if err != nil {
+		return name, 0
+	}
+	html := string(data)
+	if match := regexp.MustCompile(`"mainPack":"([^"]+)"`).FindStringSubmatch(html); len(match) > 1 {
+		name = match[1]
+	}
+	sizePattern := regexp.MustCompile(`"` + regexp.QuoteMeta(name) + `":(\d+)`)
+	if match := sizePattern.FindStringSubmatch(html); len(match) > 1 {
+		if size, err := strconv.ParseInt(match[1], 10, 64); err == nil {
+			return name, size
+		}
+	}
+	return name, 0
 }
 
 func gzipFile(src, dst string) error {
