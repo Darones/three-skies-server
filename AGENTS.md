@@ -58,8 +58,8 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
 - **Текущий прод (на 23.11.2026, вечер):**
   - PCK: сборка `index_20261123_151009.pck`, на хосте `index.pck`, **48 806 116 байт**
     (скины Варвара и Арбалетчицы в капюшоне, магазин скинов, свечение легендарок).
-  - `main`: `ea43076` (сервер + PCK); контейнер перезапущен, `/health` ok.
-  - Исходники: ветка `mobile-ui` (`c6c2032`; см. `git log`).
+  - `main`: `9bf1e2d` (сервер + PCK); контейнер перезапущен, `/health` ok.
+  - Исходники: ветка `mobile-ui` (`4c00ff2`; см. `git log`).
   - Сервер: `server/ws.go`, `server/main.go`, `server/stats.go` + `server/web/index.pck` в `main`.
   - Дашборд: `https://three-skies-server.relaxdev.ru/stats/dashboard?token=239837`.
 
@@ -176,8 +176,10 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
 
 ## Что проверено
 
-- **23.11, вечер (прод `ea43076`, PCK 48 806 116):** `/health` ok, вход 302,
-  `/game/index.pck` нужного размера, дашборд → 200.
+- **23.11, вечер (прод `9bf1e2d`, PCK 48 806 116):** `/health` ok (uptime 71 с),
+  вход 302 → `?v=20261123_121738`, `/game/index.pck` нужного размера,
+  дашборд → 200. Авто-деплой подхватил сборку после дополнительного
+  непустого коммита.
 - **23.11, вечер, скины:** Варвар и Арбалетчица в капюшоне проверены в лобби,
   инвентаре и реальном бою (локальный матч) — 0 `SCRIPT ERROR`; в бою видны
   модель и портрет скина. Магазин: карточки «Скин» 1000 осколков, страница
