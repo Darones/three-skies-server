@@ -4,47 +4,71 @@ extends Control
 # сохраняешь в user://weapon_tune_all.json. Числа потом переносятся в hero.gd.
 
 const HEROES := {
-	"warrior": "res://art/generated/warrior/rig.glb",
-	"mage": "res://art/generated/mage/rig.glb",
-	"fairy": "res://art/generated/fairy/rig.glb",
+	"warrior": {"name": "Воин", "class": HeroUnit.Cls.WARRIOR},
+	"mage": {"name": "Маг", "class": HeroUnit.Cls.MAGE},
+	"fairy": {"name": "Арбалетчица", "class": HeroUnit.Cls.FAIRY},
 }
 
 const WEAPONS := {
-	"warrior_sword": {
-		"name": "Меч Воина",
+	"warrior_axe": {
+		"name": "Боевой топор",
 		"hero": "warrior",
-		"bone": "righthand",
-		"path": "res://addons/low_poly_rpg_items/props/longsword.tscn",
-		"position": Vector3(0.06, 0.0, -0.12),
-		"rotation": Vector3(0.0, 0.0, -12.0),
-		"scale": 0.72,
+		"bone": "handslot.r",
+		"path": "res://addons/low_poly_rpg_items/models/battle_axe_model.glb",
+		"position": Vector3(0.0, 0.0, 0.05),
+		"rotation": Vector3(45.6, 27.7, 60.8),
+		"roll": 90.0,
+		"scale": 1.1,
 	},
-	"mage_staff": {
-		"name": "Посох Мага",
+	"warrior_longsword": {
+		"name": "Стальной меч",
+		"hero": "warrior",
+		"bone": "handslot.r",
+		"path": "res://addons/low_poly_rpg_items/models/longsword_model.glb",
+		"position": Vector3(0.0, 0.0, 0.05),
+		"rotation": Vector3(45.6, 27.7, 60.8),
+		"roll": 90.0,
+		"scale": 1.0,
+	},
+	"mage_wizard_staff": {
+		"name": "Посох ученика",
 		"hero": "mage",
-		"bone": "righthand",
-		"path": "res://addons/low_poly_rpg_items/props/staff_wizard.tscn",
-		"position": Vector3(0.04, 0.0, -0.1),
-		"rotation": Vector3(0.0, 0.0, 0.0),
-		"scale": 0.62,
+		"bone": "handslot.r",
+		"path": "res://addons/low_poly_rpg_items/models/staff_wizard_model.glb",
+		"position": Vector3(0.0, 0.0, 0.05),
+		"rotation": Vector3(45.0, 26.9, 60.1),
+		"roll": 0.0,
+		"scale": 0.8,
 	},
-	"fairy_legendary": {
-		"name": "Легендарный лук",
+	"mage_crystal_staff": {
+		"name": "Кристальный посох",
+		"hero": "mage",
+		"bone": "handslot.r",
+		"path": "res://assets/weapons/wizards_staff_low.glb",
+		"position": Vector3(0.0, 0.0, 0.05),
+		"rotation": Vector3(45.0, 26.9, 60.1),
+		"roll": 0.0,
+		"scale": 0.65,
+	},
+	"fairy_short_bow": {
+		"name": "Короткий лук",
 		"hero": "fairy",
-		"bone": "lefthand",
+		"bone": "handslot.l",
+		"path": "res://addons/low_poly_rpg_items/models/short_bow_model.glb",
+		"position": Vector3(0.0, 0.0, 0.05),
+		"rotation": Vector3(-47.4, 6.4, -14.5),
+		"roll": 0.0,
+		"scale": 1.0,
+	},
+	"fairy_elven_bow": {
+		"name": "Эльфийский лук",
+		"hero": "fairy",
+		"bone": "handslot.l",
 		"path": "res://scenes/LegendaryBow.tscn",
-		"position": Vector3(-0.06, 0.0, -0.1),
-		"rotation": Vector3(0.0, 0.0, 8.0),
-		"scale": 0.82,
-	},
-	"fairy_base": {
-		"name": "Базовый лук",
-		"hero": "fairy",
-		"bone": "lefthand",
-		"path": "res://addons/low_poly_rpg_items/props/short_bow.tscn",
-		"position": Vector3(-0.06, 0.0, -0.1),
-		"rotation": Vector3(0.0, 0.0, 8.0),
-		"scale": 0.9,
+		"position": Vector3(0.0, 0.0, 0.05),
+		"rotation": Vector3(-47.4, 6.4, -14.5),
+		"roll": 90.0,
+		"scale": 1.0,
 	},
 }
 
@@ -60,6 +84,7 @@ const SAVE_PATH := "user://weapon_tune_all.json"
 const RANGES := {
 	"px": [-2.0, 2.0], "py": [-2.0, 2.0], "pz": [-2.0, 2.0],
 	"rx": [-180.0, 180.0], "ry": [-180.0, 180.0], "rz": [-180.0, 180.0],
+	"roll": [-180.0, 180.0],
 	"scale": [0.1, 3.0],
 }
 
@@ -68,6 +93,7 @@ var weapon_key := "warrior_sword"
 var params := {
 	"px": 0.0, "py": 0.0, "pz": -0.12,
 	"rx": 0.0, "ry": 0.0, "rz": 0.0,
+	"roll": 0.0,
 	"scale": 1.0,
 }
 
@@ -145,7 +171,7 @@ func _build_ui() -> void:
 	panel.add_child(_make_label("ГЕРОЙ"))
 	var hero_option := OptionButton.new()
 	for key in HEROES.keys():
-		hero_option.add_item(String(key))
+		hero_option.add_item(String(HEROES[key]["name"]))
 	hero_option.item_selected.connect(func(index: int) -> void:
 		hero_key = String(HEROES.keys()[index])
 		_rebuild_weapon_list()
@@ -161,7 +187,7 @@ func _build_ui() -> void:
 		_reload_weapon())
 	_rebuild_weapon_list()
 
-	for key in ["px", "py", "pz", "rx", "ry", "rz", "scale"]:
+	for key in ["px", "py", "pz", "rx", "ry", "rz", "roll", "scale"]:
 		panel.add_child(_make_label(key.to_upper()))
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
@@ -197,6 +223,10 @@ func _build_ui() -> void:
 	save_button.custom_minimum_size = Vector2(0, 40)
 	save_button.pressed.connect(_save_json)
 	panel.add_child(save_button)
+	var hint := _make_label("Сохрани JSON — агент перенесёт числа в игру. Файл:\n%s" % ProjectSettings.globalize_path(SAVE_PATH))
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.add_theme_font_size_override("font_size", 11)
+	panel.add_child(hint)
 
 	var log_label := Label.new()
 	log_label.name = "LogLabel"
@@ -260,6 +290,7 @@ func _weapon_defaults(key: String) -> Dictionary:
 		return {
 			"px": float(pos[0]), "py": float(pos[1]), "pz": float(pos[2]),
 			"rx": float(rot[0]), "ry": float(rot[1]), "rz": float(rot[2]),
+			"roll": float(saved.get("roll", 0.0)),
 			"scale": float(saved.get("scale", 1.0)),
 		}
 	var preset: Dictionary = WEAPONS[key]
@@ -268,6 +299,7 @@ func _weapon_defaults(key: String) -> Dictionary:
 	return {
 		"px": position.x, "py": position.y, "pz": position.z,
 		"rx": rotation.x, "ry": rotation.y, "rz": rotation.z,
+		"roll": float(preset.get("roll", 0.0)),
 		"scale": float(preset["scale"]),
 	}
 
@@ -285,17 +317,33 @@ func _apply_params(values: Dictionary) -> void:
 func _reload_hero() -> void:
 	if hero_root != null and is_instance_valid(hero_root):
 		hero_root.queue_free()
-	hero_root = load(HEROES[hero_key]).instantiate() as Node3D
-	viewport.add_child(hero_root)
-	_build_lights(hero_root)
-	_apply_idle_pose(hero_root)
-	skeleton = _find_skeleton(hero_root)
+	var cls: int = int(HEROES[hero_key]["class"])
+	# The tuner uses the real HeroUnit so scale, skeleton and idle pose match
+	# the game exactly; the old raw rig was often at a different scale.
+	MetaProgression.equipped_weapons[hero_key] = 0
+	var hero := HeroUnit.new()
+	viewport.add_child(hero)
+	hero.setup(null, cls, 0, true)
+	hero.set_physics_process(false)
+	hero.position = Vector3.ZERO
+	hero.set_preview_mode(true)
+	hero.visual.rotation.y = PI
+	for gear_name in hero.gear_nodes.keys():
+		var gear := hero.gear_nodes[gear_name] as MeshInstance3D
+		if gear != null:
+			gear.visible = false
+	hero_root = hero
+	_build_lights(hero)
+	_apply_idle_pose(hero)
+	skeleton = _find_skeleton(hero)
 	_reload_weapon()
 
 
 func _apply_idle_pose(hero: Node3D) -> void:
 	# в игре герой стоит в idle, а не в T-позе — настраивать надо по той же позе
-	var player := _find_anim(hero)
+	var player := hero.get("anim_player") as AnimationPlayer
+	if player == null:
+		player = _find_anim(hero)
 	if player == null:
 		return
 	for anim_name in player.get_animation_list():
@@ -367,11 +415,14 @@ func _update_weapon() -> void:
 		return
 	var bone_world := skeleton.global_transform * skeleton.get_bone_global_pose(bone_index)
 	var base := bone_world.basis.orthonormalized()
-	var basis := base * Basis.from_euler(Vector3(
+	var offset_basis := Basis.from_euler(Vector3(
 		deg_to_rad(float(params["rx"])),
 		deg_to_rad(float(params["ry"])),
 		deg_to_rad(float(params["rz"]))
 	))
+	if absf(float(params["roll"])) > 0.01:
+		offset_basis = offset_basis * Basis(Vector3.UP, deg_to_rad(float(params["roll"])))
+	var basis := base * offset_basis
 	basis = basis.scaled(Vector3.ONE * float(params["scale"]))
 	var offset := Vector3(float(params["px"]), float(params["py"]), float(params["pz"]))
 	weapon_model.global_transform = Transform3D(basis, bone_world.origin + offset)
@@ -387,6 +438,7 @@ func _save_json() -> void:
 		"weapon": weapon_key,
 		"position": [float(params["px"]), float(params["py"]), float(params["pz"])],
 		"rotation": [float(params["rx"]), float(params["ry"]), float(params["rz"])],
+		"roll": float(params["roll"]),
 		"scale": float(params["scale"]),
 	}
 	saved_all[weapon_key] = data

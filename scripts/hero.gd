@@ -1,6 +1,8 @@
 class_name HeroUnit
 extends CharacterBody3D
 
+const WeaponCatalog = preload("res://scripts/weapon_catalog.gd")
+
 signal hero_died(hero: HeroUnit)
 
 enum Cls { WARRIOR, MAGE, FAIRY }
@@ -273,6 +275,7 @@ var weapon_bone_index: int = -1
 var weapon_base_scale := 1.0
 var weapon_rotation_offset := Vector3.ZERO
 var weapon_world_offset := Vector3.ZERO
+var weapon_roll := 0.0
 var combat_audio_players: Dictionary = {}
 var health_back: MeshInstance3D
 var health_fill: MeshInstance3D
@@ -362,14 +365,19 @@ func _update_weapon_transform() -> void:
 	var bone_world := weapon_skeleton.global_transform * weapon_skeleton.get_bone_global_pose(weapon_bone_index)
 	# жёстко к кости руки: оружие повторяет наклон корпуса
 	var base := bone_world.basis.orthonormalized()
-	var basis := base * Basis.from_euler(Vector3(
+	var offset_basis := Basis.from_euler(Vector3(
 		deg_to_rad(weapon_rotation_offset.x),
 		deg_to_rad(weapon_rotation_offset.y),
 		deg_to_rad(weapon_rotation_offset.z)
 	))
+	if absf(weapon_roll) > 0.01:
+		offset_basis = offset_basis * Basis(Vector3.UP, deg_to_rad(weapon_roll))
+	var basis := base * offset_basis
 	basis = basis.scaled(Vector3.ONE * weapon_base_scale)
-	var hand_offset := basis.orthonormalized() * weapon_world_offset
-	weapon_instance.global_transform = Transform3D(basis, bone_world.origin + hand_offset)
+	# The tuner stores the offset in world space, not in the hand's local axes.
+	weapon_instance.global_transform = Transform3D(basis, bone_world.origin + weapon_world_offset)
+	# The weapon must disappear with the hero (death, bush stealth, fog).
+	weapon_instance.visible = not dead and (visual == null or visual.visible)
 
 
 func _process(delta: float) -> void:
@@ -1016,24 +1024,150 @@ func _find_animation_player(node: Node) -> AnimationPlayer:
 
 
 func _apply_gear_selection() -> void:
+	_clear_external_weapon()
 	if gear_nodes.is_empty():
 		return
-	var selected := _selected_gear()
+	var weapon_id := _equipped_weapon_id()
+	var selected := _selected_gear(weapon_id)
 	for gear_name in gear_nodes.keys():
 		var gear_node := gear_nodes[gear_name] as MeshInstance3D
 		if gear_node != null and is_instance_valid(gear_node):
 			gear_node.visible = String(gear_name) in selected
+			if gear_node.visible:
+				_apply_builtin_weapon_glow(gear_node, weapon_id)
 	weapon_attachment = null
 	if not selected.is_empty():
 		weapon_attachment = gear_nodes.get(String(selected[0])) as Node3D
+	if weapon_id >= 4:
+		# External weapons replace the built-in gear entirely; the model is
+		# attached to the hand bone and follows the same animation.
+		_setup_external_weapon(weapon_id)
 
 
-func _selected_gear() -> Array:
-	var character_key: String = ["warrior", "mage", "fairy"][hero_class]
-	var variant_id := int(GEAR_VARIANT_IDS.get(hero_class, 0))
-	if variant_id in MetaProgression.unlocked_weapons and MetaProgression.is_weapon_enabled(character_key):
-		return GEAR_VARIANT[hero_class]
-	return GEAR_DEFAULT[hero_class]
+func _equipped_weapon_id() -> int:
+	if not (is_player or preview_mode or game == null):
+		# Bots keep the plain class gear: the shop item is the player's trophy.
+		return 0
+	var character_key := WeaponCatalog.class_key(hero_class)
+	if character_key.is_empty():
+		return 0
+	return MetaProgression.get_equipped_weapon(character_key)
+
+
+func _selected_gear(weapon_id: int) -> Array:
+	if weapon_id >= 4:
+		# External weapon: hide the built-in weapon and shield meshes.
+		return []
+	if weapon_id >= 1:
+		return GEAR_VARIANT.get(hero_class, [])
+	return GEAR_DEFAULT.get(hero_class, [])
+
+
+func _apply_builtin_weapon_glow(gear_node: MeshInstance3D, weapon_id: int) -> void:
+	if weapon_id < 1 or weapon_id > 3:
+		gear_node.material_override = null
+		return
+	var item := WeaponCatalog.get_item(weapon_id)
+	if item.is_empty():
+		return
+	var source := gear_node.get_active_material(0)
+	if source == null:
+		return
+	var material := source.duplicate() as StandardMaterial3D
+	if material == null:
+		return
+	material.emission_enabled = true
+	material.emission = item["glow"]
+	material.emission_energy_multiplier = float(item["glow_energy"])
+	gear_node.material_override = material
+
+
+func _setup_external_weapon(weapon_id: int) -> void:
+	var item := WeaponCatalog.get_item(weapon_id)
+	if item.is_empty():
+		return
+	var path := String(item.get("model", ""))
+	if path.is_empty():
+		return
+	var packed := load(path) as PackedScene
+	if packed == null:
+		push_warning("Weapon model missing: %s" % path)
+		return
+	var instance := packed.instantiate() as Node3D
+	if instance == null:
+		return
+	add_child(instance)
+	_disable_weapon_collisions(instance)
+	var skeleton := _find_skeleton_node(self)
+	if skeleton == null:
+		instance.queue_free()
+		return
+	var bone_name := String(item.get("hand", "handslot.r"))
+	var bone_index := -1
+	for i in range(skeleton.get_bone_count()):
+		if String(skeleton.get_bone_name(i)) == bone_name:
+			bone_index = i
+			break
+	if bone_index < 0:
+		instance.queue_free()
+		return
+	weapon_instance = instance
+	weapon_skeleton = skeleton
+	weapon_bone_index = bone_index
+	weapon_base_scale = float(item.get("scale", 1.0))
+	weapon_rotation_offset = item.get("rotation", Vector3.ZERO)
+	weapon_world_offset = item.get("offset", Vector3.ZERO)
+	weapon_roll = float(item.get("roll", 0.0))
+	weapon_anim_player = null
+	_apply_external_weapon_glow(instance, item)
+	_update_weapon_transform()
+
+
+func _apply_external_weapon_glow(weapon: Node3D, item: Dictionary) -> void:
+	var energy := float(item.get("glow_energy", 0.0))
+	if energy <= 0.0:
+		return
+	var tint: Color = item.get("glow", Color.WHITE)
+	# The legendary bow scene already carries its own glow shader.
+	if String(item.get("model", "")).ends_with("LegendaryBow.tscn"):
+		_add_weapon_glow_orb(weapon, "ShopTipGlow", item.get("tip", Vector3.ZERO), 0.05, tint, energy)
+		return
+	for child in weapon.find_children("*", "MeshInstance3D", true, false):
+		var mesh_node := child as MeshInstance3D
+		if mesh_node == null:
+			continue
+		var source := mesh_node.get_active_material(0)
+		if source == null:
+			continue
+		var material := source.duplicate() as StandardMaterial3D
+		if material == null:
+			continue
+		material.emission_enabled = true
+		material.emission = tint
+		material.emission_energy_multiplier = energy
+		mesh_node.material_override = material
+	_add_weapon_glow_orb(weapon, "ShopTipGlow", item.get("tip", Vector3.ZERO), 0.06, tint, energy)
+	_add_weapon_glow_halo(weapon, "ShopTipHalo", item.get("tip", Vector3.ZERO), 0.26, tint, 0.38)
+
+
+func _clear_external_weapon() -> void:
+	if weapon_instance != null and is_instance_valid(weapon_instance):
+		weapon_instance.queue_free()
+	weapon_instance = null
+	weapon_skeleton = null
+	weapon_bone_index = -1
+	weapon_anim_player = null
+	weapon_roll = 0.0
+
+
+func _find_skeleton_node(node: Node) -> Skeleton3D:
+	if node is Skeleton3D:
+		return node as Skeleton3D
+	for child in node.get_children():
+		var found := _find_skeleton_node(child)
+		if found != null:
+			return found
+	return null
 
 
 func _add_weapon_effects(weapon: Node3D) -> void:

@@ -1,5 +1,7 @@
 extends Node
 
+const WeaponCatalog = preload("res://scripts/weapon_catalog.gd")
+
 signal purchase_updated(success: bool, purchase_type: String, item_id: int, new_shards: int)
 signal profile_updated
 
@@ -28,6 +30,7 @@ var last_xp_gain_character := ""
 var equipped_wing: int = 0
 var equipped_wings: Dictionary = {"warrior": 0, "mage": 0, "fairy": 0}
 var weapons_enabled: Dictionary = {"warrior": true, "mage": true, "fairy": true}
+var equipped_weapons: Dictionary = {"warrior": 0, "mage": 0, "fairy": 0}
 var unlocked_wings: Array[int] = []
 var unlocked_weapons: Array[int] = []
 var pending_purchase_type := ""
@@ -113,6 +116,7 @@ func reset_all() -> void:
 	just_leveled_up_character = ""
 	equipped_wing = 0
 	equipped_wings = {"warrior": 0, "mage": 0, "fairy": 0}
+	equipped_weapons = {"warrior": 0, "mage": 0, "fairy": 0}
 	unlocked_wings.clear()
 	unlocked_weapons.clear()
 	pending_purchase_type = ""
@@ -142,6 +146,13 @@ func _load_loadout() -> void:
 	equipped_wing = clampi(int(config.get_value("wings", "last", 0)), 0, 4)
 	for key in weapons_enabled.keys():
 		weapons_enabled[key] = bool(config.get_value("weapons", String(key), true))
+	for key in equipped_weapons.keys():
+		var fallback := 0
+		if config.has_section_key("weapons", String(key)):
+			# Old saves stored only "use the legendary variant" as a bool.
+			if bool(config.get_value("weapons", String(key), false)):
+				fallback = 1 if String(key) == "warrior" else (3 if String(key) == "mage" else 2)
+		equipped_weapons[key] = clampi(int(config.get_value("equipped", String(key), fallback)), 0, 9)
 
 
 func _save_loadout() -> void:
@@ -149,27 +160,42 @@ func _save_loadout() -> void:
 	for key in equipped_wings.keys():
 		config.set_value("wings", String(key), int(equipped_wings[key]))
 	config.set_value("wings", "last", equipped_wing)
-	for key in weapons_enabled.keys():
-		config.set_value("weapons", String(key), bool(weapons_enabled[key]))
+	for key in equipped_weapons.keys():
+		config.set_value("equipped", String(key), int(equipped_weapons[key]))
+		config.set_value("weapons", String(key), int(equipped_weapons[key]) != 0)
 	config.save(LOADOUT_PATH)
 
 
 func is_weapon_enabled(character_key: String) -> bool:
-	return bool(weapons_enabled.get(character_key, true))
+	return get_equipped_weapon(character_key) != 0
+
+
+func get_equipped_weapon(character_key: String) -> int:
+	return clampi(int(equipped_weapons.get(character_key, 0)), 0, 9)
+
+
+func set_equipped_weapon(character_key: String, weapon_id: int) -> bool:
+	if not equipped_weapons.has(character_key):
+		return false
+	if weapon_id != 0:
+		if weapon_id not in unlocked_weapons:
+			return false
+		var item := WeaponCatalog.get_item(weapon_id)
+		if item.is_empty() or WeaponCatalog.class_key(int(item["class"])) != character_key:
+			return false
+	equipped_weapons[character_key] = weapon_id
+	_save_loadout()
+	return true
 
 
 func toggle_weapon(character_key: String) -> void:
-	if not weapons_enabled.has(character_key):
-		return
-	weapons_enabled[character_key] = not bool(weapons_enabled[character_key])
-	_save_loadout()
+	var variant_id := 1 if character_key == "warrior" else (3 if character_key == "mage" else 2)
+	set_equipped_weapon(character_key, 0 if get_equipped_weapon(character_key) != 0 else variant_id)
 
 
 func set_weapon_enabled(character_key: String, enabled: bool) -> void:
-	if not weapons_enabled.has(character_key):
-		return
-	weapons_enabled[character_key] = enabled
-	_save_loadout()
+	var variant_id := 1 if character_key == "warrior" else (3 if character_key == "mage" else 2)
+	set_equipped_weapon(character_key, variant_id if enabled else 0)
 
 
 func register_player(nickname: String) -> void:
@@ -288,7 +314,7 @@ func buy_wing(wing_id: int, cost: int) -> bool:
 
 
 func buy_weapon(weapon_id: int, cost: int) -> bool:
-	if weapon_id < 1 or weapon_id > 3 or cost <= 0 or weapon_id in unlocked_weapons:
+	if weapon_id < 1 or weapon_id > 9 or cost <= 0 or weapon_id in unlocked_weapons:
 		return false
 	if player_id <= 0 or not profile_loaded or pending_purchase_type != "":
 		return false
@@ -327,7 +353,7 @@ func _on_profile_loaded(success: bool, loaded_player_id: int, server_shards: int
 			unlocked_wings.append(parsed_wing_id)
 	for weapon_id in server_weapons:
 		var parsed_weapon_id := int(weapon_id)
-		if parsed_weapon_id >= 1 and parsed_weapon_id <= 3 and parsed_weapon_id not in unlocked_weapons:
+		if parsed_weapon_id >= 1 and parsed_weapon_id <= 9 and parsed_weapon_id not in unlocked_weapons:
 			unlocked_weapons.append(parsed_weapon_id)
 	var loadout_changed := false
 	for key in equipped_wings.keys():
@@ -338,6 +364,11 @@ func _on_profile_loaded(success: bool, loaded_player_id: int, server_shards: int
 	if equipped_wing > 0 and equipped_wing not in unlocked_wings:
 		equipped_wing = 0
 		loadout_changed = true
+	for key in equipped_weapons.keys():
+		var equipped_weapon := int(equipped_weapons[key])
+		if equipped_weapon != 0 and equipped_weapon not in unlocked_weapons:
+			equipped_weapons[key] = 0
+			loadout_changed = true
 	if loadout_changed:
 		_save_loadout()
 	if pending_level_shards > 0:

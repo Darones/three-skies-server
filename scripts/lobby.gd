@@ -60,6 +60,7 @@ const UI_CLICK_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX
 const SHARD_TOPUP_SCENE := preload("res://scenes/ShardTopupPanel.tscn")
 const SHARD_ICON: Texture2D = preload("res://ui/icons/sky_shard.png")
 const SETTINGS_GEAR_ICON: Texture2D = preload("res://ui/icons/settings_gear.png")
+const WeaponCatalog = preload("res://scripts/weapon_catalog.gd")
 const NICKNAME_CHANGE_COST := 100
 const SHOP_2H_SWORD_ICON: Texture2D = preload("res://ui/icons/legendary_greatsword.png")
 const SHOP_WAND_ICON: Texture2D = preload("res://ui/icons/gear_wand.png")
@@ -74,13 +75,6 @@ const SHOP_HERO_TABS := [
 	{"key": "warrior", "class": 0, "name": "Воин", "portrait": "res://assets/ui/heroes/warrior_face.webp"},
 ]
 const SHOP_WING_ITEMS := []
-
-
-const SHOP_HERO_WEAPON := {
-	"fairy": {"id": 2, "name": "Тяжёлый арбалет", "price": 1500, "icon": SHOP_2H_CROSSBOW_ICON},
-	"warrior": {"id": 1, "name": "Двуручный меч", "price": 1500, "icon": SHOP_2H_SWORD_ICON},
-	"mage": {"id": 3, "name": "Посох волшебника", "price": 1500, "icon": SHOP_STAFF_ICON},
-}
 
 var selected_class := 0
 var slot_classes: Array[int] = [HeroUnit.Cls.MAGE, HeroUnit.Cls.WARRIOR, HeroUnit.Cls.FAIRY]
@@ -803,17 +797,18 @@ func _finish_shop_layout() -> void:
 
 
 func _shop_items_for(hero_index: int) -> Array:
-	var key := String(SHOP_HERO_TABS[hero_index]["key"])
+	var hero_class := int(SHOP_HERO_TABS[hero_index]["class"])
 	var items: Array = []
 	# Крылья временно убраны из игры — в магазине только оружие.
-	if SHOP_HERO_WEAPON.has(key):
-		var weapon: Dictionary = SHOP_HERO_WEAPON[key]
+	for item in WeaponCatalog.items_for_class(hero_class):
 		items.append({
 			"type": "weapon",
-			"id": int(weapon["id"]),
-			"name": String(weapon["name"]),
-			"price": int(weapon["price"]),
-			"icon": weapon["icon"],
+			"id": int(item["id"]),
+			"name": String(item["name"]),
+			"price": int(item["price"]),
+			"icon": load(String(item["icon"])) as Texture2D,
+			"rarity": String(item.get("rarity", "Оружие")),
+			"description": String(item.get("description", "")),
 		})
 	return items
 
@@ -914,8 +909,10 @@ func _make_shop_card(item: Dictionary) -> Control:
 	content.add_child(preview)
 
 	content.add_child(_make_label(String(item["name"]), 19, PALE))
-	var type_name := "Крылья" if String(item["type"]) == "wing" else "Оружие"
-	content.add_child(_make_label(type_name, 12, Color(0.62, 0.68, 0.78)))
+	var rarity := String(item.get("rarity", "Оружие"))
+	var type_name := "Крылья" if String(item["type"]) == "wing" else "Оружие · %s" % rarity
+	var type_color := GOLD if rarity == "Легендарное" else (Color(1.0, 0.55, 0.4) if rarity == "Редкое" else Color(0.62, 0.68, 0.78))
+	content.add_child(_make_label(type_name, 12, type_color))
 
 	var price_row := HBoxContainer.new()
 	price_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1073,11 +1070,9 @@ func _show_info(message: String, title: String = "Небесные осколк�
 func _show_purchase_success(purchase_type: String, item_id: int) -> void:
 	var item_name := ""
 	if purchase_type == "weapon":
-		for key in SHOP_HERO_WEAPON.keys():
-			var weapon: Dictionary = SHOP_HERO_WEAPON[key]
-			if int(weapon["id"]) == item_id:
-				item_name = String(weapon["name"])
-				break
+		var item := WeaponCatalog.get_item(item_id)
+		if not item.is_empty():
+			item_name = String(item["name"])
 	elif purchase_type == "wing":
 		for wing in SHOP_WING_ITEMS:
 			if int(wing["id"]) == item_id:
@@ -1142,26 +1137,16 @@ func _on_weapon_button_pressed(weapon_id: int, price: int) -> void:
 
 
 func _weapon_character_key(weapon_id: int) -> String:
-	match weapon_id:
-		1:
-			return "warrior"
-		2:
-			return "fairy"
-		3:
-			return "mage"
-	return ""
+	var item := WeaponCatalog.get_item(weapon_id)
+	if item.is_empty():
+		return ""
+	return WeaponCatalog.class_key(int(item["class"]))
 
 
 func _refresh_weapon_shop() -> void:
-	# показываем только оружие текущего героя: воину меч, фее лук, магу посох
-	var allowed_weapons: Array[int] = []
-	match selected_class:
-		HeroUnit.Cls.WARRIOR:
-			allowed_weapons = [1]
-		HeroUnit.Cls.MAGE:
-			allowed_weapons = [3]
-		HeroUnit.Cls.FAIRY:
-			allowed_weapons = [2]
+	# Показываем только оружие текущего героя: воину мечи/топоры, фее луки,
+	# магу посохи. У каждого класса три предмета разной редкости.
+	var allowed_weapons: Array[int] = WeaponCatalog.item_ids_for_class(selected_class)
 	for weapon_id in weapon_cards.keys():
 		var shop_card := weapon_cards[weapon_id] as Control
 		if shop_card != null:
@@ -1178,22 +1163,19 @@ func _refresh_weapon_shop() -> void:
 		button.text = "Покупка..." if is_pending else ("Куплено" if is_unlocked else "Купить")
 		button.disabled = is_unlocked or is_pending
 		card.add_theme_stylebox_override("panel", _wing_card_style(is_unlocked))
+	var hero_key: String = ["warrior", "mage", "fairy"][selected_class]
+	var equipped_id := MetaProgression.get_equipped_weapon(hero_key)
 	for weapon_id in weapon_inventory_statuses.keys():
 		var status_label := weapon_inventory_statuses[weapon_id] as Label
 		var owned: bool = weapon_id in MetaProgression.unlocked_weapons
-		var weapon_character := _weapon_character_key(int(weapon_id))
-		var enabled: bool = MetaProgression.is_weapon_enabled(weapon_character)
-		status_label.text = "Надето" if owned and enabled else ("Куплено" if owned else "В магазине")
-		status_label.add_theme_color_override("font_color", GOLD if owned else Color(0.62, 0.65, 0.72))
+		var equipped: bool = owned and equipped_id == int(weapon_id)
+		status_label.text = "Надето" if equipped else ("Куплено" if owned else "В магазине")
+		status_label.add_theme_color_override("font_color", GOLD if equipped else (Color(0.58, 0.9, 0.64) if owned else Color(0.62, 0.65, 0.72)))
 		var button := weapon_inventory_buttons.get(weapon_id) as Button
 		if button != null:
-			button.text = "Снять" if owned and enabled else "Надеть"
-			button.disabled = not owned
-	var hero_key: String = ["warrior", "mage", "fairy"][selected_class]
-	var legendary_id := int([1, 3, 2][selected_class])
-	var legendary_owned: bool = legendary_id in MetaProgression.unlocked_weapons
-	var legendary_active: bool = legendary_owned and MetaProgression.is_weapon_enabled(hero_key)
-	var default_active := not legendary_active
+			button.text = "Надето" if equipped else ("Надеть" if owned else "В магазине")
+			button.disabled = not owned or equipped
+	var default_active := equipped_id == 0
 	if default_weapon_icon != null:
 		default_weapon_icon.texture = [GEAR_1H_SWORD_ICON, SHOP_WAND_ICON, GEAR_1H_CROSSBOW_ICON][selected_class]
 	if default_weapon_status != null:
@@ -1514,13 +1496,11 @@ func _build_player_menu() -> void:
 	default_weapon_button.add_theme_font_size_override("font_size", _fs(11))
 	default_weapon_button.pressed.connect(_on_default_weapon_pressed)
 	default_content.add_child(default_weapon_button)
-	var weapon_specs := [
-		{"id": 1, "name": "Двуручный меч", "icon": SHOP_2H_SWORD_ICON},
-		{"id": 2, "name": "Тяжёлый арбалет", "icon": SHOP_2H_CROSSBOW_ICON},
-		{"id": 3, "name": "Посох волшебника", "icon": GEAR_STAFF_ICON},
-	]
-	for spec in weapon_specs:
-		var weapon_id: int = spec["id"]
+	for item_id in WeaponCatalog.ORDER:
+		var weapon_id := int(item_id)
+		var weapon_item := WeaponCatalog.get_item(weapon_id)
+		if weapon_item.is_empty():
+			continue
 		var weapon_card := PanelContainer.new()
 		weapon_card.name = "LegendaryWeapon%d" % weapon_id
 		weapon_card.custom_minimum_size = Vector2(110, 140)
@@ -1530,13 +1510,13 @@ func _build_player_menu() -> void:
 		weapon_content.add_theme_constant_override("separation", 5)
 		weapon_card.add_child(weapon_content)
 		var weapon_icon := TextureRect.new()
-		weapon_icon.texture = spec["icon"]
+		weapon_icon.texture = load(String(weapon_item["icon"])) as Texture2D
 		weapon_icon.custom_minimum_size = Vector2(0, 52)
 		weapon_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		weapon_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		weapon_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		weapon_content.add_child(weapon_icon)
-		weapon_content.add_child(_make_label(spec["name"], 12, PALE))
+		weapon_content.add_child(_make_label(String(weapon_item["name"]), 12, PALE))
 		var weapon_status := _make_label("В магазине", 12, Color(0.62, 0.65, 0.72))
 		weapon_content.add_child(weapon_status)
 		var weapon_button := _make_action_button("Купить", false)
@@ -1643,7 +1623,7 @@ func _refresh_hero_preview() -> void:
 	if preview_root == null:
 		return
 	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
-	var signature := "%d:%s" % [selected_class, str(MetaProgression.is_weapon_enabled(character_key))]
+	var signature := "%d:%d" % [selected_class, MetaProgression.get_equipped_weapon(character_key)]
 	if preview_hero != null and is_instance_valid(preview_hero) and preview_class == selected_class and preview_weapon_signature == signature:
 		_mark_preview_dirty()
 		return
@@ -1706,7 +1686,7 @@ func _refresh_wing_inventory() -> void:
 
 func _on_default_weapon_pressed() -> void:
 	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
-	MetaProgression.set_weapon_enabled(character_key, false)
+	MetaProgression.set_equipped_weapon(character_key, 0)
 	_refresh_weapon_shop()
 	_refresh_player_menu()
 
@@ -1716,7 +1696,9 @@ func _on_inventory_weapon_pressed(weapon_id: int) -> void:
 		_open_shard_shop()
 		return
 	var weapon_character := _weapon_character_key(weapon_id)
-	MetaProgression.set_weapon_enabled(weapon_character, not MetaProgression.is_weapon_enabled(weapon_character))
+	if weapon_character.is_empty():
+		return
+	MetaProgression.set_equipped_weapon(weapon_character, weapon_id)
 	_refresh_weapon_shop()
 	_refresh_player_menu()
 
