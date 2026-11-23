@@ -17,6 +17,9 @@ const LEVEL_UP_SHARD_REWARDS: Dictionary = {
 }
 
 var sky_shards: int = 0
+var pending_compensation: int = 0
+var compensation_in_flight := false
+var compensation_retries := 0
 var player_nickname: String = ""
 var player_id: int = 0
 var session_token: String = ""
@@ -70,6 +73,8 @@ func _ready() -> void:
 		NetworkClient.purchase_completed.connect(_on_purchase_completed)
 	if not NetworkClient.match_reward_completed.is_connected(_on_match_reward_completed):
 		NetworkClient.match_reward_completed.connect(_on_match_reward_completed)
+	if not NetworkClient.compensation_completed.is_connected(_on_compensation_completed):
+		NetworkClient.compensation_completed.connect(_on_compensation_completed)
 
 
 func _load_meta() -> void:
@@ -80,6 +85,7 @@ func _load_meta() -> void:
 	player_nickname = String(config.get_value("progression", "player_nickname", ""))
 	session_token = String(config.get_value("progression", "session_token", ""))
 	sky_shards = maxi(0, int(config.get_value("progression", "sky_shards", 0)))
+	pending_compensation = maxi(0, int(config.get_value("progression", "pending_compensation", 0)))
 	var levels: Variant = config.get_value("progression", "char_levels", {})
 	if levels is Dictionary:
 		for key in char_levels.keys():
@@ -93,6 +99,7 @@ func _load_meta() -> void:
 func _on_session_ready(token: String) -> void:
 	session_token = token
 	_save_meta()
+	_flush_compensation()
 
 
 func _save_meta() -> void:
@@ -101,6 +108,7 @@ func _save_meta() -> void:
 	config.set_value("progression", "player_nickname", player_nickname)
 	config.set_value("progression", "session_token", session_token)
 	config.set_value("progression", "sky_shards", sky_shards)
+	config.set_value("progression", "pending_compensation", pending_compensation)
 	config.set_value("progression", "char_levels", char_levels)
 	config.set_value("progression", "char_xps", char_xps)
 	config.save(META_PATH)
@@ -277,6 +285,44 @@ func _on_match_reward_completed(success: bool, _amount: int, new_shards: int) ->
 	profile_updated.emit()
 
 
+func queue_compensation(amount: int) -> void:
+	if amount <= 0:
+		return
+	# One interrupted-match payout is pending at a time; the server also has a
+	# cooldown, so stacking claims would only make the player wait longer.
+	pending_compensation = mini(20, pending_compensation + amount)
+	_save_meta()
+	_flush_compensation()
+
+
+func _flush_compensation() -> void:
+	if compensation_in_flight or pending_compensation <= 0:
+		return
+	if player_id <= 0 or session_token.is_empty():
+		return
+	compensation_in_flight = true
+	NetworkClient.claim_compensation(player_id)
+
+
+func _on_compensation_completed(success: bool, new_shards: int, error: String) -> void:
+	compensation_in_flight = false
+	if success:
+		pending_compensation = 0
+		compensation_retries = 0
+		sky_shards = maxi(0, new_shards)
+		_save_meta()
+		profile_updated.emit()
+		return
+	_save_meta()
+	if error == "cooldown":
+		# The next match/session will try again; a retry now cannot succeed.
+		return
+	compensation_retries += 1
+	if compensation_retries <= 6:
+		var timer := get_tree().create_timer(5.0)
+		timer.timeout.connect(_flush_compensation)
+
+
 func get_xp_for_next_level(char_name: String) -> int:
 	if not char_levels.has(char_name):
 		return 1000
@@ -420,6 +466,7 @@ func _on_profile_loaded(success: bool, loaded_player_id: int, server_shards: int
 		pending_level_shards = 0
 		grant_match_reward(pending)
 	_save_meta()
+	_flush_compensation()
 	profile_updated.emit()
 
 

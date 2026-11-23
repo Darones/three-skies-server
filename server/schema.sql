@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS players (
 );
 
 ALTER TABLE players ADD COLUMN IF NOT EXISTS unlocked_weapons TEXT NOT NULL DEFAULT '';
+ALTER TABLE players ADD COLUMN IF NOT EXISTS last_compensation_at TIMESTAMPTZ;
 ALTER TABLE players ALTER COLUMN sky_shards SET DEFAULT 0;
 ALTER TABLE players ALTER COLUMN unlocked_wings SET DEFAULT '';
 ALTER TABLE players ALTER COLUMN unlocked_weapons SET DEFAULT '';

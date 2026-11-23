@@ -7,6 +7,7 @@ signal registration_completed(success: bool, player_id: int)
 signal profile_loaded(success: bool, player_id: int, sky_shards: int, unlocked_wings: Array, unlocked_weapons: Array, nickname: String, nickname_custom: bool)
 signal purchase_completed(success: bool, purchase_type: String, item_id: int, new_shards: int)
 signal match_reward_completed(success: bool, amount: int, new_shards: int)
+signal compensation_completed(success: bool, new_shards: int, error: String)
 signal rename_completed(success: bool, nickname: String, error: String, charged: bool, cost: int, new_shards: int)
 signal report_completed(success: bool, error: String)
 signal session_ready(token: String)
@@ -69,6 +70,16 @@ func grant_match_reward(player_id: int, amount: int, room_id: int, bonus := fals
 	if bonus:
 		payload["bonus"] = true
 	_send_post("/match_reward", payload, "match_reward")
+
+
+func claim_compensation(player_id: int) -> void:
+	if player_id <= 0:
+		compensation_completed.emit(false, 0, "invalid")
+		return
+	_send_post("/compensation", {
+		"player_id": player_id,
+		"reason": "match_aborted",
+	}, "compensation")
 
 
 func rename_player(player_id: int, nickname: String) -> void:
@@ -182,6 +193,10 @@ func _on_http_request_completed(result: int, response_code: int, _headers: Packe
 		var awarded := int(request["payload"].get("amount", 0))
 		var new_shards := int(response.get("new_shards", 0)) if response is Dictionary else 0
 		match_reward_completed.emit(success, awarded, new_shards if success else 0)
+	elif request["request_type"] == "compensation":
+		var error_text := String(response.get("error", "")) if response is Dictionary else "Нет связи с сервером"
+		var new_shards := int(response.get("new_shards", 0)) if response is Dictionary else 0
+		compensation_completed.emit(success, new_shards if success else 0, "" if success else error_text)
 	elif request["request_type"] == "rename":
 		var nickname := String(request["payload"].get("nickname", ""))
 		var error_text := String(response.get("error", "")) if response is Dictionary else "Нет связи с сервером"
@@ -205,6 +220,8 @@ func _emit_http_failure(request: Dictionary) -> void:
 		purchase_completed.emit(false, String(request["purchase_type"]), int(request["item_id"]), 0)
 	elif request["request_type"] == "match_reward":
 		match_reward_completed.emit(false, int(request["payload"].get("amount", 0)), 0)
+	elif request["request_type"] == "compensation":
+		compensation_completed.emit(false, 0, "Нет связи с сервером")
 	elif request["request_type"] == "rename":
 		rename_completed.emit(false, String(request["payload"].get("nickname", "")), "Нет связи с сервером", false, 0, 0)
 	elif request["request_type"] == "report":

@@ -207,18 +207,33 @@ func _ready() -> void:
 	var kills := int(match_stats.get("p_kills", 0))
 	var shells_destroyed := int(match_stats.get("p_shells_destroyed", 0))
 	var crystals_delivered := int(match_stats.get("p_crystals", 0))
-	final_shards = 0 if not has_match or match_aborted else (5 if player_won and player_is_mvp else 3 if player_won or player_is_mvp else 1)
-	final_xp = 0 if not has_match or match_aborted else kills * 10 + shells_destroyed * 25 + crystals_delivered * 25 + (50 if player_won else 20)
-	if has_match and not match_aborted:
+	var character_key: String = str(CHARACTER_KEYS[selected_class])
+	if has_match and match_aborted:
+		# Server-side interruption: fixed consolation for every player, but the
+		# match is not counted as a win/loss.
+		final_shards = 20
+		final_xp = 1000
+		if not rewards_committed:
+			var level_before := int(MetaProgression.char_levels.get(character_key, 1))
+			MetaProgression.add_character_xp(character_key, final_xp)
+			MetaProgression.queue_compensation(final_shards)
+			entry_level = int(MetaProgression.char_levels.get(character_key, level_before))
+			entry_leveled_up = entry_level > level_before
+			rewards_committed = true
+	elif has_match:
+		final_shards = 5 if player_won and player_is_mvp else 3 if player_won or player_is_mvp else 1
+		final_xp = kills * 10 + shells_destroyed * 25 + crystals_delivered * 25 + (50 if player_won else 20)
 		MetaProgression.record_match_result(player_won, player_place, match_stats, final_xp, final_shards)
 		_grant_match_reward_to_server(final_shards)
 		if not rewards_committed:
-			var character_key: String = str(CHARACTER_KEYS[selected_class])
 			var level_before := int(MetaProgression.char_levels.get(character_key, 1))
 			MetaProgression.add_character_xp(character_key, final_xp)
 			entry_level = int(MetaProgression.char_levels.get(character_key, level_before))
 			entry_leveled_up = entry_level > level_before
 			rewards_committed = true
+	else:
+		final_shards = 0
+		final_xp = 0
 	_build_screen()
 	_build_reward_banner()
 	_animate_rewards()
@@ -747,6 +762,10 @@ func _refresh_reward_ui() -> void:
 	if xp_reward_label != null:
 		xp_reward_label.text = str(final_xp)
 	if double_reward_button == null:
+		return
+	if match_aborted:
+		# Consolation for an interrupted match is fixed; no ad multiplier.
+		double_reward_button.visible = false
 		return
 	if rewards_doubled:
 		double_reward_button.text = "Награды удвоены"
