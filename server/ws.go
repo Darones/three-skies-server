@@ -1656,16 +1656,18 @@ func (h *wsHub) handleBotDamage(client *wsClient, message wsIncoming) {
 
 // The host simulates the shell; its PvE damage on remote humans must go through
 // the server, otherwise guests are immune to the shell (it only knows heroes).
+// Match shop prices. Keep in sync with SHOP_ITEMS in scripts/game.gd:
+// the client draws the price and the server validates the same amount.
 var matchItemPrices = map[string]int{
-	"life_amulet":      500,
-	"revival_talisman": 450,
-	"titan_shell":      450,
-	"power_glove":      500,
-	"vampire_fang":     500,
-	"agility_mark":     450,
-	"wind_boots":       350,
-	"hourglass":        450,
-	"cleansing_charm":  350,
+	"life_amulet":      400,
+	"revival_talisman": 350,
+	"titan_shell":      350,
+	"power_glove":      400,
+	"vampire_fang":     400,
+	"agility_mark":     350,
+	"wind_boots":       250,
+	"hourglass":        350,
+	"cleansing_charm":  250,
 }
 
 // The server derives combat stats from the class and the purchased items, so a
