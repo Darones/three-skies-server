@@ -109,6 +109,28 @@ const ITEMS := {
 const ORDER := [1, 2, 3, 4, 5, 6, 7, 8, 9]
 const CLASS_KEYS := ["warrior", "mage", "fairy"]
 
+# Local transform of the built-in fairy crossbows under handslot_l. Tuned in
+# tools/WeaponTuner.tscn; the values are mirrored from the original right-hand
+# attachment so the crossbow points forward in the left hand.
+const CROSSBOW_TUNING := {
+	"1H_Crossbow": {
+		"position": Vector3(0.104628, -0.010374, 0.0),
+		"rotation": Vector3(0.0, -90.0, 0.0),
+		"roll": 0.0,
+		"scale": 1.0,
+	},
+	"2H_Crossbow": {
+		"position": Vector3(0.104628, -0.010374, 0.0),
+		"rotation": Vector3(0.0, -90.0, 0.0),
+		"roll": 0.0,
+		"scale": 1.0,
+	},
+}
+
+
+static func crossbow_tuning(mesh_name: String) -> Dictionary:
+	return CROSSBOW_TUNING.get(mesh_name, {})
+
 
 static func get_item(item_id: int) -> Dictionary:
 	return ITEMS.get(item_id, {})

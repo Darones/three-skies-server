@@ -70,6 +70,28 @@ const WEAPONS := {
 		"roll": 90.0,
 		"scale": 1.0,
 	},
+	"fairy_crossbow": {
+		"name": "Стандартный арбалет",
+		"hero": "fairy",
+		"bone": "handslot.l",
+		"builtin_mesh": "1H_Crossbow",
+		"weapon_id": 0,
+		"position": Vector3(0.104628, -0.010374, 0.0),
+		"rotation": Vector3(0.0, -90.0, 0.0),
+		"roll": 0.0,
+		"scale": 1.0,
+	},
+	"fairy_heavy_crossbow": {
+		"name": "Тяжёлый арбалет",
+		"hero": "fairy",
+		"bone": "handslot.l",
+		"builtin_mesh": "2H_Crossbow",
+		"weapon_id": 2,
+		"position": Vector3(0.104628, -0.010374, 0.0),
+		"rotation": Vector3(0.0, -90.0, 0.0),
+		"roll": 0.0,
+		"scale": 1.0,
+	},
 }
 
 const VIEWS := {
@@ -103,16 +125,34 @@ var hero_root: Node3D = null
 var skeleton: Skeleton3D = null
 var bone_index := -1
 var weapon_model: Node3D = null
+var weapon_is_builtin := false
 var sliders := {}
 var spins := {}
 var saved_all := {}
 var weapon_option: OptionButton
+var hero_option: OptionButton
+var requested_weapon := ""
 
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--weapon="):
+			requested_weapon = arg.trim_prefix("--weapon=")
+	if not requested_weapon.is_empty() and WEAPONS.has(requested_weapon):
+		hero_key = String(WEAPONS[requested_weapon]["hero"])
 	_load_saved()
 	_build_ui()
+	var hero_keys := HEROES.keys()
+	var hero_index := hero_keys.find(hero_key)
+	if hero_index >= 0:
+		hero_option.select(hero_index)
+	if not requested_weapon.is_empty():
+		var keys := _weapon_keys_for_hero()
+		var index := keys.find(requested_weapon)
+		if index >= 0:
+			weapon_key = requested_weapon
+			weapon_option.select(index)
 	_apply_params(_weapon_defaults(weapon_key))
 	_reload_hero()
 	if OS.get_cmdline_user_args().has("--autoshot"):
@@ -169,7 +209,7 @@ func _build_ui() -> void:
 	root.add_child(panel)
 
 	panel.add_child(_make_label("ГЕРОЙ"))
-	var hero_option := OptionButton.new()
+	hero_option = OptionButton.new()
 	for key in HEROES.keys():
 		hero_option.add_item(String(HEROES[key]["name"]))
 	hero_option.item_selected.connect(func(index: int) -> void:
@@ -320,7 +360,10 @@ func _reload_hero() -> void:
 	var cls: int = int(HEROES[hero_key]["class"])
 	# The tuner uses the real HeroUnit so scale, skeleton and idle pose match
 	# the game exactly; the old raw rig was often at a different scale.
-	MetaProgression.equipped_weapons[hero_key] = 0
+	var preset: Dictionary = WEAPONS[weapon_key]
+	var builtin_mesh := String(preset.get("builtin_mesh", ""))
+	var weapon_id := int(preset.get("weapon_id", 0))
+	MetaProgression.equipped_weapons[hero_key] = weapon_id
 	var hero := HeroUnit.new()
 	viewport.add_child(hero)
 	hero.setup(null, cls, 0, true)
@@ -331,7 +374,7 @@ func _reload_hero() -> void:
 	for gear_name in hero.gear_nodes.keys():
 		var gear := hero.gear_nodes[gear_name] as MeshInstance3D
 		if gear != null:
-			gear.visible = false
+			gear.visible = String(gear_name) == builtin_mesh
 	hero_root = hero
 	_build_lights(hero)
 	_apply_idle_pose(hero)
@@ -390,19 +433,40 @@ func _build_lights(parent: Node3D) -> void:
 
 func _reload_weapon() -> void:
 	if weapon_model != null and is_instance_valid(weapon_model):
-		weapon_model.queue_free()
+		if weapon_is_builtin:
+			weapon_model.visible = false
+		else:
+			weapon_model.queue_free()
 		weapon_model = null
+	weapon_is_builtin = false
+	if hero_root != null:
+		for gear_name in hero_root.gear_nodes.keys():
+			var gear := hero_root.gear_nodes[gear_name] as MeshInstance3D
+			if gear != null:
+				gear.visible = false
 	if skeleton == null:
 		return
+	var preset: Dictionary = WEAPONS[weapon_key]
+	var builtin_mesh := String(preset.get("builtin_mesh", ""))
+	if not builtin_mesh.is_empty():
+		if hero_root == null:
+			return
+		weapon_model = hero_root.find_child(builtin_mesh, true, false) as Node3D
+		if weapon_model == null:
+			return
+		weapon_model.visible = true
+		weapon_is_builtin = true
+		_update_weapon()
+		return
 	bone_index = -1
-	var wanted := String(WEAPONS[weapon_key]["bone"])
+	var wanted := String(preset["bone"])
 	for i in range(skeleton.get_bone_count()):
 		if String(skeleton.get_bone_name(i)).to_lower() == wanted:
 			bone_index = i
 			break
 	if bone_index < 0:
 		return
-	var scene := load(String(WEAPONS[weapon_key]["path"])) as PackedScene
+	var scene := load(String(preset["path"])) as PackedScene
 	if scene == null:
 		return
 	weapon_model = scene.instantiate() as Node3D
@@ -411,10 +475,8 @@ func _reload_weapon() -> void:
 
 
 func _update_weapon() -> void:
-	if weapon_model == null or skeleton == null or bone_index < 0:
+	if weapon_model == null:
 		return
-	var bone_world := skeleton.global_transform * skeleton.get_bone_global_pose(bone_index)
-	var base := bone_world.basis.orthonormalized()
 	var offset_basis := Basis.from_euler(Vector3(
 		deg_to_rad(float(params["rx"])),
 		deg_to_rad(float(params["ry"])),
@@ -422,10 +484,18 @@ func _update_weapon() -> void:
 	))
 	if absf(float(params["roll"])) > 0.01:
 		offset_basis = offset_basis * Basis(Vector3.UP, deg_to_rad(float(params["roll"])))
-	var basis := base * offset_basis
-	basis = basis.scaled(Vector3.ONE * float(params["scale"]))
+	offset_basis = offset_basis.scaled(Vector3.ONE * float(params["scale"]))
 	var offset := Vector3(float(params["px"]), float(params["py"]), float(params["pz"]))
-	weapon_model.global_transform = Transform3D(basis, bone_world.origin + offset)
+	if weapon_is_builtin:
+		# Built-in crossbows live under handslot_l. Tune the local transform so
+		# the same numbers can be baked into WeaponCatalog.CROSSBOW_TUNING.
+		weapon_model.transform = Transform3D(offset_basis, offset)
+		return
+	if skeleton == null or bone_index < 0:
+		return
+	var bone_world := skeleton.global_transform * skeleton.get_bone_global_pose(bone_index)
+	var base := bone_world.basis.orthonormalized()
+	weapon_model.global_transform = Transform3D(base * offset_basis, bone_world.origin + offset)
 
 
 func _process(_delta: float) -> void:

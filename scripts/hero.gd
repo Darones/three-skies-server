@@ -927,7 +927,21 @@ func _move_fairy_crossbows_left(model: Node) -> void:
 		var local_transform := gear.transform
 		right_hand.remove_child(gear)
 		left_hand.add_child(gear)
-		gear.transform = local_transform
+		var tuning := WeaponCatalog.crossbow_tuning(gear_name)
+		if tuning.is_empty():
+			gear.transform = local_transform
+			continue
+		var rotation: Vector3 = tuning.get("rotation", Vector3.ZERO)
+		var basis := Basis.from_euler(Vector3(
+			deg_to_rad(rotation.x),
+			deg_to_rad(rotation.y),
+			deg_to_rad(rotation.z)
+		))
+		var roll := float(tuning.get("roll", 0.0))
+		if absf(roll) > 0.01:
+			basis = basis * Basis(Vector3.UP, deg_to_rad(roll))
+		basis = basis.scaled(Vector3.ONE * float(tuning.get("scale", 1.0)))
+		gear.transform = Transform3D(basis, tuning.get("position", Vector3.ZERO))
 
 
 func _build_visual() -> void:
