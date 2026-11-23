@@ -111,6 +111,7 @@ var match_started := false
 var match_time := MATCH_LENGTH
 var time_up_announced := false
 var match_end_reason := ""
+var match_aborted := false
 var score: Array[int] = [0, 0]
 var p_kills := 0
 var p_deaths := 0
@@ -1464,6 +1465,7 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	p_crystals = 0
 	p_shells_destroyed = 0
 	match_end_reason = ""
+	match_aborted = false
 	time_up_announced = false
 	gold_earned_this_match = 0
 	gold = 0 if tutorial_mode else TEST_STARTING_GOLD
@@ -2712,6 +2714,7 @@ func end_match(team_zero_won: bool) -> void:
 		"network": network_play,
 	})
 	get_tree().set_meta("last_match_won", player_won)
+	get_tree().set_meta("last_match_aborted", match_aborted)
 	get_tree().set_meta("last_match_reason", match_end_reason)
 	get_tree().set_meta("last_match_score", score.duplicate())
 	get_tree().set_meta("last_match_team", player_team)
@@ -4188,6 +4191,13 @@ func _on_network_disconnected() -> void:
 			remote.queue_free()
 	remote_players.clear()
 	announce("Соединение с сервером потеряно", Color(1.0, 0.55, 0.4), 3.0)
+	# The server owns match_finished, so a dead socket means the result will
+	# never arrive. Without this fallback the player stayed in a frozen match
+	# forever (and a server restart did exactly that).
+	if state == "live":
+		match_aborted = true
+		match_end_reason = "Соединение с сервером потеряно"
+		end_match(score[0] > score[1])
 
 
 func _exit_tree() -> void:

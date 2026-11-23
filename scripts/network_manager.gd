@@ -426,12 +426,16 @@ func _send_local_state(delta: float) -> void:
 	var visual: Variant = local_hero.get("visual")
 	if visual is Node3D:
 		rotation_y = (visual as Node3D).global_rotation.y
+	var regen_multiplier := 1.0
+	if local_hero.has_method("network_regen_multiplier"):
+		regen_multiplier = maxf(1.0, float(local_hero.call("network_regen_multiplier")))
 	_send_json({
 		"type": "state",
 		"x": position.x,
 		"y": position.y,
 		"z": position.z,
 		"rotation": rotation_y,
+		"regen": regen_multiplier,
 	})
 
 

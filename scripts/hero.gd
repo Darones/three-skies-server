@@ -1512,11 +1512,7 @@ func _physics_process(delta: float) -> void:
 	bush_reveal_timer = maxf(0.0, bush_reveal_timer - delta)
 	_refresh_bush_visibility()
 	if not _is_at_own_base() and seconds_since_damage >= 5.0 and health < max_health and not (game != null and bool(game.get("network_play")) and NetworkManager.server_protocol >= 2 and not is_player and int(network_id) < 0):
-		var regen_multiplier := 1.0
-		if _is_bush_stealthed():
-			regen_multiplier = 2.0
-		if blessing_timer > 0.0:
-			regen_multiplier *= 2.0
+		var regen_multiplier := network_regen_multiplier()
 		health = minf(max_health, health + (HEALTH_REGEN_PER_SECOND + bonus_regen_per_second) * regen_multiplier * delta)
 
 	stun_timer = maxf(0.0, stun_timer - delta)
@@ -2335,6 +2331,17 @@ func _is_bush_stealthed() -> bool:
 		if bool(game.call("enemy_within", global_position, team, BUSH_PROXIMITY_REVEAL)):
 			return false
 	return true
+
+
+func network_regen_multiplier() -> float:
+	# The server needs the same multiplier as the local regen, otherwise it
+	# heals at the base rate and every authoritative sync lowers the HP bar.
+	var multiplier := 1.0
+	if _is_bush_stealthed():
+		multiplier = 2.0
+	if blessing_timer > 0.0:
+		multiplier *= 2.0
+	return multiplier
 
 
 func _is_at_own_base() -> bool:

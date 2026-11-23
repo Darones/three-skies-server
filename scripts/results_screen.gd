@@ -23,6 +23,7 @@ var font: FontFile
 var selected_class := 0
 var player_team := 0
 var player_won := true
+var match_aborted := false
 var score: Array = [0, 0]
 var match_stats: Dictionary = {}
 var player_place := 4
@@ -196,6 +197,7 @@ func _ready() -> void:
 	player_team = clampi(int(get_tree().get_meta("last_match_team", get_tree().get_meta("selected_team", 0))), 0, 1)
 	var has_match := get_tree().has_meta("last_match_score") and get_tree().has_meta("last_match_stats")
 	player_won = bool(get_tree().get_meta("last_match_won", true)) if has_match else false
+	match_aborted = bool(get_tree().get_meta("last_match_aborted", false))
 	score = get_tree().get_meta("last_match_score", [0, 0])
 	match_stats = get_tree().get_meta("last_match_stats", {})
 	player_place = maxi(1, int(get_tree().get_meta("last_match_place", 4)))
@@ -205,9 +207,9 @@ func _ready() -> void:
 	var kills := int(match_stats.get("p_kills", 0))
 	var shells_destroyed := int(match_stats.get("p_shells_destroyed", 0))
 	var crystals_delivered := int(match_stats.get("p_crystals", 0))
-	final_shards = 0 if not has_match else (5 if player_won and player_is_mvp else 3 if player_won or player_is_mvp else 1)
-	final_xp = 0 if not has_match else kills * 10 + shells_destroyed * 25 + crystals_delivered * 25 + (50 if player_won else 20)
-	if has_match:
+	final_shards = 0 if not has_match or match_aborted else (5 if player_won and player_is_mvp else 3 if player_won or player_is_mvp else 1)
+	final_xp = 0 if not has_match or match_aborted else kills * 10 + shells_destroyed * 25 + crystals_delivered * 25 + (50 if player_won else 20)
+	if has_match and not match_aborted:
 		MetaProgression.record_match_result(player_won, player_place, match_stats, final_xp, final_shards)
 		_grant_match_reward_to_server(final_shards)
 		if not rewards_committed:
@@ -220,7 +222,9 @@ func _ready() -> void:
 	_build_screen()
 	_build_reward_banner()
 	_animate_rewards()
-	if player_won:
+	if match_aborted:
+		_play_defeat_stinger()
+	elif player_won:
 		_play_victory_celebration()
 	else:
 		_play_defeat_stinger()
@@ -266,8 +270,9 @@ void fragment() {
 
 func _build_header() -> void:
 	var mobile := DeviceProfile.mobile_ui
-	var title_color := GOLD if player_won else Color(0.9, 0.3, 0.29)
-	var title := _make_label("ПОБЕДА" if player_won else "ПОРАЖЕНИЕ", 44 if mobile else 68, title_color)
+	var title_text := "МАТЧ ПРЕРВАН" if match_aborted else ("ПОБЕДА" if player_won else "ПОРАЖЕНИЕ")
+	var title_color := Color(0.92, 0.66, 0.3) if match_aborted else (GOLD if player_won else Color(0.9, 0.3, 0.29))
+	var title := _make_label(title_text, 44 if mobile else 68, title_color)
 	title.name = "ResultTitle"
 	title.anchor_left = 0.08
 	title.anchor_top = 0.015 if mobile else 0.035
@@ -458,7 +463,7 @@ func _build_content() -> void:
 
 func _get_player_character_name() -> String:
 	var faction := "Света" if player_team == 0 else "Тьмы"
-	var display_class := CHARACTER_CLASS_NAMES[selected_class]
+	var display_class: String = String(CHARACTER_CLASS_NAMES[selected_class])
 	var results_skin := SkinCatalog.get_item(MetaProgression.get_equipped_skin(CHARACTER_KEYS[selected_class]))
 	if not results_skin.is_empty():
 		display_class = String(results_skin.get("short_name", results_skin["name"]))

@@ -165,6 +165,7 @@ type wsIncoming struct {
 	Token        string          `json:"token"`
 	ItemID       string          `json:"item_id"`
 	Stun         float64         `json:"stun"`
+	Regen        float64         `json:"regen"`
 	Bots         []wsBotSnapshot `json:"bots"`
 	Shell        *wsShellState   `json:"shell"`
 }
@@ -874,14 +875,27 @@ func (h *wsHub) updateState(client *wsClient, message wsIncoming) {
 			client.lastRegen = now
 		}
 		elapsed := now.Sub(client.lastRegen).Seconds()
-		if elapsed > 0.0 && elapsed <= 1.0 {
+		if elapsed > 0.0 {
+			if elapsed > 1.0 {
+				// A short packet gap must not delete the regen for the whole
+				// period: cap the step but keep healing.
+				elapsed = 1.0
+			}
 			rate := 10.0
 			if client.bought != nil && client.bought["revival_talisman"] {
 				rate += 10.0
 			}
-			baseZ := 27.5
+			// The client owns bush stealth and the mage blessing, so it sends
+			// the effective regen multiplier. Without it the server healed at
+			// 10 HP/s while the player's bar showed 20-40 HP/s and every 1 Hz
+			// sync pulled it back down.
+			regenMultiplier := 1.0
+			if finite(message.Regen) && message.Regen > 1.0 {
+				regenMultiplier = math.Min(message.Regen, 4.0)
+			}
+			baseZ := 28.0
 			if client.team == 1 {
-				baseZ = -27.5
+				baseZ = -28.0
 			}
 			if math.Hypot(client.x, client.z-baseZ) <= 6.5 {
 				// Base: 100 HP/s after three seconds of standing. Damage
@@ -895,7 +909,7 @@ func (h *wsHub) updateState(client *wsClient, message wsIncoming) {
 			} else {
 				client.baseStandSince = time.Time{}
 				if client.lastDamaged.IsZero() || now.Sub(client.lastDamaged) >= 5*time.Second {
-					client.hp = math.Min(client.maxHP, client.hp+rate*elapsed)
+					client.hp = math.Min(client.maxHP, client.hp+rate*regenMultiplier*elapsed)
 				}
 			}
 		}
@@ -1264,10 +1278,13 @@ func (h *wsHub) relayBotStates(client *wsClient, message wsIncoming) {
 				bot.lastRegen = now
 			}
 			elapsed := now.Sub(bot.lastRegen).Seconds()
-			if elapsed > 0.0 && elapsed <= 1.0 {
-				baseZ := 27.5
+			if elapsed > 0.0 {
+				if elapsed > 1.0 {
+					elapsed = 1.0
+				}
+				baseZ := 28.0
 				if bot.team == 1 {
-					baseZ = -27.5
+					baseZ = -28.0
 				}
 				if math.Hypot(bot.x, bot.z-baseZ) <= 6.5 {
 					if bot.baseStandSince.IsZero() {
