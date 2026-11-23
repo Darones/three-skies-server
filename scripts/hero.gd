@@ -617,14 +617,18 @@ func _prepare_vfx(effect: Node3D, _scene: PackedScene) -> void:
 	if DeviceProfile.mobile_ui:
 		# Mobile GPUs choke on large particle bursts; halve the count and
 		# simulate at 30 Hz, which is visually indistinguishable in combat.
+		# Low quality cuts them further: this is the main GPU heat source.
+		var low_quality := DeviceProfile.effective_quality() == DeviceProfile.QUALITY_LOW
+		var divisor := 4 if low_quality else 2
+		var particle_fps := 20 if low_quality else 30
 		for node in effect.find_children("*", "GPUParticles3D", true, false):
 			var particles := node as GPUParticles3D
-			particles.amount = maxi(4, particles.amount / 2)
-			particles.fixed_fps = 30
+			particles.amount = maxi(4, particles.amount / divisor)
+			particles.fixed_fps = particle_fps
 		for node in effect.find_children("*", "CPUParticles3D", true, false):
 			var particles := node as CPUParticles3D
-			particles.amount = maxi(4, particles.amount / 2)
-			particles.fixed_fps = 30
+			particles.amount = maxi(4, particles.amount / divisor)
+			particles.fixed_fps = particle_fps
 		for node in effect.find_children("*", "Light3D", true, false):
 			(node as Light3D).visible = false
 	effect.set_meta("vfx_geo", effect.find_children("*", "GeometryInstance3D"))
@@ -1156,9 +1160,12 @@ func _add_weapon_sparks(parent: Node3D, node_name: String, at: Vector3, amount: 
 	var particles := CPUParticles3D.new()
 	particles.name = node_name
 	particles.position = at
-	particles.amount = amount
+	# Low quality halves the always-on weapon sparkle, which every hero
+	# carries for the whole match.
+	var low_quality := DeviceProfile.effective_quality() == DeviceProfile.QUALITY_LOW
+	particles.amount = maxi(3, amount / 2) if low_quality else amount
 	particles.lifetime = 0.65
-	particles.fixed_fps = 30
+	particles.fixed_fps = 20 if low_quality else 30
 	particles.local_coords = false
 	particles.preprocess = 0.45
 	particles.visibility_range_end = 18.0

@@ -372,11 +372,18 @@ func _build_content() -> void:
 	stats_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	stats_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	panel_box.add_child(stats_scroll)
+	# The vertical scrollbar draws over the content on the right edge; keep
+	# the numbers clear of it.
+	var stats_margin := MarginContainer.new()
+	stats_margin.name = "StatsMargin"
+	stats_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stats_margin.add_theme_constant_override("margin_right", 18)
+	stats_scroll.add_child(stats_margin)
 	var stats_content := VBoxContainer.new()
 	stats_content.name = "StatsContent"
 	stats_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stats_content.add_theme_constant_override("separation", 5)
-	stats_scroll.add_child(stats_content)
+	stats_margin.add_child(stats_content)
 	var reward_line := HBoxContainer.new()
 	reward_line.name = "RewardLine"
 	reward_line.add_theme_constant_override("separation", 4)
@@ -428,11 +435,16 @@ func _build_content() -> void:
 	players_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	players_scroll.visible = false
 	panel_box.add_child(players_scroll)
+	var players_margin := MarginContainer.new()
+	players_margin.name = "PlayersMargin"
+	players_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	players_margin.add_theme_constant_override("margin_right", 18)
+	players_scroll.add_child(players_margin)
 	var players_body := VBoxContainer.new()
 	players_body.name = "PlayersContent"
 	players_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	players_body.add_theme_constant_override("separation", 3)
-	players_scroll.add_child(players_body)
+	players_margin.add_child(players_body)
 	_build_players_table(players_body)
 	_refresh_reward_ui()
 	call_deferred("_start_ad_button_pulse")

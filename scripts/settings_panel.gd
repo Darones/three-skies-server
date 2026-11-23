@@ -19,6 +19,8 @@ const CONTROL_BINDINGS := [
 var mobile_layout := false
 var volume_slider: HSlider
 var vibration_toggle: CheckButton
+var fps_toggle: CheckButton
+var quality_buttons: Dictionary = {}
 var current_volume := 1.0
 var listening_action := ""
 var binding_buttons: Dictionary = {}
@@ -112,6 +114,34 @@ func _build_panel() -> void:
 	volume_slider.custom_minimum_size = Vector2(100.0, 36.0)
 	volume_slider.value_changed.connect(_on_volume_changed)
 	volume_row.add_child(volume_slider)
+
+	layout.add_child(_make_label("ГРАФИКА", 17, Color(0.9, 0.92, 0.98)))
+	var quality_row := HBoxContainer.new()
+	quality_row.add_theme_constant_override("separation", 8)
+	layout.add_child(quality_row)
+	var quality_label := _make_label("Качество", 15, Color(0.76, 0.8, 0.89))
+	quality_label.custom_minimum_size = Vector2(160.0, 36.0)
+	quality_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	quality_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	quality_row.add_child(quality_label)
+	for entry in [["low", "Низкое"], ["medium", "Среднее"], ["high", "Высокое"]]:
+		var quality_button := _make_button(String(entry[1]), false)
+		quality_button.name = "Quality_" + String(entry[0])
+		quality_button.toggle_mode = true
+		quality_button.custom_minimum_size = Vector2(0.0, 36.0)
+		quality_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		quality_button.add_theme_font_size_override("font_size", _fs(15))
+		quality_button.pressed.connect(_on_quality_selected.bind(String(entry[0])))
+		quality_row.add_child(quality_button)
+		quality_buttons[String(entry[0])] = quality_button
+
+	fps_toggle = CheckButton.new()
+	fps_toggle.name = "FpsToggle"
+	fps_toggle.text = "Показывать FPS"
+	fps_toggle.add_theme_font_override("font", UI_FONT)
+	fps_toggle.add_theme_font_size_override("font_size", _fs(16))
+	fps_toggle.toggled.connect(_on_fps_toggled)
+	layout.add_child(fps_toggle)
 
 	var show_haptics := mobile_layout and not OS.has_feature("web")
 	if show_haptics:
@@ -387,6 +417,9 @@ func _load_settings() -> void:
 	_apply_volume(saved_volume)
 	if vibration_toggle != null:
 		vibration_toggle.set_pressed_no_signal(Haptics.is_enabled())
+	_refresh_quality_buttons()
+	if fps_toggle != null:
+		fps_toggle.set_pressed_no_signal(DeviceProfile.show_fps)
 	if not mobile_layout and has_settings:
 		for binding in CONTROL_BINDINGS:
 			var action := String(binding["action"])
@@ -440,6 +473,36 @@ func _on_vibration_toggled(enabled: bool) -> void:
 	Haptics.set_enabled(enabled)
 	if enabled:
 		Haptics.vibrate(35)
+
+
+func _on_quality_selected(value: String) -> void:
+	DeviceProfile.set_graphics_quality(value)
+	_refresh_quality_buttons()
+	if status_label != null:
+		match value:
+			DeviceProfile.QUALITY_LOW:
+				status_label.text = "Графика: низкое качество — меньше нагрева."
+			DeviceProfile.QUALITY_MEDIUM:
+				status_label.text = "Графика: среднее качество."
+			_:
+				status_label.text = "Графика: высокое качество."
+
+
+func _refresh_quality_buttons() -> void:
+	for value in quality_buttons:
+		var button := quality_buttons[value] as Button
+		if button == null or not is_instance_valid(button):
+			continue
+		var active := String(value) == DeviceProfile.graphics_quality
+		button.set_pressed_no_signal(active)
+		button.add_theme_color_override("font_color", Color(0.95, 0.76, 0.38) if active else Color(0.9, 0.92, 0.98))
+		button.add_theme_stylebox_override("normal", _button_style(active, false))
+		button.add_theme_stylebox_override("hover", _button_style(active, true))
+		button.add_theme_stylebox_override("pressed", _button_style(active, false))
+
+
+func _on_fps_toggled(enabled: bool) -> void:
+	DeviceProfile.set_show_fps(enabled)
 
 
 func _begin_rebind(action: String) -> void:

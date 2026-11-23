@@ -1453,8 +1453,11 @@ func _build_player_menu() -> void:
 	preview_viewport.name = "HeroPreviewViewport"
 	preview_viewport.own_world_3d = true
 	preview_viewport.transparent_bg = true
-	preview_viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
+	# The preview is a static posed model. Render it once per change instead of
+	# re-rendering the whole mini-scene every frame (phone heat in the lobby).
+	preview_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
 	preview_container.add_child(preview_viewport)
+	preview_container.resized.connect(_mark_preview_dirty)
 	preview_root = Node3D.new()
 	preview_root.name = "PreviewRoot"
 	preview_viewport.add_child(preview_root)
@@ -1610,7 +1613,7 @@ func _build_hero_preview_stage() -> void:
 	key.light_color = Color(1.0, 0.93, 0.8)
 	key.light_energy = 1.7
 	key.rotation_degrees = Vector3(-35.0, -30.0, 0.0)
-	key.shadow_enabled = true
+	key.shadow_enabled = DeviceProfile.effective_quality() == DeviceProfile.QUALITY_HIGH
 	preview_root.add_child(key)
 	var rim := DirectionalLight3D.new()
 	rim.light_color = Color(0.5, 0.75, 1.0)
@@ -1642,6 +1645,7 @@ func _refresh_hero_preview() -> void:
 	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
 	var signature := "%d:%s" % [selected_class, str(MetaProgression.is_weapon_enabled(character_key))]
 	if preview_hero != null and is_instance_valid(preview_hero) and preview_class == selected_class and preview_weapon_signature == signature:
+		_mark_preview_dirty()
 		return
 	preview_class = selected_class
 	preview_weapon_signature = signature
@@ -1666,6 +1670,13 @@ func _refresh_hero_preview() -> void:
 	var ring := preview_hero.visual.get_node_or_null("TeamRing")
 	if ring != null:
 		ring.visible = false
+	_mark_preview_dirty()
+
+
+func _mark_preview_dirty() -> void:
+	if preview_viewport == null or not is_instance_valid(preview_viewport):
+		return
+	preview_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
 
 
 func _build_wing_inventory_cards(_inventory_grid: GridContainer) -> void:
@@ -1981,6 +1992,9 @@ func _set_nickname_status(message: String, color: Color) -> void:
 func _open_player_menu() -> void:
 	_refresh_player_menu()
 	player_menu_overlay.visible = true
+	# The preview only renders on change; make sure it draws once after the
+	# overlay actually becomes visible.
+	_mark_preview_dirty()
 	if MetaProgression.player_id <= 0:
 		_retry_registration()
 

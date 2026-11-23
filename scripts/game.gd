@@ -374,20 +374,13 @@ func _warm_first_clash_vfx() -> void:
 
 
 func _apply_mobile_quality() -> void:
-	if not DeviceProfile.mobile_ui:
-		return
-	if DeviceProfile.quality_override == "full":
-		return
+	var quality := DeviceProfile.effective_quality()
 	var viewport := get_viewport()
-	if viewport != null:
-		# The phone renders the 3D scene below native resolution; the UI is
-		# still sharp and the difference is invisible on a small screen.
-		if DeviceProfile.quality_override != "noscale":
-			# Lower internal 3D resolution: less GPU load and heat on phones;
-			# the UI stays sharp at native resolution.
-			viewport.scaling_3d_scale = 0.5
+	if viewport != null and quality != DeviceProfile.QUALITY_HIGH:
 		viewport.msaa_3d = Viewport.MSAA_DISABLED
 		viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
+	if quality == DeviceProfile.QUALITY_HIGH:
+		return
 	for node in find_children("*", "WorldEnvironment", true, false):
 		var world_env := node as WorldEnvironment
 		if world_env == null or world_env.environment == null:
@@ -404,6 +397,8 @@ func _apply_mobile_quality() -> void:
 	for node in find_children("*", "OmniLight3D", true, false):
 		var light := node as OmniLight3D
 		light.shadow_enabled = false
+		if quality != DeviceProfile.QUALITY_LOW:
+			continue
 		var light_name := String(light.name).to_lower()
 		var parent_name := String(light.get_parent().name).to_lower() if light.get_parent() != null else ""
 		var keep := light_name.contains("fountain") or light_name.contains("shop") or light_name.contains("altar") or light_name.contains("rim") or light_name.contains("halfglow") or parent_name.contains("base")

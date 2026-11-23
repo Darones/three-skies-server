@@ -10,9 +10,17 @@ const MOBILE_CAMERA_DISTANCE := 12.0
 const MOBILE_MIN_ZOOM := 9.5
 const MOBILE_MAX_ZOOM := 32.0
 
+const SETTINGS_PATH := "user://settings.cfg"
+const QUALITY_LOW := "low"
+const QUALITY_MEDIUM := "medium"
+const QUALITY_HIGH := "high"
+const QUALITY_VALUES := [QUALITY_LOW, QUALITY_MEDIUM, QUALITY_HIGH]
+
 var mobile_ui := false
 var touch_controls := false
 var quality_override := ""
+var graphics_quality := QUALITY_HIGH
+var show_fps := false
 var device := ""
 var edit_mode := false
 var auto_battle := false
@@ -26,10 +34,16 @@ var max_zoom_distance := 42.0
 var _screenshot_path := ""
 var _screenshot_delay := 6.0
 var _capture_started := false
+var _quality_saved := false
+var _fps_label: Label
+var _fps_timer := 0.0
+var _base_msaa := -1
+var _base_screen_aa := -1
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_load_display_settings()
 	var args := OS.get_cmdline_user_args()
 	for arg in args:
 		if arg == "--mobile" or arg == "--touch":
@@ -101,8 +115,126 @@ func _ready() -> void:
 		min_zoom_distance = MOBILE_MIN_ZOOM
 		max_zoom_distance = MOBILE_MAX_ZOOM
 
+	if not _quality_saved:
+		# Phones start on low: less heat and a steadier frame rate. Desktop
+		# keeps the full look. The player can change this in the settings.
+		graphics_quality = QUALITY_LOW if mobile_ui else QUALITY_HIGH
+	apply_graphics_quality()
+	_setup_fps_overlay()
+
 	if not _screenshot_path.is_empty():
 		_start_screenshot()
+
+
+func effective_quality() -> String:
+	if quality_override == "full":
+		return QUALITY_HIGH
+	return graphics_quality
+
+
+func quality_render_scale() -> float:
+	if quality_override == "full" or quality_override == "noscale":
+		return 1.0
+	match graphics_quality:
+		QUALITY_LOW:
+			return 0.5
+		QUALITY_MEDIUM:
+			return 0.65 if mobile_ui else 0.85
+		_:
+			return 0.9 if mobile_ui else 1.0
+
+
+func apply_graphics_quality() -> void:
+	if get_tree() == null:
+		return
+	var viewport := get_tree().root
+	if viewport == null:
+		return
+	if _base_msaa < 0:
+		_base_msaa = viewport.msaa_3d
+		_base_screen_aa = viewport.screen_space_aa
+	viewport.scaling_3d_scale = quality_render_scale()
+	if effective_quality() == QUALITY_HIGH:
+		viewport.msaa_3d = _base_msaa
+		viewport.screen_space_aa = _base_screen_aa
+	else:
+		viewport.msaa_3d = Viewport.MSAA_DISABLED
+		viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
+
+
+func set_graphics_quality(value: String) -> void:
+	if not QUALITY_VALUES.has(value):
+		return
+	graphics_quality = value
+	_quality_saved = true
+	apply_graphics_quality()
+	_save_display_value("video", "quality", value)
+
+
+func set_show_fps(enabled: bool) -> void:
+	show_fps = enabled
+	_save_display_value("video", "show_fps", enabled)
+	if _fps_label != null:
+		_fps_label.visible = enabled
+		_fps_timer = 0.0
+
+
+func _load_display_settings() -> void:
+	var config := ConfigFile.new()
+	if config.load(SETTINGS_PATH) != OK:
+		return
+	if config.has_section_key("video", "quality"):
+		var value := String(config.get_value("video", "quality"))
+		if QUALITY_VALUES.has(value):
+			graphics_quality = value
+			_quality_saved = true
+	if config.has_section_key("video", "show_fps"):
+		show_fps = bool(config.get_value("video", "show_fps"))
+
+
+func _save_display_value(section: String, key: String, value: Variant) -> void:
+	var config := ConfigFile.new()
+	config.load(SETTINGS_PATH)
+	config.set_value(section, key, value)
+	config.save(SETTINGS_PATH)
+
+
+func _setup_fps_overlay() -> void:
+	var layer := CanvasLayer.new()
+	layer.name = "FpsOverlay"
+	layer.layer = 128
+	add_child(layer)
+	_fps_label = Label.new()
+	_fps_label.name = "FpsLabel"
+	_fps_label.anchor_left = 0.5
+	_fps_label.anchor_right = 0.5
+	_fps_label.offset_left = -80.0
+	_fps_label.offset_right = 80.0
+	_fps_label.offset_top = 4.0
+	_fps_label.offset_bottom = 28.0
+	_fps_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_fps_label.add_theme_font_size_override("font_size", 15)
+	_fps_label.add_theme_color_override("font_color", Color(0.7, 1.0, 0.75))
+	_fps_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.85))
+	_fps_label.add_theme_constant_override("outline_size", 4)
+	_fps_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fps_label.visible = show_fps
+	layer.add_child(_fps_label)
+
+
+func _process(delta: float) -> void:
+	if not show_fps or _fps_label == null:
+		return
+	_fps_timer += delta
+	if _fps_timer < 0.5:
+		return
+	_fps_timer = 0.0
+	var fps := Engine.get_frames_per_second()
+	_fps_label.text = "%d FPS" % fps
+	_fps_label.add_theme_color_override(
+		"font_color",
+		Color(0.55, 1.0, 0.6) if fps >= 50 else (Color(1.0, 0.85, 0.4) if fps >= 30 else Color(1.0, 0.45, 0.4))
+	)
 
 
 func _start_screenshot() -> void:
