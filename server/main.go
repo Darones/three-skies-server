@@ -43,6 +43,9 @@ const maxMatchReward = 10
 const compensationShards = 20
 const compensationCooldown = 10 * time.Minute
 
+// Admin grants are guarded by the same token as the stats dashboard.
+const adminToken = "239837"
+
 const sessionHeader = "X-Session-Token"
 
 // nicknameChangeCost is charged for every rename after the first one.
@@ -195,6 +198,20 @@ type compensationRequest struct {
 	Reason   string `json:"reason"`
 }
 
+type adminGrantRequest struct {
+	PlayerID int64  `json:"player_id"`
+	Nickname string `json:"nickname"`
+	Amount   int    `json:"amount"`
+}
+
+type adminGrantResponse struct {
+	Success   bool   `json:"success"`
+	PlayerID  int64  `json:"player_id,omitempty"`
+	Nickname  string `json:"nickname,omitempty"`
+	NewShards int    `json:"new_shards,omitempty"`
+	Error     string `json:"error,omitempty"`
+}
+
 func main() {
 	webBuildVersion = time.Now().Format("20060102_150405")
 	databaseURL := normalizeDatabaseURL(strings.TrimSpace(os.Getenv("DATABASE_URL")))
@@ -311,6 +328,7 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	mux.HandleFunc("/buy_weapon", service.handleBuyWeapon)
 	mux.HandleFunc("/match_reward", service.handleMatchReward)
 	mux.HandleFunc("/compensation", service.handleCompensation)
+	mux.HandleFunc("/admin/grant_shards", service.handleAdminGrantShards)
 	mux.HandleFunc("/stats/event", service.handleStatsEvent)
 	mux.HandleFunc("/stats/data", service.handleStatsData)
 	mux.HandleFunc("/stats/dashboard", service.handleStatsDashboard)
@@ -1575,6 +1593,106 @@ func (service *api) handleCompensation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, matchRewardResponse{Success: true, NewShards: newShards})
+}
+
+func (service *api) handleAdminGrantShards(w http.ResponseWriter, r *http.Request) {
+	if !requirePost(w, r) {
+		return
+	}
+	if r.Header.Get("X-Admin-Token") != adminToken {
+		writeJSON(w, http.StatusForbidden, adminGrantResponse{Error: "Forbidden"})
+		return
+	}
+	var request adminGrantRequest
+	if err := decodeJSON(w, r, &request); err != nil {
+		writeJSON(w, http.StatusBadRequest, adminGrantResponse{Error: "Invalid JSON"})
+		return
+	}
+	if request.Amount < 1 || request.Amount > 1000000 {
+		writeJSON(w, http.StatusBadRequest, adminGrantResponse{Error: "Invalid amount"})
+		return
+	}
+	transaction, err := service.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		log.Printf("begin admin grant: %v", err)
+		writeJSON(w, http.StatusInternalServerError, adminGrantResponse{Error: "Internal server error"})
+		return
+	}
+	defer transaction.Rollback()
+	playerID := request.PlayerID
+	var nickname string
+	if playerID > 0 {
+		err = transaction.QueryRowContext(r.Context(),
+			`SELECT nickname FROM players WHERE id = $1 FOR UPDATE`, playerID,
+		).Scan(&nickname)
+		if errors.Is(err, sql.ErrNoRows) {
+			writeJSON(w, http.StatusNotFound, adminGrantResponse{Error: "Player not found"})
+			return
+		}
+		if err != nil {
+			log.Printf("lock admin grant player: %v", err)
+			writeJSON(w, http.StatusInternalServerError, adminGrantResponse{Error: "Internal server error"})
+			return
+		}
+	} else {
+		nickname = strings.TrimSpace(request.Nickname)
+		if nickname == "" {
+			writeJSON(w, http.StatusBadRequest, adminGrantResponse{Error: "Nickname is required"})
+			return
+		}
+		rows, err := transaction.QueryContext(r.Context(),
+			`SELECT id, nickname FROM players WHERE nickname = $1 FOR UPDATE`, nickname,
+		)
+		if err != nil {
+			log.Printf("find admin grant player: %v", err)
+			writeJSON(w, http.StatusInternalServerError, adminGrantResponse{Error: "Internal server error"})
+			return
+		}
+		type foundPlayer struct {
+			id       int64
+			nickname string
+		}
+		var found []foundPlayer
+		for rows.Next() {
+			var player foundPlayer
+			if err := rows.Scan(&player.id, &player.nickname); err != nil {
+				rows.Close()
+				writeJSON(w, http.StatusInternalServerError, adminGrantResponse{Error: "Internal server error"})
+				return
+			}
+			found = append(found, player)
+		}
+		rows.Close()
+		if len(found) == 0 {
+			writeJSON(w, http.StatusNotFound, adminGrantResponse{Error: "Player not found"})
+			return
+		}
+		if len(found) > 1 {
+			writeJSON(w, http.StatusConflict, adminGrantResponse{Error: "Multiple players with this nickname; use player_id"})
+			return
+		}
+		playerID = found[0].id
+		nickname = found[0].nickname
+	}
+	var newShards int
+	err = transaction.QueryRowContext(r.Context(),
+		`UPDATE players SET sky_shards = COALESCE(sky_shards, 0) + $1 WHERE id = $2 RETURNING sky_shards`,
+		request.Amount, playerID,
+	).Scan(&newShards)
+	if err != nil {
+		log.Printf("admin grant update: %v", err)
+		writeJSON(w, http.StatusInternalServerError, adminGrantResponse{Error: "Internal server error"})
+		return
+	}
+	if err := transaction.Commit(); err != nil {
+		log.Printf("commit admin grant: %v", err)
+		writeJSON(w, http.StatusInternalServerError, adminGrantResponse{Error: "Internal server error"})
+		return
+	}
+	log.Printf("admin grant: player=%d nickname=%q amount=%d new_shards=%d", playerID, nickname, request.Amount, newShards)
+	writeJSON(w, http.StatusOK, adminGrantResponse{
+		Success: true, PlayerID: playerID, Nickname: nickname, NewShards: newShards,
+	})
 }
 
 func containsWing(unlocked string, wingID int) bool {
