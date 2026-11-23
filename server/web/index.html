@@ -152,7 +152,23 @@ const engine = new Engine(GODOT_CONFIG);
 						box.style.zIndex = '999999';
 						document.body.appendChild(box);
 					}
-					box.textContent = 'Не удалось загрузить игру: ' + message;
+					while (box.firstChild) {
+						box.removeChild(box.firstChild);
+					}
+					const text = document.createElement('div');
+					text.textContent = 'Не удалось загрузить игру: ' + message;
+					box.appendChild(text);
+					const retry = document.createElement('button');
+					retry.textContent = 'Повторить';
+					retry.style.marginTop = '12px';
+					retry.style.padding = '10px 22px';
+					retry.style.border = '2px solid #ffb3b3';
+					retry.style.borderRadius = '10px';
+					retry.style.background = '#5b1d24';
+					retry.style.color = '#ffffff';
+					retry.style.font = '18px system-ui, sans-serif';
+					retry.onclick = function () { window.location.reload(); };
+					box.appendChild(retry);
 				} catch (ignored) {}
 				if (window.console) {
 					console.error('[PACK] ' + message);
@@ -171,7 +187,8 @@ const engine = new Engine(GODOT_CONFIG);
 					bar.max = total;
 					bar.value = 0;
 				}
-				const parts = [];
+				let merged = new Uint8Array(total);
+				let filled = 0;
 				let next = 0;
 				function loadNext() {
 					if (next >= total) {
@@ -179,52 +196,81 @@ const engine = new Engine(GODOT_CONFIG);
 					}
 					const start = next;
 					const end = Math.min(start + PACK_RANGE_CHUNK, total) - 1;
-					next = end + 1;
-					return fetch(mainPack, {
-						credentials: 'same-origin',
-						// A redeploy swaps index.pck in place. Without no-store
-						// the browser can merge a cached old PCK with fresh
-						// ranges ("Game data is incomplete").
-						cache: 'no-store',
-						headers: { 'Range': 'bytes=' + start + '-' + end },
-					}).then(function (response) {
-						if (!response.ok) {
-							throw new Error('HTTP ' + response.status);
-						}
-						const contentRange = response.headers.get('Content-Range') || '';
-						const match = /\/(\d+)$/.exec(contentRange);
-						if (match) {
-							const real = parseInt(match[1], 10);
-							if (real > 0 && real !== total) {
-								total = real;
-								if (bar) {
-									bar.max = total;
+					function fetchChunk(attempt) {
+						return fetch(mainPack, {
+							credentials: 'same-origin',
+							// A redeploy swaps index.pck in place. Without no-store
+							// the browser can merge a cached old PCK with fresh
+							// ranges ("Game data is incomplete").
+							cache: 'no-store',
+							headers: { 'Range': 'bytes=' + start + '-' + end },
+						}).then(function (response) {
+							if (response.status === 200) {
+								// A proxy ignored Range and sent the whole pack.
+								return response.arrayBuffer().then(function (buffer) {
+									merged = new Uint8Array(buffer);
+									filled = merged.byteLength;
+									total = filled;
+									next = total;
+									if (bar) {
+										bar.max = total;
+										bar.value = total;
+									}
+								});
+							}
+							if (response.status !== 206) {
+								throw new Error('HTTP ' + response.status + ' (range)');
+							}
+							const contentRange = response.headers.get('Content-Range') || '';
+							const match = /\/(\d+)$/.exec(contentRange);
+							if (match) {
+								const real = parseInt(match[1], 10);
+								if (real > 0 && real !== total) {
+									const resized = new Uint8Array(real);
+									resized.set(merged.subarray(0, filled));
+									merged = resized;
+									total = real;
+									if (bar) {
+										bar.max = total;
+									}
 								}
 							}
-						}
-						return response.arrayBuffer();
-					}).then(function (buffer) {
-						parts.push(new Uint8Array(buffer));
-						if (bar) {
-							bar.max = total;
-							bar.value = Math.min(next, total);
-						}
-						return loadNext();
-					});
+							return response.arrayBuffer();
+						}).then(function (buffer) {
+							if (next >= total) {
+								return;
+							}
+							const chunk = new Uint8Array(buffer);
+							const expected = end - start + 1;
+							if (chunk.byteLength !== expected) {
+								throw new Error('чанк ' + chunk.byteLength + '/' + expected);
+							}
+							if (filled + chunk.byteLength > merged.byteLength) {
+								throw new Error('переполнение PCK');
+							}
+							merged.set(chunk, filled);
+							filled += chunk.byteLength;
+							next = end + 1;
+							if (bar) {
+								bar.max = total;
+								bar.value = Math.min(filled, total);
+							}
+						}).catch(function (err) {
+							if (attempt < 3) {
+								return new Promise(function (resolve) {
+									setTimeout(resolve, 600 * attempt);
+								}).then(function () {
+									return fetchChunk(attempt + 1);
+								});
+							}
+							throw err;
+						});
+					}
+					return fetchChunk(1).then(loadNext);
 				}
 				return loadNext().then(function () {
-					let size = 0;
-					for (const part of parts) {
-						size += part.byteLength;
-					}
-					if (size !== total) {
-						throw new Error('данные неполные: ' + size + '/' + total);
-					}
-					const merged = new Uint8Array(size);
-					let offset = 0;
-					for (const part of parts) {
-						merged.set(part, offset);
-						offset += part.byteLength;
+					if (filled !== total) {
+						throw new Error('данные неполные: ' + filled + '/' + total);
 					}
 					return originalPreloadFile(merged.buffer, path);
 				}).catch(function (err) {
