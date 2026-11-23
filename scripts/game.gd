@@ -2701,6 +2701,9 @@ func end_match(team_zero_won: bool) -> void:
 	var player_place := _get_player_place()
 	var player_is_mvp := _is_player_mvp()
 	result_text = "ПОБЕДА" if player_won else "ПОРАЖЕНИЕ"
+	if match_aborted:
+		# A server-side disconnect must not be recorded as a defeat in stats.
+		result_text = "МАТЧ ПРЕРВАН"
 	if match_end_reason.is_empty():
 		match_end_reason = "Матч завершён"
 	var stats_class := "unknown"

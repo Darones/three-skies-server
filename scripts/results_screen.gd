@@ -292,8 +292,9 @@ func _build_header() -> void:
 	subtitle.anchor_bottom = 0.145 if mobile else 0.18
 	add_child(subtitle)
 
-	var placement_text := "ВЫ ЛУЧШИЙ ИГРОК МАТЧА!" if player_is_mvp else "ВАШЕ МЕСТО: %d" % player_place
-	var placement := _make_label(placement_text, 26 if mobile else 29, GOLD if player_is_mvp else PALE)
+	var placement_text := "МАТЧ НЕ ЗАСЧИТАН" if match_aborted else ("ВЫ ЛУЧШИЙ ИГРОК МАТЧА!" if player_is_mvp else "ВАШЕ МЕСТО: %d" % player_place)
+	var placement_color := Color(0.72, 0.78, 0.88) if match_aborted else (GOLD if player_is_mvp else PALE)
+	var placement := _make_label(placement_text, 26 if mobile else 29, placement_color)
 	placement.name = "PlayerPlacement"
 	placement.anchor_left = 0.08
 	placement.anchor_top = 0.148 if mobile else 0.184
@@ -463,10 +464,8 @@ func _build_content() -> void:
 
 func _get_player_character_name() -> String:
 	var faction := "Света" if player_team == 0 else "Тьмы"
+	# A skin is cosmetic: the class in the results stays Воин/Маг/Арбалетчица.
 	var display_class: String = String(CHARACTER_CLASS_NAMES[selected_class])
-	var results_skin := SkinCatalog.get_item(MetaProgression.get_equipped_skin(CHARACTER_KEYS[selected_class]))
-	if not results_skin.is_empty():
-		display_class = String(results_skin.get("short_name", results_skin["name"]))
 	var hero := "%s %s" % [display_class, faction]
 	var nickname := MetaProgression.player_nickname.strip_edges()
 	if nickname.is_empty():
