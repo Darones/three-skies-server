@@ -491,8 +491,8 @@ func _build_team_panel(team_index: int) -> void:
 	panel.name = 'LightTeamPanel' if team_index == 0 else 'DarkTeamPanel'
 	panel.anchor_left = 0.035 if team_index == 0 else 0.665
 	panel.anchor_right = 0.395 if team_index == 0 else 0.965
-	panel.anchor_top = 0.29
-	panel.anchor_bottom = 0.735
+	panel.anchor_top = 0.26 if DeviceProfile.mobile_ui else 0.29
+	panel.anchor_bottom = 0.75 if DeviceProfile.mobile_ui else 0.735
 	panel.add_theme_stylebox_override('panel', _team_style(team_index))
 	add_child(panel)
 	var layout := VBoxContainer.new()
@@ -507,7 +507,7 @@ func _build_team_panel(team_index: int) -> void:
 func _build_player_slot(team_index: int, slot_index: int, parent: VBoxContainer) -> Dictionary:
 	var panel := PanelContainer.new()
 	panel.name = 'PlayerSlot_%d' % (slot_index + 1)
-	panel.custom_minimum_size = Vector2(0.0, 86.0)
+	panel.custom_minimum_size = Vector2(0.0, 66.0 if DeviceProfile.mobile_ui else 86.0)
 	panel.add_theme_stylebox_override('panel', _slot_style(team_index, false))
 	parent.add_child(panel)
 	var row := HBoxContainer.new()
@@ -515,7 +515,7 @@ func _build_player_slot(team_index: int, slot_index: int, parent: VBoxContainer)
 	panel.add_child(row)
 	var portrait := TextureRect.new()
 	portrait.name = 'ClassIcon'
-	portrait.custom_minimum_size = Vector2(72.0, 72.0)
+	portrait.custom_minimum_size = Vector2(56.0 if DeviceProfile.mobile_ui else 72.0, 56.0 if DeviceProfile.mobile_ui else 72.0)
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	portrait.visible = false

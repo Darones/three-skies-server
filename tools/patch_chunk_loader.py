@@ -5,10 +5,13 @@ ERR_HTTP2_PROTOCOL_ERROR. The PCK is 45.9 MB, so the loader would stop at the
 splash screen. Fetch it in 10 MB ranges and hand the merged buffer to the
 engine instead of the single response.
 
-The first request is a 1-byte range probe: it returns the real size in
-Content-Range. A cached index.html after a redeploy may still carry the old
-fileSizes value, and trusting it produced "Game data is incomplete" on
-VK/iOS. The server size always wins.
+No 1-byte probe: on iOS/VK webview a probe Range request was unreliable and the
+engine reported "Load failed". The real size is taken from the Content-Range
+of the first chunk, so a cached index.html with an old fileSizes value cannot
+truncate or overrun the pack either.
+
+On failure a readable DOM overlay shows the exact reason instead of only the
+engine's "Load failed" dialog.
 """
 
 import sys
@@ -26,81 +29,105 @@ SCRIPT = """
 			}
 			const mainPack = GODOT_CONFIG.mainPack;
 			const originalPreloadFile = engine.preloadFile.bind(engine);
+			function showPackError(message) {
+				try {
+					let box = document.getElementById('pack-load-error');
+					if (!box) {
+						box = document.createElement('div');
+						box.id = 'pack-load-error';
+						box.style.position = 'fixed';
+						box.style.left = '50%';
+						box.style.top = '18%';
+						box.style.transform = 'translateX(-50%)';
+						box.style.maxWidth = '80%';
+						box.style.padding = '14px 20px';
+						box.style.background = 'rgba(42,13,18,0.96)';
+						box.style.color = '#ffb3b3';
+						box.style.border = '2px solid #ff6b6b';
+						box.style.borderRadius = '14px';
+						box.style.font = '18px system-ui, sans-serif';
+						box.style.textAlign = 'center';
+						box.style.zIndex = '999999';
+						document.body.appendChild(box);
+					}
+					box.textContent = 'Не удалось загрузить игру: ' + message;
+				} catch (ignored) {}
+				if (window.console) {
+					console.error('[PACK] ' + message);
+				}
+			}
 			engine.preloadFile = function (file, path) {
 				if (file !== mainPack || typeof fetch !== 'function') {
 					return originalPreloadFile(file, path);
 				}
-				const declared = (GODOT_CONFIG.fileSizes && GODOT_CONFIG.fileSizes[mainPack]) || 0;
+				let total = (GODOT_CONFIG.fileSizes && GODOT_CONFIG.fileSizes[mainPack]) || 0;
+				if (!total) {
+					return originalPreloadFile(file, path);
+				}
 				const bar = document.getElementById('status-progress');
-				// Ask the server for the real size first. A cached index.html
-				// may carry an old fileSizes value after a redeploy; trusting
-				// it truncated the pack or read past its end.
-				return fetch(mainPack, {
-					credentials: 'same-origin',
-					cache: 'no-store',
-					headers: { 'Range': 'bytes=0-0' },
-				}).then(function (probe) {
-					if (!probe.ok && probe.status !== 206) {
-						throw new Error('Failed to load game data: ' + probe.status);
+				if (bar) {
+					bar.max = total;
+					bar.value = 0;
+				}
+				const parts = [];
+				let next = 0;
+				function loadNext() {
+					if (next >= total) {
+						return Promise.resolve();
 					}
-					const range = probe.headers.get('Content-Range') || '';
-					const match = /\\/(\\d+)$/.exec(range);
-					const total = match ? parseInt(match[1], 10) : declared;
-					if (!total) {
-						return originalPreloadFile(file, path);
-					}
-					return probe.arrayBuffer().then(function () {
-						if (bar) {
-							bar.max = total;
-							bar.value = 0;
+					const start = next;
+					const end = Math.min(start + PACK_RANGE_CHUNK, total) - 1;
+					next = end + 1;
+					return fetch(mainPack, {
+						credentials: 'same-origin',
+						// A redeploy swaps index.pck in place. Without no-store
+						// the browser can merge a cached old PCK with fresh
+						// ranges ("Game data is incomplete").
+						cache: 'no-store',
+						headers: { 'Range': 'bytes=' + start + '-' + end },
+					}).then(function (response) {
+						if (!response.ok) {
+							throw new Error('HTTP ' + response.status);
 						}
-						const parts = [];
-						let next = 0;
-						function loadNext() {
-							if (next >= total) {
-								return Promise.resolve();
-							}
-							const start = next;
-							const end = Math.min(start + PACK_RANGE_CHUNK, total) - 1;
-							next = end + 1;
-							return fetch(mainPack, {
-								credentials: 'same-origin',
-								// A redeploy swaps index.pck in place. Without no-store
-								// the browser can merge a cached old PCK with fresh
-								// ranges ("Game data is incomplete").
-								cache: 'no-store',
-								headers: { 'Range': 'bytes=' + start + '-' + end },
-							}).then(function (response) {
-								if (!response.ok) {
-									throw new Error('Failed to load game data: ' + response.status);
-								}
-								return response.arrayBuffer();
-							}).then(function (buffer) {
-								parts.push(new Uint8Array(buffer));
+						const contentRange = response.headers.get('Content-Range') || '';
+						const match = /\\/(\\d+)$/.exec(contentRange);
+						if (match) {
+							const real = parseInt(match[1], 10);
+							if (real > 0 && real !== total) {
+								total = real;
 								if (bar) {
 									bar.max = total;
-									bar.value = Math.min(next, total);
 								}
-								return loadNext();
-							});
+							}
 						}
-						return loadNext().then(function () {
-							let size = 0;
-							for (const part of parts) {
-								size += part.byteLength;
-							}
-							if (size !== total) {
-								throw new Error('Game data is incomplete: ' + size + '/' + total);
-							}
-							const merged = new Uint8Array(size);
-							let offset = 0;
-							for (const part of parts) {
-								merged.set(part, offset);
-								offset += part.byteLength;
-							}
-							return originalPreloadFile(merged.buffer, path);
-						});
+						return response.arrayBuffer();
+					}).then(function (buffer) {
+						parts.push(new Uint8Array(buffer));
+						if (bar) {
+							bar.max = total;
+							bar.value = Math.min(next, total);
+						}
+						return loadNext();
 					});
+				}
+				return loadNext().then(function () {
+					let size = 0;
+					for (const part of parts) {
+						size += part.byteLength;
+					}
+					if (size !== total) {
+						throw new Error('данные неполные: ' + size + '/' + total);
+					}
+					const merged = new Uint8Array(size);
+					let offset = 0;
+					for (const part of parts) {
+						merged.set(part, offset);
+						offset += part.byteLength;
+					}
+					return originalPreloadFile(merged.buffer, path);
+				}).catch(function (err) {
+					showPackError(err && err.message ? err.message : err);
+					throw err;
 				});
 			};
 			window.__packRangeChunk = 'patched';
