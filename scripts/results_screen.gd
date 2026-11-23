@@ -526,16 +526,11 @@ func _build_buttons() -> void:
 	button_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	button_row.add_theme_constant_override("separation", 16 if mobile else 24)
 	add_child(button_row)
-	var retry_button := _make_button("ИГРАТЬ СНОВА", true)
-	retry_button.name = "ReplayButton"
-	retry_button.custom_minimum_size = Vector2(220.0, 54.0)
-	retry_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	retry_button.pressed.connect(_open_replay)
-	button_row.add_child(retry_button)
-	replay_button = retry_button
-	var lobby_button := _make_button("В ЛОББИ", false)
+	# Entering a new match is done from the lobby only; no "play again" shortcut
+	# here so a finished/aborted match cannot chain straight into another one.
+	var lobby_button := _make_button("В ЛОББИ", true)
 	lobby_button.name = "MenuButton"
-	lobby_button.custom_minimum_size = Vector2(180.0, 54.0)
+	lobby_button.custom_minimum_size = Vector2(220.0, 54.0)
 	lobby_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	lobby_button.pressed.connect(_open_menu)
 	button_row.add_child(lobby_button)

@@ -253,8 +253,16 @@ func _ready() -> void:
 		else:
 			MetaProgression.player_nickname = _generate_guest_nickname()
 			MetaProgression.register_player(MetaProgression.player_nickname)
-	elif not MetaProgression.profile_loaded:
-		MetaProgression.load_profile(MetaProgression.player_id)
+	else:
+		# The lobby save is written on every registration/rename. If it differs
+		# from the autoload cache, the player id was changed after the last meta
+		# save; prefer it instead of silently loading the previous guest.
+		var saved_player_id := _load_player_id()
+		if saved_player_id > 0 and saved_player_id != MetaProgression.player_id:
+			MetaProgression.player_id = saved_player_id
+			MetaProgression.profile_loaded = false
+		if not MetaProgression.profile_loaded:
+			MetaProgression.load_profile(MetaProgression.player_id)
 	_setup_ui_click_sound()
 	_wire_ui_click_sounds(self)
 	touch_keyboard = preload("res://scripts/touch_keyboard.gd").new()
@@ -1927,6 +1935,13 @@ func _on_nickname_input(event: InputEvent) -> void:
 func _show_nickname_keyboard() -> void:
 	if nickname_line_edit == null or not is_instance_valid(nickname_line_edit):
 		return
+	var needs_native_keyboard := DeviceProfile.mobile_ui or DeviceProfile.touch_controls or DisplayServer.is_touchscreen_available()
+	if not needs_native_keyboard:
+		# Desktop: the Godot LineEdit already receives physical keys. Do not
+		# steal focus into the HTML input overlay, which looked like a freeze.
+		_hide_native_nickname_input()
+		nickname_line_edit.grab_focus()
+		return
 	# On the web the custom canvas keyboard is a last resort: VK webviews
 	# have a real system keyboard. Focus a hidden HTML input; if the webview
 	# refuses focus, fall back to the on-screen keyboard we ship.
@@ -2223,6 +2238,10 @@ func _save_player_id(player_id: int) -> void:
 		push_error("Не удалось сохранить ID профиля: %s" % error_string(error))
 	_web_storage_set("three_skies_player_id", str(player_id))
 	_web_storage_set("three_skies_nickname", MetaProgression.player_nickname)
+	# Keep the autoload save in sync immediately; if the game is closed right
+	# after a rename, the next launch must not load the old id/nickname.
+	MetaProgression.player_id = player_id
+	MetaProgression.persist_local()
 
 
 func _on_registration_completed(success: bool, registered_player_id: int) -> void:

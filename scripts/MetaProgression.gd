@@ -102,6 +102,10 @@ func _on_session_ready(token: String) -> void:
 	_flush_compensation()
 
 
+func persist_local() -> void:
+	_save_meta()
+
+
 func _save_meta() -> void:
 	var config := ConfigFile.new()
 	config.set_value("progression", "player_id", player_id)
