@@ -56,11 +56,11 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
 - Проверка: `GET /health` → `status=ok`, `database=ok`; `GET /game/index.pck` → актуальный `Content-Length`.
 - Деплой: пуш в `origin/main` → RelaxDev пересобирает и перезапускает. Иногда нужен пустой commit для повторного деплоя. После деплоя проверять uptime в `/health` и размер PCK, а не верить пушу.
 - **Перед каждым деплоем проверять `online_now` в `/stats/data?token=239837`; выкатывать только при `online_now=0`.** Рестарт контейнера рвёт живой матч; 23.11 так оборвался занос Оболочки.
-- **Текущий прод (на 23.11.2026, ночь):**
-  - PCK: `index_20261123_233421.pck`, на хосте `index.pck`, **48 925 200 байт**
-    (Охотница, чистый инвентарь, туман выключен, быстрое превью).
-  - `main`: `6c1137b` (сервер + PCK); контейнер перезапущен, `/health` ok.
-  - Исходники: ветка `mobile-ui` (`94a5299`; см. `git log`).
+- **Текущий прод (на 24.11.2026, ночь):**
+  - PCK: `index_20261123_235723.pck`, на хосте `index.pck`, **48 925 040 байт**
+    (Охотница, чистый инвентарь, туман выключен, быстрый прогрев шейдеров на вебе).
+  - `main`: `b874767` (сервер + PCK); контейнер перезапущен, `/health` ok.
+  - Исходники: ветка `mobile-ui` (`8f86fb2`; см. `git log`).
   - Сервер: `server/ws.go`, `server/main.go`, `server/stats.go` + `server/web/index.pck` в `main`.
   - Дашборд: `https://three-skies-server.relaxdev.ru/stats/dashboard?token=239837`.
 
@@ -204,6 +204,10 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
 - Визуальный туман войны отключён (`FOG_OF_WAR_VISUAL=false`): это был дорогой
   полноэкранный overdraw; видимость врагов и так скриптовая. Среднее качество
   на VK остаётся доступным, дополнительный VK-режим не делали.
+- Прогрев шейдеров (`_warm_battle_world`, `_warm_combat_world`,
+  `_warm_first_clash_vfx`) теперь запускается и на **вебе**, а не только на
+  телефоне. На PC-вебе его раньше не было, поэтому первый замес трёх героев
+  компилировал материалы в бою и давал фриз. Прогрев идёт за панелью выбора класса.
 
 
 - Сервер — источник времени матча; клиент синхронизирует `match_time` по `match_time_left_ms`.
