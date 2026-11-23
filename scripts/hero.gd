@@ -278,6 +278,7 @@ var weapon_base_scale := 1.0
 var weapon_rotation_offset := Vector3.ZERO
 var weapon_world_offset := Vector3.ZERO
 var weapon_roll := 0.0
+var weapon_lean := 0.0
 var combat_audio_players: Dictionary = {}
 var health_back: MeshInstance3D
 var health_fill: MeshInstance3D
@@ -374,6 +375,8 @@ func _update_weapon_transform() -> void:
 	))
 	if absf(weapon_roll) > 0.01:
 		offset_basis = offset_basis * Basis(Vector3.UP, deg_to_rad(weapon_roll))
+	if absf(weapon_lean) > 0.01:
+		offset_basis = Basis(Vector3.BACK, deg_to_rad(weapon_lean)) * offset_basis
 	var basis := base * offset_basis
 	basis = basis.scaled(Vector3.ONE * weapon_base_scale)
 	# The tuner stores the offset in world space, not in the hand's local axes.
@@ -910,6 +913,23 @@ func set_preview_mode(enabled: bool) -> void:
 		carry_light.visible = false
 
 
+func _move_fairy_crossbows_left(model: Node) -> void:
+	if hero_class != Cls.FAIRY:
+		return
+	var right_hand := model.find_child("handslot_r", true, false) as BoneAttachment3D
+	var left_hand := model.find_child("handslot_l", true, false) as BoneAttachment3D
+	if right_hand == null or left_hand == null:
+		return
+	for gear_name in ["1H_Crossbow", "2H_Crossbow"]:
+		var gear := right_hand.get_node_or_null(gear_name) as MeshInstance3D
+		if gear == null:
+			continue
+		var local_transform := gear.transform
+		right_hand.remove_child(gear)
+		left_hand.add_child(gear)
+		gear.transform = local_transform
+
+
 func _build_visual() -> void:
 	var model := _load_model()
 	if model != null:
@@ -926,6 +946,7 @@ func _build_visual() -> void:
 		holder.rotation.y = 0.0
 		visual.add_child(holder)
 		_fit_model(holder)
+		_move_fairy_crossbows_left(model)
 		anim_player = _find_animation_player(holder)
 		_apply_gear_selection()
 		_play_anim("idle")
@@ -1143,6 +1164,7 @@ func _setup_external_weapon(weapon_id: int) -> void:
 	weapon_rotation_offset = item.get("rotation", Vector3.ZERO)
 	weapon_world_offset = item.get("offset", Vector3.ZERO)
 	weapon_roll = float(item.get("roll", 0.0))
+	weapon_lean = float(item.get("lean", 0.0))
 	weapon_anim_player = null
 	_apply_external_weapon_glow(instance, item)
 	_update_weapon_transform()
@@ -1183,6 +1205,7 @@ func _clear_external_weapon() -> void:
 	weapon_bone_index = -1
 	weapon_anim_player = null
 	weapon_roll = 0.0
+	weapon_lean = 0.0
 
 
 func _find_skeleton_node(node: Node) -> Skeleton3D:
