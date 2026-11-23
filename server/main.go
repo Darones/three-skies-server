@@ -38,6 +38,11 @@ const dbMonitorInterval = 15 * time.Second
 // arbitrary amount of shards in one request. The client's reward is 1/3/5.
 const maxMatchReward = 10
 
+// A match interrupted by a server restart is compensated with a small fixed
+// payout. The cooldown keeps a client from farming it by dropping the socket.
+const compensationShards = 20
+const compensationCooldown = 10 * time.Minute
+
 const sessionHeader = "X-Session-Token"
 
 // nicknameChangeCost is charged for every rename after the first one.
@@ -51,15 +56,15 @@ var wingPrices = map[int]int{
 }
 
 var weaponPrices = map[int]int{
-	1: 1500,
-	2: 1500,
-	3: 1500,
-	4: 100,
-	5: 100,
-	6: 100,
-	7: 400,
-	8: 800,
-	9: 400,
+	1:   1500,
+	2:   1500,
+	3:   1500,
+	4:   100,
+	5:   100,
+	6:   100,
+	7:   400,
+	8:   800,
+	9:   400,
 	101: 1000,
 	102: 1000,
 }
@@ -185,6 +190,11 @@ type matchRewardResponse struct {
 	Error     string `json:"error,omitempty"`
 }
 
+type compensationRequest struct {
+	PlayerID int64  `json:"player_id"`
+	Reason   string `json:"reason"`
+}
+
 func main() {
 	webBuildVersion = time.Now().Format("20060102_150405")
 	databaseURL := normalizeDatabaseURL(strings.TrimSpace(os.Getenv("DATABASE_URL")))
@@ -300,6 +310,7 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	mux.HandleFunc("/buy_wing", service.handleBuyWing)
 	mux.HandleFunc("/buy_weapon", service.handleBuyWeapon)
 	mux.HandleFunc("/match_reward", service.handleMatchReward)
+	mux.HandleFunc("/compensation", service.handleCompensation)
 	mux.HandleFunc("/stats/event", service.handleStatsEvent)
 	mux.HandleFunc("/stats/data", service.handleStatsData)
 	mux.HandleFunc("/stats/dashboard", service.handleStatsDashboard)
@@ -676,6 +687,10 @@ func createPlayersTable(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 	_, err = db.ExecContext(ctx, `ALTER TABLE players ADD COLUMN IF NOT EXISTS session_token TEXT`)
+	if err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `ALTER TABLE players ADD COLUMN IF NOT EXISTS last_compensation_at TIMESTAMPTZ`)
 	if err != nil {
 		return err
 	}
@@ -1500,6 +1515,65 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	writeJSON(w, http.StatusOK, matchRewardResponse{Success: true, NewShards: newShards})
+}
+
+func (service *api) handleCompensation(w http.ResponseWriter, r *http.Request) {
+	if !requirePost(w, r) {
+		return
+	}
+	var request compensationRequest
+	if err := decodeJSON(w, r, &request); err != nil {
+		writeJSON(w, http.StatusBadRequest, matchRewardResponse{Error: "Invalid JSON"})
+		return
+	}
+	if !service.requireSession(w, r, request.PlayerID) {
+		return
+	}
+	if request.PlayerID <= 0 || request.Reason != "match_aborted" {
+		writeJSON(w, http.StatusBadRequest, matchRewardResponse{Error: "Invalid compensation"})
+		return
+	}
+	transaction, err := service.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		log.Printf("begin compensation: %v", err)
+		writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
+		return
+	}
+	defer transaction.Rollback()
+	var last sql.NullTime
+	err = transaction.QueryRowContext(r.Context(),
+		`SELECT last_compensation_at FROM players WHERE id = $1 FOR UPDATE`,
+		request.PlayerID,
+	).Scan(&last)
+	if errors.Is(err, sql.ErrNoRows) {
+		writeJSON(w, http.StatusNotFound, matchRewardResponse{Error: "Player not found"})
+		return
+	}
+	if err != nil {
+		log.Printf("claim compensation: %v", err)
+		writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
+		return
+	}
+	if last.Valid && time.Since(last.Time) < compensationCooldown {
+		writeJSON(w, http.StatusTooManyRequests, matchRewardResponse{Error: "cooldown"})
+		return
+	}
+	var newShards int
+	err = transaction.QueryRowContext(r.Context(),
+		`UPDATE players SET sky_shards = COALESCE(sky_shards, 0) + $1, last_compensation_at = NOW() WHERE id = $2 RETURNING sky_shards`,
+		compensationShards, request.PlayerID,
+	).Scan(&newShards)
+	if err != nil {
+		log.Printf("grant compensation: %v", err)
+		writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
+		return
+	}
+	if err := transaction.Commit(); err != nil {
+		log.Printf("commit compensation: %v", err)
+		writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
+		return
+	}
 	writeJSON(w, http.StatusOK, matchRewardResponse{Success: true, NewShards: newShards})
 }
 
