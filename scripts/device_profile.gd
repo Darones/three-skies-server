@@ -17,6 +17,7 @@ const QUALITY_HIGH := "high"
 const QUALITY_VALUES := [QUALITY_LOW, QUALITY_MEDIUM, QUALITY_HIGH]
 
 var mobile_ui := false
+var is_vk := false
 var touch_controls := false
 var quality_override := ""
 var graphics_quality := QUALITY_HIGH
@@ -71,6 +72,12 @@ func _ready() -> void:
 	if OS.has_feature("web") and Engine.has_singleton("JavaScriptBridge"):
 		var bridge := Engine.get_singleton("JavaScriptBridge")
 		var search := str(bridge.call("eval", "window.location.search", true))
+		var vk_probe: Variant = bridge.call(
+			"eval",
+			"(typeof window.vkBridge !== 'undefined') || /(^|[?&])vk_/.test(window.location.search)",
+			true
+		)
+		is_vk = bool(vk_probe)
 		if search.contains("mobile=1") or search.contains("touch=1"):
 			mobile_ui = true
 			touch_controls = true
@@ -115,8 +122,8 @@ func _ready() -> void:
 		min_zoom_distance = MOBILE_MIN_ZOOM
 		max_zoom_distance = MOBILE_MAX_ZOOM
 
-	if mobile_ui and graphics_quality == QUALITY_HIGH:
-		# A saved "high" on a phone/VK webview caused a near-timeout at the
+	if (mobile_ui or is_vk) and graphics_quality == QUALITY_HIGH:
+		# A saved "high" on a phone or VK webview caused a near-timeout at the
 		# first clash: 0.9 render scale plus MSAA is too heavy there.
 		graphics_quality = QUALITY_LOW
 		_quality_saved = true
@@ -171,7 +178,7 @@ func apply_graphics_quality() -> void:
 func set_graphics_quality(value: String) -> void:
 	if not QUALITY_VALUES.has(value):
 		return
-	if mobile_ui and value == QUALITY_HIGH:
+	if (mobile_ui or is_vk) and value == QUALITY_HIGH:
 		# High is desktop-only; on mobile/VK it can freeze the first clash.
 		value = QUALITY_LOW
 	graphics_quality = value
