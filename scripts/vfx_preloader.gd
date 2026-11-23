@@ -162,6 +162,36 @@ func _run() -> void:
 		await get_tree().process_frame
 	name_probe.queue_free()
 
+	# Stun indicator: the "СТАН" Label3D and the torus ring. They are created
+	# per hero and first drawn at the first stun, which used to hitch the clash.
+	var stun_probe := Label3D.new()
+	stun_probe.text = "СТАН"
+	stun_probe.font = ThemeDB.fallback_font
+	stun_probe.font_size = 44
+	stun_probe.outline_size = 12
+	stun_probe.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	stun_probe.no_depth_test = true
+	viewport.add_child(stun_probe)
+	var ring_mesh := TorusMesh.new()
+	ring_mesh.inner_radius = 0.55
+	ring_mesh.outer_radius = 0.72
+	ring_mesh.rings = 24
+	ring_mesh.ring_segments = 8
+	var ring_probe := MeshInstance3D.new()
+	ring_probe.mesh = ring_mesh
+	var ring_material := StandardMaterial3D.new()
+	ring_material.albedo_color = Color(1.0, 0.8, 0.25)
+	ring_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring_material.emission_enabled = true
+	ring_material.emission = Color(1.0, 0.65, 0.15)
+	ring_material.emission_energy_multiplier = 2.0
+	ring_probe.material_override = ring_material
+	viewport.add_child(ring_probe)
+	for _frame in 2:
+		await get_tree().process_frame
+	stun_probe.queue_free()
+	ring_probe.queue_free()
+
 	# Weapon glow orbs/sparks and skill particles are built at runtime.
 	var glow_probe := MeshInstance3D.new()
 	glow_probe.mesh = QuadMesh.new()

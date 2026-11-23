@@ -1586,11 +1586,11 @@ static func add_bushes(arena: Node3D) -> void:
 	bushes.name = "Bushes"
 	arena.add_child(bushes)
 	var spots: Array[Vector3] = [
-		Vector3(15.0, 0.0, 7.0),
-		Vector3(-8.0, 0.0, 12.0),
-		Vector3(-17.0, 0.0, -6.0),
-		Vector3(6.0, 0.0, -12.5),
-		Vector3(16.0, 0.0, -9.0),
+		Vector3(18.0, 0.0, 10.0),
+		Vector3(-10.0, 0.0, 20.0),
+		Vector3(-22.0, 0.0, -8.0),
+		Vector3(8.0, 0.0, -20.0),
+		Vector3(21.0, 0.0, -12.0),
 	]
 	for index in spots.size():
 		var zone := Area3D.new()

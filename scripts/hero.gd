@@ -382,7 +382,8 @@ func _process(delta: float) -> void:
 			if stunned:
 				stun_ring.rotation.y += delta * 4.0
 		if stunned:
-			stun_label.text = "СТАН %.1f" % stun_timer
+			if stun_label.text != "СТАН":
+				stun_label.text = "СТАН"
 	name_label_timer -= delta
 	if name_label_timer <= 0.0:
 		name_label_timer = 0.25

@@ -4062,6 +4062,10 @@ func _spawn_network_bot_from_info(info: Dictionary) -> HeroUnit:
 
 func _on_attack_denied(target_id: int, skill: String, reason: String) -> void:
 	print("[NET] attack_denied target=", target_id, " skill=", skill, " reason=", reason)
+	if skill == "auto":
+		# Auto attacks are corrected silently; the player did not press
+		# anything, and "Удар не прошёл" on every latency correction was noise.
+		return
 	var now := Time.get_ticks_msec()
 	if now - last_deny_msec < 1200:
 		return
@@ -4070,7 +4074,7 @@ func _on_attack_denied(target_id: int, skill: String, reason: String) -> void:
 		"out_of_range":
 			text = "Слишком далеко"
 		"cooldown":
-			text = "Перезарядка"
+			return
 		"invalid_target":
 			text = "Цель недоступна"
 		"invalid_source":
@@ -4080,7 +4084,7 @@ func _on_attack_denied(target_id: int, skill: String, reason: String) -> void:
 	if text.is_empty():
 		return
 	last_deny_msec = now
-	announce("Удар не прошёл: " + text, Color(1.0, 0.72, 0.35), 0.9)
+	announce(text, Color(1.0, 0.72, 0.35), 0.9)
 
 
 func _on_network_sync(hp: float, max_hp: float, alive: bool) -> void:

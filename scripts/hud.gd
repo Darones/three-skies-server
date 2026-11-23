@@ -1670,8 +1670,8 @@ func _process(_delta: float) -> void:
 			and game.state == "live"
 		)
 		stun_badge.visible = is_stunned
-		if is_stunned:
-			stun_badge_label.text = "ОГЛУШЕНИЕ  %.1f" % float(stunned_player.stun_timer)
+		if is_stunned and stun_badge_label.text != "ОГЛУШЕНИЕ":
+			stun_badge_label.text = "ОГЛУШЕНИЕ"
 	if touch_joystick != null:
 		touch_joystick.visible = game.state != "select"
 	if game.player != null and is_instance_valid(game.player) and game.player.hero_class != icon_class:

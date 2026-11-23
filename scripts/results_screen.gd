@@ -219,9 +219,6 @@ func _ready() -> void:
 	_build_screen()
 	_build_reward_banner()
 	_animate_rewards()
-	if entry_leveled_up:
-		_show_reward_banner("НОВЫЙ УРОВЕНЬ!  %d" % entry_level, 2.4)
-		_play_level_up_chime()
 	if player_won:
 		_play_victory_celebration()
 	else:
@@ -635,24 +632,15 @@ func _on_rewarded_ad_completed() -> void:
 	final_xp *= 2
 	final_shards *= 2
 	var character_key: String = str(CHARACTER_KEYS[selected_class])
-	var level_before := int(MetaProgression.char_levels.get(character_key, 1))
 	MetaProgression.add_character_xp(character_key, final_xp - previous_xp)
-	var level_after := int(MetaProgression.char_levels.get(character_key, level_before))
-	var leveled_up: bool = level_after > level_before or (
-		bool(MetaProgression.just_leveled_up) and String(MetaProgression.just_leveled_up_character) == character_key
-	)
 	MetaProgression.add_reward_delta(final_xp - previous_xp, final_shards - previous_shards)
 	_grant_match_reward_to_server(final_shards - previous_shards, true)
 	rewards_doubled = true
 	_refresh_reward_ui()
 	_play_reward_fanfare()
-	if leveled_up:
-		_show_reward_banner("×2  ·  НОВЫЙ УРОВЕНЬ %d" % level_after, 2.8)
-		await get_tree().create_timer(0.7).timeout
-		if is_inside_tree():
-			_play_level_up_chime()
-	else:
-		_show_reward_banner("×2  НАГРАДЫ УДВОЕНЫ", 2.2)
+	# The level-up banner is shown once, in the lobby. Showing it here, again
+	# after the ad and again in the lobby was three notices for one level.
+	_show_reward_banner("×2  НАГРАДЫ УДВОЕНЫ", 2.2)
 	if ad_button_pulse_tween != null and ad_button_pulse_tween.is_running():
 		ad_button_pulse_tween.kill()
 		double_reward_button.scale = Vector2.ONE
