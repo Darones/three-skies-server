@@ -205,11 +205,18 @@ type adminGrantRequest struct {
 }
 
 type adminGrantResponse struct {
-	Success   bool   `json:"success"`
-	PlayerID  int64  `json:"player_id,omitempty"`
-	Nickname  string `json:"nickname,omitempty"`
-	NewShards int    `json:"new_shards,omitempty"`
-	Error     string `json:"error,omitempty"`
+	Success    bool             `json:"success"`
+	PlayerID   int64            `json:"player_id,omitempty"`
+	Nickname   string           `json:"nickname,omitempty"`
+	NewShards  int              `json:"new_shards,omitempty"`
+	Candidates []adminPlayerRef `json:"candidates,omitempty"`
+	Error      string           `json:"error,omitempty"`
+}
+
+type adminPlayerRef struct {
+	ID       int64  `json:"id"`
+	Nickname string `json:"nickname"`
+	Shards   int    `json:"shards"`
 }
 
 func main() {
@@ -1640,8 +1647,27 @@ func (service *api) handleAdminGrantShards(w http.ResponseWriter, r *http.Reques
 			writeJSON(w, http.StatusBadRequest, adminGrantResponse{Error: "Nickname is required"})
 			return
 		}
+		findCandidates := func() []adminPlayerRef {
+			candidateRows, err := transaction.QueryContext(r.Context(),
+				`SELECT id, nickname, COALESCE(sky_shards, 0) FROM players WHERE nickname ILIKE '%' || $1 || '%' ORDER BY id LIMIT 10`,
+				nickname,
+			)
+			if err != nil {
+				return nil
+			}
+			defer candidateRows.Close()
+			candidates := make([]adminPlayerRef, 0, 4)
+			for candidateRows.Next() {
+				var candidate adminPlayerRef
+				if err := candidateRows.Scan(&candidate.ID, &candidate.Nickname, &candidate.Shards); err != nil {
+					return candidates
+				}
+				candidates = append(candidates, candidate)
+			}
+			return candidates
+		}
 		rows, err := transaction.QueryContext(r.Context(),
-			`SELECT id, nickname FROM players WHERE nickname = $1 FOR UPDATE`, nickname,
+			`SELECT id, nickname FROM players WHERE LOWER(TRIM(nickname)) = LOWER($1) FOR UPDATE`, nickname,
 		)
 		if err != nil {
 			log.Printf("find admin grant player: %v", err)
@@ -1664,11 +1690,11 @@ func (service *api) handleAdminGrantShards(w http.ResponseWriter, r *http.Reques
 		}
 		rows.Close()
 		if len(found) == 0 {
-			writeJSON(w, http.StatusNotFound, adminGrantResponse{Error: "Player not found"})
+			writeJSON(w, http.StatusNotFound, adminGrantResponse{Error: "Player not found", Candidates: findCandidates()})
 			return
 		}
 		if len(found) > 1 {
-			writeJSON(w, http.StatusConflict, adminGrantResponse{Error: "Multiple players with this nickname; use player_id"})
+			writeJSON(w, http.StatusConflict, adminGrantResponse{Error: "Multiple players with this nickname; use player_id", Candidates: findCandidates()})
 			return
 		}
 		playerID = found[0].id
