@@ -125,3 +125,5 @@ $env:THREE_SKIES_WS_URL = "ws://127.0.0.1:8080/ws"
 ```
 
 The same values can be changed in `project.godot` under `[network]`.
+
+<!-- deploy trigger 2026-11-23 15:17 -->
