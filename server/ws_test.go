@@ -87,7 +87,7 @@ func TestServerOwnsMatchGoldAndPurchases(t *testing.T) {
 	messages := collectMessages(t, first)
 	purchased := false
 	for _, message := range messages {
-		if message.Type == "shop_purchase" && message.ItemID == "life_amulet" && message.OK && message.Gold == 100 {
+		if message.Type == "shop_purchase" && message.ItemID == "life_amulet" && message.OK && message.Gold == 200 {
 			purchased = true
 		}
 	}

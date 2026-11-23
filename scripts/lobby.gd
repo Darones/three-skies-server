@@ -2837,8 +2837,8 @@ func _build_level_up_banner() -> void:
 	level_up_banner.anchor_right = 0.5
 	level_up_banner.anchor_top = 0.0
 	level_up_banner.anchor_bottom = 0.0
-	level_up_banner.offset_left = -300.0
-	level_up_banner.offset_right = 300.0
+	level_up_banner.offset_left = -340.0
+	level_up_banner.offset_right = 340.0
 	level_up_banner.offset_top = 86.0
 	level_up_banner.offset_bottom = 184.0
 	level_up_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -2864,7 +2864,7 @@ func _show_level_up_banner(character_level: int) -> void:
 	level_up_banner.visible = true
 	level_up_banner.modulate.a = 0.0
 	level_up_banner.scale = Vector2(0.78, 0.78)
-	level_up_banner.pivot_offset = Vector2(300.0, 49.0)
+	level_up_banner.pivot_offset = Vector2(340.0, 49.0)
 	level_up_banner_tween = create_tween()
 	level_up_banner_tween.tween_property(level_up_banner, "modulate:a", 1.0, 0.18)
 	level_up_banner_tween.parallel().tween_property(level_up_banner, "scale", Vector2.ONE, 0.38).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)

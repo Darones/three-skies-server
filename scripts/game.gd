@@ -34,7 +34,7 @@ const GOLD_COIN_SPAWN_EXTRA_RADIUS := 1.2
 const SHOP_INTERACTION_POINT := Vector3(-40.0, 0.0, 0.0)
 const BASE_POSITION_Z := 28.0
 const BASE_DELIVERY_RADIUS := 6.0
-const SHOP_INTERACTION_RADIUS := 4.0
+const SHOP_INTERACTION_RADIUS := 5.0
 const CRYSTAL_SCENE: PackedScene = preload("res://assets/models/detail-crystal.glb")
 const CRYSTAL_MODEL_SCALE := 2.7
 const CRYSTAL_EMISSION_COLOR := Color(0.16, 0.68, 1.0)
@@ -1489,20 +1489,30 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	var enemy_spots: Array[Vector3] = dark_spots if player_team == 0 else light_spots
 	var enemy_team := 1 - player_team
 	player = _spawn_hero(player_class, player_team, true, own_spots[0])
+	if DeviceProfile.mobile_ui:
+		await get_tree().process_frame
 	if tutorial_mode:
 		spawn_tutorial_dummy()
 	if not tutorial_mode:
 		if network_play:
 			if network_host:
-				_spawn_network_bots(light_spots, dark_spots)
+				await _spawn_network_bots(light_spots, dark_spots)
 		else:
 			var ai_index := 1
 			for c in ally_classes:
 				_spawn_hero(c, player_team, false, own_spots[mini(ai_index, 2)])
 				ai_index += 1
+				if DeviceProfile.mobile_ui:
+					await get_tree().process_frame
 			for i in classes.size():
 				_spawn_hero(classes[i], enemy_team, false, enemy_spots[mini(i, 2)])
+				if DeviceProfile.mobile_ui:
+					await get_tree().process_frame
 	if DeviceProfile.mobile_ui:
+		# Warm the freshly spawned hero models and every hit VFX while the
+		# class-select panel still covers the screen. Without this the first
+		# frames of the match hitch on shader compilation.
+		await _warm_combat_world()
 		await _warm_first_clash_vfx()
 	state = "live"
 	if network_play:
@@ -1555,6 +1565,11 @@ func _spawn_network_bots(light_spots: Array[Vector3], dark_spots: Array[Vector3]
 			bot.set_display_name(bot_name)
 		network_bots[bot.network_id] = bot
 		NetworkManager.register_bot(bot)
+		if DeviceProfile.mobile_ui:
+			# Five hero models in one frame were the visible hitch at the very
+			# start of a network match. Spread them over frames behind the
+			# class-select panel.
+			await get_tree().process_frame
 
 
 func _spawn_hero(cls: int, team: int, is_player: bool, pos: Vector3) -> HeroUnit:
@@ -2768,19 +2783,29 @@ func _remote_performance_score(remote: Node) -> float:
 func _get_player_place() -> int:
 	if player == null or not is_instance_valid(player):
 		return 4
-	var place := 1
+	var player_team := int(player.team)
 	var player_score := _hero_performance_score(player)
+	var enemies_ahead := 0
+	var teammates_ahead := 0
 	for hero in heroes:
 		if hero == null or not is_instance_valid(hero) or hero == player:
 			continue
-		if _hero_performance_score(hero) > player_score:
-			place += 1
+		if int(hero.team) == player_team:
+			if _hero_performance_score(hero) > player_score:
+				teammates_ahead += 1
+		elif not player_won:
+			# A losing team always ranks below the winners, so the player's
+			# place is not "2nd" after a 1:3 defeat just because of damage.
+			enemies_ahead += 1
 	for remote in remote_players.values():
 		if remote == null or not is_instance_valid(remote):
 			continue
-		if _remote_performance_score(remote) > player_score:
-			place += 1
-	return place
+		if int(remote.get("team")) == player_team:
+			if _remote_performance_score(remote) > player_score:
+				teammates_ahead += 1
+		elif not player_won:
+			enemies_ahead += 1
+	return enemies_ahead + teammates_ahead + 1
 
 
 func _is_player_mvp() -> bool:
@@ -3640,16 +3665,18 @@ func _on_remote_damage_received(source_id: int, target_id: int, amount: float, s
 			var stunned_bot = network_bots[target_id]
 			if stunned_bot != null and is_instance_valid(stunned_bot):
 				stunned_bot.stun(stun)
-	if player == null or not is_instance_valid(player) or target_team == player.team:
-		return
 	# Damage stats come from the confirmed hit; kills are credited once from
 	# the server death packet (protocol 4), or from this hit on protocol 3.
+	# Credit every participant, not only damage against the local player's
+	# team: enemies attacking the host's bots also need stats on the results
+	# screen.
 	if source_id == NetworkManager.local_peer_id:
-		player.match_damage_dealt += maxf(amount, 0.0)
-		p_damage += maxf(amount, 0.0)
+		if player != null and is_instance_valid(player) and target_team != int(player.team):
+			player.match_damage_dealt += maxf(amount, 0.0)
+			p_damage += maxf(amount, 0.0)
 	elif source_id > 0 and remote_players.has(source_id):
 		var source_remote = remote_players[source_id]
-		if source_remote != null and is_instance_valid(source_remote):
+		if source_remote != null and is_instance_valid(source_remote) and target_team != int(source_remote.team):
 			source_remote.match_damage_dealt += maxf(amount, 0.0)
 			source_remote.play_attack(skill)
 	elif source_id < 0:
@@ -3661,26 +3688,25 @@ func _on_remote_damage_received(source_id: int, target_id: int, amount: float, s
 
 
 func _credit_network_kill(source_id: int, victim_name: String, victim_team: int) -> void:
-	if player == null or not is_instance_valid(player) or victim_team == player.team:
-		return
 	if source_id == NetworkManager.local_peer_id:
-		p_kills += 1
-		player.match_kills += 1
-		if NetworkManager.server_protocol < 4:
-			award_gold(50)
-		else:
-			# The server credits the wallet and sends `gold`; only track stats.
-			gold_earned_this_match += 50
-		announce("Ты убил %s  +50 золота" % victim_name, Color(1.0, 0.85, 0.35), 1.8)
+		if player != null and is_instance_valid(player) and victim_team != int(player.team):
+			p_kills += 1
+			player.match_kills += 1
+			if NetworkManager.server_protocol < 4:
+				award_gold(50)
+			else:
+				# The server credits the wallet and sends `gold`; only track stats.
+				gold_earned_this_match += 50
+			announce("Ты убил %s  +50 золота" % victim_name, Color(1.0, 0.85, 0.35), 1.8)
 	elif source_id < 0:
 		var killer_bot = _network_combatant(source_id)
-		if killer_bot != null and is_instance_valid(killer_bot):
+		if killer_bot != null and is_instance_valid(killer_bot) and victim_team != int(killer_bot.get("team")):
 			killer_bot.match_kills += 1
 			if network_host and killer_bot is HeroUnit:
 				killer_bot.bot_gold += 50
 	elif source_id > 0 and remote_players.has(source_id):
 		var killer_remote = remote_players[source_id]
-		if killer_remote != null and is_instance_valid(killer_remote):
+		if killer_remote != null and is_instance_valid(killer_remote) and victim_team != int(killer_remote.team):
 			killer_remote.match_kills += 1
 	if source_id != 0 and hud != null:
 		var killer_node := _node_for_network_id(source_id)

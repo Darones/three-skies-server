@@ -1222,14 +1222,18 @@ func _update_tutorial_press_hint() -> void:
 
 func _build_announcement(root: Control) -> void:
 	announce_label = _make_label("", 18, GOLD)
-	announce_label.anchor_left = 0.0
-	announce_label.anchor_right = 1.0
+	# Combat messages sit at the very top centre, between the player card and
+	# the match info; the old full-width strip at y=100 covered the fight.
+	announce_label.anchor_left = 0.34
+	announce_label.anchor_right = 0.66
 	announce_label.anchor_top = 0.0
 	announce_label.anchor_bottom = 0.0
-	announce_label.offset_left = 80.0
-	announce_label.offset_right = -80.0
-	announce_label.offset_top = 100.0
-	announce_label.offset_bottom = 140.0
+	announce_label.offset_left = 0.0
+	announce_label.offset_right = 0.0
+	announce_label.offset_top = 4.0
+	announce_label.offset_bottom = 64.0
+	announce_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	announce_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	announce_label.modulate.a = 0.0
 	announce_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(announce_label)
