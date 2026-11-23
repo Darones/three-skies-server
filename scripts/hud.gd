@@ -1330,10 +1330,10 @@ func _build_shop(root: Control) -> void:
 	shop_panel.anchor_top = 0.5
 	shop_panel.anchor_right = 0.5
 	shop_panel.anchor_bottom = 0.5
-	shop_panel.offset_left = -360.0
-	shop_panel.offset_top = -245.0
-	shop_panel.offset_right = 360.0
-	shop_panel.offset_bottom = 245.0
+	shop_panel.offset_left = -400.0
+	shop_panel.offset_top = -260.0
+	shop_panel.offset_right = 400.0
+	shop_panel.offset_bottom = 260.0
 	shop_panel.custom_minimum_size = Vector2.ZERO
 	shop_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.68, 0.53, 0.29, 0.95), Color(0.035, 0.04, 0.065, 0.94)))
 	shop_panel.visible = false
@@ -1396,7 +1396,7 @@ func _build_shop(root: Control) -> void:
 
 	var grid := GridContainer.new()
 	grid.columns = 3
-	grid.custom_minimum_size = Vector2(640.0, 0.0)
+	grid.custom_minimum_size = Vector2(760.0, 0.0)
 	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	grid.add_theme_constant_override("h_separation", 6)
@@ -1406,7 +1406,7 @@ func _build_shop(root: Control) -> void:
 	for item in game.get_shop_items():
 		var item_id := String(item["id"])
 		var button := Button.new()
-		button.custom_minimum_size = Vector2(0.0, 145.0)
+		button.custom_minimum_size = Vector2(0.0, 120.0)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		button.clip_contents = true

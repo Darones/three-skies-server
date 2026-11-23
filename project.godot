@@ -144,3 +144,7 @@ light_2d_texture_filter=1
 [summer]
 
 version="0.8.5"
+
+[physics]
+
+common/physics_interpolation=true

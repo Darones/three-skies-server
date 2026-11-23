@@ -1,4 +1,4 @@
-﻿extends Node3D
+extends Node3D
 
 const MATCH_LENGTH := 600.0
 const RESPAWN_TIME := 8.0
@@ -52,15 +52,15 @@ const SHOP_STALL_SCENE: PackedScene = preload("res://assets/shop_stall/3d_4f92fe
 const TUTORIAL_CONTROLLER_SCRIPT: Script = preload("res://scripts/tutorial_controller.gd")
 const REMOTE_PLAYER_SCRIPT: Script = preload("res://scripts/remote_player.gd")
 const SHOP_ITEMS := [
-	{"id": "life_amulet", "name": "Амулет Жизни", "effect": "+150 Max HP", "price": 500, "icon": 10},
-	{"id": "revival_talisman", "name": "Талисман Возрождения", "effect": "+10 HP/сек реген", "price": 450, "icon": 2},
-	{"id": "titan_shell", "name": "Панцирь Титана", "effect": "-15% входящего урона", "price": 450, "icon": 12},
-	{"id": "power_glove", "name": "Перчатка Силы", "effect": "+25 к урону атаки", "price": 500, "icon": 0},
-	{"id": "vampire_fang", "name": "Клык Вампира", "effect": "15% вампиризма", "price": 500, "icon": 4},
-	{"id": "agility_mark", "name": "Знак Ловкости", "effect": "+20% скорости атаки", "price": 450, "icon": 15},
-	{"id": "wind_boots", "name": "Сапоги Ветра", "effect": "+15% скорости бега", "price": 350, "icon": 11},
-	{"id": "hourglass", "name": "Песочные Часы", "effect": "-15% КД скиллов", "price": 450, "icon": 6},
-	{"id": "cleansing_charm", "name": "Оберег Очищения", "effect": "-20% времени станов", "price": 350, "icon": 3},
+	{"id": "life_amulet", "name": "Амулет Жизни", "effect": "+150 Max HP", "price": 400, "icon": 10},
+	{"id": "revival_talisman", "name": "Талисман Возрождения", "effect": "+10 HP/сек реген", "price": 350, "icon": 2},
+	{"id": "titan_shell", "name": "Панцирь Титана", "effect": "-15% входящего урона", "price": 350, "icon": 12},
+	{"id": "power_glove", "name": "Перчатка Силы", "effect": "+25 к урону атаки", "price": 400, "icon": 0},
+	{"id": "vampire_fang", "name": "Клык Вампира", "effect": "15% вампиризма", "price": 400, "icon": 4},
+	{"id": "agility_mark", "name": "Знак Ловкости", "effect": "+20% скорости атаки", "price": 350, "icon": 15},
+	{"id": "wind_boots", "name": "Сапоги Ветра", "effect": "+15% скорости бега", "price": 250, "icon": 11},
+	{"id": "hourglass", "name": "Песочные Часы", "effect": "-15% КД скиллов", "price": 350, "icon": 6},
+	{"id": "cleansing_charm", "name": "Оберег Очищения", "effect": "-20% времени станов", "price": 250, "icon": 3},
 ]
 
 const SHOP_ITEM_TEXTURES := {
@@ -216,6 +216,9 @@ func _ready() -> void:
 		camera.name = "Camera3D"
 		add_child(camera)
 	camera.fov = 46.0
+	# The camera is moved in _process, not by physics; keep it out of the
+	# physics interpolation used for the world.
+	camera.physics_interpolation_mode = Node3D.PHYSICS_INTERPOLATION_MODE_OFF
 	camera_distance = DeviceProfile.camera_distance
 	min_zoom_distance = DeviceProfile.min_zoom_distance
 	max_zoom_distance = DeviceProfile.max_zoom_distance
@@ -278,8 +281,8 @@ func _warm_battle_world() -> void:
 	warm_camera.near = 0.1
 	warm_camera.far = 250.0
 	warm_camera.position = Vector3(0.0, 70.0, 10.0)
-	warm_camera.look_at(Vector3(0.0, 0.0, 0.0), Vector3.UP)
 	warm_viewport.add_child(warm_camera)
+	warm_camera.look_at(Vector3(0.0, 0.0, 0.0), Vector3.UP)
 	warm_camera.current = true
 	for _frame in 3:
 		await get_tree().process_frame
@@ -303,8 +306,8 @@ func _warm_combat_world() -> void:
 	warm_camera.near = 0.1
 	warm_camera.far = 250.0
 	warm_camera.position = Vector3(0.0, 48.0, 0.1)
-	warm_camera.look_at(Vector3(0.0, 1.0, 0.0), Vector3.UP)
 	warm_viewport.add_child(warm_camera)
+	warm_camera.look_at(Vector3(0.0, 1.0, 0.0), Vector3.UP)
 	warm_camera.current = true
 	for _frame in 3:
 		await get_tree().process_frame
@@ -352,8 +355,8 @@ func _warm_first_clash_vfx() -> void:
 	warm_camera.near = 0.1
 	warm_camera.far = 50.0
 	warm_camera.position = Vector3(0.0, -94.0, 8.0)
-	warm_camera.look_at(Vector3(0.0, -100.0, 0.0), Vector3.UP)
 	warm_viewport.add_child(warm_camera)
+	warm_camera.look_at(Vector3(0.0, -100.0, 0.0), Vector3.UP)
 	warm_camera.current = true
 	var packed := load("res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn") as PackedScene
 	if packed != null:
@@ -380,7 +383,9 @@ func _apply_mobile_quality() -> void:
 		# The phone renders the 3D scene below native resolution; the UI is
 		# still sharp and the difference is invisible on a small screen.
 		if DeviceProfile.quality_override != "noscale":
-			viewport.scaling_3d_scale = 0.6
+			# Lower internal 3D resolution: less GPU load and heat on phones;
+			# the UI stays sharp at native resolution.
+			viewport.scaling_3d_scale = 0.5
 		viewport.msaa_3d = Viewport.MSAA_DISABLED
 		viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
 	for node in find_children("*", "WorldEnvironment", true, false):
@@ -1917,7 +1922,7 @@ func _update_camera(delta: float) -> void:
 		return
 
 	death_camera_active = false
-	var focus := player.global_position + Vector3(0.0, 1.0, 0.0)
+	var focus := player.get_global_transform_interpolated().origin + Vector3(0.0, 1.0, 0.0)
 	var camera_side := 1.0 if player.team == 0 else -1.0
 	# Previous angle was approximately 33 degrees: Vector3(0.0, 13.0, 20.0 * camera_side).
 	var camera_axis := Vector3(0.0, 20.0, 20.0 * camera_side).normalized()
