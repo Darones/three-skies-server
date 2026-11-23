@@ -7,6 +7,7 @@ const CHARACTER_ART := [
 ]
 const CHARACTER_CLASS_NAMES := ["Воин", "Маг", "Арбалетчица"]
 const CHARACTER_KEYS := ["warrior", "mage", "fairy"]
+const SkinCatalog = preload("res://scripts/skin_catalog.gd")
 const REPLAY_SCENE := "res://scenes/LoadingScreen.tscn"
 const MENU_SCENE := "res://scenes/Lobby.tscn"
 const GOLD := Color(0.94, 0.78, 0.43)
@@ -325,6 +326,11 @@ func _build_content() -> void:
 	var portrait := TextureRect.new()
 	portrait.name = "HeroPortrait"
 	var portrait_source := load(CHARACTER_ART[selected_class]) as Texture2D
+	var results_skin := SkinCatalog.get_item(MetaProgression.get_equipped_skin(CHARACTER_KEYS[selected_class]))
+	if not results_skin.is_empty():
+		var skin_portrait := load(String(results_skin["icon"])) as Texture2D
+		if skin_portrait != null:
+			portrait_source = skin_portrait
 	if portrait_source != null:
 		# Full 2D key art: the old atlas cropped only the top 70% and used
 		# a 3D-render portrait, which read as a model rather than game art.
@@ -452,7 +458,11 @@ func _build_content() -> void:
 
 func _get_player_character_name() -> String:
 	var faction := "Света" if player_team == 0 else "Тьмы"
-	var hero := "%s %s" % [CHARACTER_CLASS_NAMES[selected_class], faction]
+	var display_class := CHARACTER_CLASS_NAMES[selected_class]
+	var results_skin := SkinCatalog.get_item(MetaProgression.get_equipped_skin(CHARACTER_KEYS[selected_class]))
+	if not results_skin.is_empty():
+		display_class = String(results_skin.get("short_name", results_skin["name"]))
+	var hero := "%s %s" % [display_class, faction]
 	var nickname := MetaProgression.player_nickname.strip_edges()
 	if nickname.is_empty():
 		return hero

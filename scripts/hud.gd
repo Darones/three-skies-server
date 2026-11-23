@@ -23,6 +23,7 @@ var carrier_label: Label = null
 var carrier_bar: ProgressBar = null
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const SETTINGS_PANEL_SCRIPT := preload("res://scripts/settings_panel.gd")
+const SkinCatalog = preload("res://scripts/skin_catalog.gd")
 const HERO_PORTRAITS := {
 	HeroUnit.Cls.WARRIOR: preload("res://assets/ui/heroes/warrior_face.webp"),
 	HeroUnit.Cls.MAGE: preload("res://assets/ui/heroes/mage_face.webp"),
@@ -54,6 +55,7 @@ var player_team_icon: TextureRect
 var player_hp_bar: ProgressBar
 var player_hp_label: Label
 var player_panel_class := -1
+var player_panel_skin := -1
 var player_panel_team := -1
 var announce_label: Label
 var center_respawn_label: Label
@@ -1485,6 +1487,8 @@ func _update_player_panel() -> void:
 	var faction := "Света" if player.team == 0 else "Тьмы"
 	var team_short := "Свет" if player.team == 0 else "Тьма"
 	var class_text := String(HeroUnit.CLASS_DATA[player.hero_class]["name"])
+	var skin_id := MetaProgression.get_equipped_skin(["warrior", "mage", "fairy"][player.hero_class])
+	var skin := SkinCatalog.get_item(skin_id)
 	if _mobile_ui():
 		player_name_label.text = "%s · %s" % [nickname, class_text]
 		if player_team_label != null:
@@ -1495,9 +1499,14 @@ func _update_player_panel() -> void:
 		player_name_label.text = "%s · %s %s" % [nickname, class_text, faction]
 		if player_team_label != null:
 			player_team_label.visible = false
-	if player_panel_class != player.hero_class:
+	if player_panel_class != player.hero_class or player_panel_skin != skin_id:
 		player_panel_class = player.hero_class
+		player_panel_skin = skin_id
 		var portrait_source: Texture2D = HERO_PORTRAITS[player.hero_class]
+		if not skin.is_empty():
+			var skin_portrait := load(String(skin["icon"])) as Texture2D
+			if skin_portrait != null:
+				portrait_source = skin_portrait
 		if portrait_source != null:
 			player_portrait.texture = portrait_source
 	if player_panel_team != player.team:

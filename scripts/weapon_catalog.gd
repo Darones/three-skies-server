@@ -6,7 +6,7 @@ extends RefCounted
 
 const ITEMS := {
 	1: {
-		"id": 1, "class": 0, "name": "Двуручный меч",
+		"id": 1, "class": 0, "name": "Двуручное оружие",
 		"rarity": "Легендарное", "price": 1500,
 		"icon": "res://ui/icons/legendary_greatsword.png",
 		"builtin": true, "glow": Color(0.68, 0.32, 1.0), "glow_energy": 1.6,
@@ -31,6 +31,7 @@ const ITEMS := {
 		"rarity": "Редкое", "price": 100,
 		"icon": "res://addons/low_poly_rpg_items/icons/battle_axe.png",
 		"builtin": false,
+		"shop_enabled": false,
 		"model": "res://addons/low_poly_rpg_items/models/battle_axe_model.glb",
 		"hand": "handslot.r", "scale": 1.1,
 		"rotation": Vector3(45.6, 27.7, 60.8), "offset": Vector3(0.0, 0.0, 0.05),
@@ -43,6 +44,7 @@ const ITEMS := {
 		"rarity": "Редкое", "price": 100,
 		"icon": "res://addons/low_poly_rpg_items/icons/short_bow.png",
 		"builtin": false,
+		"shop_enabled": false,
 		"model": "res://addons/low_poly_rpg_items/models/short_bow_model.glb",
 		"hand": "handslot.l", "scale": 1.0,
 		"rotation": Vector3(-47.4, 6.4, -14.5), "offset": Vector3(0.0, 0.0, 0.05),
@@ -55,6 +57,7 @@ const ITEMS := {
 		"rarity": "Редкое", "price": 100,
 		"icon": "res://addons/low_poly_rpg_items/icons/staff_wizard.png",
 		"builtin": false,
+		"shop_enabled": false,
 		"model": "res://addons/low_poly_rpg_items/models/staff_wizard_model.glb",
 		"hand": "handslot.r", "scale": 0.8,
 		"rotation": Vector3(45.0, 26.9, 60.1), "offset": Vector3(0.0, 0.0, 0.05),
@@ -67,6 +70,7 @@ const ITEMS := {
 		"rarity": "Обычное", "price": 400,
 		"icon": "res://addons/low_poly_rpg_items/icons/longsword.png",
 		"builtin": false,
+		"shop_enabled": false,
 		"model": "res://addons/low_poly_rpg_items/models/longsword_model.glb",
 		"hand": "handslot.r", "scale": 1.0,
 		"rotation": Vector3(45.6, 27.7, 60.8), "offset": Vector3(0.0, 0.0, 0.05),
@@ -79,6 +83,7 @@ const ITEMS := {
 		"rarity": "Легендарное", "price": 800,
 		"icon": "res://ui/icons/legendary_bow.png",
 		"builtin": false,
+		"shop_enabled": false,
 		"model": "res://scenes/LegendaryBow.tscn",
 		"hand": "handslot.l", "scale": 1.0,
 		"rotation": Vector3(-47.4, 6.4, -14.5), "offset": Vector3(0.0, 0.0, 0.05),
@@ -91,6 +96,7 @@ const ITEMS := {
 		"rarity": "Обычное", "price": 400,
 		"icon": "res://ui/icons/crystal_staff.png",
 		"builtin": false,
+		"shop_enabled": false,
 		"model": "res://assets/weapons/wizards_staff_low.glb",
 		"hand": "handslot.r", "scale": 0.65,
 		"rotation": Vector3(45.0, 26.9, 60.1), "offset": Vector3(0.0, 0.0, 0.05),
@@ -112,8 +118,11 @@ static func items_for_class(hero_class: int) -> Array:
 	var result: Array = []
 	for item_id in ORDER:
 		var item: Dictionary = ITEMS[item_id]
-		if int(item["class"]) == hero_class:
-			result.append(item)
+		if int(item["class"]) != hero_class:
+			continue
+		if not bool(item.get("shop_enabled", true)):
+			continue
+		result.append(item)
 	return result
 
 
@@ -126,6 +135,10 @@ static func class_key(hero_class: int) -> String:
 static func item_ids_for_class(hero_class: int) -> Array[int]:
 	var result: Array[int] = []
 	for item_id in ORDER:
-		if int((ITEMS[item_id] as Dictionary)["class"]) == hero_class:
-			result.append(item_id)
+		var item: Dictionary = ITEMS[item_id]
+		if int(item["class"]) != hero_class:
+			continue
+		if not bool(item.get("shop_enabled", true)):
+			continue
+		result.append(item_id)
 	return result

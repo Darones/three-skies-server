@@ -2,6 +2,7 @@ class_name HeroUnit
 extends CharacterBody3D
 
 const WeaponCatalog = preload("res://scripts/weapon_catalog.gd")
+const SkinCatalog = preload("res://scripts/skin_catalog.gd")
 
 signal hero_died(hero: HeroUnit)
 
@@ -157,6 +158,7 @@ const GEAR_NAMES := [
 	"Badge_Shield", "Rectangle_Shield", "Round_Shield", "Spike_Shield",
 	"1H_Wand", "2H_Staff", "Spellbook", "Spellbook_open",
 	"1H_Crossbow", "2H_Crossbow", "Knife", "Knife_Offhand", "Throwable",
+	"1H_Axe", "1H_Axe_Offhand", "2H_Axe", "Barbarian_Round_Shield", "Mug",
 ]
 const GEAR_DEFAULT := {
 	Cls.WARRIOR: ["1H_Sword", "Spike_Shield"],
@@ -932,21 +934,28 @@ func _build_visual() -> void:
 
 
 func _load_model() -> Node3D:
-	var folder := ""
-	match hero_class:
-		Cls.WARRIOR:
-			folder = "res://art/generated/warrior"
-		Cls.MAGE:
-			folder = "res://art/generated/mage"
-		Cls.FAIRY:
-			folder = "res://art/generated/fairy"
-	if folder.is_empty():
-		return null
-	# Explicit path first: exported builds remap .tscn to .scn + .tscn.remap,
-	# so directory scans for "*.tscn" find nothing and fall back to capsules.
-	var scene_path := folder + "/character.tscn"
-	if not ResourceLoader.exists(scene_path):
-		scene_path = _find_model_scene(folder)
+	var scene_path := ""
+	var skin_id := _equipped_skin_id()
+	if skin_id > 0:
+		var skin := SkinCatalog.get_item(skin_id)
+		if not skin.is_empty():
+			scene_path = String(skin.get("model", ""))
+	if scene_path.is_empty():
+		var folder := ""
+		match hero_class:
+			Cls.WARRIOR:
+				folder = "res://art/generated/warrior"
+			Cls.MAGE:
+				folder = "res://art/generated/mage"
+			Cls.FAIRY:
+				folder = "res://art/generated/fairy"
+		if folder.is_empty():
+			return null
+		# Explicit path first: exported builds remap .tscn to .scn + .tscn.remap,
+		# so directory scans for "*.tscn" find nothing and fall back to capsules.
+		scene_path = folder + "/character.tscn"
+		if not ResourceLoader.exists(scene_path):
+			scene_path = _find_model_scene(folder)
 	if scene_path.is_empty():
 		return null
 	var packed := load(scene_path) as PackedScene
@@ -1054,7 +1063,23 @@ func _equipped_weapon_id() -> int:
 	return MetaProgression.get_equipped_weapon(character_key)
 
 
+func _equipped_skin_id() -> int:
+	if not (is_player or preview_mode or game == null):
+		return 0
+	var character_key := WeaponCatalog.class_key(hero_class)
+	if character_key.is_empty():
+		return 0
+	return MetaProgression.get_equipped_skin(character_key)
+
+
 func _selected_gear(weapon_id: int) -> Array:
+	var skin := SkinCatalog.get_item(_equipped_skin_id())
+	if not skin.is_empty():
+		if weapon_id >= 4:
+			return []
+		if weapon_id >= 1:
+			return skin.get("legendary_gear", [])
+		return skin.get("default_gear", [])
 	if weapon_id >= 4:
 		# External weapon: hide the built-in weapon and shield meshes.
 		return []

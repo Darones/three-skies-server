@@ -61,6 +61,7 @@ const SHARD_TOPUP_SCENE := preload("res://scenes/ShardTopupPanel.tscn")
 const SHARD_ICON: Texture2D = preload("res://ui/icons/sky_shard.png")
 const SETTINGS_GEAR_ICON: Texture2D = preload("res://ui/icons/settings_gear.png")
 const WeaponCatalog = preload("res://scripts/weapon_catalog.gd")
+const SkinCatalog = preload("res://scripts/skin_catalog.gd")
 const NICKNAME_CHANGE_COST := 100
 const SHOP_2H_SWORD_ICON: Texture2D = preload("res://ui/icons/legendary_greatsword.png")
 const SHOP_WAND_ICON: Texture2D = preload("res://ui/icons/gear_wand.png")
@@ -158,6 +159,13 @@ var wing_inventory_buttons: Dictionary = {}
 var weapon_inventory_statuses: Dictionary = {}
 var weapon_inventory_buttons: Dictionary = {}
 var weapon_inventory_cards: Dictionary = {}
+var skin_inventory_cards: Dictionary = {}
+var skin_inventory_statuses: Dictionary = {}
+var skin_inventory_buttons: Dictionary = {}
+var default_skin_card: PanelContainer
+var default_skin_icon: TextureRect
+var default_skin_status: Label
+var default_skin_button: Button
 var default_weapon_card: PanelContainer
 var default_weapon_icon: TextureRect
 var default_weapon_name_label: Label
@@ -716,7 +724,7 @@ func _build_shard_shop() -> void:
 
 	shop_page_label = _make_label("1 / 1", 13, Color(0.62, 0.68, 0.78))
 	layout.add_child(shop_page_label)
-	shop_hint_label = _make_label("Оружие надевается в инвентаре · 100 осколков = 1 голос", 12, Color(0.5, 0.56, 0.66))
+	shop_hint_label = _make_label("Оружие и скины надеваются в инвентаре · 100 осколков = 1 голос", 12, Color(0.5, 0.56, 0.66))
 	layout.add_child(shop_hint_label)
 
 	_build_topup_panel()
@@ -810,6 +818,17 @@ func _shop_items_for(hero_index: int) -> Array:
 			"rarity": String(item.get("rarity", "Оружие")),
 			"description": String(item.get("description", "")),
 		})
+	for skin in SkinCatalog.items_for_class(hero_class):
+		items.append({
+			"type": "skin",
+			"id": int(skin["id"]),
+			"unlock_id": SkinCatalog.unlock_id(int(skin["id"])),
+			"name": String(skin["name"]),
+			"price": int(skin["price"]),
+			"icon": load(String(skin["icon"])) as Texture2D,
+			"rarity": String(skin.get("rarity", "Скин")),
+			"description": String(skin.get("description", "")),
+		})
 	return items
 
 
@@ -845,6 +864,8 @@ func _style_shop_tab(button: Button, active: bool) -> void:
 func _shop_item_owned(item: Dictionary) -> bool:
 	if String(item["type"]) == "wing":
 		return int(item["id"]) in MetaProgression.unlocked_wings
+	if String(item["type"]) == "skin":
+		return MetaProgression.is_skin_unlocked(int(item["id"]))
 	return int(item["id"]) in MetaProgression.unlocked_weapons
 
 
@@ -897,7 +918,7 @@ func _make_shop_card(item: Dictionary) -> Control:
 	card.add_child(content)
 
 	var preview := TextureRect.new()
-	if String(item["type"]) == "weapon":
+	if item.has("icon"):
 		preview.texture = item["icon"] as Texture2D
 	else:
 		preview.texture = load(String(item["preview"])) as Texture2D
@@ -910,8 +931,8 @@ func _make_shop_card(item: Dictionary) -> Control:
 
 	content.add_child(_make_label(String(item["name"]), 19, PALE))
 	var rarity := String(item.get("rarity", "Оружие"))
-	var type_name := "Крылья" if String(item["type"]) == "wing" else "Оружие · %s" % rarity
-	var type_color := GOLD if rarity == "Легендарное" else (Color(1.0, 0.55, 0.4) if rarity == "Редкое" else Color(0.62, 0.68, 0.78))
+	var type_name := "Крылья" if String(item["type"]) == "wing" else ("Скин" if String(item["type"]) == "skin" else "Оружие · %s" % rarity)
+	var type_color := GOLD if rarity == "Легендарное" else (Color(0.8, 0.55, 1.0) if String(item["type"]) == "skin" else (Color(1.0, 0.55, 0.4) if rarity == "Редкое" else Color(0.62, 0.68, 0.78)))
 	content.add_child(_make_label(type_name, 12, type_color))
 
 	var price_row := HBoxContainer.new()
@@ -922,7 +943,8 @@ func _make_shop_card(item: Dictionary) -> Control:
 	content.add_child(price_row)
 
 	var owned := _shop_item_owned(item)
-	var pending := MetaProgression.is_purchase_pending(String(item["type"]), int(item["id"]))
+	var purchase_id := int(item.get("unlock_id", item["id"]))
+	var pending := MetaProgression.is_purchase_pending("weapon", purchase_id)
 	var affordable := MetaProgression.sky_shards >= int(item["price"])
 	var profile_ready := MetaProgression.profile_loaded
 	var button_text := "Куплено" if owned else ("Покупка..." if pending else ("Загрузка..." if not profile_ready else "Купить"))
@@ -948,6 +970,8 @@ func _on_shop_item_pressed(item: Dictionary) -> void:
 	var ok := false
 	if String(item["type"]) == "wing":
 		ok = MetaProgression.buy_wing(int(item["id"]), int(item["price"]))
+	elif String(item["type"]) == "skin":
+		ok = MetaProgression.buy_skin(int(item["id"]), int(item["price"]))
 	else:
 		ok = MetaProgression.buy_weapon(int(item["id"]), int(item["price"]))
 	if ok:
@@ -1069,10 +1093,17 @@ func _show_info(message: String, title: String = "Небесные осколк�
 
 func _show_purchase_success(purchase_type: String, item_id: int) -> void:
 	var item_name := ""
+	var skin_item := false
 	if purchase_type == "weapon":
-		var item := WeaponCatalog.get_item(item_id)
-		if not item.is_empty():
-			item_name = String(item["name"])
+		if item_id >= SkinCatalog.UNLOCK_BASE:
+			skin_item = true
+			var skin := SkinCatalog.get_item(item_id - SkinCatalog.UNLOCK_BASE)
+			if not skin.is_empty():
+				item_name = String(skin["name"])
+		else:
+			var item := WeaponCatalog.get_item(item_id)
+			if not item.is_empty():
+				item_name = String(item["name"])
 	elif purchase_type == "wing":
 		for wing in SHOP_WING_ITEMS:
 			if int(wing["id"]) == item_id:
@@ -1080,8 +1111,9 @@ func _show_purchase_success(purchase_type: String, item_id: int) -> void:
 				break
 	if item_name.is_empty():
 		item_name = "Предмет"
+	var hint := "Скин можно надеть в инвентаре — герой сразу изменится." if skin_item else "Наденьте его в инвентаре — и оно сразу появится на герое."
 	_show_info(
-		"«%s» теперь ваш!\n\nНаденьте его в инвентаре — и оно сразу появится на герое." % item_name,
+		"«%s» теперь ваш!\n\n%s" % [item_name, hint],
 		"Поздравляем с покупкой!"
 	)
 
@@ -1186,9 +1218,42 @@ func _refresh_weapon_shop() -> void:
 		default_weapon_button.disabled = default_active
 	if default_weapon_card != null:
 		default_weapon_card.add_theme_stylebox_override("panel", _wing_card_style(default_active))
+	var allowed_skins: Array[int] = []
+	for skin in SkinCatalog.items_for_class(selected_class):
+		allowed_skins.append(int(skin["id"]))
+	for skin_id in skin_inventory_cards.keys():
+		var skin_card := skin_inventory_cards[skin_id] as Control
+		if skin_card != null:
+			skin_card.visible = int(skin_id) in allowed_skins
+	var equipped_skin := MetaProgression.get_equipped_skin(hero_key)
+	for skin_id in skin_inventory_statuses.keys():
+		var skin_status := skin_inventory_statuses[skin_id] as Label
+		var skin_owned := MetaProgression.is_skin_unlocked(int(skin_id))
+		var skin_active := skin_owned and equipped_skin == int(skin_id)
+		skin_status.text = "Надето" if skin_active else ("Куплено" if skin_owned else "В магазине")
+		skin_status.add_theme_color_override("font_color", GOLD if skin_active else (Color(0.58, 0.9, 0.64) if skin_owned else Color(0.62, 0.65, 0.72)))
+		var skin_card_node := skin_inventory_cards.get(skin_id) as PanelContainer
+		if skin_card_node != null:
+			skin_card_node.add_theme_stylebox_override("panel", _wing_card_style(skin_active))
+		var skin_button := skin_inventory_buttons.get(skin_id) as Button
+		if skin_button != null:
+			skin_button.text = "Надето" if skin_active else ("Надеть" if skin_owned else "В магазине")
+			skin_button.disabled = not skin_owned or skin_active
+	var default_skin_active := equipped_skin == 0
+	if default_skin_icon != null:
+		default_skin_icon.texture = load("res://assets/ui/heroes/%s" % ["warrior_face.webp", "mage_face.webp", "archer_face.webp"][selected_class]) as Texture2D
+	if default_skin_status != null:
+		default_skin_status.text = "Надето" if default_skin_active else "Стандартный"
+		default_skin_status.add_theme_color_override("font_color", GOLD if default_skin_active else Color(0.62, 0.65, 0.72))
+	if default_skin_button != null:
+		default_skin_button.text = "Надето" if default_skin_active else "Надеть"
+		default_skin_button.disabled = default_skin_active
+	if default_skin_card != null:
+		default_skin_card.add_theme_stylebox_override("panel", _wing_card_style(default_skin_active))
 
 
 func _on_purchase_updated(success: bool, purchase_type: String, item_id: int, _new_shards: int) -> void:
+	_refresh_shop()
 	_refresh_wing_shop()
 	_refresh_weapon_shop()
 	_refresh_player_menu()
@@ -1249,7 +1314,7 @@ func _build_player_menu() -> void:
 
 	var header := HBoxContainer.new()
 	layout.add_child(header)
-	var title := _make_label("ИНВЕНТАРЬ", 25, GOLD)
+	var title := _make_label("ИНВЕНТАРЬ · СКИНЫ", 25, GOLD)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
@@ -1455,13 +1520,13 @@ func _build_player_menu() -> void:
 	var wardrobe_content := VBoxContainer.new()
 	wardrobe_content.add_theme_constant_override("separation", 9)
 	wardrobe_panel.add_child(wardrobe_content)
-	var inventory_tab := _make_action_button("ИНВЕНТАРЬ", true)
+	var inventory_tab := _make_action_button("ИНВЕНТАРЬ · СКИНЫ", true)
 	inventory_tab.custom_minimum_size = Vector2(0, 42)
 	inventory_tab.disabled = true
 	wardrobe_content.add_child(inventory_tab)
 	var inventory_grid := GridContainer.new()
 	inventory_grid.name = "LegendaryWeaponInventory"
-	inventory_grid.columns = 1 if DeviceProfile.mobile_ui else 2
+	inventory_grid.columns = 2
 	inventory_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	inventory_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	inventory_grid.add_theme_constant_override("h_separation", 8)
@@ -1528,6 +1593,69 @@ func _build_player_menu() -> void:
 		weapon_inventory_statuses[weapon_id] = weapon_status
 		weapon_inventory_buttons[weapon_id] = weapon_button
 		weapon_inventory_cards[weapon_id] = weapon_card
+	# Скины: стандартный вид + классовые скины.
+	default_skin_card = PanelContainer.new()
+	default_skin_card.name = "DefaultSkinCard"
+	default_skin_card.custom_minimum_size = Vector2(110, 140)
+	default_skin_card.add_theme_stylebox_override("panel", _panel_style(Color(0.4, 0.48, 0.63, 0.8), Color(0.065, 0.072, 0.09, 0.92)))
+	inventory_grid.add_child(default_skin_card)
+	var default_skin_content := VBoxContainer.new()
+	default_skin_content.add_theme_constant_override("separation", 5)
+	default_skin_card.add_child(default_skin_content)
+	default_skin_icon = TextureRect.new()
+	default_skin_icon.custom_minimum_size = Vector2(0, 52)
+	default_skin_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	default_skin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	default_skin_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	default_skin_content.add_child(default_skin_icon)
+	default_skin_content.add_child(_make_label("Стандартный вид", 12, PALE))
+	default_skin_status = _make_label("Надето", 12, GOLD)
+	default_skin_content.add_child(default_skin_status)
+	default_skin_button = _make_action_button("Надето", false)
+	default_skin_button.custom_minimum_size = Vector2(0, 28)
+	default_skin_button.add_theme_font_size_override("font_size", _fs(11))
+	default_skin_button.pressed.connect(_on_default_skin_pressed)
+	default_skin_content.add_child(default_skin_button)
+	for skin_id in SkinCatalog.ORDER:
+		var skin_item := SkinCatalog.get_item(int(skin_id))
+		if skin_item.is_empty():
+			continue
+		var skin_card := PanelContainer.new()
+		skin_card.name = "SkinCard%d" % int(skin_id)
+		skin_card.custom_minimum_size = Vector2(110, 140)
+		skin_card.add_theme_stylebox_override("panel", _panel_style(Color(0.4, 0.48, 0.63, 0.8), Color(0.065, 0.072, 0.09, 0.92)))
+		inventory_grid.add_child(skin_card)
+		var skin_content := VBoxContainer.new()
+		skin_content.add_theme_constant_override("separation", 5)
+		skin_card.add_child(skin_content)
+		var skin_icon := TextureRect.new()
+		skin_icon.texture = load(String(skin_item["icon"])) as Texture2D
+		skin_icon.custom_minimum_size = Vector2(0, 52)
+		skin_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		skin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		skin_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		skin_content.add_child(skin_icon)
+		skin_content.add_child(_make_label(String(skin_item["name"]), 12, PALE))
+		var skin_status := _make_label("В магазине", 12, Color(0.62, 0.65, 0.72))
+		skin_content.add_child(skin_status)
+		var skin_button := _make_action_button("Купить", false)
+		skin_button.name = "SkinInventoryButton%d" % int(skin_id)
+		skin_button.custom_minimum_size = Vector2(0, 28)
+		skin_button.add_theme_font_size_override("font_size", _fs(11))
+		skin_button.pressed.connect(_on_inventory_skin_pressed.bind(int(skin_id)))
+		skin_content.add_child(skin_button)
+		skin_inventory_statuses[int(skin_id)] = skin_status
+		skin_inventory_buttons[int(skin_id)] = skin_button
+		skin_inventory_cards[int(skin_id)] = skin_card
+	# Скины держим сразу под стандартным оружием, чтобы не искать их внизу.
+	if default_skin_card != null:
+		inventory_grid.move_child(default_skin_card, 1)
+	var skin_slot := 2
+	for skin_key in SkinCatalog.ORDER:
+		var skin_card_node := skin_inventory_cards.get(int(skin_key)) as Control
+		if skin_card_node != null:
+			inventory_grid.move_child(skin_card_node, skin_slot)
+			skin_slot += 1
 	# Крылья временно убраны из инвентаря.
 	_finish_player_menu_layout()
 	_refresh_player_menu()
@@ -1623,7 +1751,7 @@ func _refresh_hero_preview() -> void:
 	if preview_root == null:
 		return
 	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
-	var signature := "%d:%d" % [selected_class, MetaProgression.get_equipped_weapon(character_key)]
+	var signature := "%d:%d:%d" % [selected_class, MetaProgression.get_equipped_weapon(character_key), MetaProgression.get_equipped_skin(character_key)]
 	if preview_hero != null and is_instance_valid(preview_hero) and preview_class == selected_class and preview_weapon_signature == signature:
 		_mark_preview_dirty()
 		return
@@ -1687,6 +1815,28 @@ func _refresh_wing_inventory() -> void:
 func _on_default_weapon_pressed() -> void:
 	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
 	MetaProgression.set_equipped_weapon(character_key, 0)
+	_refresh_weapon_shop()
+	_refresh_player_menu()
+
+
+func _on_default_skin_pressed() -> void:
+	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
+	MetaProgression.set_equipped_skin(character_key, 0)
+	_refresh_weapon_shop()
+	_refresh_player_menu()
+
+
+func _on_inventory_skin_pressed(skin_id: int) -> void:
+	if not MetaProgression.is_skin_unlocked(skin_id):
+		_open_shard_shop()
+		return
+	var skin := SkinCatalog.get_item(skin_id)
+	if skin.is_empty():
+		return
+	var character_key := WeaponCatalog.class_key(int(skin["class"]))
+	if character_key.is_empty():
+		return
+	MetaProgression.set_equipped_skin(character_key, skin_id)
 	_refresh_weapon_shop()
 	_refresh_player_menu()
 
@@ -2398,6 +2548,14 @@ func _localize_report_error(error: String) -> String:
 			return error
 
 
+func _hero_display_name() -> String:
+	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
+	var skin := SkinCatalog.get_item(MetaProgression.get_equipped_skin(character_key))
+	if not skin.is_empty():
+		return String(skin.get("short_name", skin["name"]))
+	return HERO_NAMES[selected_class]
+
+
 func _refresh_player_menu() -> void:
 	if preview_root == null:
 		return
@@ -2421,9 +2579,9 @@ func _refresh_player_menu() -> void:
 	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
 	var character_level := int(MetaProgression.char_levels.get(character_key, 1))
 	var character_xp := int(MetaProgression.char_xps.get(character_key, 0))
-	menu_hero_name_label.text = HERO_NAMES[selected_class]
+	menu_hero_name_label.text = _hero_display_name()
 	_refresh_hero_preview()
-	menu_level_label.text = "Уровень %d — %s" % [character_level, HERO_NAMES[selected_class]]
+	menu_level_label.text = "Уровень %d — %s" % [character_level, _hero_display_name()]
 	var max_xp := MetaProgression.get_xp_for_next_level(character_key)
 	menu_xp_bar.max_value = max_xp
 	menu_xp_bar.value = character_xp
@@ -2737,6 +2895,11 @@ func _refresh_selection() -> void:
 			card_images[slot].modulate = Color(0.62, 0.65, 0.72, 1.0)
 			card_names[slot].add_theme_color_override("font_color", Color(0.72, 0.75, 0.82))
 	var avatar_source := load(HERO_FACE[selected_class]) as Texture2D
+	var equipped_skin := SkinCatalog.get_item(MetaProgression.get_equipped_skin(["warrior", "mage", "fairy"][selected_class]))
+	if not equipped_skin.is_empty():
+		var skin_icon := load(String(equipped_skin["icon"])) as Texture2D
+		if skin_icon != null:
+			avatar_source = skin_icon
 	if avatar_source != null:
 		avatar.texture = avatar_source
 	_refresh_player_profile()
@@ -2754,7 +2917,7 @@ func _refresh_player_profile() -> void:
 	if nickname.is_empty():
 		nickname = "Игрок"
 	profile_name_label.text = nickname
-	profile_level_label.text = '%s · Уровень %d' % [HERO_NAMES[selected_class], character_level]
+	profile_level_label.text = '%s · Уровень %d' % [_hero_display_name(), character_level]
 	profile_name_label.add_theme_color_override('font_color', PALE)
 	profile_level_label.add_theme_color_override('font_color', Color(0.7, 0.75, 0.84))
 	profile_level_label.add_theme_color_override('font_shadow_color', Color(0.0, 0.0, 0.0, 0.7))
