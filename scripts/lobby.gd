@@ -143,6 +143,7 @@ var preview_camera: Camera3D
 var preview_hero: HeroUnit
 var preview_class := -1
 var preview_weapon_signature := ""
+var preview_render_generation := 0
 var menu_level_label: Label
 var menu_xp_bar: ProgressBar
 var menu_xp_remaining_label: Label
@@ -1680,6 +1681,7 @@ func _refresh_hero_preview() -> void:
 	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
 	var signature := "%d:%d:%d" % [selected_class, MetaProgression.get_equipped_weapon(character_key), MetaProgression.get_equipped_skin(character_key)]
 	if preview_hero != null and is_instance_valid(preview_hero) and preview_class == selected_class and preview_weapon_signature == signature:
+		preview_hero.pose_preview_idle()
 		_mark_preview_dirty()
 		return
 	preview_class = selected_class
@@ -1698,6 +1700,7 @@ func _refresh_hero_preview() -> void:
 	preview_hero.scale = Vector3.ONE * preview_scale
 	if preview_camera != null:
 		preview_camera.look_at_from_position(Vector3(0.0, 1.2, preview_distance + 0.6), Vector3(0.0, 0.95, 0.0), Vector3.UP)
+	preview_hero.pose_preview_idle()
 	preview_hero.health_back.visible = false
 	preview_hero.health_fill.visible = false
 	preview_hero.health_label.visible = false
@@ -1711,7 +1714,23 @@ func _refresh_hero_preview() -> void:
 func _mark_preview_dirty() -> void:
 	if preview_viewport == null or not is_instance_valid(preview_viewport):
 		return
-	preview_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+	# A one-shot render can happen before the skinned mesh has consumed the
+	# idle pose, leaving the weapon floating next to a T-posed body. Render a
+	# few frames while the pose and weapon transform settle, then go back to
+	# the cheap one-shot mode.
+	preview_render_generation += 1
+	var generation := preview_render_generation
+	preview_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_finish_preview_render(generation)
+
+
+func _finish_preview_render(generation: int) -> void:
+	for _i in 3:
+		await get_tree().process_frame
+	if generation != preview_render_generation:
+		return
+	if preview_viewport != null and is_instance_valid(preview_viewport):
+		preview_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
 
 
 func _build_wing_inventory_cards(_inventory_grid: GridContainer) -> void:

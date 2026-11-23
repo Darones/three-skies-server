@@ -2344,6 +2344,26 @@ func network_regen_multiplier() -> float:
 	return multiplier
 
 
+func pose_preview_idle(pose_time := 0.6) -> void:
+	# The lobby preview renders once; without an explicit pose it captures the
+	# bind/T-pose and the hand-held weapon looks detached. Seek the idle clip
+	# first, then place the external weapon on the posed bone.
+	if anim_player == null:
+		return
+	var target := ""
+	for animation_name in anim_player.get_animation_list():
+		if String(animation_name).to_lower().contains("idle"):
+			target = String(animation_name)
+			break
+	if target.is_empty():
+		return
+	anim_player.play(target)
+	anim_player.seek(pose_time, true)
+	anim_player.pause()
+	current_anim = "idle"
+	_update_weapon_transform()
+
+
 func _is_at_own_base() -> bool:
 	var base_z := BASE_POSITION_Z if team == 0 else -BASE_POSITION_Z
 	return Vector2(global_position.x, global_position.z - base_z).length() <= BASE_REGEN_RADIUS
