@@ -1,4 +1,4 @@
-# Платформенные адаптеры: VK Games + Yandex Games
+# Платформенные адаптеры: VK Games + Одноклассники + Yandex Games
 
 ## Цель
 
@@ -6,15 +6,17 @@
 сборка. Не форкать геймплей и не держать две копии проекта.
 
 ```
-Игровое ядро (без VK/Yandex SDK)
+Игровое ядро (без VK/OK/Yandex SDK)
   геймплей, UI, бой, магазин, скины, сохранения
         │
 Platform (autoload) — стабильный интерфейс
   ├── StandaloneAdapter  — тест/свой сайт, без SDK
-  ├── VKAdapter          — VK Bridge, VK Голоса, VK Ads
+  ├── VKBridgeBase       — общая обвязка VK Bridge
+  │     ├── VKAdapter    — VK Голоса, VK-ссылки, VK-методы
+  │     └── OKAdapter    — ОКи, OK-ссылки, local_access_token
   └── YandexAdapter      — Yandex Games SDK, платежи, реклама
         │
-Сборки: web-standalone / web-vk / web-yandex
+Сборки: web-standalone / web-vk / web-ok / web-yandex
 ```
 
 Ядро не вызывает `VKWebApp...` или `ysdk...` напрямую. Только `Platform.*`.
@@ -22,9 +24,11 @@ Platform (autoload) — стабильный интерфейс
 ## Интерфейс Platform
 
 ```gdscript
-Platform.platform_id            # "standalone" | "vk" | "yandex"
+Platform.platform_id            # "standalone" | "vk" | "ok" | "yandex"
 Platform.get_user()             # {id, name, avatar, platform}
 Platform.get_launch_token()     # строка/JSON для серверной проверки
+Platform.get_app_link()         # ссылка на приложение ЭТОЙ площадки
+Platform.get_currency()         # "votes" | "oki" | "yandex"
 Platform.is_ready()
 Platform.show_rewarded_ad(placement) -> bool
 Platform.show_interstitial(placement) -> bool
@@ -45,8 +49,8 @@ Platform.on_pause / on_resume
 ```
 players:
   id            BIGSERIAL PK
-  platform      TEXT      -- vk | yandex | standalone
-  external_id   TEXT      -- vk_user_id / yandex player id
+  platform      TEXT      -- vk | ok | yandex | standalone
+  external_id   TEXT      -- vk_user_id / ok uid / yandex player id
   nickname      TEXT
   ...
   UNIQUE (platform, external_id)
@@ -54,24 +58,29 @@ players:
 
 - VK: `/auth/vk` принимает launch params, проверяет `sign` секретом приложения
   (`VK_APP_SECRET`), проверяет свежесть `vk_ts`, создаёт/находит профиль.
+- OK: `/auth/ok` принимает `local_access_token`, проверяет его через OK API,
+  создаёт/находит профиль по OK uid.
 - Yandex: `/auth/yandex` — проверка player-токена через Yandex API.
-- Старые локальные `player_id` остаются для Standalone; для VK — новый профиль
+- Старые локальные `player_id` остаются для Standalone; для VK/OK — новый профиль
   или одноразовая привязка (решить отдельно).
 - Прогресс (уровни, XP, скины, оружие, осколки) — на сервере, не в `user://`.
+- **Прогресс VK и OK хранится отдельно** и не переносится между соцсетями.
 
 ## Сборки
 
-Три export preset:
+Четыре export preset:
 
 1. **Web Standalone** — без SDK, для теста и своего сайта.
-2. **Web VK** — `index.html` грузит `vk-bridge.min.js`; включён `vk` feature;
+2. **Web VK** — `index.html` грузит `vk-bridge.min.js`; feature `vk`;
    в PCK только `VKAdapter`.
-3. **Web Yandex** — `index.html` грузит Yandex SDK; включён `yandex` feature;
+3. **Web OK** — тоже `vk-bridge.min.js`, но feature `ok`, только `OKAdapter`;
+   все ссылки/шеринг — на приложение в Одноклассниках.
+4. **Web Yandex** — `index.html` грузит Yandex SDK; feature `yandex`;
    в PCK только `YandexAdapter`.
 
 Чужие SDK и адаптеры в сборку не попадают. `tools/web_export.py` и
-`tools/patch_chunk_loader.py` должны принимать платформу и не вставлять
-VK Bridge в Yandex/Standalone.
+`tools/patch_chunk_loader.py` должны принимать платформу, вставлять VK Bridge
+только в VK/OK и не вставлять его в Yandex/Standalone.
 
 ## Этапы
 
@@ -95,6 +104,15 @@ VK Bridge в Yandex/Standalone.
 - Критерий: два разных VK-пользователя получают разные серверные профили;
   поддельный `sign` отклоняется.
 
+### M2b. OK-авторизация
+
+- `OKAdapter` наследует `VKBridgeBase`.
+- `VKWebAppGetAuthToken` с `append_local: true` → `local_access_token`.
+- OK API-методы — через `VKWebAppCallAPIMethod` с `use_local: true`.
+- Сервер: `/auth/ok`, проверка OK-токена, профиль по OK uid.
+- Все ссылки и шеринг — только на приложение в Одноклассниках; никаких VK-ссылок.
+- Критерий: VK- и OK-профили независимы; прогресс в OK не пересекается с VK.
+
 ### M3. Юридика и первый запуск
 
 - Экран возраста, пользовательское соглашение, политика конфиденциальности,
@@ -103,12 +121,29 @@ VK Bridge в Yandex/Standalone.
 - Удаление аккаунта/данных на сервере + кнопка в настройках.
 - Контакт поддержки/сообщество и данные разработчика.
 
-### M4. VK-монетизация
+### M4. Монетизация VK + OK
 
 - Rewarded/interstitial через VK Ads (не mock).
-- VK Голоса для виртуальных ценностей (осколки/скины) через VK Bridge.
-- Серверная проверка платежей VK.
+- VK: VK Голоса для виртуальных ценностей (осколки/скины) через VK Bridge.
+- OK: ОКи вместо Голосов; разовые платежи/подписки и обработка платёжных
+  уведомлений OK. Экономика и SKU общие, цены/валюта — через адаптер.
+- Если реклама VK Ads уже подключена, в OK она показывается автоматически;
+  проверить на OK-сборке.
+- Серверная проверка платежей отдельно для VK и OK.
 - Убрать «Купить осколки» и «x2 за рекламу», если адаптер не готов.
+
+### Особенности OK
+
+- В OK используем VK Bridge, но авторизация — `VKWebAppGetAuthToken` с
+  `append_local: true`, токен в `local_access_token`; API-методы —
+  `VKWebAppCallAPIMethod` с `use_local: true`.
+- VK-специфичные методы (`VKWebAppAddToHomeScreen`, `VKWebAppAddToFavorites`
+  и т.п.) в OK не работают; проверять ответ `Unsupported platform`.
+- `VKWebAppShare`/`VKWebAppShowStoryBox` — только ссылка на приложение в OK,
+  не на VK.
+- Никаких внешних ссылок и перехода в VK из OK-сборки.
+- Прогресс OK хранится отдельно на сервере (`platform='ok'`) и синхронизируется
+  между устройствами пользователя OK.
 
 ### M5. Yandex-адаптер
 
@@ -119,11 +154,12 @@ VK Bridge в Yandex/Standalone.
 ## Открытые вопросы
 
 1. Есть ли VK APP_ID и `VK_APP_SECRET` (или доступ к Панели VK)?
-2. Каталог: **игры** (нужна монетизация) или сервисы?
-3. Переносить ли старые локальные профили в VK или начать с чистых?
-4. Юридические тексты/ИП/контакты поддержки — кто предоставляет?
-5. Приоритет монетизации: сначала rewarded ads или VK Голоса?
-6. Нужен ли Standalone-билд для itch/своего сайта как отдельный продукт?
+2. Есть ли OK APP_ID/ключи и доступ к Панели OK?
+3. Каталог VK: **игры** (нужна монетизация) или сервисы?
+4. Переносить ли старые локальные профили в VK/OK или начать с чистых?
+5. Юридические тексты/ИП/контакты поддержки — кто предоставляет?
+6. Приоритет монетизации: сначала rewarded ads или VK Голоса/ОКи?
+7. Нужен ли Standalone-билд для itch/своего сайта как отдельный продукт?
 
 ## Файлы
 
@@ -131,6 +167,7 @@ VK Bridge в Yandex/Standalone.
 - `scripts/platform/platform_adapter.gd` — базовый интерфейс.
 - `scripts/platform/standalone_adapter.gd`
 - `scripts/platform/vk_adapter.gd`
+- `scripts/platform/ok_adapter.gd`
 - `scripts/platform/yandex_adapter.gd`
 - `tools/web_export.py`, `tools/patch_chunk_loader.py` — платформенные шаблоны.
 - `server/main.go`, `server/ws.go` — auth/platform profile.
@@ -141,6 +178,8 @@ VK Bridge в Yandex/Standalone.
 - Прод: PCK 48 925 168, `main` `9272be6`, вход `?v=20261124_062608`.
 - VK Bridge уже подключён в `index.html`, но VK-авторизации/launch params нет.
 - `AdManager` и `shard_topup_panel` — mock, в публичную сборку так нельзя.
+  В `shard_topup_panel` уже есть ветка `is_ok` с «ОКи», но оплата не подключена.
+- OK-сборки пока нет; VK Bridge в HTML общий, но OK-токен и ссылки не реализованы.
 - Прогресс частично локальный (`player_id`, уровни/XP), сервер — осколки/скины.
 
 ## Правило
