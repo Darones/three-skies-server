@@ -58,11 +58,11 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
 - Деплой: пуш в `origin/main` → RelaxDev пересобирает и перезапускает. Иногда нужен пустой commit для повторного деплоя. После деплоя проверять uptime в `/health` и размер PCK, а не верить пушу.
 - **Перед каждым деплоем проверять `/health` → `live_matches` и `online_players`; выкатывать только при `live_matches=0`.** Скрипт: `tools/check_deploy_safe.ps1`. Рестарт контейнера рвёт живой матч; 23.11 так оборвался занос Оболочки.
 - Сервер по SIGTERM завершает живые матчи текущим счётом, сохраняет результат и рассылает `match_finished` — контролируемый рестарт больше не должен давать «МАТЧ ПРЕРВАН».
-- **Текущий прод (на 24.11.2026, утро):**
-  - PCK: `index_20261124_092433.pck`, на хосте `index.pck`, **48 925 168 байт**
-    (UI-правки по тесту, статистика осколков, ник на телефоне, скины/магазин).
-  - `main`: `9272be6` (сервер + PCK); контейнер перезапущен, `/health` ok.
-  - Исходники: ветка `mobile-ui` (`8169455`; см. `git log`).
+- **Текущий прод (на 24.11.2026, день):**
+  - PCK: `index_20261124_112239.pck`, на хосте `index.pck`, **48 953 300 байт**
+    (D1: обучение 1→2→3, правила, новичковый пул, профили ботов).
+  - `main`: `94115d2` (сервер + PCK); вход `?v=20261124_082927`, `/health` ok.
+  - Исходники: ветка `mobile-ui` (`93bc770`; см. `git log`).
   - Сервер: `server/ws.go`, `server/main.go`, `server/stats.go` + `server/web/index.pck` в `main`.
   - Дашборд: `https://three-skies-server.relaxdev.ru/stats/dashboard?token=239837`.
 
@@ -273,7 +273,7 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
   `11 123`; в браузере `[Platform] id=standalone` и `[Platform] id=vk`,
   `SCRIPT ERROR` нет; кадры `docs/qa-m1-shop-standalone.png` и
   `docs/qa-m1-topup-standalone.png`.
-- Не деплоилось: прод остаётся PCK `48 925 168`, `main` `9272be6`.
+- M1 вошёл в общий D1-деплой 24.11: прод PCK `48 953 300`, `main` `94115d2`.
 
 ### D1. Обучение и новичковый пул (24.11)
 
@@ -298,6 +298,8 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
   отчёт `docs/QA-D1.md`.
 - Сборки: standalone PCK `48 953 300`, VK PCK `48 953 284`; обе грузятся в
   браузере без `SCRIPT ERROR`.
+- **Задеплоено 24.11:** `main` `94115d2`, на хосте `index.pck` `48 953 300`,
+  вход `?v=20261124_082927`; `/health` ok, `live_matches=0`.
 
 - Сервер — источник времени матча; клиент синхронизирует `match_time` по `match_time_left_ms`.
 - Сервер владеет HP/смертью Оболочки, кристаллом, счётом, наградами.
@@ -437,8 +439,8 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
   перепроверялись; тайминги 60/75/10 с могут потребовать подстройки.
 - **D1/hard:** профиль `hard` реализован, но в текущем пуле не выбирается;
   оставлен для сильных новичков/будущего тюнинга.
-- **D1/сборки:** PCK `48 953 300` (standalone) и `48 953 284` (VK) собраны
-  локально; до деплоя прод остаётся на старом PCK `48 925 168`.
+- **D1/сборки:** PCK `48 953 300` (standalone) и `48 953 284` (VK) собраны;
+  standalone задеплоен 24.11 (`main` `94115d2`), VK-сборка пока локальная.
 - Локальный QA-сервер без БД пишет `pq: SSL is not enabled` — только стенд.
 
 ## Правило на будущее (важно)
