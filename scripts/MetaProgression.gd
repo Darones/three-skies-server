@@ -10,6 +10,7 @@ const MAX_CHARACTER_LEVEL := 15
 const STATS_PATH := "user://stats.cfg"
 const LOADOUT_PATH := "user://loadout.cfg"
 const META_PATH := "user://meta_save.cfg"
+const LEGACY_TUTORIAL_PATH := "user://tutorial.cfg"
 const LEVEL_UP_SHARD_REWARDS: Dictionary = {
 	1: 50, 2: 75, 3: 100, 4: 125, 5: 150,
 	6: 175, 7: 200, 8: 225, 9: 250, 10: 300,
@@ -30,6 +31,10 @@ var novice: bool = false
 var account_level: int = 1
 var char_levels: Dictionary = {"warrior": 1, "mage": 1, "fairy": 1}
 var char_xps: Dictionary = {"warrior": 0, "mage": 0, "fairy": 0}
+var tutorial_completed := false
+var tutorial_skipped := false
+var tutorial_battles_used := 0
+var progress_initialized := false
 var just_leveled_up: bool = false
 var just_leveled_up_character: String = ""
 var last_xp_gain := 0
@@ -72,6 +77,10 @@ func _ready() -> void:
 		NetworkClient.registration_completed.connect(_on_registration_completed)
 	if not NetworkClient.profile_loaded.is_connected(_on_profile_loaded):
 		NetworkClient.profile_loaded.connect(_on_profile_loaded)
+	if not NetworkClient.progress_loaded.is_connected(_on_progress_loaded):
+		NetworkClient.progress_loaded.connect(_on_progress_loaded)
+	if not NetworkClient.progress_saved.is_connected(_on_progress_saved):
+		NetworkClient.progress_saved.connect(_on_progress_saved)
 	if not NetworkClient.purchase_completed.is_connected(_on_purchase_completed):
 		NetworkClient.purchase_completed.connect(_on_purchase_completed)
 	if not NetworkClient.match_reward_completed.is_connected(_on_match_reward_completed):
@@ -100,6 +109,13 @@ func _load_meta() -> void:
 	if xps is Dictionary:
 		for key in char_xps.keys():
 			char_xps[key] = maxi(0, int(xps.get(key, 0)))
+	# One-time source for players who finished the tutorial before M2. The
+	# server profile replaces these values as soon as it is loaded.
+	var tutorial := ConfigFile.new()
+	if tutorial.load(LEGACY_TUTORIAL_PATH) == OK:
+		tutorial_completed = bool(tutorial.get_value("tutorial", "completed", false))
+		tutorial_skipped = bool(tutorial.get_value("tutorial", "skipped", false))
+		tutorial_battles_used = maxi(0, int(tutorial.get_value("tutorial", "battles_used", 0)))
 
 
 func _on_session_ready(token: String) -> void:
@@ -113,9 +129,78 @@ func persist_local() -> void:
 
 
 func known_matches() -> int:
-	# Server count wins once loaded; local stats cover an older profile while
-	# the profile request is still in flight.
+	# matches_played is server-owned. Local stats are only a fallback while
+	# the profile request is still in flight; they must not override VK data
+	# with an unrelated standalone history.
+	if profile_loaded:
+		return matches_played
 	return maxi(matches_played, int(stats_all.get("matches", 0)))
+
+
+func save_progress() -> void:
+	if player_id <= 0:
+		return
+	NetworkClient.save_progress(
+		player_id,
+		char_levels,
+		char_xps,
+		tutorial_completed,
+		tutorial_skipped,
+		tutorial_battles_used
+	)
+
+
+func _on_progress_loaded(success: bool, progress: Dictionary) -> void:
+	if not success:
+		return
+	apply_server_progress(progress)
+
+
+func _on_progress_saved(success: bool, progress: Dictionary) -> void:
+	if not success:
+		return
+	progress_initialized = true
+	if not progress.is_empty():
+		_apply_progress_values(progress)
+	_save_meta()
+	profile_updated.emit()
+
+
+func apply_server_progress(progress: Dictionary, notify := true) -> void:
+	var initialized := bool(progress.get("progress_initialized", false))
+	progress_initialized = initialized
+	if not initialized:
+		if Platform.platform_id == "standalone":
+			# One-time import of the pre-server local XP/tutorial state.
+			save_progress()
+			return
+		# Never copy an unrelated device-local standalone save into a VK/OK
+		# profile. A platform profile starts with clean defaults.
+		char_levels = {"warrior": 1, "mage": 1, "fairy": 1}
+		char_xps = {"warrior": 0, "mage": 0, "fairy": 0}
+		tutorial_completed = false
+		tutorial_skipped = false
+		tutorial_battles_used = 0
+		save_progress()
+		return
+	_apply_progress_values(progress)
+	_save_meta()
+	if notify:
+		profile_updated.emit()
+
+
+func _apply_progress_values(progress: Dictionary) -> void:
+	var levels: Variant = progress.get("char_levels", {})
+	if levels is Dictionary:
+		for key in char_levels.keys():
+			char_levels[key] = clampi(int(levels.get(key, 1)), 1, MAX_CHARACTER_LEVEL)
+	var xps: Variant = progress.get("char_xps", {})
+	if xps is Dictionary:
+		for key in char_xps.keys():
+			char_xps[key] = maxi(0, int(xps.get(key, 0)))
+	tutorial_completed = bool(progress.get("tutorial_completed", false))
+	tutorial_skipped = bool(progress.get("tutorial_skipped", false))
+	tutorial_battles_used = maxi(0, int(progress.get("tutorial_battles_used", 0)))
 
 
 func _save_meta() -> void:
@@ -128,8 +213,12 @@ func _save_meta() -> void:
 	config.set_value("progression", "matches_played", matches_played)
 	config.set_value("progression", "novice", novice)
 	config.set_value("progression", "account_level", account_level)
-	config.set_value("progression", "char_levels", char_levels)
-	config.set_value("progression", "char_xps", char_xps)
+	# Before the first successful server save, keep the legacy local values so
+	# a failed upload does not lose them. Once the server owns progress they
+	# are not written to user:// anymore.
+	if not progress_initialized:
+		config.set_value("progression", "char_levels", char_levels)
+		config.set_value("progression", "char_xps", char_xps)
 	config.save(META_PATH)
 
 
@@ -144,6 +233,10 @@ func reset_all() -> void:
 	sky_shards = 0
 	char_levels = {"warrior": 1, "mage": 1, "fairy": 1}
 	char_xps = {"warrior": 0, "mage": 0, "fairy": 0}
+	tutorial_completed = false
+	tutorial_skipped = false
+	tutorial_battles_used = 0
+	progress_initialized = false
 	just_leveled_up = false
 	just_leveled_up_character = ""
 	equipped_wing = 0
@@ -378,12 +471,13 @@ func add_character_xp(char_name: String, amount: int) -> void:
 		just_leveled_up = true
 		just_leveled_up_character = char_name
 	if level_reward > 0:
-		# Character levels and XP are client-side progression, so their shard
-		# bonus is granted locally instead of consuming the match reward slot.
+		# The level-up bonus is still granted locally; only the XP/level state
+		# is stored on the server.
 		add_shards(level_reward)
 	if int(char_levels[char_name]) >= MAX_CHARACTER_LEVEL:
 		char_xps[char_name] = 0
 	_save_meta()
+	save_progress()
 
 
 func consume_level_up_for(char_name: String) -> bool:

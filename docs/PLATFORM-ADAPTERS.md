@@ -193,8 +193,8 @@ players:
 - **M2 сделан в коде (24.11.2026), не задеплоен.** `/auth/vk` со строгой
   проверкой `sign`/`vk_ts`/`vk_app_id`, профиль `(platform='vk',
   external_id=vk_user_id)`, миграция `players`, VK-экран входа без регистрации
-  по нику. VK-сборка: PCK `48 971 364`, standalone: `48 971 380`.
-  Подробно — `docs/QA-M2.md`.
+  по нику. XP/уровни персонажей и обучение перенесены в серверный профиль
+  (`POST /progress`). Подробно — `docs/QA-M2.md`.
 - Сборки: `Web Standalone` (`web-standalone`, `build/web`) и `Web VK`
   (`web-vk,vk`, `build/web-vk`). `python tools/web_export.py --platform
   standalone|vk`; без флага — standalone. VK Bridge вставляется только в VK.
@@ -204,8 +204,10 @@ players:
   `docs/qa-m1-shop-standalone.png`, `docs/qa-m1-topup-standalone.png`.
   Подробно — `docs/QA-M1.md`.
 - Реальных VK Ads/Голосов пока нет (M4). OK-сборки нет (M2b/M5).
-- Прогресс: осколки/скины/оружие/новичковый статус — серверные; уровни/XP
-  персонажей пока локальные, `players.level` уже есть в профиле.
+- Прогресс: осколки/скины/оружие, `matches_played`/`novice`, XP и уровни
+  персонажей, прохождение/пропуск обучения — серверные (`players.char_levels`,
+  `char_xps`, `tutorial_*`). Клиент синхронизирует их через `POST /progress`;
+  старые standalone-сейвы один раз выгружаются при первом входе.
 - Перед запуском VK: сменить URL приложения на `/game-vk/`, сделать бэкап БД,
   прогнать миграцию на копии и проверить два VK-аккаунта вручную.
 

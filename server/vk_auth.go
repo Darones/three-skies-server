@@ -38,33 +38,45 @@ var (
 )
 
 type vkAuthResponse struct {
-	Success         bool   `json:"success"`
-	PlayerID        int64  `json:"player_id,omitempty"`
-	SessionToken    string `json:"session_token,omitempty"`
-	Nickname        string `json:"nickname,omitempty"`
-	NicknameCustom  bool   `json:"nickname_custom"`
-	SkyShards       int    `json:"sky_shards,omitempty"`
-	Level           int    `json:"level,omitempty"`
-	UnlockedWings   []int  `json:"unlocked_wings,omitempty"`
-	UnlockedWeapons []int  `json:"unlocked_weapons,omitempty"`
-	Skins           []int  `json:"skins,omitempty"`
-	Weapons         []int  `json:"weapons,omitempty"`
-	MatchesPlayed   int    `json:"matches_played"`
-	Novice          bool   `json:"novice"`
-	Error           string `json:"error,omitempty"`
+	Success             bool           `json:"success"`
+	PlayerID            int64          `json:"player_id,omitempty"`
+	SessionToken        string         `json:"session_token,omitempty"`
+	Nickname            string         `json:"nickname,omitempty"`
+	NicknameCustom      bool           `json:"nickname_custom"`
+	SkyShards           int            `json:"sky_shards,omitempty"`
+	Level               int            `json:"level,omitempty"`
+	UnlockedWings       []int          `json:"unlocked_wings,omitempty"`
+	UnlockedWeapons     []int          `json:"unlocked_weapons,omitempty"`
+	Skins               []int          `json:"skins,omitempty"`
+	Weapons             []int          `json:"weapons,omitempty"`
+	MatchesPlayed       int            `json:"matches_played"`
+	Novice              bool           `json:"novice"`
+	CharLevels          map[string]int `json:"char_levels"`
+	CharXPs             map[string]int `json:"char_xps"`
+	TutorialCompleted   bool           `json:"tutorial_completed"`
+	TutorialSkipped     bool           `json:"tutorial_skipped"`
+	TutorialBattlesUsed int            `json:"tutorial_battles_used"`
+	ProgressInitialized bool           `json:"progress_initialized"`
+	Error               string         `json:"error,omitempty"`
 }
 
 type vkProfileRow struct {
-	id             int64
-	nickname       string
-	nicknameCustom bool
-	shards         int
-	wings          string
-	weapons        string
-	matchesPlayed  int
-	novice         bool
-	level          int
-	sessionToken   string
+	id                  int64
+	nickname            string
+	nicknameCustom      bool
+	shards              int
+	wings               string
+	weapons             string
+	matchesPlayed       int
+	novice              bool
+	level               int
+	levelsJSON          string
+	xpsJSON             string
+	tutorialCompleted   bool
+	tutorialSkipped     bool
+	tutorialBattlesUsed int
+	progressInitialized bool
+	sessionToken        string
 }
 
 type vkRateLimiter struct {
@@ -296,20 +308,31 @@ func (service *api) handleVKAuth(w http.ResponseWriter, r *http.Request) {
 	}
 	unlockedWeapons := parseItemIDs(profile.weapons)
 	skins, weapons := splitUnlockedItems(unlockedWeapons)
+	progress := decodeStoredProgress(
+		profile.levelsJSON, profile.xpsJSON,
+		profile.tutorialCompleted, profile.tutorialSkipped, profile.tutorialBattlesUsed,
+		profile.progressInitialized,
+	)
 	writeJSON(w, http.StatusOK, vkAuthResponse{
-		Success:         true,
-		PlayerID:        profile.id,
-		SessionToken:    profile.sessionToken,
-		Nickname:        profile.nickname,
-		NicknameCustom:  profile.nicknameCustom,
-		SkyShards:       profile.shards,
-		Level:           profile.level,
-		UnlockedWings:   parseItemIDs(profile.wings),
-		UnlockedWeapons: unlockedWeapons,
-		Skins:           skins,
-		Weapons:         weapons,
-		MatchesPlayed:   profile.matchesPlayed,
-		Novice:          profile.novice,
+		Success:             true,
+		PlayerID:            profile.id,
+		SessionToken:        profile.sessionToken,
+		Nickname:            profile.nickname,
+		NicknameCustom:      profile.nicknameCustom,
+		SkyShards:           profile.shards,
+		Level:               profile.level,
+		UnlockedWings:       parseItemIDs(profile.wings),
+		UnlockedWeapons:     unlockedWeapons,
+		Skins:               skins,
+		Weapons:             weapons,
+		MatchesPlayed:       profile.matchesPlayed,
+		Novice:              profile.novice,
+		CharLevels:          progress.CharLevels,
+		CharXPs:             progress.CharXPs,
+		TutorialCompleted:   progress.TutorialCompleted,
+		TutorialSkipped:     progress.TutorialSkipped,
+		TutorialBattlesUsed: progress.TutorialBattlesUsed,
+		ProgressInitialized: progress.ProgressInitialized,
 	})
 }
 
@@ -340,8 +363,9 @@ func (service *api) upsertVKProfile(ctx context.Context, externalID, displayName
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO players (
 			nickname, nickname_custom, sky_shards, unlocked_wings, unlocked_weapons,
-			matches_played, novice, session_token, platform, external_id, level
-		) VALUES ($1, FALSE, 0, '', '', 0, TRUE, $2, 'vk', $3, 1)
+			matches_played, novice, session_token, platform, external_id, level,
+			progress_initialized
+		) VALUES ($1, FALSE, 0, '', '', 0, TRUE, $2, 'vk', $3, 1, TRUE)
 		ON CONFLICT (platform, external_id) WHERE external_id IS NOT NULL DO NOTHING
 	`, defaultName, token, externalID)
 	if err != nil {
@@ -353,12 +377,18 @@ func (service *api) upsertVKProfile(ctx context.Context, externalID, displayName
 		SELECT id, nickname, COALESCE(nickname_custom, FALSE), COALESCE(sky_shards, 0),
 		       COALESCE(unlocked_wings, ''), COALESCE(unlocked_weapons, ''),
 		       COALESCE(matches_played, 0), COALESCE(novice, FALSE),
-		       COALESCE(level, 1), COALESCE(session_token, '')
+		       COALESCE(level, 1),
+		       COALESCE(char_levels::text, ''), COALESCE(char_xps::text, ''),
+		       COALESCE(tutorial_completed, FALSE), COALESCE(tutorial_skipped, FALSE),
+		       COALESCE(tutorial_battles_used, 0), COALESCE(progress_initialized, FALSE),
+		       COALESCE(session_token, '')
 		FROM players WHERE platform = 'vk' AND external_id = $1 FOR UPDATE
 	`, externalID).Scan(
 		&profile.id, &profile.nickname, &profile.nicknameCustom, &profile.shards,
 		&profile.wings, &profile.weapons, &profile.matchesPlayed, &profile.novice,
-		&profile.level, &profile.sessionToken,
+		&profile.level, &profile.levelsJSON, &profile.xpsJSON,
+		&profile.tutorialCompleted, &profile.tutorialSkipped, &profile.tutorialBattlesUsed,
+		&profile.progressInitialized, &profile.sessionToken,
 	)
 	if err != nil {
 		return vkProfileRow{}, err

@@ -119,6 +119,7 @@ func _apply_auth(result: Dictionary) -> bool:
 	var weapons: Array = profile.get("unlocked_weapons", [])
 	var nickname := String(profile.get("nickname", ""))
 	var nickname_custom := bool(profile.get("nickname_custom", false))
+	MetaProgression.apply_server_progress(profile, false)
 	MetaProgression.apply_server_profile(
 		player_id,
 		int(profile.get("sky_shards", 0)),

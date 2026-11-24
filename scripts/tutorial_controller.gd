@@ -1,6 +1,6 @@
 extends Node
 
-const SAVE_PATH := "user://tutorial.cfg"
+
 const OPEN_RULES_META := "open_rules_on_lobby"
 const COINS_TO_COLLECT := 15
 const COIN_BATCH := 5
@@ -671,25 +671,15 @@ func repeat_tutorial() -> void:
 
 
 func _save_completion() -> void:
-	var config := ConfigFile.new()
-	config.load(SAVE_PATH)
-	config.set_value("tutorial", "completed", true)
-	config.set_value("tutorial", "skipped", false)
-	config.set_value("tutorial", "completed_at", int(Time.get_unix_time_from_system()))
-	var error := config.save(SAVE_PATH)
-	if error != OK:
-		push_error("Не удалось сохранить прохождение обучения: %s" % error_string(error))
+	MetaProgression.tutorial_completed = true
+	MetaProgression.tutorial_skipped = false
+	MetaProgression.save_progress()
 
 
 func _save_skip() -> void:
-	var config := ConfigFile.new()
-	config.load(SAVE_PATH)
-	config.set_value("tutorial", "completed", false)
-	config.set_value("tutorial", "skipped", true)
-	config.set_value("tutorial", "skipped_at", int(Time.get_unix_time_from_system()))
-	var error := config.save(SAVE_PATH)
-	if error != OK:
-		push_error("Не удалось сохранить пропуск обучения: %s" % error_string(error))
+	MetaProgression.tutorial_completed = false
+	MetaProgression.tutorial_skipped = true
+	MetaProgression.save_progress()
 
 
 func _uses_touch_controls() -> bool:

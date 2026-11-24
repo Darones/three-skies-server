@@ -51,7 +51,7 @@ const SKILL_DESCRIPTIONS := [
 	],
 ]
 const SAVE_PATH := "user://lobby.cfg"
-const TUTORIAL_SAVE_PATH := "user://tutorial.cfg"
+
 const GOLD := Color(0.95, 0.76, 0.38)
 const PALE := Color(0.9, 0.92, 0.98)
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
@@ -3313,30 +3313,21 @@ func _start_tutorial() -> void:
 		push_error("Не удалось запустить обучение: %s" % error_string(error))
 
 
-func _tutorial_config() -> ConfigFile:
-	var config := ConfigFile.new()
-	config.load(TUTORIAL_SAVE_PATH)
-	return config
-
-
 func _tutorial_battles_used() -> int:
-	return maxi(0, int(_tutorial_config().get_value("tutorial", "battles_used", 0)))
+	return MetaProgression.tutorial_battles_used
 
 
 func _tutorial_completed() -> bool:
-	return bool(_tutorial_config().get_value("tutorial", "completed", false))
+	return MetaProgression.tutorial_completed
 
 
 func _tutorial_skipped() -> bool:
-	return bool(_tutorial_config().get_value("tutorial", "skipped", false))
+	return MetaProgression.tutorial_skipped
 
 
 func _record_normal_battle_started() -> void:
-	var config := _tutorial_config()
-	config.set_value("tutorial", "battles_used", _tutorial_battles_used() + 1)
-	var error := config.save(TUTORIAL_SAVE_PATH)
-	if error != OK:
-		push_error("Не удалось сохранить число боёв до обучения: %s" % error_string(error))
+	MetaProgression.tutorial_battles_used += 1
+	MetaProgression.save_progress()
 	_refresh_tutorial_button()
 
 

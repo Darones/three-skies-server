@@ -137,18 +137,24 @@ type sessionResponse struct {
 }
 
 type playerProfileResponse struct {
-	Success         bool   `json:"success"`
-	PlayerID        int64  `json:"player_id,omitempty"`
-	Nickname        string `json:"nickname,omitempty"`
-	NicknameCustom  bool   `json:"nickname_custom"`
-	SkyShards       int    `json:"sky_shards,omitempty"`
-	Level           int    `json:"level"`
-	UnlockedWings   []int  `json:"unlocked_wings,omitempty"`
-	UnlockedWeapons []int  `json:"unlocked_weapons,omitempty"`
-	MatchesPlayed   int    `json:"matches_played"`
-	Novice          bool   `json:"novice"`
-	SessionToken    string `json:"session_token,omitempty"`
-	Error           string `json:"error,omitempty"`
+	Success             bool           `json:"success"`
+	PlayerID            int64          `json:"player_id,omitempty"`
+	Nickname            string         `json:"nickname,omitempty"`
+	NicknameCustom      bool           `json:"nickname_custom"`
+	SkyShards           int            `json:"sky_shards,omitempty"`
+	Level               int            `json:"level"`
+	UnlockedWings       []int          `json:"unlocked_wings,omitempty"`
+	UnlockedWeapons     []int          `json:"unlocked_weapons,omitempty"`
+	MatchesPlayed       int            `json:"matches_played"`
+	Novice              bool           `json:"novice"`
+	CharLevels          map[string]int `json:"char_levels"`
+	CharXPs             map[string]int `json:"char_xps"`
+	TutorialCompleted   bool           `json:"tutorial_completed"`
+	TutorialSkipped     bool           `json:"tutorial_skipped"`
+	TutorialBattlesUsed int            `json:"tutorial_battles_used"`
+	ProgressInitialized bool           `json:"progress_initialized"`
+	SessionToken        string         `json:"session_token,omitempty"`
+	Error               string         `json:"error,omitempty"`
 }
 
 type buyWingRequest struct {
@@ -366,6 +372,7 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	mux.HandleFunc("/register", service.handleRegister)
 	mux.HandleFunc("/session", service.handleSession)
 	mux.HandleFunc("/profile", service.handleProfile)
+	mux.HandleFunc("/progress", service.handleProgress)
 	mux.HandleFunc("/rename", service.handleRename)
 	mux.HandleFunc("/report", service.handleReport)
 	mux.HandleFunc("/buy_wing", service.handleBuyWing)
@@ -866,7 +873,13 @@ func createPlayersTable(ctx context.Context, db *sql.DB) error {
 			novice BOOLEAN DEFAULT FALSE,
 			platform TEXT NOT NULL DEFAULT 'standalone',
 			external_id TEXT,
-			level INTEGER DEFAULT 1
+			level INTEGER DEFAULT 1,
+			char_levels JSONB NOT NULL DEFAULT '{"warrior":1,"mage":1,"fairy":1}'::jsonb,
+			char_xps JSONB NOT NULL DEFAULT '{"warrior":0,"mage":0,"fairy":0}'::jsonb,
+			tutorial_completed BOOLEAN NOT NULL DEFAULT FALSE,
+			tutorial_skipped BOOLEAN NOT NULL DEFAULT FALSE,
+			tutorial_battles_used INTEGER NOT NULL DEFAULT 0,
+			progress_initialized BOOLEAN NOT NULL DEFAULT FALSE
 		)
 	`)
 	if err != nil {
@@ -910,6 +923,18 @@ func createPlayersTable(ctx context.Context, db *sql.DB) error {
 	if err != nil {
 		return err
 	}
+	for _, statement := range []string{
+		`ALTER TABLE players ADD COLUMN IF NOT EXISTS char_levels JSONB NOT NULL DEFAULT '{"warrior":1,"mage":1,"fairy":1}'::jsonb`,
+		`ALTER TABLE players ADD COLUMN IF NOT EXISTS char_xps JSONB NOT NULL DEFAULT '{"warrior":0,"mage":0,"fairy":0}'::jsonb`,
+		`ALTER TABLE players ADD COLUMN IF NOT EXISTS tutorial_completed BOOLEAN NOT NULL DEFAULT FALSE`,
+		`ALTER TABLE players ADD COLUMN IF NOT EXISTS tutorial_skipped BOOLEAN NOT NULL DEFAULT FALSE`,
+		`ALTER TABLE players ADD COLUMN IF NOT EXISTS tutorial_battles_used INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE players ADD COLUMN IF NOT EXISTS progress_initialized BOOLEAN NOT NULL DEFAULT FALSE`,
+	} {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
+			return err
+		}
+	}
 	// Ник — отображаемое имя, а не логин: уникальность не нужна и мешает
 	// игрокам брать понравившиеся имена. Личность определяется по id.
 	if err := dropNicknameUniqueness(ctx, db); err != nil {
@@ -929,6 +954,16 @@ func createPlayersTable(ctx context.Context, db *sql.DB) error {
 		UPDATE players
 		SET external_id = id::text
 		WHERE platform = 'standalone' AND external_id IS NULL
+	`); err != nil {
+		return err
+	}
+	// A platform profile never imports the device-local standalone XP or
+	// tutorial state. Old VK/OK rows are marked initialized so a VK client
+	// cannot upload an unrelated local profile into them.
+	if _, err := db.ExecContext(ctx, `
+		UPDATE players
+		SET progress_initialized = TRUE
+		WHERE platform <> 'standalone' AND progress_initialized = FALSE
 	`); err != nil {
 		return err
 	}
@@ -1176,10 +1211,24 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 	var unlockedWeapons string
 	var matchesPlayed int
 	var novice bool
+	var levelsJSON string
+	var xpsJSON string
+	var tutorialCompleted bool
+	var tutorialSkipped bool
+	var tutorialBattlesUsed int
+	var progressInitialized bool
 	var storedToken string
 	err = service.db.QueryRowContext(r.Context(),
-		`SELECT nickname, COALESCE(nickname_custom, FALSE), sky_shards, COALESCE(level, 1), COALESCE(unlocked_wings, ''), COALESCE(unlocked_weapons, ''), COALESCE(matches_played, 0), COALESCE(novice, FALSE), COALESCE(session_token, '') FROM players WHERE id = $1`, playerID,
-	).Scan(&nickname, &nicknameCustom, &shards, &level, &unlockedWings, &unlockedWeapons, &matchesPlayed, &novice, &storedToken)
+		`SELECT nickname, COALESCE(nickname_custom, FALSE), sky_shards, COALESCE(level, 1),
+		        COALESCE(unlocked_wings, ''), COALESCE(unlocked_weapons, ''),
+		        COALESCE(matches_played, 0), COALESCE(novice, FALSE),
+		        COALESCE(char_levels::text, ''), COALESCE(char_xps::text, ''),
+		        COALESCE(tutorial_completed, FALSE), COALESCE(tutorial_skipped, FALSE),
+		        COALESCE(tutorial_battles_used, 0), COALESCE(progress_initialized, FALSE),
+		        COALESCE(session_token, '')
+		 FROM players WHERE id = $1`, playerID,
+	).Scan(&nickname, &nicknameCustom, &shards, &level, &unlockedWings, &unlockedWeapons, &matchesPlayed, &novice,
+		&levelsJSON, &xpsJSON, &tutorialCompleted, &tutorialSkipped, &tutorialBattlesUsed, &progressInitialized, &storedToken)
 	if errors.Is(err, sql.ErrNoRows) {
 		writeJSON(w, http.StatusNotFound, playerProfileResponse{Error: "Player not found"})
 		return
@@ -1189,22 +1238,29 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, playerProfileResponse{Error: "Internal server error"})
 		return
 	}
+	progress := decodeStoredProgress(levelsJSON, xpsJSON, tutorialCompleted, tutorialSkipped, tutorialBattlesUsed, progressInitialized)
 	sessionToken := storedToken
 	if sessionToken == "" {
 		// Only the new client asks to claim a session. An old client keeps a
 		// tokenless read-only profile so it is not locked out mid-update.
 		if strings.TrimSpace(r.Header.Get("X-Claim-Session")) != "1" {
 			writeJSON(w, http.StatusOK, playerProfileResponse{
-				Success:         true,
-				PlayerID:        playerID,
-				Nickname:        nickname,
-				NicknameCustom:  nicknameCustom,
-				SkyShards:       shards,
-				Level:           level,
-				UnlockedWings:   parseItemIDs(unlockedWings),
-				UnlockedWeapons: parseItemIDs(unlockedWeapons),
-				MatchesPlayed:   matchesPlayed,
-				Novice:          novice,
+				Success:             true,
+				PlayerID:            playerID,
+				Nickname:            nickname,
+				NicknameCustom:      nicknameCustom,
+				SkyShards:           shards,
+				Level:               level,
+				UnlockedWings:       parseItemIDs(unlockedWings),
+				UnlockedWeapons:     parseItemIDs(unlockedWeapons),
+				MatchesPlayed:       matchesPlayed,
+				Novice:              novice,
+				CharLevels:          progress.CharLevels,
+				CharXPs:             progress.CharXPs,
+				TutorialCompleted:   progress.TutorialCompleted,
+				TutorialSkipped:     progress.TutorialSkipped,
+				TutorialBattlesUsed: progress.TutorialBattlesUsed,
+				ProgressInitialized: progress.ProgressInitialized,
 			})
 			return
 		}
@@ -1234,17 +1290,23 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, playerProfileResponse{
-		Success:         true,
-		PlayerID:        playerID,
-		Nickname:        nickname,
-		NicknameCustom:  nicknameCustom,
-		SkyShards:       shards,
-		Level:           level,
-		UnlockedWings:   parseItemIDs(unlockedWings),
-		UnlockedWeapons: parseItemIDs(unlockedWeapons),
-		MatchesPlayed:   matchesPlayed,
-		Novice:          novice,
-		SessionToken:    sessionToken,
+		Success:             true,
+		PlayerID:            playerID,
+		Nickname:            nickname,
+		NicknameCustom:      nicknameCustom,
+		SkyShards:           shards,
+		Level:               level,
+		UnlockedWings:       parseItemIDs(unlockedWings),
+		UnlockedWeapons:     parseItemIDs(unlockedWeapons),
+		MatchesPlayed:       matchesPlayed,
+		Novice:              novice,
+		CharLevels:          progress.CharLevels,
+		CharXPs:             progress.CharXPs,
+		TutorialCompleted:   progress.TutorialCompleted,
+		TutorialSkipped:     progress.TutorialSkipped,
+		TutorialBattlesUsed: progress.TutorialBattlesUsed,
+		ProgressInitialized: progress.ProgressInitialized,
+		SessionToken:        sessionToken,
 	})
 }
 

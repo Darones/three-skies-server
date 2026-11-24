@@ -12,6 +12,8 @@ signal rename_completed(success: bool, nickname: String, error: String, charged:
 signal report_completed(success: bool, error: String)
 signal session_ready(token: String)
 signal vk_auth_completed(success: bool, profile: Dictionary, error: String)
+signal progress_loaded(success: bool, progress: Dictionary)
+signal progress_saved(success: bool, progress: Dictionary)
 
 const API_BASE_URL := "https://three-skies-server.relaxdev.ru"
 
@@ -146,6 +148,33 @@ func auth_vk(params: Dictionary, display_name := "", avatar := "") -> Dictionary
 	return _vk_auth_result
 
 
+func save_progress(player_id: int, levels: Dictionary, xps: Dictionary, tutorial_completed: bool, tutorial_skipped: bool, tutorial_battles_used: int) -> void:
+	if player_id <= 0:
+		progress_saved.emit(false, {})
+		return
+	_send_post("/progress", {
+		"player_id": player_id,
+		"char_levels": levels,
+		"char_xps": xps,
+		"tutorial_completed": tutorial_completed,
+		"tutorial_skipped": tutorial_skipped,
+		"tutorial_battles_used": tutorial_battles_used,
+	}, "progress")
+
+
+func _progress_from_profile(data: Dictionary) -> Dictionary:
+	var levels: Variant = data.get("char_levels", {})
+	var xps: Variant = data.get("char_xps", {})
+	return {
+		"progress_initialized": bool(data.get("progress_initialized", false)),
+		"char_levels": levels if levels is Dictionary else {},
+		"char_xps": xps if xps is Dictionary else {},
+		"tutorial_completed": bool(data.get("tutorial_completed", false)),
+		"tutorial_skipped": bool(data.get("tutorial_skipped", false)),
+		"tutorial_battles_used": maxi(0, int(data.get("tutorial_battles_used", 0))),
+	}
+
+
 func _send_post(path: String, payload: Dictionary, request_type: String, purchase_type := "", item_id := 0) -> void:
 	http_request_queue.append({
 		"path": path,
@@ -222,6 +251,10 @@ func _on_http_request_completed(result: int, response_code: int, _headers: Packe
 			matches_played if success else 0,
 			novice if success else false
 		)
+		progress_loaded.emit(success, _progress_from_profile(response if success and response is Dictionary else {}))
+	elif request["request_type"] == "progress":
+		var saved := _progress_from_profile(response if success and response is Dictionary else {})
+		progress_saved.emit(success, saved if success else {})
 	elif request["request_type"] == "vk_auth":
 		var profile: Dictionary = response if response is Dictionary else {}
 		var error_text := String(profile.get("error", "")) if response is Dictionary else "Нет связи с сервером"
@@ -258,6 +291,9 @@ func _emit_http_failure(request: Dictionary) -> void:
 		registration_completed.emit(false, 0)
 	elif request["request_type"] == "profile":
 		profile_loaded.emit(false, int(request["player_id"]), 0, [], [], "", false, 0, false)
+		progress_loaded.emit(false, {})
+	elif request["request_type"] == "progress":
+		progress_saved.emit(false, {})
 	elif request["request_type"] == "vk_auth":
 		_vk_auth_result = {"success": false, "profile": {}, "error": "Нет связи с сервером"}
 		_vk_auth_waiting = false

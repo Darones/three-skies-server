@@ -110,6 +110,37 @@ func TestVKProfileMigrationIntegration(t *testing.T) {
 	if again.nickname != "ВК Имя" {
 		t.Fatalf("display name=%q, want %q", again.nickname, "ВК Имя")
 	}
+	if !first.progressInitialized {
+		t.Fatal("new VK profile must be progress-initialized (no local standalone upload)")
+	}
+	if first.levelsJSON == "" || first.xpsJSON == "" {
+		t.Fatalf("progress maps are empty: %q / %q", first.levelsJSON, first.xpsJSON)
+	}
+	if _, err := db.ExecContext(ctx, `
+		UPDATE players
+		SET char_levels = '{"warrior":3,"mage":2,"fairy":1}'::jsonb,
+		    char_xps = '{"warrior":250,"mage":900,"fairy":0}'::jsonb,
+		    tutorial_completed = TRUE,
+		    tutorial_skipped = FALSE,
+		    tutorial_battles_used = 4
+		WHERE id = $1`, first.id,
+	); err != nil {
+		t.Fatalf("seed progress: %v", err)
+	}
+	progressed, err := service.upsertVKProfile(ctx, "111", "")
+	if err != nil {
+		t.Fatalf("load progress: %v", err)
+	}
+	loaded := decodeStoredProgress(progressed.levelsJSON, progressed.xpsJSON, progressed.tutorialCompleted, progressed.tutorialSkipped, progressed.tutorialBattlesUsed, progressed.progressInitialized)
+	if loaded.CharLevels["warrior"] != 3 || loaded.CharLevels["mage"] != 2 {
+		t.Fatalf("loaded levels=%v", loaded.CharLevels)
+	}
+	if loaded.CharXPs["warrior"] != 250 || loaded.CharXPs["mage"] != 900 {
+		t.Fatalf("loaded xps=%v", loaded.CharXPs)
+	}
+	if !loaded.TutorialCompleted || loaded.TutorialSkipped || loaded.TutorialBattlesUsed != 4 {
+		t.Fatalf("loaded tutorial=%+v", loaded)
+	}
 
 	second, err := service.upsertVKProfile(ctx, "222", "Другой")
 	if err != nil {
