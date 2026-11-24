@@ -1,3 +1,4 @@
+import argparse
 import shutil
 import subprocess
 import time
@@ -9,6 +10,15 @@ ROOT = Path(__file__).resolve().parents[1]
 PROJECT = ROOT / "project.godot"
 BACKUP = ROOT / "project.godot.web_backup"
 OUT_DIR = ROOT / "build" / "web"
+PRESET_NAMES = {
+    "standalone": "Web Standalone",
+    "vk": "Web VK",
+}
+OUTPUT_DIRS = {
+    # `build/web` stays the production standalone folder used by the deploy.
+    "standalone": ROOT / "build" / "web",
+    "vk": ROOT / "build" / "web-vk",
+}
 
 
 def set_method(text: str, method: str) -> str:
@@ -131,6 +141,19 @@ def copy_editor_page() -> None:
 
 
 def main() -> None:
+    global OUT_DIR
+    parser = argparse.ArgumentParser(description="Export a platform-specific web build.")
+    parser.add_argument(
+        "--platform",
+        choices=tuple(PRESET_NAMES),
+        default="standalone",
+        help="standalone (no SDK) or vk (VK Bridge shell, adapters still stubbed)",
+    )
+    args = parser.parse_args()
+    OUT_DIR = OUTPUT_DIRS[args.platform]
+    preset = PRESET_NAMES[args.platform]
+    print("PLATFORM", args.platform, "PRESET", preset, "OUT", OUT_DIR)
+
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     if BACKUP.exists():
         BACKUP.unlink()
@@ -153,7 +176,7 @@ def main() -> None:
                 "--path",
                 str(ROOT),
                 "--export-release",
-                "Web",
+                preset,
                 str(OUT_DIR / "index.html"),
             ],
             capture_output=True,
@@ -174,7 +197,10 @@ def main() -> None:
 
     bust_pck()
     patch_chunk_loader(OUT_DIR / "index.html")
-    patch_vk_bridge()
+    if args.platform == "vk":
+        patch_vk_bridge()
+    else:
+        print("VK_BRIDGE not included in standalone build")
     patch_splash()
     copy_editor_page()
 

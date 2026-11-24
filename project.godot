@@ -26,6 +26,7 @@ boot_splash/image="res://ui/splash.png"
 [autoload]
 
 DeviceProfile="*res://scripts/device_profile.gd"
+Platform="*res://scripts/platform/platform.gd"
 CombatProfiler="*res://scripts/combat_profiler.gd"
 UiLayout="*res://scripts/ui_layout.gd"
 NetworkClient="*res://scripts/network_client.gd"

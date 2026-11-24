@@ -10,20 +10,18 @@ const MIN_SHARDS := 100
 const MAX_SHARDS := 10000
 const SHARD_STEP := 100
 
-# Заглушка: позже здесь будет реальная проверка площадки (например, из URL).
-var is_ok = false:
-	set(value):
-		is_ok = value
-		_update_display()
-
 var shards_slider: HSlider
 var amount_label: Label
 var price_label: Label
 var pay_button: Button
+var hint_label: Label
+var amount_row: HBoxContainer
+var status_label: Label
 
 
 func _ready() -> void:
 	_build()
+	_update_availability()
 	_update_display()
 
 
@@ -71,14 +69,14 @@ func _build() -> void:
 	divider.color = Color(GOLD.r, GOLD.g, GOLD.b, 0.35)
 	layout.add_child(divider)
 
-	var hint := _make_label("Сколько нужно?", 15, MUTED)
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	layout.add_child(hint)
+	hint_label = _make_label("Сколько нужно?", 15, MUTED)
+	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	layout.add_child(hint_label)
 
 	amount_label = _make_label("", 24, PALE)
 	amount_label.name = "AmountLabel"
 	amount_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	var amount_row := HBoxContainer.new()
+	amount_row = HBoxContainer.new()
 	amount_row.add_theme_constant_override("separation", 6)
 	amount_row.add_child(amount_label)
 	amount_row.add_child(_shard_icon(22))
@@ -122,6 +120,25 @@ func _build() -> void:
 	pay_button.pressed.connect(_on_pay_pressed)
 	layout.add_child(pay_button)
 
+	status_label = _make_label("", 14, MUTED)
+	status_label.name = "StatusLabel"
+	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	status_label.visible = false
+	layout.add_child(status_label)
+
+
+func _update_availability() -> void:
+	if shards_slider == null or pay_button == null:
+		return
+	var available := Platform.is_purchase_available()
+	hint_label.text = "Сколько нужно?" if available else "Пополнение недоступно в этой версии игры."
+	shards_slider.visible = available
+	amount_row.visible = available
+	price_label.visible = available
+	pay_button.visible = available
+	status_label.visible = false
+
 
 func _update_display() -> void:
 	if shards_slider == null or amount_label == null or price_label == null or pay_button == null:
@@ -129,8 +146,16 @@ func _update_display() -> void:
 	var shards := int(shards_slider.value)
 	var price := int(shards / 100.0)
 	amount_label.text = str(shards)
-	price_label.text = "Стоимость: %d %s" % [price, _price_currency_name()]
-	pay_button.text = "Оплатить %s" % _payment_currency_name()
+	var currency := _price_currency_name()
+	if currency.is_empty():
+		price_label.text = "Стоимость: %d" % price
+	else:
+		price_label.text = "Стоимость: %d %s" % [price, currency]
+	var payment_currency := _payment_currency_name()
+	if payment_currency.is_empty():
+		pay_button.text = "Оплатить"
+	else:
+		pay_button.text = "Оплатить %s" % payment_currency
 
 
 func _on_shards_changed(_value: float) -> void:
@@ -138,14 +163,34 @@ func _on_shards_changed(_value: float) -> void:
 
 
 func _on_pay_pressed() -> void:
+	if not Platform.is_purchase_available():
+		_update_availability()
+		return
 	var shards := int(shards_slider.value)
 	var price := int(shards / 100.0)
-	print("[MOCK] Оплата %s на %d осколков. Стоимость: %d %s." % [
-		_payment_currency_name(),
-		shards,
+	var sku := "shards_%d" % shards
+	pay_button.disabled = true
+	pay_button.text = "Оплата..."
+	status_label.visible = false
+	var result: Dictionary = await Platform.purchase(sku)
+	pay_button.disabled = false
+	_update_display()
+	var success := bool(result.get("success", false))
+	print("[Topup] sku=%s price=%d %s success=%s" % [
+		sku,
 		price,
 		_price_currency_name(),
+		success,
 	])
+	status_label.visible = true
+	if success:
+		# Real adapters must have the receipt verified server-side before any
+		# shards are granted. The panel never adds currency locally.
+		status_label.text = "Платёж принят. Осколки зачислятся после проверки на сервере."
+		status_label.add_theme_color_override("font_color", PALE)
+	else:
+		status_label.text = "Оплата недоступна."
+		status_label.add_theme_color_override("font_color", Color(1.0, 0.62, 0.4))
 
 
 func _on_close_pressed() -> void:
@@ -153,11 +198,27 @@ func _on_close_pressed() -> void:
 
 
 func _price_currency_name() -> String:
-	return "ОКов" if is_ok else "Голосов"
+	match Platform.get_currency():
+		"votes":
+			return "Голосов"
+		"oki":
+			return "ОКов"
+		"yandex":
+			return "Ян"
+		_:
+			return ""
 
 
 func _payment_currency_name() -> String:
-	return "ОКами" if is_ok else "Голосами"
+	match Platform.get_currency():
+		"votes":
+			return "Голосами"
+		"oki":
+			return "ОКами"
+		"yandex":
+			return "Янами"
+		_:
+			return ""
 
 
 func _shard_icon(icon_size: int) -> TextureRect:

@@ -1,5 +1,9 @@
 extends Node
 
+## Results-screen ad flow. All real ad work goes through Platform; the core
+## never waits on a fake timer and never grants a reward without a completed
+## adapter callback.
+
 signal rewarded_ad_completed
 
 var ad_showing := false
@@ -23,6 +27,8 @@ func can_show_interstitial_after_results() -> bool:
 		return false
 	if interstitial_shown_this_results:
 		return false
+	if not Platform.is_interstitial_available():
+		return false
 	return true
 
 
@@ -36,21 +42,26 @@ func maybe_show_interstitial_after_results() -> bool:
 func show_interstitial_ad() -> bool:
 	if ad_showing:
 		return false
+	if not Platform.is_interstitial_available():
+		return false
 	ad_showing = true
-	print("[Реклама] Межуровневая реклама...")
-	await get_tree().create_timer(1.5).timeout
-	print("[Реклама] Межуровневая реклама завершена")
+	var shown: bool = await Platform.show_interstitial("results")
 	ad_showing = false
-	return true
+	print("[Ads] interstitial results shown=%s" % shown)
+	return shown
 
 
-func show_rewarded_ad() -> void:
+func show_rewarded_ad() -> bool:
 	if ad_showing:
-		return
+		return false
+	if not Platform.is_rewarded_available():
+		return false
 	ad_showing = true
-	print("[Реклама] Начало показа...")
-	await get_tree().create_timer(1.5).timeout
-	print("[Реклама] Просмотр завершен!")
+	var rewarded: bool = await Platform.show_rewarded_ad("results_double")
 	ad_showing = false
+	if not rewarded:
+		print("[Ads] rewarded results_double not completed")
+		return false
 	register_rewarded_watched()
 	rewarded_ad_completed.emit()
+	return true

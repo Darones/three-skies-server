@@ -653,10 +653,18 @@ func _grant_match_reward_to_server(amount: int, bonus := false) -> void:
 func _double_rewards_for_ad() -> void:
 	if rewards_doubled or ad_in_progress or double_reward_button == null:
 		return
+	if not Platform.is_rewarded_available():
+		_refresh_reward_ui()
+		return
 	ad_in_progress = true
 	double_reward_button.disabled = true
 	double_reward_button.text = "Реклама..."
-	await AdManager.show_rewarded_ad()
+	var rewarded: bool = await AdManager.show_rewarded_ad()
+	if not rewarded and not rewards_doubled:
+		ad_in_progress = false
+		if is_instance_valid(double_reward_button):
+			double_reward_button.text = "Реклама недоступна"
+			double_reward_button.disabled = false
 
 
 func _on_rewarded_ad_completed() -> void:
@@ -758,10 +766,12 @@ func _refresh_reward_ui() -> void:
 		xp_reward_label.text = str(final_xp)
 	if double_reward_button == null:
 		return
-	if match_aborted:
-		# Consolation for an interrupted match is fixed; no ad multiplier.
+	if match_aborted or not Platform.is_rewarded_available():
+		# No real rewarded adapter: never promise an ad reward that cannot be
+		# delivered. The consolation for an interrupted match stays fixed too.
 		double_reward_button.visible = false
 		return
+	double_reward_button.visible = true
 	if rewards_doubled:
 		double_reward_button.text = "Награды удвоены"
 		double_reward_button.disabled = true
@@ -784,7 +794,7 @@ func _ad_reward_button_style(hovered: bool) -> StyleBoxFlat:
 
 func _start_ad_button_pulse() -> void:
 	await get_tree().process_frame
-	if double_reward_button == null or rewards_doubled:
+	if double_reward_button == null or rewards_doubled or not double_reward_button.visible:
 		return
 	double_reward_button.pivot_offset = double_reward_button.size * 0.5
 	ad_button_pulse_tween = create_tween().set_loops()

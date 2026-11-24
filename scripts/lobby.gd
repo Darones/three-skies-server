@@ -734,10 +734,12 @@ func _build_shard_shop() -> void:
 
 	shop_page_label = _make_label("1 / 1", 14, Color(0.62, 0.68, 0.78))
 	layout.add_child(shop_page_label)
-	shop_hint_label = _make_label("Оружие и скины надеваются в инвентаре · 100 осколков = 1 голос", 15, Color(0.6, 0.66, 0.76))
+	shop_hint_label = _make_label("Оружие и скины надеваются в инвентаре", 15, Color(0.6, 0.66, 0.76))
 	layout.add_child(shop_hint_label)
 
 	_build_topup_panel()
+	# No real payment adapter -> no buy-shards entry point in a public build.
+	shop_topup_button.visible = Platform.is_purchase_available()
 	_refresh_shop()
 
 
@@ -909,7 +911,10 @@ func _on_shop_item_pressed(item: Dictionary) -> void:
 		MetaProgression.load_profile(MetaProgression.player_id)
 		return
 	if int(item["price"]) > MetaProgression.sky_shards:
-		_open_topup_panel()
+		if Platform.is_purchase_available():
+			_open_topup_panel()
+		else:
+			_show_info("Недостаточно осколков. Их можно заработать в бою.")
 		return
 	var ok := false
 	if String(item["type"]) == "wing":

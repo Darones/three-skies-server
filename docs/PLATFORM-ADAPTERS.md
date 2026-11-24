@@ -176,9 +176,19 @@ players:
 ## Текущее состояние
 
 - Прод: PCK 48 925 168, `main` `9272be6`, вход `?v=20261124_062608`.
-- VK Bridge уже подключён в `index.html`, но VK-авторизации/launch params нет.
-- `AdManager` и `shard_topup_panel` — mock, в публичную сборку так нельзя.
-  В `shard_topup_panel` уже есть ветка `is_ok` с «ОКи», но оплата не подключена.
+  M1 не задеплоен, прод не тронут.
+- **M1 сделан (24.11.2026).** Autoload `Platform` + `PlatformAdapter`,
+  `StandaloneAdapter`, заглушки VK/OK/Yandex. `AdManager` и
+  `shard_topup_panel` больше не mock: реклама/оплата только через адаптер,
+  без реального адаптера кнопки скрыты. В standalone нет VK Bridge.
+- Сборки: `Web Standalone` (`web-standalone`, `build/web`) и `Web VK`
+  (`web-vk,vk`, `build/web-vk`). `python tools/web_export.py --platform
+  standalone|vk`; без флага — standalone. VK Bridge вставляется только в VK.
+- Проверки M1: `tools/PlatformProbe.tscn` 22/22 PASS, `go test` ok, оба
+  web-билда запускаются (`[Platform] id=standalone` / `id=vk`), кадры
+  `docs/qa-m1-shop-standalone.png`, `docs/qa-m1-topup-standalone.png`.
+  Подробно — `docs/QA-M1.md`.
+- VK-авторизации/launch params и реальных VK Ads/Голосов пока нет (M2/M4).
 - OK-сборки пока нет; VK Bridge в HTML общий, но OK-токен и ссылки не реализованы.
 - Прогресс частично локальный (`player_id`, уровни/XP), сервер — осколки/скины.
 

@@ -18,34 +18,28 @@
 Цель: одна чистая игра без SDK в ядре + тонкие адаптеры и отдельные сборки
 `web-standalone`, `web-vk`, `web-ok`, позже `web-yandex`.
 
-## Первая задача — M1 (без изменения геймплея)
+## M1 — выполнен 24.11.2026
 
-1. Добавь autoload `Platform` (`scripts/platform/platform.gd`) и базовый
-   `PlatformAdapter` (`scripts/platform/platform_adapter.gd`).
-2. Добавь `StandaloneAdapter`: локальный пользователь, реклама/платежи
-   возвращают «недоступно», облако — локально.
-3. Выбор адаптера: `OS.has_feature("vk")`, `"ok"`, `"yandex"`, иначе standalone.
-4. Переведи `AdManager` на `Platform.show_rewarded_ad()` /
-   `Platform.show_interstitial()`. Убери фейковый таймер 1.5 с из публичного пути.
-5. Переведи `shard_topup_panel` на `Platform.purchase(sku)`. В Standalone кнопка
-   оплаты должна быть недоступна/скрыта, без mock-начисления.
-6. Добавь export presets/feature tags `web-standalone` и `web-vk` (VK-адаптер
-   можно пока заглушкой, но без фейковых покупок).
-7. Геймплей, баланс, ботов и экономику не меняй.
-8. Не деплой, пока `live_matches > 0`. Сначала проверки: сцены `Lobby`, `Main`,
-   `ResultsScreen`, `go test`, PCK/HTML.
+- Autoload `Platform` + `PlatformAdapter`, `StandaloneAdapter`, заглушки
+  VK/OK/Yandex; выбор по feature tags `web-vk`/`vk`, `web-ok`/`ok`,
+  `web-yandex`/`yandex`, иначе standalone.
+- `AdManager` и `shard_topup_panel` больше не mock: только `Platform.*`.
+  В standalone «Купить осколки», оплата и «x2 за рекламу» скрыты.
+- Сборки `Web Standalone` (`build/web`) и `Web VK` (`build/web-vk`);
+  `python tools/web_export.py --platform standalone|vk`.
+- Проверки и размеры — `docs/QA-M1.md`. Прод не тронут.
 
-Критерий M1: игра запускается как раньше; Standalone-сборка без SDK; в магазине
-нет фейковой оплаты; реклама не выдаёт награду без реального адаптера.
+## Следующая задача — D1
 
-## Следующие этапы
+Обучение 1→2→3 бота, обязательный первый запуск, скип, экран правил;
+новичковый пул ~10 матчей, уровни ботов easy/normal/hard, серверный
+`matches_played`/`novice`, телеметрия.
 
-- **D1**: обучение 1→2→3 бота, обязательный первый запуск, скип, экран правил;
-  новичковый пул ~10 матчей, уровни ботов easy/normal/hard, серверный
-  `matches_played`/`novice`, телеметрия.
+## Следующие этапы (после D1)
+
 - **M2**: VK-авторизация: launch params, `sign`, `vk_user_id`, серверный профиль.
 - **M3**: юридика/возраст/согласие/удаление данных/поддержка.
-- **M4**: VK Ads/Голоса, убрать mock.
+- **M4**: реальные VK Ads/Голоса, серверная проверка платежей.
 - **M5**: OK-адаптер (VK Bridge, `local_access_token`, ОКи, OK-ссылки).
 - **M6**: Yandex-адаптер.
 
