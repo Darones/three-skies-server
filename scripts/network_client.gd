@@ -11,6 +11,7 @@ signal compensation_completed(success: bool, new_shards: int, error: String)
 signal rename_completed(success: bool, nickname: String, error: String, charged: bool, cost: int, new_shards: int)
 signal report_completed(success: bool, error: String)
 signal session_ready(token: String)
+signal vk_auth_completed(success: bool, profile: Dictionary, error: String)
 
 const API_BASE_URL := "https://three-skies-server.relaxdev.ru"
 
@@ -20,6 +21,8 @@ var http_request: HTTPRequest
 var http_request_busy := false
 var current_http_request: Dictionary = {}
 var http_request_queue: Array[Dictionary] = []
+var _vk_auth_waiting := false
+var _vk_auth_result: Dictionary = {}
 
 
 func _ready() -> void:
@@ -122,6 +125,27 @@ func load_player_profile(player_id: int) -> void:
 	_start_next_http_request()
 
 
+func auth_vk(params: Dictionary, display_name := "", avatar := "") -> Dictionary:
+	if _vk_auth_waiting:
+		return {"success": false, "profile": {}, "error": "auth_in_progress"}
+	var payload := params.duplicate(true)
+	if not display_name.strip_edges().is_empty():
+		payload["name"] = display_name.strip_edges()
+	if not avatar.is_empty():
+		payload["avatar"] = avatar
+	_vk_auth_waiting = true
+	_vk_auth_result = {}
+	_send_post("/auth/vk", payload, "vk_auth")
+	var waited := 0.0
+	while _vk_auth_waiting and waited < 15.0:
+		await get_tree().create_timer(0.05).timeout
+		waited += 0.05
+	if _vk_auth_waiting:
+		_vk_auth_waiting = false
+		return {"success": false, "profile": {}, "error": "timeout"}
+	return _vk_auth_result
+
+
 func _send_post(path: String, payload: Dictionary, request_type: String, purchase_type := "", item_id := 0) -> void:
 	http_request_queue.append({
 		"path": path,
@@ -198,6 +222,12 @@ func _on_http_request_completed(result: int, response_code: int, _headers: Packe
 			matches_played if success else 0,
 			novice if success else false
 		)
+	elif request["request_type"] == "vk_auth":
+		var profile: Dictionary = response if response is Dictionary else {}
+		var error_text := String(profile.get("error", "")) if response is Dictionary else "Нет связи с сервером"
+		_vk_auth_result = {"success": success, "profile": profile, "error": error_text}
+		_vk_auth_waiting = false
+		vk_auth_completed.emit(success, profile, error_text)
 	elif request["request_type"] == "purchase":
 		var new_shards := int(response.get("new_shards", 0)) if response is Dictionary else 0
 		purchase_completed.emit(success, String(request["purchase_type"]), int(request["item_id"]), new_shards if success else 0)
@@ -228,6 +258,10 @@ func _emit_http_failure(request: Dictionary) -> void:
 		registration_completed.emit(false, 0)
 	elif request["request_type"] == "profile":
 		profile_loaded.emit(false, int(request["player_id"]), 0, [], [], "", false, 0, false)
+	elif request["request_type"] == "vk_auth":
+		_vk_auth_result = {"success": false, "profile": {}, "error": "Нет связи с сервером"}
+		_vk_auth_waiting = false
+		vk_auth_completed.emit(false, {}, "Нет связи с сервером")
 	elif request["request_type"] == "purchase":
 		purchase_completed.emit(false, String(request["purchase_type"]), int(request["item_id"]), 0)
 	elif request["request_type"] == "match_reward":

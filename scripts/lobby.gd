@@ -177,6 +177,11 @@ var default_weapon_name_label: Label
 var default_weapon_status: Label
 var default_weapon_button: Button
 var nickname_display_label: Label
+var nickname_change_button: Button
+var vk_auth_overlay: ColorRect
+var vk_auth_status_label: Label
+var vk_auth_retry_button: Button
+var vk_auth_in_progress := false
 var nickname_popup_overlay: ColorRect
 var nickname_popup_status_label: Label
 var nickname_popup_cost_label: Label
@@ -228,6 +233,7 @@ func _ready() -> void:
 	_build_rename_confirm()
 	_build_report_form()
 	_build_info_popup()
+	_build_vk_auth_overlay()
 	_build_level_up_banner()
 	_refresh_wing_shop()
 	_refresh_weapon_shop()
@@ -250,30 +256,36 @@ func _ready() -> void:
 		NetworkClient.rename_completed.connect(_on_rename_completed)
 	if not NetworkClient.report_completed.is_connected(_on_report_completed):
 		NetworkClient.report_completed.connect(_on_report_completed)
-	if MetaProgression.player_id <= 0:
-		var saved_player_id := _load_player_id()
-		if saved_player_id > 0:
-			MetaProgression.load_profile(saved_player_id)
-		elif not MetaProgression.player_nickname.is_empty():
-			MetaProgression.register_player(MetaProgression.player_nickname)
-		else:
-			MetaProgression.player_nickname = _generate_guest_nickname()
-			MetaProgression.register_player(MetaProgression.player_nickname)
+	if _is_vk_platform():
+		# VK identity comes only from signed launch params and the server.
+		# Never reuse a local/standalone player_id or register by nickname.
+		_show_vk_auth_waiting()
+		call_deferred("_start_vk_auth")
 	else:
-		# The lobby save is written on every registration/rename. If it differs
-		# from the autoload cache, the player id was changed after the last meta
-		# save; prefer it instead of silently loading the previous guest.
-		var saved_player_id := _load_player_id()
-		if saved_player_id > 0 and saved_player_id != MetaProgression.player_id:
-			MetaProgression.player_id = saved_player_id
-			MetaProgression.profile_loaded = false
-		if not MetaProgression.profile_loaded:
-			MetaProgression.load_profile(MetaProgression.player_id)
+		if MetaProgression.player_id <= 0:
+			var saved_player_id := _load_player_id()
+			if saved_player_id > 0:
+				MetaProgression.load_profile(saved_player_id)
+			elif not MetaProgression.player_nickname.is_empty():
+				MetaProgression.register_player(MetaProgression.player_nickname)
+			else:
+				MetaProgression.player_nickname = _generate_guest_nickname()
+				MetaProgression.register_player(MetaProgression.player_nickname)
 		else:
-			# Returning from a match: the server has just updated
-			# matches_played/novice, so refresh the profile instead of showing
-			# the values from the previous lobby visit.
-			MetaProgression.load_profile(MetaProgression.player_id)
+			# The lobby save is written on every registration/rename. If it differs
+			# from the autoload cache, the player id was changed after the last meta
+			# save; prefer it instead of silently loading the previous guest.
+			var saved_player_id := _load_player_id()
+			if saved_player_id > 0 and saved_player_id != MetaProgression.player_id:
+				MetaProgression.player_id = saved_player_id
+				MetaProgression.profile_loaded = false
+			if not MetaProgression.profile_loaded:
+				MetaProgression.load_profile(MetaProgression.player_id)
+			else:
+				# Returning from a match: the server has just updated
+				# matches_played/novice, so refresh the profile instead of showing
+				# the values from the previous lobby visit.
+				MetaProgression.load_profile(MetaProgression.player_id)
 	_setup_ui_click_sound()
 	_wire_ui_click_sounds(self)
 	touch_keyboard = preload("res://scripts/touch_keyboard.gd").new()
@@ -1053,6 +1065,128 @@ func _show_info(message: String, title: String = "Небесные осколк�
 	info_ok_button.grab_focus()
 
 
+func _is_vk_platform() -> bool:
+	return Platform.platform_id == "vk"
+
+
+func _build_vk_auth_overlay() -> void:
+	vk_auth_overlay = ColorRect.new()
+	vk_auth_overlay.name = "VKAuthOverlay"
+	vk_auth_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	vk_auth_overlay.color = Color(0.005, 0.008, 0.018, 0.94)
+	vk_auth_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	vk_auth_overlay.visible = false
+	vk_auth_overlay.z_index = 70
+	add_child(vk_auth_overlay)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vk_auth_overlay.add_child(center)
+	var panel := PanelContainer.new()
+	panel.name = "VKAuthPanel"
+	panel.custom_minimum_size = Vector2(520 if not DeviceProfile.mobile_ui else 360, 0)
+	panel.add_theme_stylebox_override("panel", _panel_style(GOLD, Color(0.035, 0.045, 0.07, 0.99)))
+	center.add_child(panel)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 30)
+	margin.add_theme_constant_override("margin_right", 30)
+	margin.add_theme_constant_override("margin_top", 24)
+	margin.add_theme_constant_override("margin_bottom", 24)
+	panel.add_child(margin)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 14)
+	margin.add_child(content)
+	var ornament := _make_label("*", 30, GOLD)
+	ornament.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	content.add_child(ornament)
+	var title := _make_label("ВХОД ЧЕРЕЗ VK", 26, GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	content.add_child(title)
+	vk_auth_status_label = _make_label("Получаем данные VK…", 18, PALE)
+	vk_auth_status_label.name = "VKAuthStatus"
+	vk_auth_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vk_auth_status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	vk_auth_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vk_auth_status_label.custom_minimum_size = Vector2(440 if not DeviceProfile.mobile_ui else 300, 70)
+	content.add_child(vk_auth_status_label)
+	var hint := _make_label("Профиль создаётся автоматически — регистрация по нику не нужна.", 14, Color(0.62, 0.7, 0.82))
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.custom_minimum_size = Vector2(440 if not DeviceProfile.mobile_ui else 300, 0)
+	content.add_child(hint)
+	vk_auth_retry_button = _make_action_button("Повторить", true)
+	vk_auth_retry_button.name = "VKAuthRetry"
+	vk_auth_retry_button.custom_minimum_size = Vector2(210, 46)
+	vk_auth_retry_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	vk_auth_retry_button.add_theme_font_size_override("font_size", _fs(17))
+	vk_auth_retry_button.visible = false
+	vk_auth_retry_button.pressed.connect(_on_vk_auth_retry_pressed)
+	content.add_child(vk_auth_retry_button)
+
+
+func _show_vk_auth_waiting() -> void:
+	if vk_auth_overlay == null:
+		return
+	vk_auth_overlay.visible = true
+	vk_auth_status_label.text = "Проверяем вход через VK…"
+	vk_auth_status_label.add_theme_color_override("font_color", PALE)
+	vk_auth_retry_button.visible = false
+
+
+func _start_vk_auth() -> void:
+	if not _is_vk_platform() or vk_auth_in_progress:
+		return
+	vk_auth_in_progress = true
+	_show_vk_auth_waiting()
+	var authenticated: bool = await Platform.authenticate()
+	vk_auth_in_progress = false
+	if authenticated:
+		_on_vk_auth_success()
+	else:
+		_on_vk_auth_failed(Platform.get_auth_error())
+
+
+func _on_vk_auth_retry_pressed() -> void:
+	if vk_auth_in_progress:
+		return
+	_start_vk_auth()
+
+
+func _on_vk_auth_failed(error: String) -> void:
+	if vk_auth_overlay == null:
+		return
+	var message := "Не удалось войти через VK. Попробуй ещё раз."
+	match error:
+		"vk_bridge_unavailable":
+			message = "VK Bridge недоступен. Открой игру внутри VK и нажми «Повторить»."
+		"vk_missing_params":
+			message = "VK не передал данные для входа. Перезапусти игру из VK."
+		"vk_invalid_auth":
+			message = "VK не подтвердил вход. Перезапусти игру из VK."
+		"vk_rate_limited":
+			message = "Слишком много попыток входа. Подожди минуту и повтори."
+		"vk_network_timeout", "vk_auth_failed":
+			message = "Сервер не ответил. Проверь соединение и нажми «Повторить»."
+		"vk_server_not_configured":
+			message = "Вход через VK временно недоступен. Повтори позже."
+	vk_auth_overlay.visible = true
+	vk_auth_status_label.text = message
+	vk_auth_status_label.add_theme_color_override("font_color", Color(1.0, 0.62, 0.55))
+	vk_auth_retry_button.visible = true
+
+
+func _on_vk_auth_success() -> void:
+	if vk_auth_overlay != null:
+		vk_auth_overlay.visible = false
+	if nickname_line_edit != null:
+		nickname_line_edit.text = MetaProgression.player_nickname
+	_refresh_player_profile()
+	_refresh_player_menu()
+	_refresh_wing_shop()
+	_refresh_weapon_shop()
+	_refresh_selection()
+
+
 func _show_purchase_success(purchase_type: String, item_id: int) -> void:
 	var item_name := ""
 	var skin_item := false
@@ -1233,7 +1367,9 @@ func _on_purchase_updated(success: bool, purchase_type: String, item_id: int, _n
 
 
 func _on_profile_updated() -> void:
-	if MetaProgression.player_id > 0 and not MetaProgression.player_nickname.is_empty():
+	# VK profiles are identified by vk_user_id on the server; never mirror them
+	# into the standalone local player-id slot.
+	if not _is_vk_platform() and MetaProgression.player_id > 0 and not MetaProgression.player_nickname.is_empty():
 		_save_player_id(MetaProgression.player_id)
 	_refresh_wing_shop()
 	_refresh_weapon_shop()
@@ -1335,12 +1471,13 @@ func _build_player_menu() -> void:
 	nickname_display_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	nickname_display_label.clip_text = true
 	nickname_row.add_child(nickname_display_label)
-	var change_nickname_button := _make_action_button("Сменить ник", false)
-	change_nickname_button.name = "NicknameChangeButton"
-	change_nickname_button.custom_minimum_size = Vector2(110, 40) if DeviceProfile.mobile_ui else Vector2(140, 42)
-	change_nickname_button.add_theme_font_size_override("font_size", _fs(14))
-	change_nickname_button.pressed.connect(_open_nickname_popup)
-	nickname_row.add_child(change_nickname_button)
+	nickname_change_button = _make_action_button("Сменить ник", false)
+	nickname_change_button.name = "NicknameChangeButton"
+	nickname_change_button.custom_minimum_size = Vector2(110, 40) if DeviceProfile.mobile_ui else Vector2(140, 42)
+	nickname_change_button.add_theme_font_size_override("font_size", _fs(14))
+	nickname_change_button.pressed.connect(_open_nickname_popup)
+	nickname_change_button.visible = not _is_vk_platform()
+	nickname_row.add_child(nickname_change_button)
 	nickname_status_label = _make_label("", 15, Color(0.58, 0.9, 0.64))
 	nickname_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_content.add_child(nickname_status_label)
@@ -1924,6 +2061,8 @@ func _build_nickname_popup() -> void:
 
 
 func _open_nickname_popup() -> void:
+	if _is_vk_platform():
+		return
 	if nickname_popup_overlay == null or nickname_line_edit == null:
 		return
 	nickname_line_edit.text = MetaProgression.player_nickname
@@ -2558,7 +2697,12 @@ func _refresh_player_menu() -> void:
 	if nickname_line_edit != null and nickname_popup_overlay != null and nickname_popup_overlay.visible and not nickname_line_edit.has_focus():
 		nickname_line_edit.text = MetaProgression.player_nickname
 	if nickname_cost_label != null:
-		if MetaProgression.nickname_custom:
+		if _is_vk_platform():
+			nickname_cost_label.text = "Ник из профиля VK"
+			nickname_cost_label.add_theme_color_override("font_color", Color(0.62, 0.7, 0.82))
+			if nickname_cost_icon != null:
+				nickname_cost_icon.visible = false
+		elif MetaProgression.nickname_custom:
 			nickname_cost_label.text = "Смена: %d" % NICKNAME_CHANGE_COST
 			nickname_cost_label.add_theme_color_override("font_color", Color(0.95, 0.76, 0.38))
 			if nickname_cost_icon != null:

@@ -25,6 +25,9 @@ Platform (autoload) — стабильный интерфейс
 
 ```gdscript
 Platform.platform_id            # "standalone" | "vk" | "ok" | "yandex"
+Platform.authenticate()         # await; вход через площадку (VK: launch params -> /auth/vk)
+Platform.is_authenticated()
+Platform.get_auth_error()       # машинный код ошибки для экрана повтора
 Platform.get_user()             # {id, name, avatar, platform}
 Platform.get_launch_token()     # строка/JSON для серверной проверки
 Platform.get_app_link()         # ссылка на приложение ЭТОЙ площадки
@@ -95,14 +98,18 @@ players:
 - Критерий: игра запускается как раньше, Standalone-сборка без SDK, магазин
   не показывает фейковую оплату.
 
-### M2. VK-авторизация
+### M2. VK-авторизация — сделано
 
-- `VKAdapter`: парсинг launch params, `VKWebAppGetUserInfo` (по желанию),
-  `get_launch_token`.
-- Сервер: `platform/external_id`, `/auth/vk`, проверка `sign`.
-- Клиент: вход через VK, ник — отображаемое имя, без отдельной регистрации.
+- `VKAdapter`: `VKWebAppGetLaunchParams` с fallback на URL-параметры,
+  `VKWebAppGetUserInfo` для имени, `get_launch_token`.
+- Сервер: `players.platform/external_id` + partial unique index, `/auth/vk`,
+  проверка `vk_app_id`, MD5 `sign` (`VK_APP_SECRET` только из env) и свежести
+  `vk_ts` (≤3600 с), rate-limit. Профиль — по `(platform='vk', external_id)`.
+- Клиент: экран входа/повтора, ник — из VK, без ручной регистрации.
 - Критерий: два разных VK-пользователя получают разные серверные профили;
-  поддельный `sign` отклоняется.
+  поддельный `sign` отклоняется. Unit-тесты `server/vk_auth_test.go`; живой
+  тест двумя VK-аккаунтами — вручную после смены URL приложения на
+  `/game-vk/`.
 
 ### M2b. OK-авторизация
 
@@ -183,16 +190,24 @@ players:
   `StandaloneAdapter`, заглушки VK/OK/Yandex. `AdManager` и
   `shard_topup_panel` больше не mock: реклама/оплата только через адаптер,
   без реального адаптера кнопки скрыты. В standalone нет VK Bridge.
+- **M2 сделан в коде (24.11.2026), не задеплоен.** `/auth/vk` со строгой
+  проверкой `sign`/`vk_ts`/`vk_app_id`, профиль `(platform='vk',
+  external_id=vk_user_id)`, миграция `players`, VK-экран входа без регистрации
+  по нику. VK-сборка: PCK `48 971 364`, standalone: `48 971 380`.
+  Подробно — `docs/QA-M2.md`.
 - Сборки: `Web Standalone` (`web-standalone`, `build/web`) и `Web VK`
   (`web-vk,vk`, `build/web-vk`). `python tools/web_export.py --platform
   standalone|vk`; без флага — standalone. VK Bridge вставляется только в VK.
+  `python tools/server_web_vk.py` готовит `server/web-vk`.
 - Проверки M1: `tools/PlatformProbe.tscn` 22/22 PASS, `go test` ok, оба
   web-билда запускаются (`[Platform] id=standalone` / `id=vk`), кадры
   `docs/qa-m1-shop-standalone.png`, `docs/qa-m1-topup-standalone.png`.
   Подробно — `docs/QA-M1.md`.
-- VK-авторизации/launch params и реальных VK Ads/Голосов пока нет (M2/M4).
-- OK-сборки пока нет; VK Bridge в HTML общий, но OK-токен и ссылки не реализованы.
-- Прогресс частично локальный (`player_id`, уровни/XP), сервер — осколки/скины.
+- Реальных VK Ads/Голосов пока нет (M4). OK-сборки нет (M2b/M5).
+- Прогресс: осколки/скины/оружие/новичковый статус — серверные; уровни/XP
+  персонажей пока локальные, `players.level` уже есть в профиле.
+- Перед запуском VK: сменить URL приложения на `/game-vk/`, сделать бэкап БД,
+  прогнать миграцию на копии и проверить два VK-аккаунта вручную.
 
 ## Правило
 

@@ -17,6 +17,18 @@ func is_ready() -> bool:
 	return true
 
 
+func authenticate() -> bool:
+	return true
+
+
+func is_authenticated() -> bool:
+	return true
+
+
+func get_auth_error() -> String:
+	return ""
+
+
 func get_user() -> Dictionary:
 	return {
 		"id": "",

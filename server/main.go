@@ -86,11 +86,12 @@ var startedAt = time.Now()
 var webBuildVersion = "dev"
 
 type api struct {
-	db      *sql.DB
-	dbHost  string
-	dbReady atomic.Bool
-	dbError atomic.Value
-	hub     *wsHub
+	db            *sql.DB
+	dbHost        string
+	dbReady       atomic.Bool
+	dbError       atomic.Value
+	hub           *wsHub
+	vkAuthLimiter *vkRateLimiter
 }
 
 func (service *api) setDatabaseReady() {
@@ -141,6 +142,7 @@ type playerProfileResponse struct {
 	Nickname        string `json:"nickname,omitempty"`
 	NicknameCustom  bool   `json:"nickname_custom"`
 	SkyShards       int    `json:"sky_shards,omitempty"`
+	Level           int    `json:"level"`
 	UnlockedWings   []int  `json:"unlocked_wings,omitempty"`
 	UnlockedWeapons []int  `json:"unlocked_weapons,omitempty"`
 	MatchesPlayed   int    `json:"matches_played"`
@@ -353,10 +355,14 @@ func databaseHost(raw string) string {
 
 func newRouter(service *api, hub *wsHub) http.Handler {
 	service.hub = hub
+	if service.vkAuthLimiter == nil {
+		service.vkAuthLimiter = newVKRateLimiter(vkAuthRateLimit, vkAuthRateWindow)
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", service.handleHealth)
 	mux.HandleFunc("/rules", service.handleRules)
 	mux.HandleFunc("/ws", hub.handleWebSocket)
+	mux.HandleFunc("/auth/vk", service.handleVKAuth)
 	mux.HandleFunc("/register", service.handleRegister)
 	mux.HandleFunc("/session", service.handleSession)
 	mux.HandleFunc("/profile", service.handleProfile)
@@ -372,13 +378,20 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	mux.HandleFunc("/stats/dashboard", service.handleStatsDashboard)
 	mux.HandleFunc("/stats/player", service.handleStatsPlayer)
 	mux.HandleFunc("/stats/reset", service.handleStatsReset)
-	if gameDir := gameWebDir(); gameDir != "" {
+	gameDir := gameWebDir()
+	if gameDir != "" {
 		// Serve the HTML5 build from the same origin as REST/WS. GitHub Pages
 		// is not reachable at usable speed from Russia, while this host is.
 		mux.Handle("/game/", service.trackGamePage(http.StripPrefix("/game/", staticGameHandler(gameDir))))
 		// Large files are sometimes missing from the build context; warm the
 		// cache in the background so the first player does not wait.
 		go prefetchGameAssets(gameDir)
+	}
+	if vkDir := gameVKWebDir(); vkDir != "" {
+		// The VK build is a separate PCK with the `vk` export feature tag. It
+		// reuses the common JS/WASM assets from the standalone build.
+		mux.Handle("/game-vk/", service.trackGamePage(http.StripPrefix("/game-vk/", staticGameHandlerWithFallback(vkDir, gameDir, gameVKOrigins()))))
+		go prefetchGamePack(vkDir, gameVKOrigins())
 	}
 	return cors(databaseGate(mux, service))
 }
@@ -396,10 +409,28 @@ func gameWebDir() string {
 	return ""
 }
 
+func gameVKWebDir() string {
+	dir := strings.TrimSpace(os.Getenv("WEB_VK_DIR"))
+	if dir == "" {
+		dir = "web-vk"
+	}
+	if info, err := os.Stat(dir); err == nil && info.IsDir() {
+		return dir
+	}
+	return ""
+}
+
 // staticGameHandler serves the web export with the MIME types, caching rules
 // and optional pre-compressed files Godot needs. The export is copied into the
 // image so players download it from the game server instead of GitHub.
 func staticGameHandler(dir string) http.Handler {
+	return staticGameHandlerWithFallback(dir, "", gameOrigins())
+}
+
+// staticGameHandlerWithFallback serves platform-specific files from dir and
+// common JS/WASM/font assets from fallback. The VK build only ships its HTML
+// and PCK; the rest is identical to the standalone export.
+func staticGameHandlerWithFallback(dir, fallback string, origins []string) http.Handler {
 	mime.AddExtensionType(".wasm", "application/wasm")
 	mime.AddExtensionType(".pck", "application/octet-stream")
 	mime.AddExtensionType(".js", "text/javascript")
@@ -425,10 +456,24 @@ func staticGameHandler(dir string) http.Handler {
 			}
 		}
 		info, err := os.Stat(full)
+		if (err != nil || info.IsDir()) && fallback != "" && !strings.HasSuffix(name, ".pck") {
+			fallbackFull := filepath.Join(fallback, filepath.FromSlash(name))
+			if fallbackInfo, fallbackErr := os.Stat(fallbackFull); fallbackErr == nil && !fallbackInfo.IsDir() {
+				full = fallbackFull
+				info = fallbackInfo
+				err = nil
+			}
+		}
 		if (err != nil || info.IsDir()) && fetchableGameAsset(name) {
 			// RelaxDev's build context drops files above ~20 MB. Fetch them
 			// once from the published build and cache them on disk.
-			if fetchErr := fetchGameAsset(dir, name); fetchErr != nil {
+			fetchErr := fetchGameAssetWithOrigins(dir, name, origins)
+			if fetchErr != nil && fallback != "" && !strings.HasSuffix(name, ".pck") {
+				// The VK image may not contain the shared 39 MB WASM; the
+				// standalone build has the same engine asset.
+				fetchErr = fetchGameAssetWithOrigins(dir, name, gameOrigins())
+			}
+			if fetchErr != nil {
 				log.Printf("game asset %s: %v", name, fetchErr)
 			} else {
 				info, err = os.Stat(full)
@@ -480,7 +525,15 @@ func fetchableGameAsset(name string) bool {
 // gameOrigins reads a comma-separated list of mirrors of the published build.
 // The first that answers is cached locally, so players download from this host.
 func gameOrigins() []string {
-	raw := strings.TrimSpace(os.Getenv("WEB_ORIGIN"))
+	return originsFromEnv("WEB_ORIGIN")
+}
+
+func gameVKOrigins() []string {
+	return originsFromEnv("WEB_VK_ORIGIN")
+}
+
+func originsFromEnv(name string) []string {
+	raw := strings.TrimSpace(os.Getenv(name))
 	if raw == "" {
 		return nil
 	}
@@ -494,6 +547,10 @@ func gameOrigins() []string {
 }
 
 func fetchGameAsset(dir, name string) error {
+	return fetchGameAssetWithOrigins(dir, name, gameOrigins())
+}
+
+func fetchGameAssetWithOrigins(dir, name string, origins []string) error {
 	full := filepath.Join(dir, filepath.FromSlash(name))
 	if info, err := os.Stat(full); err == nil && !info.IsDir() {
 		return nil
@@ -505,7 +562,6 @@ func fetchGameAsset(dir, name string) error {
 	if info, err := os.Stat(full); err == nil && !info.IsDir() {
 		return nil
 	}
-	origins := gameOrigins()
 	if len(origins) == 0 {
 		return os.ErrNotExist
 	}
@@ -553,27 +609,39 @@ func fetchGameAsset(dir, name string) error {
 }
 
 func prefetchGameAssets(dir string) {
-	if len(gameOrigins()) == 0 {
+	prefetchGameAssetsWithOrigins(dir, gameOrigins())
+}
+
+func prefetchGamePack(dir string, origins []string) {
+	if len(origins) == 0 {
 		return
 	}
 	packName, expected := mainPackInfo(dir)
-	if packName != "" {
-		full := filepath.Join(dir, filepath.FromSlash(packName))
-		if info, err := os.Stat(full); err == nil && !info.IsDir() && expected > 0 && info.Size() != expected {
-			// The persistent /app/web cache can keep an old PCK while the new
-			// index.html already advertises the new size. Refetch instead of
-			// serving a mismatched pack to the browser.
-			log.Printf("game asset %s size mismatch (%d != %d); refetching", packName, info.Size(), expected)
-			if err := os.Remove(full); err != nil {
-				log.Printf("game asset remove %s: %v", packName, err)
-			}
-		}
-		if err := fetchGameAsset(dir, "/"+packName); err != nil {
-			log.Printf("game asset %s: %v", packName, err)
+	if packName == "" {
+		return
+	}
+	full := filepath.Join(dir, filepath.FromSlash(packName))
+	if info, err := os.Stat(full); err == nil && !info.IsDir() && expected > 0 && info.Size() != expected {
+		// The persistent /app/web cache can keep an old PCK while the new
+		// index.html already advertises the new size. Refetch instead of
+		// serving a mismatched pack to the browser.
+		log.Printf("game asset %s size mismatch (%d != %d); refetching", packName, info.Size(), expected)
+		if err := os.Remove(full); err != nil {
+			log.Printf("game asset remove %s: %v", packName, err)
 		}
 	}
+	if err := fetchGameAssetWithOrigins(dir, "/"+packName, origins); err != nil {
+		log.Printf("game asset %s: %v", packName, err)
+	}
+}
+
+func prefetchGameAssetsWithOrigins(dir string, origins []string) {
+	if len(origins) == 0 {
+		return
+	}
+	prefetchGamePack(dir, origins)
 	name := "/index.wasm"
-	if err := fetchGameAsset(dir, name); err != nil {
+	if err := fetchGameAssetWithOrigins(dir, name, origins); err != nil {
 		log.Printf("game asset %s: %v", name, err)
 		return
 	}
@@ -668,7 +736,7 @@ func cors(next http.Handler) http.Handler {
 // readable 503 instead of the platform reporting a dead backend.
 func databaseGate(next http.Handler, service *api) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/health" || r.URL.Path == "/ws" || strings.HasPrefix(r.URL.Path, "/game/") || strings.HasPrefix(r.URL.Path, "/stats/") || service.dbReady.Load() {
+		if r.URL.Path == "/health" || r.URL.Path == "/ws" || strings.HasPrefix(r.URL.Path, "/game/") || strings.HasPrefix(r.URL.Path, "/game-vk/") || strings.HasPrefix(r.URL.Path, "/stats/") || service.dbReady.Load() {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -795,7 +863,10 @@ func createPlayersTable(ctx context.Context, db *sql.DB) error {
 			unlocked_wings TEXT DEFAULT '',
 			unlocked_weapons TEXT DEFAULT '',
 			matches_played INTEGER DEFAULT 0,
-			novice BOOLEAN DEFAULT FALSE
+			novice BOOLEAN DEFAULT FALSE,
+			platform TEXT NOT NULL DEFAULT 'standalone',
+			external_id TEXT,
+			level INTEGER DEFAULT 1
 		)
 	`)
 	if err != nil {
@@ -827,9 +898,46 @@ func createPlayersTable(ctx context.Context, db *sql.DB) error {
 	if err != nil {
 		return err
 	}
+	_, err = db.ExecContext(ctx, `ALTER TABLE players ADD COLUMN IF NOT EXISTS platform TEXT NOT NULL DEFAULT 'standalone'`)
+	if err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `ALTER TABLE players ADD COLUMN IF NOT EXISTS external_id TEXT`)
+	if err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `ALTER TABLE players ADD COLUMN IF NOT EXISTS level INTEGER DEFAULT 1`)
+	if err != nil {
+		return err
+	}
 	// Ник — отображаемое имя, а не логин: уникальность не нужна и мешает
 	// игрокам брать понравившиеся имена. Личность определяется по id.
-	return dropNicknameUniqueness(ctx, db)
+	if err := dropNicknameUniqueness(ctx, db); err != nil {
+		return err
+	}
+	// Backfill old rows before creating the unique identity index. The index
+	// is created after dropNicknameUniqueness so that routine does not remove
+	// it as if it were the old nickname uniqueness index.
+	if _, err := db.ExecContext(ctx, `
+		UPDATE players
+		SET platform = 'standalone'
+		WHERE platform IS NULL OR platform = ''
+	`); err != nil {
+		return err
+	}
+	if _, err := db.ExecContext(ctx, `
+		UPDATE players
+		SET external_id = id::text
+		WHERE platform = 'standalone' AND external_id IS NULL
+	`); err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `
+		CREATE UNIQUE INDEX IF NOT EXISTS players_platform_external_id_idx
+		ON players (platform, external_id)
+		WHERE external_id IS NOT NULL
+	`)
+	return err
 }
 
 // dropNicknameUniqueness removes any unique constraints or indexes on the
@@ -889,6 +997,11 @@ func dropNicknameUniqueness(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 	for _, name := range indexes {
+		// This is the platform identity index added in M2, not the legacy
+		// nickname-uniqueness index this routine exists to remove.
+		if name == "players_platform_external_id_idx" {
+			continue
+		}
 		if _, err := db.ExecContext(ctx, `DROP INDEX IF EXISTS `+name); err != nil {
 			return err
 		}
@@ -1021,7 +1134,7 @@ func (service *api) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err := service.db.QueryRowContext(r.Context(),
-		`INSERT INTO players (nickname, nickname_custom, session_token, novice) VALUES ($1, $2, $3, TRUE) RETURNING id`, nickname, customNickname, token,
+		`INSERT INTO players (nickname, nickname_custom, session_token, novice, platform) VALUES ($1, $2, $3, TRUE, 'standalone') RETURNING id`, nickname, customNickname, token,
 	).Scan(&playerID)
 	if err != nil {
 		var postgresError *pq.Error
@@ -1032,6 +1145,12 @@ func (service *api) handleRegister(w http.ResponseWriter, r *http.Request) {
 		log.Printf("register player: %v", err)
 		writeJSON(w, http.StatusInternalServerError, registerResponse{Error: "Internal server error"})
 		return
+	}
+	if _, err := service.db.ExecContext(r.Context(),
+		`UPDATE players SET external_id = id::text WHERE id = $1 AND external_id IS NULL`,
+		playerID,
+	); err != nil {
+		log.Printf("register player external id: %v", err)
 	}
 
 	writeJSON(w, http.StatusCreated, registerResponse{Success: true, PlayerID: playerID, Token: token})
@@ -1052,14 +1171,15 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 	var nickname string
 	var nicknameCustom bool
 	var shards int
+	var level int
 	var unlockedWings string
 	var unlockedWeapons string
 	var matchesPlayed int
 	var novice bool
 	var storedToken string
 	err = service.db.QueryRowContext(r.Context(),
-		`SELECT nickname, COALESCE(nickname_custom, FALSE), sky_shards, COALESCE(unlocked_wings, ''), COALESCE(unlocked_weapons, ''), COALESCE(matches_played, 0), COALESCE(novice, FALSE), COALESCE(session_token, '') FROM players WHERE id = $1`, playerID,
-	).Scan(&nickname, &nicknameCustom, &shards, &unlockedWings, &unlockedWeapons, &matchesPlayed, &novice, &storedToken)
+		`SELECT nickname, COALESCE(nickname_custom, FALSE), sky_shards, COALESCE(level, 1), COALESCE(unlocked_wings, ''), COALESCE(unlocked_weapons, ''), COALESCE(matches_played, 0), COALESCE(novice, FALSE), COALESCE(session_token, '') FROM players WHERE id = $1`, playerID,
+	).Scan(&nickname, &nicknameCustom, &shards, &level, &unlockedWings, &unlockedWeapons, &matchesPlayed, &novice, &storedToken)
 	if errors.Is(err, sql.ErrNoRows) {
 		writeJSON(w, http.StatusNotFound, playerProfileResponse{Error: "Player not found"})
 		return
@@ -1080,6 +1200,7 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 				Nickname:        nickname,
 				NicknameCustom:  nicknameCustom,
 				SkyShards:       shards,
+				Level:           level,
 				UnlockedWings:   parseItemIDs(unlockedWings),
 				UnlockedWeapons: parseItemIDs(unlockedWeapons),
 				MatchesPlayed:   matchesPlayed,
@@ -1118,6 +1239,7 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 		Nickname:        nickname,
 		NicknameCustom:  nicknameCustom,
 		SkyShards:       shards,
+		Level:           level,
 		UnlockedWings:   parseItemIDs(unlockedWings),
 		UnlockedWeapons: parseItemIDs(unlockedWeapons),
 		MatchesPlayed:   matchesPlayed,

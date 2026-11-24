@@ -53,6 +53,23 @@ func is_ready() -> bool:
 	return initialized and adapter != null
 
 
+func authenticate() -> bool:
+	if adapter == null:
+		return false
+	@warning_ignore("redundant_await")
+	return await adapter.authenticate()
+
+
+func is_authenticated() -> bool:
+	return adapter != null and adapter.is_authenticated()
+
+
+func get_auth_error() -> String:
+	if adapter == null:
+		return "adapter_unavailable"
+	return String(adapter.get_auth_error())
+
+
 func get_user() -> Dictionary:
 	if adapter == null:
 		return {}

@@ -27,6 +27,7 @@ var profile_loaded: bool = false
 var nickname_custom: bool = false
 var matches_played: int = 0
 var novice: bool = false
+var account_level: int = 1
 var char_levels: Dictionary = {"warrior": 1, "mage": 1, "fairy": 1}
 var char_xps: Dictionary = {"warrior": 0, "mage": 0, "fairy": 0}
 var just_leveled_up: bool = false
@@ -90,6 +91,7 @@ func _load_meta() -> void:
 	pending_compensation = maxi(0, int(config.get_value("progression", "pending_compensation", 0)))
 	matches_played = maxi(0, int(config.get_value("progression", "matches_played", 0)))
 	novice = bool(config.get_value("progression", "novice", false))
+	account_level = maxi(1, int(config.get_value("progression", "account_level", 1)))
 	var levels: Variant = config.get_value("progression", "char_levels", {})
 	if levels is Dictionary:
 		for key in char_levels.keys():
@@ -125,6 +127,7 @@ func _save_meta() -> void:
 	config.set_value("progression", "pending_compensation", pending_compensation)
 	config.set_value("progression", "matches_played", matches_played)
 	config.set_value("progression", "novice", novice)
+	config.set_value("progression", "account_level", account_level)
 	config.set_value("progression", "char_levels", char_levels)
 	config.set_value("progression", "char_xps", char_xps)
 	config.save(META_PATH)
@@ -137,6 +140,7 @@ func reset_all() -> void:
 	nickname_custom = false
 	matches_played = 0
 	novice = false
+	account_level = 1
 	sky_shards = 0
 	char_levels = {"warrior": 1, "mage": 1, "fairy": 1}
 	char_xps = {"warrior": 0, "mage": 0, "fairy": 0}
@@ -435,6 +439,10 @@ func _on_registration_completed(success: bool, registered_player_id: int) -> voi
 		return
 	player_id = registered_player_id
 	load_profile(registered_player_id)
+
+
+func apply_server_profile(loaded_player_id: int, server_shards: int, server_wings: Array, server_weapons: Array, server_nickname: String, server_nickname_custom: bool, server_matches_played: int, server_novice: bool) -> void:
+	_on_profile_loaded(true, loaded_player_id, server_shards, server_wings, server_weapons, server_nickname, server_nickname_custom, server_matches_played, server_novice)
 
 
 func _on_profile_loaded(success: bool, loaded_player_id: int, server_shards: int, server_wings: Array, server_weapons: Array, server_nickname: String, server_nickname_custom: bool, server_matches_played: int, server_novice: bool) -> void:
