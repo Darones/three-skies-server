@@ -134,6 +134,7 @@ var shop_pending_timer := 0.0
 var tutorial_mode := false
 var tutorial_controller: Node = null
 var tutorial_dummy: HeroUnit = null
+var tutorial_bots: Array[HeroUnit] = []
 var tutorial_arrow: MeshInstance3D = null
 var tutorial_arrow_material: StandardMaterial3D = null
 var tutorial_target_position := Vector3.ZERO
@@ -144,6 +145,7 @@ var network_play := false
 var network_host := false
 var network_room_id := 0
 var network_match_players: Array = []
+var bot_difficulty := "normal"
 var network_shutting_down := false
 var network_bots: Dictionary = {}
 var remote_players: Dictionary = {}
@@ -212,6 +214,7 @@ func _ready() -> void:
 	network_room_id = int(get_tree().get_meta("network_room_id", 0))
 	var configured_players: Variant = get_tree().get_meta("network_match_players", [])
 	network_match_players = configured_players if configured_players is Array else []
+	bot_difficulty = "easy" if tutorial_mode else (NetworkManager.bot_difficulty if network_play else "normal")
 	camera = get_node_or_null("Camera3D") as Camera3D
 	if camera == null:
 		camera = Camera3D.new()
@@ -1459,6 +1462,10 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	Stats.track("match_start", {
 		"class": ["warrior", "mage", "fairy"][clampi(player_class, 0, 2)],
 		"network": network_play,
+		"tutorial": tutorial_mode,
+		"bot_difficulty": bot_difficulty,
+		"novice": MetaProgression.novice,
+		"matches_played": MetaProgression.matches_played,
 	})
 	p_kills = 0
 	p_deaths = 0
@@ -1494,8 +1501,6 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	player = _spawn_hero(player_class, player_team, true, own_spots[0])
 	if DeviceProfile.mobile_ui:
 		await get_tree().process_frame
-	if tutorial_mode:
-		spawn_tutorial_dummy()
 	if not tutorial_mode:
 		if network_play:
 			if network_host:
@@ -1547,6 +1552,9 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 			tutorial_controller.name = "TutorialController"
 			tutorial_controller.set("game", self)
 			add_child(tutorial_controller)
+			if not hud.is_connected("tutorial_skip_requested", Callable(tutorial_controller, "request_skip")):
+				hud.connect("tutorial_skip_requested", Callable(tutorial_controller, "request_skip"))
+			hud.call("set_tutorial_skip_visible", true)
 			tutorial_controller.call("begin")
 		else:
 			announce("Бой за осколки!", Color(1.0, 0.86, 0.55), 2.6)
@@ -1562,7 +1570,7 @@ func _spawn_network_bots(light_spots: Array[Vector3], dark_spots: Array[Vector3]
 		var spots: Array[Vector3] = light_spots if bot_team == 0 else dark_spots
 		var spot_index: int = mini(next_index[bot_team], 2)
 		next_index[bot_team] += 1
-		var bot := _spawn_hero(bot_class, bot_team, false, spots[spot_index])
+		var bot := _spawn_hero(bot_class, bot_team, false, spots[spot_index], bot_difficulty)
 		bot.network_id = int(entry.get("id", 0))
 		var bot_name := String(entry.get("name", "")).strip_edges()
 		if bot_name.is_empty() or bot_name.begins_with("Игрок"):
@@ -1578,10 +1586,11 @@ func _spawn_network_bots(light_spots: Array[Vector3], dark_spots: Array[Vector3]
 			await get_tree().process_frame
 
 
-func _spawn_hero(cls: int, team: int, is_player: bool, pos: Vector3) -> HeroUnit:
+func _spawn_hero(cls: int, team: int, is_player: bool, pos: Vector3, difficulty := "normal") -> HeroUnit:
 	var h := HeroUnit.new()
 	h.name = ("Player" if is_player else "%s_%d_%d" % [HeroUnit.CLASS_DATA[cls]["name"], team, heroes.size()])
 	add_child(h)
+	h.bot_difficulty = difficulty
 	h.setup(self, cls, team, is_player)
 	if is_player:
 		var nickname := MetaProgression.player_nickname.strip_edges()
@@ -2560,6 +2569,10 @@ func _try_pickup() -> void:
 	for h in heroes:
 		if h == null or not is_instance_valid(h) or h.dead or h.carrying:
 			continue
+		# The tutorial must end with the player carrying the shard; an ally bot
+		# taking it would consume the only shell and stall the lesson.
+		if tutorial_mode and h != player:
+			continue
 		var d := Vector2(h.global_position.x, h.global_position.z).distance_to(
 			Vector2(crystal_node.global_position.x, crystal_node.global_position.z)
 		)
@@ -2659,6 +2672,8 @@ func on_hero_died(h: HeroUnit) -> void:
 		if network_play:
 			NetworkManager.send_death()
 	h.match_deaths += 1
+	if tutorial_mode and tutorial_controller != null:
+		tutorial_controller.call("on_tutorial_hero_died", h)
 	if h == carrier or h.carrying:
 		drop_crystal(h.global_position)
 		announce("Осколок выбит!", Color(1.0, 0.7, 0.4), 1.8)
@@ -2726,6 +2741,9 @@ func end_match(team_zero_won: bool) -> void:
 		"reason": match_end_reason,
 		"class": stats_class,
 		"network": network_play,
+		"bot_difficulty": bot_difficulty,
+		"novice": MetaProgression.novice,
+		"matches_played": MetaProgression.matches_played,
 	})
 	get_tree().set_meta("last_match_won", player_won)
 	get_tree().set_meta("last_match_aborted", match_aborted)
@@ -2759,6 +2777,7 @@ func end_match(team_zero_won: bool) -> void:
 			"damage": int(h.match_damage_dealt),
 			"crystals": h.match_crystals,
 			"is_player": h.is_player,
+			"is_bot": not h.is_player,
 		})
 	for remote in remote_players.values():
 		if remote == null or not is_instance_valid(remote):
@@ -2771,6 +2790,7 @@ func end_match(team_zero_won: bool) -> void:
 			"damage": int(remote.match_damage_dealt),
 			"crystals": remote.match_crystals,
 			"is_player": false,
+			"is_bot": bool(remote.is_bot),
 		})
 	get_tree().set_meta("last_match_players", players_table)
 	if player != null and is_instance_valid(player):
@@ -3032,6 +3052,33 @@ func _update_tutorial_arrow(delta: float) -> void:
 		tutorial_arrow_material.emission_energy_multiplier = 1.4 + pulse * 2.0
 
 
+func spawn_tutorial_bot(cls: int, team: int, pos: Vector3, difficulty := "easy", label := "") -> HeroUnit:
+	var bot := _spawn_hero(cls, team, false, pos, difficulty)
+	bot.name = "TutorialBot_%d" % tutorial_bots.size()
+	if not label.is_empty():
+		bot.set_display_name(label)
+	tutorial_bots.append(bot)
+	return bot
+
+
+func clear_tutorial_bots() -> void:
+	if not tutorial_bots.is_empty():
+		var keep: Array = []
+		for projectile in projectiles:
+			var source: Variant = projectile.get("source")
+			if source != null and is_instance_valid(source) and source in tutorial_bots:
+				_release_projectile(projectile["node"], bool(projectile.get("pooled", false)))
+			else:
+				keep.append(projectile)
+		projectiles = keep
+	for bot in tutorial_bots:
+		if bot == null or not is_instance_valid(bot):
+			continue
+		heroes.erase(bot)
+		bot.queue_free()
+	tutorial_bots.clear()
+
+
 func spawn_tutorial_dummy() -> void:
 	if tutorial_dummy != null and is_instance_valid(tutorial_dummy):
 		tutorial_dummy.max_health = 1000.0
@@ -3185,6 +3232,12 @@ func _update_projectiles(delta: float) -> void:
 		var node: Node3D = p["node"]
 		var target = p["target"]
 		if not is_instance_valid(node):
+			continue
+		var source: Variant = p.get("source")
+		if source != null and not is_instance_valid(source):
+			# Tutorial bots are removed between stages; a projectile already in
+			# flight must not call into the freed source.
+			_release_projectile(node, bool(p.get("pooled", false)))
 			continue
 		p["life"] = float(p["life"]) - delta
 		if p["life"] <= 0.0:

@@ -99,6 +99,8 @@ func _make_player_row(entry: Dictionary, best_damage: int) -> Control:
 
 	var damage := int(entry.get("damage", 0))
 	var name_text := String(entry.get("name", ">"))
+	if bool(entry.get("is_bot", false)):
+		name_text = "БОТ · " + name_text
 	if damage > 0 and damage == best_damage:
 		name_text = "* " + name_text
 	var name_cell := _table_cell(name_text, 13, GOLD if is_self else PALE, 0.0, HORIZONTAL_ALIGNMENT_LEFT)

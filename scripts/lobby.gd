@@ -58,6 +58,7 @@ const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const LOBBY_LOGO: Texture2D = preload("res://ui/logo.png")
 const UI_CLICK_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/ui_menu/menu_selection_click.mp3")
 const SHARD_TOPUP_SCENE := preload("res://scenes/ShardTopupPanel.tscn")
+const RULES_PANEL_SCRIPT := preload("res://scripts/rules_panel.gd")
 const SHARD_ICON: Texture2D = preload("res://ui/icons/sky_shard.png")
 const SETTINGS_GEAR_ICON: Texture2D = preload("res://ui/icons/settings_gear.png")
 const WeaponCatalog = preload("res://scripts/weapon_catalog.gd")
@@ -99,6 +100,8 @@ var shop_hero_buttons: Array[Button] = []
 var shop_selected_hero := 0
 var shop_page := 0
 var topup_panel: PanelContainer
+var rules_panel: Control
+var rules_button: Button
 var info_overlay: ColorRect
 var info_panel: PanelContainer
 var info_title_label: Label
@@ -217,6 +220,8 @@ func _ready() -> void:
 	_build_shard_shop_button()
 	_build_hero_cards()
 	_build_actions()
+	_build_rules_button()
+	_build_rules_panel()
 	_build_shard_shop()
 	_build_player_menu()
 	_build_nickname_popup()
@@ -264,6 +269,11 @@ func _ready() -> void:
 			MetaProgression.profile_loaded = false
 		if not MetaProgression.profile_loaded:
 			MetaProgression.load_profile(MetaProgression.player_id)
+		else:
+			# Returning from a match: the server has just updated
+			# matches_played/novice, so refresh the profile instead of showing
+			# the values from the previous lobby visit.
+			MetaProgression.load_profile(MetaProgression.player_id)
 	_setup_ui_click_sound()
 	_wire_ui_click_sounds(self)
 	touch_keyboard = preload("res://scripts/touch_keyboard.gd").new()
@@ -281,6 +291,9 @@ func _ready() -> void:
 		_open_settings()
 	if OS.get_cmdline_user_args().has("--topup-preview"):
 		_open_topup_panel()
+	if bool(get_tree().get_meta("open_rules_on_lobby", false)):
+		get_tree().set_meta("open_rules_on_lobby", false)
+		call_deferred("_open_rules")
 	_register_ui_layout()
 	if DeviceProfile.edit_mode and DeviceProfile.auto_battle:
 		_editor_start_battle()
@@ -2778,7 +2791,7 @@ func _build_actions() -> void:
 	play_button.add_theme_stylebox_override("hover", _play_button_style(true, false))
 	play_button.add_theme_stylebox_override("pressed", _play_button_style(true, false))
 	play_button.add_theme_stylebox_override("disabled", _play_button_style(false, true))
-	play_button.pressed.connect(_start_network_battle)
+	play_button.pressed.connect(_on_play_pressed)
 	add_child(play_button)
 
 	tutorial_button = _make_action_button("ОБУЧЕНИЕ", false)
@@ -2839,6 +2852,42 @@ func _gear_button_style(hovered: bool) -> StyleBoxFlat:
 	var style := _action_style(false, hovered)
 	style.set_corner_radius_all(32)
 	return style
+
+
+func _build_rules_button() -> void:
+	rules_button = _make_action_button("ПРАВИЛА", false)
+	rules_button.name = "RulesButton"
+	rules_button.anchor_left = 0.0
+	rules_button.anchor_top = 1.0
+	rules_button.anchor_right = 0.0
+	rules_button.anchor_bottom = 1.0
+	rules_button.offset_left = 120.0
+	rules_button.offset_top = -100.0
+	rules_button.offset_right = 260.0
+	rules_button.offset_bottom = -46.0
+	rules_button.custom_minimum_size = Vector2(140.0, 54.0)
+	rules_button.add_theme_font_size_override("font_size", _fs(16))
+	rules_button.pressed.connect(_open_rules)
+	add_child(rules_button)
+
+
+func _build_rules_panel() -> void:
+	rules_panel = RULES_PANEL_SCRIPT.new() as Control
+	rules_panel.name = "RulesPanel"
+	rules_panel.z_index = 30
+	rules_panel.visible = false
+	rules_panel.connect("back_requested", _close_rules)
+	add_child(rules_panel)
+
+
+func _open_rules() -> void:
+	if rules_panel != null:
+		rules_panel.call("open")
+
+
+func _close_rules() -> void:
+	if rules_panel != null:
+		rules_panel.call("close")
 
 
 func _open_settings() -> void:
@@ -3008,6 +3057,25 @@ func _on_side_card_pressed(slot: int) -> void:
 	_refresh_selection()
 
 
+func _on_play_pressed() -> void:
+	if MetaProgression.player_id > 0 and not MetaProgression.profile_loaded:
+		_show_info("Загружаем профиль. Попробуйте через секунду.")
+		return
+	if _should_force_tutorial():
+		_start_tutorial()
+		return
+	_start_network_battle()
+
+
+func _should_force_tutorial() -> bool:
+	if _tutorial_completed() or _tutorial_skipped():
+		return false
+	# Existing profiles already know the game; only a truly new player gets the
+	# mandatory tutorial. Server count wins once loaded, local stats are the
+	# fallback while the profile request is in flight.
+	return MetaProgression.known_matches() <= 0
+
+
 func _start_network_battle() -> void:
 	if NetworkManager.is_connecting():
 		return
@@ -3113,6 +3181,10 @@ func _tutorial_battles_used() -> int:
 
 func _tutorial_completed() -> bool:
 	return bool(_tutorial_config().get_value("tutorial", "completed", false))
+
+
+func _tutorial_skipped() -> bool:
+	return bool(_tutorial_config().get_value("tutorial", "skipped", false))
 
 
 func _record_normal_battle_started() -> void:

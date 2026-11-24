@@ -323,7 +323,7 @@ func _set_slot_player(team_index: int, slot_index: int, player_number: int, clas
 func _set_slot_entry(team_index: int, slot_index: int, player_name: String, class_index: int, is_bot: bool) -> void:
 	var slot: Dictionary = team_slots[team_index][slot_index]
 	slot['state'] = 'bot' if is_bot else 'player'
-	slot['name'].text = player_name
+	slot['name'].text = ('БОТ · ' + player_name) if is_bot else player_name
 	slot['portrait'].texture = _class_portrait(class_index)
 	slot['portrait'].visible = true
 	slot['spinner'].visible = false
@@ -350,7 +350,7 @@ func _fill_open_slots_with_bots() -> void:
 				continue
 			var class_index := randi_range(0, 2)
 			slot['state'] = 'bot'
-			slot['name'].text = '\u0418\u0433\u0440\u043e\u043a %04d' % randi_range(1000, 9999)
+			slot['name'].text = '\u0411\u041e\u0422 · \u0418\u0433\u0440\u043e\u043a %04d' % randi_range(1000, 9999)
 			slot['portrait'].texture = _class_portrait(class_index)
 			slot['portrait'].visible = true
 			slot['spinner'].visible = false

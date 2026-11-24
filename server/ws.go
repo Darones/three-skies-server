@@ -40,6 +40,76 @@ var classBaseHP = []float64{1050.0, 1000.0, 950.0}
 var classBaseDamage = []float64{44.0, 26.0, 60.0}
 var classAttackRange = []float64{3.5, 9.0, 11.0}
 
+// Bot difficulty profiles mirror HeroUnit.BOT_PROFILES on the client. The
+// server owns bot HP and validates damage, so the same multipliers must be
+// applied here or bot_states would pull the client HP back to another value.
+type botProfile struct {
+	damage          float64
+	hp              float64
+	attackInterval  float64
+	abilityCooldown float64
+	aggressionMin   float64
+	aggressionMax   float64
+}
+
+var botProfiles = map[string]botProfile{
+	"easy": {
+		damage: 0.6, hp: 0.8, attackInterval: 1.35, abilityCooldown: 1.5,
+		aggressionMin: 0.2, aggressionMax: 0.5,
+	},
+	"normal": {
+		damage: 0.8, hp: 1.0, attackInterval: 1.15, abilityCooldown: 1.2,
+		aggressionMin: 0.2, aggressionMax: 1.0,
+	},
+	"hard": {
+		damage: 1.0, hp: 1.1, attackInterval: 1.0, abilityCooldown: 1.0,
+		aggressionMin: 0.6, aggressionMax: 1.0,
+	},
+}
+
+func botProfileFor(difficulty string) botProfile {
+	if profile, ok := botProfiles[difficulty]; ok {
+		return profile
+	}
+	return botProfiles["normal"]
+}
+
+func botDifficultyForRoom(room *wsRoom) string {
+	if room == nil || !room.novice {
+		return "normal"
+	}
+	minMatches := 1 << 30
+	humans := 0
+	for _, player := range room.players {
+		if player == nil {
+			continue
+		}
+		humans++
+		if player.matchesPlayed < minMatches {
+			minMatches = player.matchesPlayed
+		}
+	}
+	if humans == 0 || minMatches >= 8 {
+		return "normal"
+	}
+	if minMatches <= 3 {
+		return "easy"
+	}
+	return "normal"
+}
+
+// noviceAfterMatches only ever graduates a player; it never promotes an
+// existing non-novice back into the novice pool.
+func noviceAfterMatches(matches, wins int, current bool) bool {
+	if matches >= 10 {
+		return false
+	}
+	if matches >= 5 && wins*5 >= matches*4 {
+		return false
+	}
+	return current
+}
+
 var wsUpgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -56,25 +126,27 @@ type wsHub struct {
 }
 
 type wsRoom struct {
-	id           int64
-	players      [roomSlots]*wsClient
-	bots         [roomSlots]*wsBot
-	humanCount   int
-	hostID       int64
-	state        string
-	startsAt     time.Time
-	fillTimer    *time.Timer
-	finishTimer  *time.Timer
-	matchEndsAt  time.Time
-	resultSaved  bool
-	score        [2]int
-	suddenDeath  bool
-	lastDelivery [2]time.Time
-	shell        *wsShellState
-	shellDiedAt  time.Time
-	shellSpawnID int64
-	lastShellHit map[int64]time.Time
-	crystal      *wsCrystalState
+	id            int64
+	players       [roomSlots]*wsClient
+	bots          [roomSlots]*wsBot
+	humanCount    int
+	hostID        int64
+	state         string
+	novice        bool
+	botDifficulty string
+	startsAt      time.Time
+	fillTimer     *time.Timer
+	finishTimer   *time.Timer
+	matchEndsAt   time.Time
+	resultSaved   bool
+	score         [2]int
+	suddenDeath   bool
+	lastDelivery  [2]time.Time
+	shell         *wsShellState
+	shellDiedAt   time.Time
+	shellSpawnID  int64
+	lastShellHit  map[int64]time.Time
+	crystal       *wsCrystalState
 }
 
 type wsBot struct {
@@ -110,6 +182,8 @@ type wsClient struct {
 
 	roomID         int64
 	playerID       int64
+	novice         bool
+	matchesPlayed  int
 	name           string
 	class          int
 	team           int
@@ -250,6 +324,7 @@ type wsOutgoing struct {
 	AttackDamage    float64         `json:"attack_damage,omitempty"`
 	WinningTeam     int             `json:"winning_team,omitempty"`
 	MatchPlayers    []wsMatchPlayer `json:"match_players,omitempty"`
+	BotDifficulty   string          `json:"bot_difficulty,omitempty"`
 	StartsInMS      int64           `json:"starts_in_ms,omitempty"`
 	MatchTimeLeftMS int64           `json:"match_time_left_ms,omitempty"`
 	Bots            []wsBotSnapshot `json:"bots,omitempty"`
@@ -537,6 +612,26 @@ func botFromClient(client *wsClient, slot int) *wsBot {
 	}
 }
 
+func (h *wsHub) playerNovice(playerID int64) (bool, int) {
+	if h.db == nil || playerID <= 0 {
+		return false, 0
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	var novice bool
+	var matchesPlayed int
+	err := h.db.QueryRowContext(ctx,
+		`SELECT COALESCE(novice, FALSE), COALESCE(matches_played, 0) FROM players WHERE id = $1`,
+		playerID,
+	).Scan(&novice, &matchesPlayed)
+	if err != nil {
+		// A database hiccup must not block matchmaking; the normal pool is
+		// the safe fallback for a profile we cannot read.
+		return false, 0
+	}
+	return novice, matchesPlayed
+}
+
 func (h *wsHub) sessionAllowed(playerID int64, token string) bool {
 	if playerID <= 0 || h.db == nil {
 		return true
@@ -576,21 +671,24 @@ func (h *wsHub) joinMatchmaking(client *wsClient, message wsIncoming) {
 		client.sendJSON(wsOutgoing{Type: "error", Error: "invalid_session"})
 		return
 	}
+	novice, matchesPlayed := h.playerNovice(message.PlayerID)
 
 	h.mu.Lock()
 	if client.roomID != 0 {
 		h.mu.Unlock()
 		return
 	}
-	room, slot := h.findRoomLocked(class)
+	room, slot := h.findRoomLocked(class, novice)
 	if room == nil {
 		h.nextRoomID++
-		room = &wsRoom{id: h.nextRoomID, state: "waiting"}
+		room = &wsRoom{id: h.nextRoomID, state: "waiting", novice: novice}
 		h.rooms[room.id] = room
 		slot = 0
 	}
 	client.roomID = room.id
 	client.playerID = message.PlayerID
+	client.novice = novice
+	client.matchesPlayed = matchesPlayed
 	client.name = name
 	client.class = class
 	client.team = slot / 3
@@ -651,10 +749,16 @@ func (h *wsHub) joinMatchmaking(client *wsClient, message wsIncoming) {
 	h.sendToClients(lobbyClients, lobbyMessage)
 }
 
-func (h *wsHub) findRoomLocked(_ int) (*wsRoom, int) {
+func (h *wsHub) findRoomLocked(_ int, novice bool) (*wsRoom, int) {
 	var best *wsRoom
 	for _, room := range h.rooms {
 		if room.state != "waiting" || room.humanCount >= roomSlots {
+			continue
+		}
+		// Novices and experienced players never share a room: the whole point
+		// of the first-ten-matches pool is that a new player does not meet a
+		// veteran while still learning the shell and the shard.
+		if room.novice != novice {
 			continue
 		}
 		// Lock the room for the last 3 seconds so a late join cannot appear
@@ -820,6 +924,8 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 		}
 	}
 	balanceHumansLocked(room)
+	room.botDifficulty = botDifficultyForRoom(room)
+	botProfile := botProfileFor(room.botDifficulty)
 	botClasses := botClassesForRoom(room)
 	players := make([]wsMatchPlayer, 0, roomSlots)
 	clients := make([]*wsClient, 0, room.humanCount)
@@ -881,6 +987,8 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 			botZ = -27.5
 			botRotation = math.Pi
 		}
+		botMaxHP := classBaseHP[class] * botProfile.hp
+		botDamage := classBaseDamage[class] * botProfile.damage
 		room.bots[slot] = &wsBot{
 			id:           botID,
 			name:         botName,
@@ -890,9 +998,9 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 			y:            0.76,
 			z:            botZ,
 			rotation:     botRotation,
-			maxHP:        classBaseHP[class],
-			hp:           classBaseHP[class],
-			attackDamage: classBaseDamage[class],
+			maxHP:        botMaxHP,
+			hp:           botMaxHP,
+			attackDamage: botDamage,
 			alive:        true,
 			hasState:     true,
 			lastAttacks:  make(map[string]time.Time),
@@ -904,9 +1012,9 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 			Class:        class,
 			Team:         team,
 			Slot:         slot,
-			MaxHP:        classBaseHP[class],
-			HP:           classBaseHP[class],
-			AttackDamage: classBaseDamage[class],
+			MaxHP:        botMaxHP,
+			HP:           botMaxHP,
+			AttackDamage: botDamage,
 		})
 	}
 	if room.finishTimer != nil {
@@ -920,6 +1028,7 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 		RoomID:          room.id,
 		HostID:          room.hostID,
 		MatchPlayers:    players,
+		BotDifficulty:   room.botDifficulty,
 		MatchTimeLeftMS: maxInt64(0, time.Until(room.matchEndsAt).Milliseconds()),
 	}, clients
 }
@@ -2612,6 +2721,34 @@ func (h *wsHub) saveMatch(roomID int64, players []matchResultPlayer, winningTeam
 		if err != nil {
 			log.Printf("save match result: %v", err)
 			return
+		}
+	}
+	for _, player := range players {
+		if player.playerID <= 0 {
+			continue
+		}
+		var matchesPlayed, wins int
+		if err := transaction.QueryRowContext(ctx, `
+			SELECT COUNT(DISTINCT room_id),
+			       COUNT(DISTINCT room_id) FILTER (WHERE won)
+			FROM matches WHERE player_id = $1
+		`, player.playerID).Scan(&matchesPlayed, &wins); err != nil {
+			log.Printf("count player matches: %v", err)
+			continue
+		}
+		var currentNovice bool
+		if err := transaction.QueryRowContext(ctx,
+			`SELECT COALESCE(novice, FALSE) FROM players WHERE id = $1`,
+			player.playerID,
+		).Scan(&currentNovice); err != nil {
+			log.Printf("load player novice flag: %v", err)
+			continue
+		}
+		newNovice := noviceAfterMatches(matchesPlayed, wins, currentNovice)
+		if _, err := transaction.ExecContext(ctx, `
+			UPDATE players SET matches_played = $2, novice = $3 WHERE id = $1
+		`, player.playerID, matchesPlayed, newNovice); err != nil {
+			log.Printf("update player novice state: %v", err)
 		}
 	}
 	if err := transaction.Commit(); err != nil {

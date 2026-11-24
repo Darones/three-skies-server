@@ -143,6 +143,8 @@ type playerProfileResponse struct {
 	SkyShards       int    `json:"sky_shards,omitempty"`
 	UnlockedWings   []int  `json:"unlocked_wings,omitempty"`
 	UnlockedWeapons []int  `json:"unlocked_weapons,omitempty"`
+	MatchesPlayed   int    `json:"matches_played"`
+	Novice          bool   `json:"novice"`
 	SessionToken    string `json:"session_token,omitempty"`
 	Error           string `json:"error,omitempty"`
 }
@@ -761,7 +763,26 @@ func createSchema(ctx context.Context, db *sql.DB) error {
 	if err := createReportsTable(ctx, db); err != nil {
 		return err
 	}
-	return createMatchesTable(ctx, db)
+	if err := createMatchesTable(ctx, db); err != nil {
+		return err
+	}
+	return backfillPlayerMatches(ctx, db)
+}
+
+// backfillPlayerMatches fills matches_played for rows created before the
+// column existed. novice stays false for those rows on purpose.
+func backfillPlayerMatches(ctx context.Context, db *sql.DB) error {
+	_, err := db.ExecContext(ctx, `
+		UPDATE players p
+		SET matches_played = COALESCE(m.cnt, 0)
+		FROM (
+			SELECT player_id, COUNT(DISTINCT room_id) AS cnt
+			FROM matches
+			GROUP BY player_id
+		) m
+		WHERE m.player_id = p.id AND p.matches_played = 0
+	`)
+	return err
 }
 
 func createPlayersTable(ctx context.Context, db *sql.DB) error {
@@ -772,7 +793,9 @@ func createPlayersTable(ctx context.Context, db *sql.DB) error {
 			nickname_custom BOOLEAN DEFAULT FALSE,
 			sky_shards INTEGER DEFAULT 0,
 			unlocked_wings TEXT DEFAULT '',
-			unlocked_weapons TEXT DEFAULT ''
+			unlocked_weapons TEXT DEFAULT '',
+			matches_played INTEGER DEFAULT 0,
+			novice BOOLEAN DEFAULT FALSE
 		)
 	`)
 	if err != nil {
@@ -791,6 +814,16 @@ func createPlayersTable(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 	_, err = db.ExecContext(ctx, `ALTER TABLE players ADD COLUMN IF NOT EXISTS last_compensation_at TIMESTAMPTZ`)
+	if err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `ALTER TABLE players ADD COLUMN IF NOT EXISTS matches_played INTEGER DEFAULT 0`)
+	if err != nil {
+		return err
+	}
+	// Existing players keep novice=false: the migration must not push veterans
+	// into the novice pool or force the tutorial on them.
+	_, err = db.ExecContext(ctx, `ALTER TABLE players ADD COLUMN IF NOT EXISTS novice BOOLEAN DEFAULT FALSE`)
 	if err != nil {
 		return err
 	}
@@ -988,7 +1021,7 @@ func (service *api) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err := service.db.QueryRowContext(r.Context(),
-		`INSERT INTO players (nickname, nickname_custom, session_token) VALUES ($1, $2, $3) RETURNING id`, nickname, customNickname, token,
+		`INSERT INTO players (nickname, nickname_custom, session_token, novice) VALUES ($1, $2, $3, TRUE) RETURNING id`, nickname, customNickname, token,
 	).Scan(&playerID)
 	if err != nil {
 		var postgresError *pq.Error
@@ -1021,10 +1054,12 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 	var shards int
 	var unlockedWings string
 	var unlockedWeapons string
+	var matchesPlayed int
+	var novice bool
 	var storedToken string
 	err = service.db.QueryRowContext(r.Context(),
-		`SELECT nickname, COALESCE(nickname_custom, FALSE), sky_shards, COALESCE(unlocked_wings, ''), COALESCE(unlocked_weapons, ''), COALESCE(session_token, '') FROM players WHERE id = $1`, playerID,
-	).Scan(&nickname, &nicknameCustom, &shards, &unlockedWings, &unlockedWeapons, &storedToken)
+		`SELECT nickname, COALESCE(nickname_custom, FALSE), sky_shards, COALESCE(unlocked_wings, ''), COALESCE(unlocked_weapons, ''), COALESCE(matches_played, 0), COALESCE(novice, FALSE), COALESCE(session_token, '') FROM players WHERE id = $1`, playerID,
+	).Scan(&nickname, &nicknameCustom, &shards, &unlockedWings, &unlockedWeapons, &matchesPlayed, &novice, &storedToken)
 	if errors.Is(err, sql.ErrNoRows) {
 		writeJSON(w, http.StatusNotFound, playerProfileResponse{Error: "Player not found"})
 		return
@@ -1047,6 +1082,8 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 				SkyShards:       shards,
 				UnlockedWings:   parseItemIDs(unlockedWings),
 				UnlockedWeapons: parseItemIDs(unlockedWeapons),
+				MatchesPlayed:   matchesPlayed,
+				Novice:          novice,
 			})
 			return
 		}
@@ -1083,6 +1120,8 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 		SkyShards:       shards,
 		UnlockedWings:   parseItemIDs(unlockedWings),
 		UnlockedWeapons: parseItemIDs(unlockedWeapons),
+		MatchesPlayed:   matchesPlayed,
+		Novice:          novice,
 		SessionToken:    sessionToken,
 	})
 }

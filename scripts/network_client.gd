@@ -4,7 +4,7 @@ extends Node
 # через NetworkManager (WebSocket); старый протокол матчмейкинга удалён.
 
 signal registration_completed(success: bool, player_id: int)
-signal profile_loaded(success: bool, player_id: int, sky_shards: int, unlocked_wings: Array, unlocked_weapons: Array, nickname: String, nickname_custom: bool)
+signal profile_loaded(success: bool, player_id: int, sky_shards: int, unlocked_wings: Array, unlocked_weapons: Array, nickname: String, nickname_custom: bool, matches_played: int, novice: bool)
 signal purchase_completed(success: bool, purchase_type: String, item_id: int, new_shards: int)
 signal match_reward_completed(success: bool, amount: int, new_shards: int)
 signal compensation_completed(success: bool, new_shards: int, error: String)
@@ -108,7 +108,7 @@ func report_player(player_id: int, nickname: String, reason: String) -> void:
 
 func load_player_profile(player_id: int) -> void:
 	if player_id <= 0:
-		profile_loaded.emit(false, player_id, 0, [], [], "", false)
+		profile_loaded.emit(false, player_id, 0, [], [], "", false, 0, false)
 		return
 	http_request_queue.append({
 		"path": "/profile?player_id=%d" % player_id,
@@ -185,7 +185,19 @@ func _on_http_request_completed(result: int, response_code: int, _headers: Packe
 		var unlocked_weapons: Array = weapons_value if weapons_value is Array else []
 		var nickname := String(response.get("nickname", "")) if response is Dictionary else ""
 		var nickname_custom := bool(response.get("nickname_custom", false)) if response is Dictionary else false
-		profile_loaded.emit(success, player_id, sky_shards if success else 0, unlocked_wings if success else [], unlocked_weapons if success else [], nickname if success else "", nickname_custom if success else false)
+		var matches_played := int(response.get("matches_played", 0)) if response is Dictionary else 0
+		var novice := bool(response.get("novice", false)) if response is Dictionary else false
+		profile_loaded.emit(
+			success,
+			player_id,
+			sky_shards if success else 0,
+			unlocked_wings if success else [],
+			unlocked_weapons if success else [],
+			nickname if success else "",
+			nickname_custom if success else false,
+			matches_played if success else 0,
+			novice if success else false
+		)
 	elif request["request_type"] == "purchase":
 		var new_shards := int(response.get("new_shards", 0)) if response is Dictionary else 0
 		purchase_completed.emit(success, String(request["purchase_type"]), int(request["item_id"]), new_shards if success else 0)
@@ -215,7 +227,7 @@ func _emit_http_failure(request: Dictionary) -> void:
 	if request["request_type"] == "register":
 		registration_completed.emit(false, 0)
 	elif request["request_type"] == "profile":
-		profile_loaded.emit(false, int(request["player_id"]), 0, [], [], "", false)
+		profile_loaded.emit(false, int(request["player_id"]), 0, [], [], "", false, 0, false)
 	elif request["request_type"] == "purchase":
 		purchase_completed.emit(false, String(request["purchase_type"]), int(request["item_id"]), 0)
 	elif request["request_type"] == "match_reward":

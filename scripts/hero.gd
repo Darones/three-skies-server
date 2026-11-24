@@ -22,12 +22,31 @@ const BASE_REGEN_RADIUS := 6.5
 const BASE_SHIELD_RADIUS := 4.9
 const BUSH_REVEAL_DURATION := 3.0
 const BUSH_PROXIMITY_REVEAL := 5.0
-const BOT_DAMAGE_MULTIPLIER := 0.8
-const BOT_ATTACK_INTERVAL_MULTIPLIER := 1.15
-const BOT_ABILITY_COOLDOWN_MULTIPLIER := 1.2
 const BOT_MOVE_ACCELERATION := 14.0
 const BOT_RETREAT_START_RATIO := 0.22
 const BOT_RETREAT_END_RATIO := 0.4
+# The server mirrors damage/hp in botProfiles (server/ws.go). `normal` is the
+# old behaviour and must stay exactly as it was.
+const BOT_PROFILES := {
+	"easy": {
+		"damage": 0.6, "hp": 0.8, "interval": 1.35, "cooldown": 1.5,
+		"aggression_min": 0.2, "aggression_max": 0.5,
+		"think_min": 0.2, "think_max": 0.5,
+		"think_interval_min": 0.7, "think_interval_max": 1.1,
+	},
+	"normal": {
+		"damage": 0.8, "hp": 1.0, "interval": 1.15, "cooldown": 1.2,
+		"aggression_min": 0.2, "aggression_max": 1.0,
+		"think_min": 0.05, "think_max": 0.35,
+		"think_interval_min": 0.55, "think_interval_max": 0.9,
+	},
+	"hard": {
+		"damage": 1.0, "hp": 1.1, "interval": 1.0, "cooldown": 1.0,
+		"aggression_min": 0.6, "aggression_max": 1.0,
+		"think_min": 0.02, "think_max": 0.2,
+		"think_interval_min": 0.4, "think_interval_max": 0.7,
+	},
+}
 const AFK_TIMEOUT := 60.0
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const HEALTH_BAR_3D := preload("res://scripts/health_bar_3d.gd")
@@ -180,6 +199,7 @@ var game: Node = null
 var team := 0
 var hero_class: int = Cls.WARRIOR
 var is_player := false
+var bot_difficulty := "normal"
 var gear_nodes: Dictionary = {}
 var network_id := 0
 var afk_active := false
@@ -312,16 +332,19 @@ func setup(p_game: Node, p_class: int, p_team: int, p_player: bool) -> void:
 	attack_range = data["range"]
 	attack_damage = data["damage"]
 	attack_interval = data["interval"]
+	var profile := _bot_profile()
 	if not is_player:
-		attack_damage *= BOT_DAMAGE_MULTIPLIER
-		attack_interval *= BOT_ATTACK_INTERVAL_MULTIPLIER
+		attack_damage *= float(profile["damage"])
+		attack_interval *= float(profile["interval"])
+		max_health *= float(profile["hp"])
+		health = max_health
 		# характер: кто-то лезет первым, кто-то держится сзади
-		ai_aggression = randf_range(0.2, 1.0)
+		ai_aggression = randf_range(float(profile["aggression_min"]), float(profile["aggression_max"]))
 	attack_animation_duration = float(data.get("attack_anim_time", 0.45))
 	ranged = data["ranged"]
 	display_name = data["name"]
 	ai_offset = Vector3(randf_range(-3.0, 3.0), 0.0, randf_range(-3.0, 3.0))
-	ai_think = randf_range(0.05, 0.35)
+	ai_think = randf_range(float(profile["think_min"]), float(profile["think_max"]))
 	ai_strafe_sign = -1.0 if randf() < 0.5 else 1.0
 	ai_strafe_timer = randf_range(1.5, 3.0)
 	ai_escort_angle = randf() * TAU
@@ -1753,6 +1776,27 @@ func _ensure_afk_label() -> void:
 	add_child(afk_label)
 
 
+func _bot_profile() -> Dictionary:
+	return BOT_PROFILES.get(bot_difficulty, BOT_PROFILES["normal"])
+
+
+func _bot_ability_cooldown_multiplier() -> float:
+	if is_player:
+		return 1.0
+	return float(_bot_profile()["cooldown"])
+
+
+func _bot_damage_multiplier() -> float:
+	if is_player:
+		return 1.0
+	return float(_bot_profile()["damage"])
+
+
+func _bot_think_interval() -> float:
+	var profile := _bot_profile()
+	return randf_range(float(profile["think_interval_min"]), float(profile["think_interval_max"]))
+
+
 func _ai_dir(delta: float) -> Vector3:
 	ai_think -= delta
 	ai_strafe_timer -= delta
@@ -1765,7 +1809,7 @@ func _ai_dir(delta: float) -> Vector3:
 		# Humans do not re-plan ten times per second. A slower think tick and
 		# the occasional hesitation make the bots read as players, not as
 		# perfect pathfinding agents.
-		ai_think = randf_range(0.55, 0.9)
+		ai_think = _bot_think_interval()
 		if ai_hesitation <= 0.0:
 			_update_seen_enemies()
 			_ai_pick_goal()
@@ -2890,7 +2934,7 @@ func use_ability(index: int, manual := true) -> bool:
 	var ability_type := String(data["type"])
 	if _is_offensive_ability(ability_type):
 		_break_bush_stealth()
-	var bot_cooldown_multiplier := BOT_ABILITY_COOLDOWN_MULTIPLIER if not is_player else 1.0
+	var bot_cooldown_multiplier := _bot_ability_cooldown_multiplier()
 	ability_cds[index] = float(data["cd"]) * (1.0 - cooldown_reduction) * bot_cooldown_multiplier
 	cast_flash = 0.35
 	_play_anim("cast")
@@ -3241,7 +3285,7 @@ func roll_ultimate_damage(amount: float) -> float:
 
 
 func _outgoing_damage(amount: float) -> float:
-	return amount * BOT_DAMAGE_MULTIPLIER if not is_player else amount
+	return amount * _bot_damage_multiplier() if not is_player else amount
 
 
 func ability_data(index: int) -> Dictionary:

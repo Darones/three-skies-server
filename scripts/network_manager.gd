@@ -50,6 +50,7 @@ var assigned_team := 0
 var local_class := 0
 var is_host := false
 var match_players: Array = []
+var bot_difficulty := "normal"
 var last_match_end_reason := ""
 var server_protocol := 0
 
@@ -739,6 +740,9 @@ func _handle_match_start(message: Dictionary) -> void:
 	host_id = int(message.get("host_id", 0))
 	var players: Variant = message.get("match_players", [])
 	match_players = players if players is Array else []
+	bot_difficulty = String(message.get("bot_difficulty", "normal")).to_lower()
+	if bot_difficulty not in ["easy", "normal", "hard"]:
+		bot_difficulty = "normal"
 	remote_players.clear()
 	assigned_team = 0
 	is_host = host_id == local_peer_id and local_peer_id > 0
@@ -757,7 +761,7 @@ func _handle_match_start(message: Dictionary) -> void:
 				info["has_state"] = true
 			remote_players[player_id] = info
 			remote_player_joined.emit(player_id, info)
-	print("[NET] match_start room=", room_id, " host=", is_host, " team=", assigned_team, " players=", match_players.size())
+	print("[NET] match_start room=", room_id, " host=", is_host, " team=", assigned_team, " players=", match_players.size(), " bots=", bot_difficulty)
 	match_started.emit(room_id, host_id, match_players)
 
 

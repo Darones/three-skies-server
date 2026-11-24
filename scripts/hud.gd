@@ -1,5 +1,7 @@
 extends CanvasLayer
 
+signal tutorial_skip_requested
+
 class AbilityCooldownWipe extends Control:
 	var mask_material: ShaderMaterial
 
@@ -23,6 +25,7 @@ var carrier_label: Label = null
 var carrier_bar: ProgressBar = null
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const SETTINGS_PANEL_SCRIPT := preload("res://scripts/settings_panel.gd")
+const RULES_PANEL_SCRIPT := preload("res://scripts/rules_panel.gd")
 const SkinCatalog = preload("res://scripts/skin_catalog.gd")
 const HERO_PORTRAITS := {
 	HeroUnit.Cls.WARRIOR: preload("res://assets/ui/heroes/warrior_face.webp"),
@@ -95,6 +98,7 @@ var pause_resume_button: Button
 var pause_overlay: Control
 var pause_menu_panel: Control
 var pause_settings_panel: Control
+var pause_rules_panel: Control
 var tutorial_overlay: ColorRect
 var tutorial_title: Label
 var tutorial_body: Label
@@ -105,6 +109,7 @@ var tutorial_primary_action := Callable()
 var tutorial_secondary_action := Callable()
 var tutorial_ability_index := -1
 var tutorial_press_label: Label
+var tutorial_skip_button: Button
 var tutorial_pulse := 0.0
 var tutorial_style_pulse := -1.0
 var hud_tick := 0.0
@@ -374,6 +379,27 @@ func _build_tutorial_ui(root: Control) -> void:
 	tutorial_press_label.visible = false
 	root.add_child(tutorial_press_label)
 
+	tutorial_skip_button = _pause_action_button("Пропустить обучение", false)
+	tutorial_skip_button.name = "TutorialSkipButton"
+	tutorial_skip_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	tutorial_skip_button.anchor_left = 1.0
+	tutorial_skip_button.anchor_right = 1.0
+	tutorial_skip_button.offset_left = -292.0
+	tutorial_skip_button.offset_top = 18.0
+	tutorial_skip_button.offset_right = -18.0
+	tutorial_skip_button.offset_bottom = 66.0
+	tutorial_skip_button.custom_minimum_size = Vector2(274.0, 48.0)
+	tutorial_skip_button.add_theme_font_size_override("font_size", _fs(16))
+	tutorial_skip_button.z_index = 110
+	tutorial_skip_button.visible = false
+	tutorial_skip_button.pressed.connect(func() -> void: tutorial_skip_requested.emit())
+	root.add_child(tutorial_skip_button)
+
+
+func set_tutorial_skip_visible(value: bool) -> void:
+	if tutorial_skip_button != null and is_instance_valid(tutorial_skip_button):
+		tutorial_skip_button.visible = value
+
 
 func show_tutorial_card(title_text: String, body_text: String, button_text: String, action: Callable) -> void:
 	tutorial_title.text = title_text
@@ -388,8 +414,16 @@ func show_tutorial_card(title_text: String, body_text: String, button_text: Stri
 
 func show_tutorial_victory(title_text: String, body_text: String, lobby_action: Callable, repeat_action: Callable) -> void:
 	show_tutorial_card(title_text, body_text, "В лобби", lobby_action)
+	set_tutorial_skip_visible(false)
 	tutorial_secondary_action = repeat_action
 	tutorial_secondary_button.text = "Пройти ещё раз"
+	tutorial_secondary_button.visible = true
+
+
+func show_tutorial_choice(title_text: String, body_text: String, primary_text: String, primary_action: Callable, secondary_text: String, secondary_action: Callable) -> void:
+	show_tutorial_card(title_text, body_text, primary_text, primary_action)
+	tutorial_secondary_action = secondary_action
+	tutorial_secondary_button.text = secondary_text
 	tutorial_secondary_button.visible = true
 
 
@@ -808,9 +842,9 @@ func _build_pause_menu(root: Control) -> void:
 	panel.anchor_right = 0.5
 	panel.anchor_bottom = 0.5
 	panel.offset_left = -210.0
-	panel.offset_top = -145.0
+	panel.offset_top = -180.0
 	panel.offset_right = 210.0
-	panel.offset_bottom = 145.0
+	panel.offset_bottom = 180.0
 	panel.add_theme_stylebox_override("panel", _panel_style(Color(0.78, 0.62, 0.32), Color(0.035, 0.045, 0.07, 0.99)))
 	pause_overlay.add_child(panel)
 	pause_menu_panel = panel
@@ -825,6 +859,9 @@ func _build_pause_menu(root: Control) -> void:
 	pause_resume_button = resume_button
 	resume_button.pressed.connect(_resume_game)
 	layout.add_child(resume_button)
+	var rules_button := _pause_action_button("Правила", false)
+	rules_button.pressed.connect(_open_pause_rules)
+	layout.add_child(rules_button)
 	var settings_button := _pause_action_button("Настройки", false)
 	settings_button.pressed.connect(_open_pause_settings)
 	layout.add_child(settings_button)
@@ -838,6 +875,13 @@ func _build_pause_menu(root: Control) -> void:
 	pause_settings_panel.z_index = 10
 	pause_settings_panel.connect("back_requested", _on_pause_settings_back)
 	pause_overlay.add_child(pause_settings_panel)
+
+	pause_rules_panel = RULES_PANEL_SCRIPT.new() as Control
+	pause_rules_panel.name = "PauseRulesPanel"
+	pause_rules_panel.visible = false
+	pause_rules_panel.z_index = 11
+	pause_rules_panel.connect("back_requested", _on_pause_rules_back)
+	pause_overlay.add_child(pause_rules_panel)
 
 
 func _pause_action_button(text: String, primary: bool) -> Button:
@@ -875,6 +919,8 @@ func _open_pause_menu() -> void:
 	pause_overlay.visible = true
 	pause_menu_panel.visible = true
 	pause_settings_panel.visible = false
+	if pause_rules_panel != null:
+		pause_rules_panel.visible = false
 	if pause_title_label != null:
 		pause_title_label.text = "МЕНЮ" if online else "ПАУЗА"
 	if pause_resume_button != null:
@@ -888,16 +934,31 @@ func _open_pause_menu() -> void:
 func _resume_game() -> void:
 	pause_overlay.visible = false
 	pause_settings_panel.visible = false
+	if pause_rules_panel != null:
+		pause_rules_panel.visible = false
 	get_tree().paused = false
 
 
 func _open_pause_settings() -> void:
 	pause_menu_panel.visible = false
 	pause_settings_panel.visible = true
+	if pause_rules_panel != null:
+		pause_rules_panel.visible = false
 
 
 func _on_pause_settings_back() -> void:
 	pause_settings_panel.visible = false
+	pause_menu_panel.visible = true
+
+
+func _open_pause_rules() -> void:
+	pause_menu_panel.visible = false
+	pause_settings_panel.visible = false
+	pause_rules_panel.visible = true
+
+
+func _on_pause_rules_back() -> void:
+	pause_rules_panel.visible = false
 	pause_menu_panel.visible = true
 
 
@@ -912,7 +973,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	var key_event := event as InputEventKey
 	if not key_event.pressed or key_event.echo or (key_event.keycode != KEY_ESCAPE and key_event.physical_keycode != KEY_ESCAPE):
 		return
-	if pause_settings_panel != null and pause_settings_panel.visible:
+	if pause_rules_panel != null and pause_rules_panel.visible:
+		_on_pause_rules_back()
+	elif pause_settings_panel != null and pause_settings_panel.visible:
 		_on_pause_settings_back()
 	elif pause_overlay != null and pause_overlay.visible:
 		_resume_game()
