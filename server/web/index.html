@@ -109,6 +109,9 @@ body {
 			<div id="status-notice"></div>
 		</div>
 
+		<script>
+		(function(){try{if(new URLSearchParams(location.search).has('reset')){localStorage.removeItem('three_skies_player_id');localStorage.removeItem('three_skies_nickname');}}catch(e){}})();
+		</script>
 		<script src="vk-bridge.min.js"></script>
 		<script>
 			if (window.vkBridge) {
@@ -385,7 +388,7 @@ const engine = new Engine(GODOT_CONFIG);
 	}
 }());
 		</script>
-	<!-- d1-vk-bridge 20261124_0855 -->
+	<!-- d1-reset-fix 20261124_0905 -->
 	</body>
 </html>
 
