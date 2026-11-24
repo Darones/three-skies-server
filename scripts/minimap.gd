@@ -16,6 +16,9 @@ const CRYSTAL_COLOR := Color(0.44, 0.92, 1.0, 1.0)
 var game: Node
 var refresh_elapsed := 0.0
 var pulse_time := 0.0
+var ping_position := Vector3.ZERO
+var ping_color := Color(1.0, 0.82, 0.32)
+var ping_timer := 0.0
 var panel_style: StyleBoxFlat
 var arena_style: StyleBoxFlat
 
@@ -63,6 +66,7 @@ func _process(delta: float) -> void:
 	if not match_active:
 		return
 	pulse_time += delta
+	ping_timer = maxf(0.0, ping_timer - delta)
 	refresh_elapsed += delta
 	if refresh_elapsed >= 0.08:
 		refresh_elapsed = 0.0
@@ -93,7 +97,24 @@ func _draw() -> void:
 	_draw_shell_marker(map_rect)
 	_draw_ground_crystal(map_rect)
 	_draw_tutorial_objective(map_rect)
+	_draw_ping(map_rect)
 	_draw_heroes(map_rect, player_team)
+
+
+func ping(world_position: Vector3, color: Color = Color(1.0, 0.82, 0.32), duration := 2.0) -> void:
+	ping_position = world_position
+	ping_color = color
+	ping_timer = maxf(0.1, duration)
+	queue_redraw()
+
+
+func _draw_ping(map_rect: Rect2) -> void:
+	if ping_timer <= 0.0:
+		return
+	var point := _world_to_map(ping_position, map_rect)
+	var pulse := 0.5 + 0.5 * sin(pulse_time * 9.0)
+	draw_circle(point, 6.0 + pulse * 4.0, Color(ping_color.r, ping_color.g, ping_color.b, 0.12 + pulse * 0.16))
+	draw_arc(point, 7.0 + pulse * 4.0, 0.0, TAU, 28, Color(ping_color.r, ping_color.g, ping_color.b, 0.9), 1.8, true)
 
 
 func _draw_tutorial_objective(map_rect: Rect2) -> void:

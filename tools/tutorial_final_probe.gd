@@ -1,7 +1,7 @@
 extends Node3D
 
-## D1 final-stage check: shell spawns in the 3v3 tutorial, the player takes
-## the shard and delivers it, and the tutorial completes.
+## D1 Shell finale: separate from 3v3, only after the player leaves the centre,
+## 3s telegraph, passive Shell, shard delivery completes the tutorial.
 
 var failures := 0
 
@@ -23,20 +23,27 @@ func _ready() -> void:
 		_finish()
 		return
 	game.player.global_position = Vector3(0.0, 0.76, 0.0)
-	tutorial.call("_start_final")
-	await get_tree().create_timer(11.5).timeout
-	_check(String(tutorial.get("stage")) == "destroy_shell", "shell warning advances to destroy_shell")
-	if game.shell != null and is_instance_valid(game.shell) and game.shell.alive:
+	tutorial.set("stage", "team_fight_final_done")
+	tutorial.call("_start_shell_lesson")
+	_check(String(tutorial.get("stage")) == "shell_intro", "finale card shown")
+	tutorial.call("_begin_shell_prepare")
+	_check(String(tutorial.get("stage")) == "shell_prepare", "shell waits for distance")
+	_check(game.shell == null, "no shell at centre")
+	game.player.global_position = Vector3(0.0, 0.76, 12.0)
+	await get_tree().create_timer(3.5).timeout
+	_check(String(tutorial.get("stage")) == "destroy_shell", "telegraph spawns the shell")
+	_check(game.shell != null and is_instance_valid(game.shell), "shell exists")
+	if game.shell != null and is_instance_valid(game.shell):
+		_check(game.shell.max_health == 1000.0, "shell starts at 1000 HP")
 		game.shell.take_damage(99999.0, game.player)
-	await get_tree().create_timer(0.8).timeout
-	_check(String(tutorial.get("stage")) == "pick_crystal", "shell death advances to pick_crystal")
+	await get_tree().create_timer(0.6).timeout
+	_check(String(tutorial.get("stage")) == "pick_crystal", "shell death starts pickup")
 	if game.crystal_node != null and is_instance_valid(game.crystal_node):
 		game.player.global_position = game.crystal_node.global_position
 		await get_tree().create_timer(0.8).timeout
-	_check(game.carrier == game.player, "player picks up the tutorial shard")
-	if game.player != null:
-		game.player.global_position = Vector3(0.0, 0.76, float(game.BASE_POSITION_Z))
-		await get_tree().create_timer(1.2).timeout
+	_check(game.carrier == game.player, "player picks up the shard")
+	game.player.global_position = Vector3(0.0, 0.76, float(game.BASE_POSITION_Z))
+	await get_tree().create_timer(1.2).timeout
 	_check(bool(tutorial.get("completed")), "tutorial completes after delivery")
 	_finish()
 

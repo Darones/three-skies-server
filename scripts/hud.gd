@@ -92,7 +92,6 @@ var ability_slots: Array[Control] = []
 var match_info_box: Control = null
 var touch_joystick: Control
 var announce_tween: Tween
-var pause_button: Button
 var pause_title_label: Label
 var pause_resume_button: Button
 var pause_overlay: Control
@@ -110,6 +109,7 @@ var tutorial_secondary_action := Callable()
 var tutorial_ability_index := -1
 var tutorial_press_label: Label
 var tutorial_skip_button: Button
+var fade_overlay: ColorRect
 var tutorial_pulse := 0.0
 var tutorial_style_pulse := -1.0
 var hud_tick := 0.0
@@ -395,6 +395,29 @@ func _build_tutorial_ui(root: Control) -> void:
 	tutorial_skip_button.pressed.connect(func() -> void: tutorial_skip_requested.emit())
 	root.add_child(tutorial_skip_button)
 
+	fade_overlay = ColorRect.new()
+	fade_overlay.name = "TutorialFade"
+	fade_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	fade_overlay.color = Color(0.0, 0.0, 0.0, 1.0)
+	fade_overlay.modulate.a = 0.0
+	fade_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	fade_overlay.z_index = 200
+	fade_overlay.visible = false
+	root.add_child(fade_overlay)
+
+
+func fade_teleport(action: Callable, duration := 0.25) -> void:
+	if fade_overlay == null or not is_instance_valid(fade_overlay):
+		action.call()
+		return
+	fade_overlay.visible = true
+	fade_overlay.modulate.a = 0.0
+	var tween := create_tween()
+	tween.tween_property(fade_overlay, "modulate:a", 1.0, duration * 0.5)
+	tween.tween_callback(action)
+	tween.tween_property(fade_overlay, "modulate:a", 0.0, duration * 0.5)
+	tween.tween_callback(func() -> void: fade_overlay.visible = false)
+
 
 func set_tutorial_skip_visible(value: bool) -> void:
 	if tutorial_skip_button != null and is_instance_valid(tutorial_skip_button):
@@ -431,6 +454,11 @@ func hide_tutorial_card() -> void:
 	tutorial_overlay.visible = false
 	tutorial_primary_action = Callable()
 	tutorial_secondary_action = Callable()
+
+
+func minimap_ping(world_position: Vector3, color: Color = Color(1.0, 0.82, 0.32), duration := 2.0) -> void:
+	if minimap_control != null and is_instance_valid(minimap_control):
+		minimap_control.call("ping", world_position, color, duration)
 
 
 func show_tutorial_hint(text: String) -> void:
@@ -693,25 +721,6 @@ func _build_top(root: Control) -> void:
 	shell_timer_label.visible = false
 
 	_build_player_panel(root)
-	if not _mobile_ui():
-		pause_button = Button.new()
-		pause_button.name = "MobilePauseButton"
-		pause_button.text = "II"
-		pause_button.tooltip_text = "Пауза"
-		pause_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		pause_button.offset_left = 436.0
-		pause_button.offset_top = 20.0
-		pause_button.offset_right = 500.0
-		pause_button.offset_bottom = 84.0
-		pause_button.focus_mode = Control.FOCUS_NONE
-		pause_button.add_theme_font_override("font", font)
-		pause_button.add_theme_font_size_override("font_size", _fs(30))
-		pause_button.add_theme_color_override("font_color", GOLD)
-		pause_button.add_theme_stylebox_override("normal", _pause_button_style(false))
-		pause_button.add_theme_stylebox_override("hover", _pause_button_style(true))
-		pause_button.add_theme_stylebox_override("pressed", _pause_button_style(true))
-		pause_button.pressed.connect(_toggle_pause_menu)
-		root.add_child(pause_button)
 
 
 func _build_focus_panel(root: Control) -> void:
@@ -807,15 +816,6 @@ func _update_focus_panel() -> void:
 	focus_panel.size = rect.size + Vector2(10.0, 10.0)
 	focus_panel.visible = true
 	focus_panel.modulate.a = 0.45 + 0.55 * (0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.006))
-
-
-func _pause_button_style(hovered: bool) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.07, 0.09, 0.13, 0.93) if not hovered else Color(0.12, 0.16, 0.22, 1.0)
-	style.border_color = Color(0.46, 0.54, 0.69, 0.9) if not hovered else Color(0.95, 0.76, 0.38)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(32)
-	return style
 
 
 func _build_pause_menu(root: Control) -> void:
@@ -1753,8 +1753,6 @@ func _process(_delta: float) -> void:
 	if game.player != null and is_instance_valid(game.player) and game.player.hero_class != icon_class:
 		icon_class = game.player.hero_class
 		_refresh_ability_icons(icon_class)
-	if pause_button != null:
-		pause_button.visible = game.state == "live"
 	hud_tick += _delta
 	var slow_ui := hud_tick >= 0.1
 	if slow_ui:

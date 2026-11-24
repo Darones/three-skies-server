@@ -28,6 +28,7 @@ const ROOT_SPIKE_POOL_SIZE := 24
 const GOLD_COIN_INTERVAL := 1.0
 const GOLD_COIN_MAX_COUNT := 30
 const GOLD_COIN_PULL_RADIUS := 4.0
+const TUTORIAL_COIN_PULL_RADIUS := 2.8
 const GOLD_COIN_PULL_SPEED := 7.5
 const GOLD_COIN_SPAWN_BASE_RADIUS := 5.0
 const GOLD_COIN_SPAWN_EXTRA_RADIUS := 1.2
@@ -891,11 +892,22 @@ func _spawn_gold_coin(gold_value: int = 1, tutorial_spawn: bool = false) -> void
 	coin.material_override = gold_coin_material
 	add_child(coin)
 	var coin_angle := randf_range(0.0, TAU)
-	var coin_radius := randf_range(0.35, 1.0) if tutorial_spawn else GOLD_COIN_SPAWN_BASE_RADIUS + randf_range(0.0, GOLD_COIN_SPAWN_EXTRA_RADIUS)
-	var coin_center: Vector3 = player.global_position if tutorial_spawn and player != null else gold_fountain.global_position
+	var coin_radius := (
+		randf_range(5.0, 6.2)
+		if tutorial_spawn
+		else GOLD_COIN_SPAWN_BASE_RADIUS + randf_range(0.0, GOLD_COIN_SPAWN_EXTRA_RADIUS)
+	)
+	var coin_center: Vector3 = gold_fountain.global_position
 	var spawn_position := coin_center + Vector3(cos(coin_angle) * coin_radius, 0.45, sin(coin_angle) * coin_radius)
 	coin.global_position = clamp_to_arena(spawn_position)
 	coin.set_meta("gold_value", gold_value)
+	if tutorial_spawn:
+		coin.set_meta("tutorial", true)
+		coin.set_meta("settle", 0.5)
+		coin.set_meta("age", 0.0)
+		# Let the coin visibly fall to the ground instead of appearing under
+		# the player's feet and being pulled instantly.
+		coin.global_position.y = 1.0
 	gold_coins.append(coin)
 
 
@@ -912,10 +924,29 @@ func _update_gold_fountain(delta: float) -> void:
 			gold_coins.remove_at(index)
 			continue
 		coin.rotation.y += delta * 2.0
+		var tutorial_coin := bool(coin.get_meta("tutorial", false))
+		if tutorial_coin:
+			var settle := maxf(0.0, float(coin.get_meta("settle", 0.0)) - delta)
+			coin.set_meta("settle", settle)
+			if settle > 0.0:
+				coin.global_position.y = 0.45 + 0.55 * (settle / 0.5)
+				continue
+			var age := float(coin.get_meta("age", 0.0)) + delta
+			coin.set_meta("age", age)
+			if age >= 8.0:
+				_respawn_tutorial_coin(coin)
+				continue
 		var collector: HeroUnit = null
-		var closest_distance := GOLD_COIN_PULL_RADIUS
+		# The fountain collision pushes the player about a metre away from its
+		# centre. Keep the tutorial pull tighter than the 5-6.2m coin ring so
+		# standing at the fountain cannot complete the task.
+		var closest_distance := TUTORIAL_COIN_PULL_RADIUS if tutorial_coin else GOLD_COIN_PULL_RADIUS
 		for hero in heroes:
 			if hero == null or not is_instance_valid(hero) or hero.dead:
+				continue
+			# Tutorial coins belong to the player; allies and enemies must not
+			# consume the fountain task.
+			if tutorial_coin and hero != player:
 				continue
 			var distance := Vector2(hero.global_position.x - coin.global_position.x, hero.global_position.z - coin.global_position.z).length()
 			if distance < closest_distance:
@@ -941,12 +972,35 @@ func _update_gold_fountain(delta: float) -> void:
 				collector.bot_gold += coin_value
 
 
-func spawn_tutorial_coin(gold_value: int) -> void:
+func _respawn_tutorial_coin(coin: Node3D) -> void:
+	if coin == null or not is_instance_valid(coin) or gold_fountain == null or not is_instance_valid(gold_fountain):
+		return
+	var angle := randf_range(0.0, TAU)
+	var radius := randf_range(5.0, 6.2)
+	coin.global_position = clamp_to_arena(
+		gold_fountain.global_position + Vector3(cos(angle) * radius, 1.0, sin(angle) * radius)
+	)
+	coin.set_meta("settle", 0.5)
+	coin.set_meta("age", 0.0)
+
+
+func spawn_tutorial_coins(count: int, gold_value: int) -> void:
 	if not tutorial_mode or gold_fountain == null or not is_instance_valid(gold_fountain):
 		return
-	# Tutorial coins must appear around the player, not on the fountain
-	# platform: the fountain has collision and the stage could soft-lock.
-	_spawn_gold_coin(gold_value, true)
+	for _index in maxi(0, count):
+		_spawn_gold_coin(gold_value, true)
+
+
+func spawn_tutorial_coin(gold_value: int) -> void:
+	spawn_tutorial_coins(1, gold_value)
+
+
+func tutorial_coins_on_ground() -> int:
+	var count := 0
+	for coin in gold_coins:
+		if coin != null and is_instance_valid(coin) and bool(coin.get_meta("tutorial", false)):
+			count += 1
+	return count
 
 
 func is_hero_near_shop(hero: HeroUnit) -> bool:
@@ -3354,10 +3408,10 @@ func shell_bolt(pos: Vector3, radius: float, damage: float) -> void:
 		NetworkManager.send_match_event_at("shell_bolt", pos.x, pos.z)
 
 
-func telegraph(pos: Vector3, radius: float, duration: float) -> void:
+func telegraph(pos: Vector3, radius: float, duration: float, color := Color(1.0, 0.35, 0.55)) -> void:
 	var start_scale := Vector3(radius, 1.0, radius)
 	var target_scale := Vector3(radius * 1.15, 1.0, radius * 1.15)
-	_activate_ring(Vector3(pos.x, 0.25, pos.z), Color(1.0, 0.35, 0.55), duration, start_scale, target_scale, false, 0.9)
+	_activate_ring(Vector3(pos.x, 0.25, pos.z), color, duration, start_scale, target_scale, false, 0.9)
 
 
 func burst(pos: Vector3, color: Color, count := 16) -> void:

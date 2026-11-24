@@ -227,6 +227,7 @@ var ranged := false
 var carrying := false
 var dead := false
 var tutorial_dummy := false
+var tutorial_hold := false
 var bot_gold := 0
 var match_coins_collected := 0
 var match_gold_spent := 0
@@ -1525,6 +1526,12 @@ func _physics_process(delta: float) -> void:
 		if respawn_timer <= 0.0:
 			_respawn()
 		return
+	if tutorial_hold and not is_player:
+		# Tutorial waves wait for the controller's release signal: no chase,
+		# no auto-attack, no walking through the arena before the lesson starts.
+		velocity = Vector3.ZERO
+		_play_anim("idle")
+		return
 
 	_push_out_of_enemy_base()
 
@@ -1774,6 +1781,25 @@ func _ensure_afk_label() -> void:
 	afk_label.position = Vector3(0.0, 3.55, 0.0)
 	afk_label.visible = false
 	add_child(afk_label)
+
+
+func release_tutorial_hold() -> void:
+	tutorial_hold = false
+	ai_think = 0.0
+	navigation_target_set = false
+
+
+func reset_for_tutorial_stage() -> void:
+	if not is_player:
+		return
+	ability_cds.fill(0.0)
+	if crit_cast_timer > 0.0:
+		crit_cast_timer = 0.0
+		crit_cast_target = null
+		_stop_crit_cast_visuals()
+	health = max_health
+	seconds_since_damage = 0.0
+	_update_health_display()
 
 
 func _bot_profile() -> Dictionary:
