@@ -386,6 +386,7 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	mux.HandleFunc("/rules", service.handleRules)
 	mux.HandleFunc("/ws", hub.handleWebSocket)
 	mux.HandleFunc("/auth/vk", service.handleVKAuth)
+	mux.HandleFunc("/auth/ok", service.handleOKAuth)
 	mux.HandleFunc("/register", service.handleRegister)
 	mux.HandleFunc("/session", service.handleSession)
 	mux.HandleFunc("/profile", service.handleProfile)
@@ -419,6 +420,12 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 		mux.Handle("/game-vk/", service.trackGamePage(http.StripPrefix("/game-vk/", staticGameHandlerWithFallback(vkDir, gameDir, gameVKOrigins()))))
 		go prefetchGamePack(vkDir, gameVKOrigins())
 	}
+	if okDir := gameOKWebDir(); okDir != "" {
+		// OK uses the same VK Bridge shell with the `ok` feature tag. It has
+		// its own PCK because only the OKAdapter is compiled in.
+		mux.Handle("/game-ok/", service.trackGamePage(http.StripPrefix("/game-ok/", staticGameHandlerWithFallback(okDir, gameDir, gameOKOrigins()))))
+		go prefetchGamePack(okDir, gameOKOrigins())
+	}
 	return cors(databaseGate(mux, service))
 }
 
@@ -439,6 +446,17 @@ func gameVKWebDir() string {
 	dir := strings.TrimSpace(os.Getenv("WEB_VK_DIR"))
 	if dir == "" {
 		dir = "web-vk"
+	}
+	if info, err := os.Stat(dir); err == nil && info.IsDir() {
+		return dir
+	}
+	return ""
+}
+
+func gameOKWebDir() string {
+	dir := strings.TrimSpace(os.Getenv("WEB_OK_DIR"))
+	if dir == "" {
+		dir = "web-ok"
 	}
 	if info, err := os.Stat(dir); err == nil && info.IsDir() {
 		return dir
@@ -556,6 +574,10 @@ func gameOrigins() []string {
 
 func gameVKOrigins() []string {
 	return originsFromEnv("WEB_VK_ORIGIN")
+}
+
+func gameOKOrigins() []string {
+	return originsFromEnv("WEB_OK_ORIGIN")
 }
 
 func originsFromEnv(name string) []string {

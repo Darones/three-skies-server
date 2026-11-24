@@ -15,15 +15,18 @@ COPY --from=build /out/server /app/server
 COPY server/schema.sql /app/schema.sql
 COPY server/web /app/web
 COPY server/web-vk /app/web-vk
+COPY server/web-ok /app/web-ok
 RUN cd /app/web && for f in index.wasm index.js index.html; do \
         [ -f "$f" ] && gzip -9 -c "$f" > "$f.gz"; \
     done; true
 ENV WEB_ORIGIN=https://raw.githubusercontent.com/Darones/three-skies-server/main/server/web,https://ghproxy.net/https://raw.githubusercontent.com/Darones/three-skies-server/main/server/web
 ENV WEB_VK_ORIGIN=https://raw.githubusercontent.com/Darones/three-skies-server/main/server/web-vk,https://ghproxy.net/https://raw.githubusercontent.com/Darones/three-skies-server/main/server/web-vk
+ENV WEB_OK_ORIGIN=https://raw.githubusercontent.com/Darones/three-skies-server/main/server/web-ok,https://ghproxy.net/https://raw.githubusercontent.com/Darones/three-skies-server/main/server/web-ok
 ENV PORT=8080
 ENV WEB_DIR=/app/web
 ENV WEB_VK_DIR=/app/web-vk
-RUN chown -R app:app /app/web /app/web-vk
+ENV WEB_OK_DIR=/app/web-ok
+RUN chown -R app:app /app/web /app/web-vk /app/web-ok
 USER app
 EXPOSE 8080
 ENTRYPOINT ["/app/server"]
