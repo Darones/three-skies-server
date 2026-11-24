@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -9,6 +11,13 @@ import (
 
 const maxCharacterLevel = 15
 const maxTutorialBattles = 10000
+const maxMatchXP = 2000
+
+var levelUpShardRewards = map[int]int{
+	1: 50, 2: 75, 3: 100, 4: 125, 5: 150,
+	6: 175, 7: 200, 8: 225, 9: 250, 10: 300,
+	11: 325, 12: 350, 13: 375, 14: 400, 15: 450,
+}
 
 var characterKeys = []string{"warrior", "mage", "fairy"}
 
@@ -113,6 +122,81 @@ func decodeStoredProgress(levelsJSON, xpsJSON string, completed, skipped bool, b
 	state.TutorialBattlesUsed = clampInt(battles, 0, maxTutorialBattles)
 	state.ProgressInitialized = initialized
 	return state
+}
+
+func validCharacterKey(character string) bool {
+	for _, key := range characterKeys {
+		if key == character {
+			return true
+		}
+	}
+	return false
+}
+
+// applyCharacterXP adds XP inside the match-reward transaction. The server
+// owns the level curve and the level-up shard bonus, so a replayed reward or a
+// forged client XP value cannot create arbitrary levels.
+func applyCharacterXP(ctx context.Context, tx *sql.Tx, playerID int64, character string, amount int) (map[string]int, map[string]int, []int, int, error) {
+	levels := defaultCharacterLevels()
+	xps := defaultCharacterXPs()
+	levelUps := []int{}
+	shardReward := 0
+	if amount < 0 {
+		amount = 0
+	}
+	if amount > maxMatchXP {
+		amount = maxMatchXP
+	}
+	var levelsJSON, xpsJSON string
+	if err := tx.QueryRowContext(ctx,
+		`SELECT COALESCE(char_levels::text, ''), COALESCE(char_xps::text, '')
+		 FROM players WHERE id = $1 FOR UPDATE`, playerID,
+	).Scan(&levelsJSON, &xpsJSON); err != nil {
+		return nil, nil, nil, 0, err
+	}
+	if strings.TrimSpace(levelsJSON) != "" {
+		_ = json.Unmarshal([]byte(levelsJSON), &levels)
+	}
+	if strings.TrimSpace(xpsJSON) != "" {
+		_ = json.Unmarshal([]byte(xpsJSON), &xps)
+	}
+	if !validCharacterKey(character) {
+		return levels, xps, levelUps, 0, nil
+	}
+	level := clampInt(levels[character], 1, maxCharacterLevel)
+	xp := clampInt(xps[character], 0, maxCharacterLevel*1000)
+	if level >= maxCharacterLevel {
+		level = maxCharacterLevel
+		xp = 0
+	} else {
+		xp += amount
+		for level < maxCharacterLevel && xp >= level*1000 {
+			xp -= level * 1000
+			level++
+			levelUps = append(levelUps, level)
+			shardReward += levelUpShardRewards[level]
+		}
+		if level >= maxCharacterLevel {
+			xp = 0
+		}
+	}
+	levels[character] = level
+	xps[character] = xp
+	encodedLevels, err := json.Marshal(levels)
+	if err != nil {
+		return nil, nil, nil, 0, err
+	}
+	encodedXPs, err := json.Marshal(xps)
+	if err != nil {
+		return nil, nil, nil, 0, err
+	}
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE players SET char_levels = $1::jsonb, char_xps = $2::jsonb WHERE id = $3`,
+		string(encodedLevels), string(encodedXPs), playerID,
+	); err != nil {
+		return nil, nil, nil, 0, err
+	}
+	return levels, xps, levelUps, shardReward, nil
 }
 
 func (service *api) handleProgress(w http.ResponseWriter, r *http.Request) {

@@ -61,6 +61,7 @@ type vkAuthResponse struct {
 	TutorialSkipped     bool           `json:"tutorial_skipped"`
 	TutorialBattlesUsed int            `json:"tutorial_battles_used"`
 	ProgressInitialized bool           `json:"progress_initialized"`
+	LastInterstitialAt  int64          `json:"last_interstitial_at"`
 	Error               string         `json:"error,omitempty"`
 }
 
@@ -80,6 +81,7 @@ type vkProfileRow struct {
 	tutorialSkipped     bool
 	tutorialBattlesUsed int
 	progressInitialized bool
+	lastInterstitialAt  int64
 	sessionToken        string
 }
 
@@ -367,6 +369,7 @@ func (service *api) handleVKAuth(w http.ResponseWriter, r *http.Request) {
 		TutorialSkipped:     progress.TutorialSkipped,
 		TutorialBattlesUsed: progress.TutorialBattlesUsed,
 		ProgressInitialized: progress.ProgressInitialized,
+		LastInterstitialAt:  profile.lastInterstitialAt,
 	})
 }
 
@@ -415,6 +418,7 @@ func (service *api) upsertVKProfile(ctx context.Context, externalID, displayName
 		       COALESCE(char_levels::text, ''), COALESCE(char_xps::text, ''),
 		       COALESCE(tutorial_completed, FALSE), COALESCE(tutorial_skipped, FALSE),
 		       COALESCE(tutorial_battles_used, 0), COALESCE(progress_initialized, FALSE),
+		       COALESCE(EXTRACT(EPOCH FROM last_interstitial_at)::bigint, 0),
 		       COALESCE(session_token, '')
 		FROM players WHERE platform = 'vk' AND external_id = $1 FOR UPDATE
 	`, externalID).Scan(
@@ -422,7 +426,7 @@ func (service *api) upsertVKProfile(ctx context.Context, externalID, displayName
 		&profile.wings, &profile.weapons, &profile.matchesPlayed, &profile.novice,
 		&profile.level, &profile.levelsJSON, &profile.xpsJSON,
 		&profile.tutorialCompleted, &profile.tutorialSkipped, &profile.tutorialBattlesUsed,
-		&profile.progressInitialized, &profile.sessionToken,
+		&profile.progressInitialized, &profile.lastInterstitialAt, &profile.sessionToken,
 	)
 	if err != nil {
 		return vkProfileRow{}, err
