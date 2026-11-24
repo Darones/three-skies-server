@@ -24,6 +24,9 @@ var errOKNotConfigured = errors.New("ok_not_configured")
 type okAuthRequest struct {
 	LocalAccessToken string `json:"local_access_token"`
 	AccessToken      string `json:"access_token"`
+	OKUserID         string `json:"ok_user_id"`
+	Name             string `json:"name"`
+	Avatar           string `json:"avatar"`
 }
 
 type okUser struct {
@@ -185,7 +188,26 @@ func (service *api) handleOKAuth(w http.ResponseWriter, r *http.Request) {
 	}
 	accessToken := strings.TrimSpace(firstNonEmpty(request.LocalAccessToken, request.AccessToken))
 	if accessToken == "" {
-		writeJSON(w, http.StatusBadRequest, vkAuthResponse{Error: "invalid_ok_token"})
+		// VKWebAppGetUserInfo is available in OK without permissions. It gives
+		// the OK UID and display name, which is enough for a separate OK
+		// profile; no OK API key is required for this path.
+		externalID := strings.TrimSpace(request.OKUserID)
+		if externalID == "" {
+			writeJSON(w, http.StatusBadRequest, vkAuthResponse{Error: "invalid_ok_token"})
+			return
+		}
+		if _, err := strconv.ParseInt(externalID, 10, 64); err != nil {
+			writeJSON(w, http.StatusBadRequest, vkAuthResponse{Error: "invalid_ok_user"})
+			return
+		}
+		profile, err := service.upsertOKProfile(r.Context(), externalID, normalizeVKDisplayName(request.Name))
+		if err != nil {
+			log.Printf("ok auth identity profile: %v", err)
+			writeJSON(w, http.StatusInternalServerError, vkAuthResponse{Error: "Internal server error"})
+			return
+		}
+		log.Printf("[OK] bridge identity uid=%s", externalID)
+		writeJSON(w, http.StatusOK, authProfileResponse(profile))
 		return
 	}
 	user, err := fetchOKUser(r.Context(), accessToken)
