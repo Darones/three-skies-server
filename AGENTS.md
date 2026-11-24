@@ -65,6 +65,17 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
   - Сервер: `server/ws.go`, `server/main.go`, `server/stats.go` + `server/web/index.pck` в `main`.
   - Дашборд: `https://three-skies-server.relaxdev.ru/stats/dashboard?token=239837`.
 
+### Новое направление (24.11)
+
+- Одна чистая игра без SDK в ядре + платформенные адаптеры и отдельные сборки
+  `web-standalone`, `web-vk`, `web-ok`, позже `web-yandex`.
+- Документы: `docs/PLATFORM-ADAPTERS.md`, `docs/DIFFICULTY-PLAN.md`,
+  `docs/VK-COMPLIANCE.md`, `docs/NEW-CHAT-BRIEF.md`.
+- Первая задача — M1: `Platform` + `StandaloneAdapter`, убрать mock-рекламу/оплату,
+  потом D1 (обучение 1→2→3 бота и новичковый пул), затем VK-авторизация/юридика.
+- VK в текущем виде не пройдёт модерацию: нет VK-авторизации/`sign`, юридика,
+  монетизация и mock-реклама. Полный список — в `docs/VK-COMPLIANCE.md`.
+
 ## Что уже сделано
 
 ### Оболочка (главная боль)
