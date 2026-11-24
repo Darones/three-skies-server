@@ -388,16 +388,22 @@ func (service *api) handleStatsReset(w http.ResponseWriter, r *http.Request) {
 
 func (service *api) trackGamePage(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if (r.URL.Path == "/game/" || r.URL.Path == "/game/index.html") && r.URL.Query().Get("v") == "" {
+		gameRoot := r.URL.Path == "/game/" || r.URL.Path == "/game/index.html"
+		vkGameRoot := r.URL.Path == "/game-vk/" || r.URL.Path == "/game-vk/index.html"
+		if (gameRoot || vkGameRoot) && r.URL.Query().Get("v") == "" {
 			// A VK webview can keep the old index.html with old fileSizes
 			// after a redeploy. Redirect the entry point to a fresh URL so
 			// the new loader (which asks the server for the real PCK size)
 			// is the one that runs.
 			w.Header().Set("Cache-Control", "no-store")
-			http.Redirect(w, r, "/game/?v="+webBuildVersion, http.StatusFound)
+			prefix := "/game/"
+			if vkGameRoot {
+				prefix = "/game-vk/"
+			}
+			http.Redirect(w, r, prefix+"?v="+webBuildVersion, http.StatusFound)
 			return
 		}
-		if r.URL.Path == "/game/" || r.URL.Path == "/game/index.html" {
+		if gameRoot || vkGameRoot {
 			ua := r.UserAgent()
 			service.recordStats(statsEvent{
 				Event:     "page_view",
