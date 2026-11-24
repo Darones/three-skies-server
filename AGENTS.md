@@ -293,6 +293,9 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
 - 1–3 матча — easy, 4–7 — normal, 8–10 — normal с малым числом ботов; ранний
   выпуск при 4 победах из 5. `hard` реализован, но пока не выбирается.
 - Боты помечены «БОТ ·» на загрузке и в итогах; фейкового чата нет.
+- Сброс прогресса чистит и веб-зеркало (`three_skies_player_id`/`nickname`).
+  Раньше файлы удалялись, а localStorage возвращал старый id без токена:
+  появлялось «Загружаем профиль», ник оставался, баланс выглядел нулевым.
 - Проверено: `TutorialStagesProbe` 24/24, `TutorialSkipProbe` 9/9,
   `TutorialFinalProbe` 5/5, `LobbyD1Probe` 8/8, `D1ContractProbe` 7/7,
   `PlatformProbe` 22/22; `go test`/`go vet` ok. Кадры `docs/qa-d1_*.png`,

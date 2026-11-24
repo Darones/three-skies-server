@@ -374,7 +374,21 @@ func _confirm_reset_progress() -> void:
 	reset_dialog.popup_centered()
 
 
+func _clear_web_profile_storage() -> void:
+	if not OS.has_feature("web") or not Engine.has_singleton("JavaScriptBridge"):
+		return
+	var bridge := Engine.get_singleton("JavaScriptBridge")
+	bridge.call(
+		"eval",
+		"try{localStorage.removeItem('three_skies_player_id');localStorage.removeItem('three_skies_nickname');}catch(e){}",
+		true
+	)
+
+
 func _reset_progress() -> void:
+	# The web mirror is separate from user://; without this the old player_id
+	# and nickname came back after a reset and the profile failed to load.
+	_clear_web_profile_storage()
 	var dir := DirAccess.open("user://")
 	if dir != null:
 		for file in ["lobby.cfg", "stats.cfg", "tutorial.cfg", "tutorial_done.cfg", "meta_save.cfg", "loadout.cfg"]:
