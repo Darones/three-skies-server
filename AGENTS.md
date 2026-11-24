@@ -55,12 +55,13 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
 - Игра **полностью лежит на RelaxDev**: Go-сервер, WebSocket, PostgreSQL и веб-сборка (PCK + wasm) отдаются с этого домена. GitHub Pages больше не источник игры — только редирект на RelaxDev.
 - Проверка: `GET /health` → `status=ok`, `database=ok`; `GET /game/index.pck` → актуальный `Content-Length`.
 - Деплой: пуш в `origin/main` → RelaxDev пересобирает и перезапускает. Иногда нужен пустой commit для повторного деплоя. После деплоя проверять uptime в `/health` и размер PCK, а не верить пушу.
-- **Перед каждым деплоем проверять `online_now` в `/stats/data?token=239837`; выкатывать только при `online_now=0`.** Рестарт контейнера рвёт живой матч; 23.11 так оборвался занос Оболочки.
-- **Текущий прод (на 24.11.2026, ночь):**
+- **Перед каждым деплоем проверять `/health` → `live_matches` и `online_players`; выкатывать только при `live_matches=0`.** Скрипт: `tools/check_deploy_safe.ps1`. Рестарт контейнера рвёт живой матч; 23.11 так оборвался занос Оболочки.
+- Сервер по SIGTERM завершает живые матчи текущим счётом, сохраняет результат и рассылает `match_finished` — контролируемый рестарт больше не должен давать «МАТЧ ПРЕРВАН».
+- **Текущий прод (на 24.11.2026, утро):**
   - PCK: `index_20261123_235723.pck`, на хосте `index.pck`, **48 925 040 байт**
-    (Охотница, чистый инвентарь, туман выключен, быстрый прогрев шейдеров на вебе).
-  - `main`: `b874767` (сервер + PCK); контейнер перезапущен, `/health` ok.
-  - Исходники: ветка `mobile-ui` (`8f86fb2`; см. `git log`).
+    (Охотница, чистый инвентарь, туман выключен, прогрев шейдеров на вебе).
+  - `main`: `ebeaadf` (сервер + PCK); контейнер перезапущен, `/health` ok.
+  - Исходники: ветка `mobile-ui` (`4afa670`; см. `git log`).
   - Сервер: `server/ws.go`, `server/main.go`, `server/stats.go` + `server/web/index.pck` в `main`.
   - Дашборд: `https://three-skies-server.relaxdev.ru/stats/dashboard?token=239837`.
 
@@ -208,6 +209,10 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
   `_warm_first_clash_vfx`) теперь запускается и на **вебе**, а не только на
   телефоне. На PC-вебе его раньше не было, поэтому первый замес трёх героев
   компилировал материалы в бою и давал фриз. Прогрев идёт за панелью выбора класса.
+- Сервер: `/health` отдаёт `live_matches`/`online_players`; по SIGTERM
+  `finishLiveMatches` завершает живые комнаты текущим счётом, сохраняет
+  результат и рассылает `match_finished`. Деплой-проверка:
+  `tools/check_deploy_safe.ps1`. Админ-токен переопределяется через `ADMIN_TOKEN`.
 
 
 - Сервер — источник времени матча; клиент синхронизирует `match_time` по `match_time_left_ms`.
