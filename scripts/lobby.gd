@@ -329,7 +329,6 @@ func _register_ui_layout() -> void:
 	if player_menu_panel != null:
 		UiLayout.register("inventory.panel", player_menu_panel, "Окно инвентаря", "inventory")
 		UiLayout.register("inventory.profile", player_menu_profile, "Профиль", "inventory")
-		UiLayout.register("inventory.hero", player_menu_hero, "Герой", "inventory")
 		UiLayout.register("inventory.wardrobe", player_menu_wardrobe, "Оружие", "inventory")
 		UiLayout.register("inventory.close", player_menu_close_button, "Закрыть инвентарь", "inventory")
 		UiLayout.register("inventory.report", player_menu_report_button, "Пожаловаться", "inventory")
@@ -739,7 +738,7 @@ func _build_shard_shop() -> void:
 	layout.add_child(cards_area)
 	shop_cards_area = cards_area
 	var left_button := _make_action_button("‹", false)
-	left_button.custom_minimum_size = Vector2(34, 34)
+	left_button.custom_minimum_size = Vector2(30, 30) if DeviceProfile.mobile_ui else Vector2(34, 34)
 	left_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	left_button.add_theme_font_size_override("font_size", _fs(20))
 	left_button.pressed.connect(_change_shop_page.bind(-1))
@@ -751,7 +750,7 @@ func _build_shard_shop() -> void:
 	shop_cards_row.add_theme_constant_override("separation", 10)
 	cards_area.add_child(shop_cards_row)
 	var right_button := _make_action_button("›", false)
-	right_button.custom_minimum_size = Vector2(34, 34)
+	right_button.custom_minimum_size = Vector2(30, 30) if DeviceProfile.mobile_ui else Vector2(34, 34)
 	right_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	right_button.add_theme_font_size_override("font_size", _fs(20))
 	right_button.pressed.connect(_change_shop_page.bind(1))
@@ -796,8 +795,12 @@ func _shop_items_for(hero_index: int) -> Array:
 	return items
 
 
+func _shop_page_size() -> int:
+	return 2 if DeviceProfile.mobile_ui else 3
+
+
 func _shop_page_count() -> int:
-	return maxi(1, ceili(float(_shop_items_for(shop_selected_hero).size()) / 3.0))
+	return maxi(1, ceili(float(_shop_items_for(shop_selected_hero).size()) / float(_shop_page_size())))
 
 
 func _select_shop_hero(index: int) -> void:
@@ -846,7 +849,8 @@ func _refresh_shop() -> void:
 	var items := _shop_items_for(shop_selected_hero)
 	var page_count := _shop_page_count()
 	shop_page = clampi(shop_page, 0, page_count - 1)
-	var start := shop_page * 3
+	var page_size := _shop_page_size()
+	var start := shop_page * page_size
 	var shown := 0
 	if items.is_empty():
 		var empty_card := PanelContainer.new()
@@ -861,10 +865,10 @@ func _refresh_shop() -> void:
 			spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			shop_cards_row.add_child(spacer)
 	else:
-		for i in range(start, mini(items.size(), start + 3)):
+		for i in range(start, mini(items.size(), start + page_size)):
 			shop_cards_row.add_child(_make_shop_card(items[i]))
 			shown += 1
-		for i in range(3 - shown):
+		for i in range(page_size - shown):
 			var spacer := Control.new()
 			spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			shop_cards_row.add_child(spacer)
@@ -884,7 +888,7 @@ func _make_shop_card(item: Dictionary) -> Control:
 	var preview_frame := AspectRatioContainer.new()
 	preview_frame.ratio = 0.82
 	preview_frame.stretch_mode = AspectRatioContainer.STRETCH_FIT
-	preview_frame.custom_minimum_size = Vector2(140, 170) if DeviceProfile.mobile_ui else Vector2(190, 230)
+	preview_frame.custom_minimum_size = Vector2(105, 140) if DeviceProfile.mobile_ui else Vector2(190, 230)
 	preview_frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	preview_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(preview_frame)
@@ -900,7 +904,7 @@ func _make_shop_card(item: Dictionary) -> Control:
 	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	preview_frame.add_child(preview)
 
-	content.add_child(_make_label(String(item["name"]), 19, PALE))
+	content.add_child(_make_label(String(item["name"]), 16 if DeviceProfile.mobile_ui else 19, PALE))
 	var rarity := String(item.get("rarity", "Оружие"))
 	var type_name := "Крылья" if String(item["type"]) == "wing" else ("Скин" if String(item["type"]) == "skin" else "Оружие · %s" % rarity)
 	var type_color := GOLD if rarity == "Легендарное" else (Color(0.8, 0.55, 1.0) if String(item["type"]) == "skin" else (Color(1.0, 0.55, 0.4) if rarity == "Редкое" else Color(0.62, 0.68, 0.78)))
@@ -1306,8 +1310,11 @@ func _refresh_weapon_shop() -> void:
 		status_label.add_theme_color_override("font_color", GOLD if equipped else (Color(0.58, 0.9, 0.64) if owned else Color(0.62, 0.65, 0.72)))
 		var button := weapon_inventory_buttons.get(weapon_id) as Button
 		if button != null:
-			button.text = "Надето" if equipped else ("Надеть" if owned else "В магазине")
-			button.disabled = not owned or equipped
+			button.text = "Снять" if equipped else ("Надеть" if owned else "В магазине")
+			button.disabled = not owned
+		var weapon_card_node := weapon_inventory_cards.get(weapon_id) as Control
+		if weapon_card_node != null:
+			weapon_card_node.visible = owned
 	var default_active := equipped_id == 0
 	if default_weapon_icon != null:
 		default_weapon_icon.texture = [GEAR_1H_SWORD_ICON, SHOP_WAND_ICON, GEAR_1H_CROSSBOW_ICON][selected_class]
@@ -1344,7 +1351,7 @@ func _refresh_weapon_shop() -> void:
 			skin_button.disabled = not skin_owned or skin_active
 	var default_skin_active := equipped_skin == 0
 	if default_skin_icon != null:
-		default_skin_icon.texture = load("res://assets/ui/heroes/%s" % ["warrior_face.webp", "mage_face.webp", "archer_face.webp"][selected_class]) as Texture2D
+		default_skin_icon.texture = load("res://assets/ui/heroes/%s" % ["warrior_keyart.webp", "mage_keyart.webp", "archer_keyart.webp"][selected_class]) as Texture2D
 	if default_skin_status != null:
 		default_skin_status.text = "Надето" if default_skin_active else "Стандартный"
 		default_skin_status.add_theme_color_override("font_color", GOLD if default_skin_active else Color(0.62, 0.65, 0.72))
@@ -1419,14 +1426,15 @@ func _build_player_menu() -> void:
 
 	var header := HBoxContainer.new()
 	layout.add_child(header)
-	var title := _make_label("ИНВЕНТАРЬ · СКИНЫ", 25, GOLD)
+	var title := _make_label("ИНВЕНТАРЬ" if DeviceProfile.mobile_ui else "ИНВЕНТАРЬ · СКИНЫ", 20 if DeviceProfile.mobile_ui else 25, GOLD)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.clip_text = true
 	header.add_child(title)
-	var report_button := _make_action_button("Пожаловаться", false)
+	var report_button := _make_action_button("Жалоба" if DeviceProfile.mobile_ui else "Пожаловаться", false)
 	report_button.name = "ReportPlayerButton"
-	report_button.custom_minimum_size = Vector2(150, 44)
-	report_button.add_theme_font_size_override("font_size", _fs(14))
+	report_button.custom_minimum_size = Vector2(96, 44) if DeviceProfile.mobile_ui else Vector2(150, 44)
+	report_button.add_theme_font_size_override("font_size", _fs(12) if DeviceProfile.mobile_ui else _fs(14))
 	report_button.pressed.connect(_open_report_form)
 	header.add_child(report_button)
 	player_menu_report_button = report_button
@@ -1561,65 +1569,15 @@ func _build_player_menu() -> void:
 	stats_box.add_theme_constant_override("separation", 2)
 	profile_content.add_child(stats_box)
 
-	var hero_panel := PanelContainer.new()
-	hero_panel.name = "PlayerMenuHero"
-	_place_inventory_column(hero_panel, 0.37, 0.63)
-	hero_panel.custom_minimum_size = Vector2(240 if DeviceProfile.mobile_ui else 280, 0)
-	hero_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.57, 0.48, 0.31, 0.8), Color(0.025, 0.032, 0.05, 0.98)))
-	columns.add_child(hero_panel)
-	player_menu_hero = hero_panel
-	var hero_content := VBoxContainer.new()
-	hero_content.add_theme_constant_override("separation", 8)
-	hero_panel.add_child(hero_content)
-	var hero_selector := HBoxContainer.new()
-	hero_selector.name = "HeroSelector"
-	hero_selector.alignment = BoxContainer.ALIGNMENT_CENTER
-	hero_selector.add_theme_constant_override("separation", 8)
-	hero_content.add_child(hero_selector)
-	var previous_hero_button := _make_action_button("<", false)
-	previous_hero_button.name = "PreviousHeroButton"
-	previous_hero_button.custom_minimum_size = Vector2(36, 40) if DeviceProfile.mobile_ui else Vector2(46, 40)
-	previous_hero_button.add_theme_font_size_override("font_size", _fs(18) if DeviceProfile.mobile_ui else _fs(22))
-	previous_hero_button.pressed.connect(_cycle_selected_hero.bind(-1))
-	hero_selector.add_child(previous_hero_button)
-	menu_hero_name_label = _make_label("Воин", 20, PALE)
-	menu_hero_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hero_selector.add_child(menu_hero_name_label)
-	var next_hero_button := _make_action_button(">", false)
-	next_hero_button.name = "NextHeroButton"
-	next_hero_button.custom_minimum_size = Vector2(36, 40) if DeviceProfile.mobile_ui else Vector2(46, 40)
-	next_hero_button.add_theme_font_size_override("font_size", _fs(18) if DeviceProfile.mobile_ui else _fs(22))
-	next_hero_button.pressed.connect(_cycle_selected_hero.bind(1))
-	hero_selector.add_child(next_hero_button)
-	var portrait_frame := PanelContainer.new()
-	portrait_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	portrait_frame.add_theme_stylebox_override("panel", _panel_style(Color(0.24, 0.27, 0.34), Color(0.01, 0.014, 0.025)))
-	hero_content.add_child(portrait_frame)
-	var preview_container := SubViewportContainer.new()
-	preview_container.name = "SelectedHeroPreview"
-	preview_container.custom_minimum_size = Vector2(0, 190 if DeviceProfile.mobile_ui else 280)
-	preview_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	preview_container.stretch = true
-	preview_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	portrait_frame.add_child(preview_container)
-	preview_viewport = SubViewport.new()
-	preview_viewport.name = "HeroPreviewViewport"
-	preview_viewport.own_world_3d = true
-	preview_viewport.transparent_bg = true
-	# The preview is a static posed model. Render it once per change instead of
-	# re-rendering the whole mini-scene every frame (phone heat in the lobby).
-	preview_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
-	preview_container.add_child(preview_viewport)
-	preview_container.resized.connect(_mark_preview_dirty)
-	preview_root = Node3D.new()
-	preview_root.name = "PreviewRoot"
-	preview_viewport.add_child(preview_root)
-	_build_hero_preview_stage()
-
 	var wardrobe_panel := PanelContainer.new()
 	wardrobe_panel.name = "PlayerMenuWardrobe"
-	_place_inventory_column(wardrobe_panel, 0.65, 1.0)
-	wardrobe_panel.custom_minimum_size = Vector2(260 if DeviceProfile.mobile_ui else 280, 0)
+	if DeviceProfile.mobile_ui:
+		profile_panel.visible = false
+		_place_inventory_column(wardrobe_panel, 0.0, 1.0)
+	else:
+		_place_inventory_column(profile_panel, 0.0, 0.35)
+		_place_inventory_column(wardrobe_panel, 0.37, 1.0)
+	wardrobe_panel.custom_minimum_size = Vector2(0, 0) if DeviceProfile.mobile_ui else Vector2(280, 0)
 	wardrobe_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.4, 0.48, 0.63, 0.8), Color(0.045, 0.055, 0.085, 0.97)))
 	columns.add_child(wardrobe_panel)
 	player_menu_wardrobe = wardrobe_panel
@@ -1630,89 +1588,62 @@ func _build_player_menu() -> void:
 	inventory_tab.custom_minimum_size = Vector2(0, 42)
 	inventory_tab.disabled = true
 	wardrobe_content.add_child(inventory_tab)
-	var inventory_grid := GridContainer.new()
-	inventory_grid.name = "LegendaryWeaponInventory"
-	inventory_grid.columns = 2 if DeviceProfile.mobile_ui else 3
-	inventory_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	inventory_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	inventory_grid.add_theme_constant_override("h_separation", 8)
-	inventory_grid.add_theme_constant_override("v_separation", 8)
 	var inventory_scroll := ScrollContainer.new()
 	inventory_scroll.name = "InventoryScroll"
 	inventory_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	inventory_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	inventory_scroll.add_child(inventory_grid)
 	wardrobe_content.add_child(inventory_scroll)
-	default_weapon_card = PanelContainer.new()
-	default_weapon_card.name = "DefaultWeaponCard"
-	default_weapon_card.custom_minimum_size = Vector2(110, 140)
-	default_weapon_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	default_weapon_card.add_theme_stylebox_override("panel", _panel_style(Color(0.34, 0.37, 0.44), Color(0.065, 0.072, 0.09, 0.92)))
-	inventory_grid.add_child(default_weapon_card)
-	var default_content := VBoxContainer.new()
-	default_content.add_theme_constant_override("separation", 5)
-	default_weapon_card.add_child(default_content)
-	default_weapon_icon = TextureRect.new()
-	default_weapon_icon.texture = GEAR_1H_SWORD_ICON
-	default_weapon_icon.custom_minimum_size = Vector2(0, 52)
-	default_weapon_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	default_weapon_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	default_weapon_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	default_content.add_child(default_weapon_icon)
-	default_weapon_name_label = _make_label("Стандартное оружие", 12, PALE)
-	default_content.add_child(default_weapon_name_label)
-	default_weapon_status = _make_label("Надето", 12, Color(0.58, 0.9, 0.64))
-	default_content.add_child(default_weapon_status)
-	default_weapon_button = _make_action_button("Надето", false)
-	default_weapon_button.custom_minimum_size = Vector2(0, 28)
-	default_weapon_button.add_theme_font_size_override("font_size", _fs(11))
-	default_weapon_button.pressed.connect(_on_default_weapon_pressed)
-	default_content.add_child(default_weapon_button)
+	var inventory_box := VBoxContainer.new()
+	inventory_box.name = "InventoryContent"
+	inventory_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inventory_box.add_theme_constant_override("separation", 10)
+	inventory_scroll.add_child(inventory_box)
+	var skins_title := _make_label("СКИНЫ", 16, GOLD)
+	skins_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	inventory_box.add_child(skins_title)
+	var skin_grid := GridContainer.new()
+	skin_grid.name = "SkinInventoryGrid"
+	skin_grid.columns = 2 if DeviceProfile.mobile_ui else 3
+	skin_grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	skin_grid.add_theme_constant_override("h_separation", 8)
+	skin_grid.add_theme_constant_override("v_separation", 8)
+	inventory_box.add_child(skin_grid)
+	var weapons_title := _make_label("ОРУЖИЕ", 16, GOLD)
+	weapons_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	inventory_box.add_child(weapons_title)
+	var weapon_list := VBoxContainer.new()
+	weapon_list.name = "WeaponInventoryList"
+	weapon_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	weapon_list.add_theme_constant_override("separation", 6)
+	inventory_box.add_child(weapon_list)
+	var default_weapon_row := _make_inventory_weapon_row("Стандартное оружие", "Надето", "Надето", true, _on_default_weapon_pressed)
+	default_weapon_card = default_weapon_row["panel"] as PanelContainer
+	default_weapon_status = default_weapon_row["status"] as Label
+	default_weapon_button = default_weapon_row["button"] as Button
+	weapon_list.add_child(default_weapon_card)
 	for item_id in WeaponCatalog.ORDER:
 		var weapon_id := int(item_id)
 		var weapon_item := WeaponCatalog.get_item(weapon_id)
 		if weapon_item.is_empty():
 			continue
-		var weapon_card := PanelContainer.new()
-		weapon_card.name = "LegendaryWeapon%d" % weapon_id
-		weapon_card.custom_minimum_size = Vector2(110, 140)
-		weapon_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		weapon_card.add_theme_stylebox_override("panel", _panel_style(Color(0.34, 0.37, 0.44), Color(0.065, 0.072, 0.09, 0.92)))
-		inventory_grid.add_child(weapon_card)
-		var weapon_content := VBoxContainer.new()
-		weapon_content.add_theme_constant_override("separation", 5)
-		weapon_card.add_child(weapon_content)
-		var weapon_icon := TextureRect.new()
-		weapon_icon.texture = load(String(weapon_item["icon"])) as Texture2D
-		weapon_icon.custom_minimum_size = Vector2(0, 52)
-		weapon_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		weapon_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		weapon_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		weapon_content.add_child(weapon_icon)
-		weapon_content.add_child(_make_label(String(weapon_item["name"]), 12, PALE))
-		var weapon_status := _make_label("В магазине", 12, Color(0.62, 0.65, 0.72))
-		weapon_content.add_child(weapon_status)
-		var weapon_button := _make_action_button("Купить", false)
-		weapon_button.name = "WeaponInventoryButton%d" % weapon_id
-		weapon_button.custom_minimum_size = Vector2(0, 28)
-		weapon_button.add_theme_font_size_override("font_size", _fs(11))
-		weapon_button.pressed.connect(_on_inventory_weapon_pressed.bind(weapon_id))
-		weapon_content.add_child(weapon_button)
-		weapon_inventory_statuses[weapon_id] = weapon_status
-		weapon_inventory_buttons[weapon_id] = weapon_button
-		weapon_inventory_cards[weapon_id] = weapon_card
+		var weapon_row := _make_inventory_weapon_row(String(weapon_item["name"]), "В магазине", "Купить", false, _on_inventory_weapon_pressed.bind(weapon_id))
+		var weapon_panel := weapon_row["panel"] as PanelContainer
+		weapon_list.add_child(weapon_panel)
+		weapon_inventory_statuses[weapon_id] = weapon_row["status"]
+		weapon_inventory_buttons[weapon_id] = weapon_row["button"]
+		weapon_inventory_cards[weapon_id] = weapon_panel
 	# Скины: стандартный вид + классовые скины.
 	default_skin_card = PanelContainer.new()
 	default_skin_card.name = "DefaultSkinCard"
-	default_skin_card.custom_minimum_size = Vector2(110, 140)
-	default_skin_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	default_skin_card.custom_minimum_size = Vector2(140, 275) if DeviceProfile.mobile_ui else Vector2(150, 285)
+	default_skin_card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	default_skin_card.add_theme_stylebox_override("panel", _panel_style(Color(0.4, 0.48, 0.63, 0.8), Color(0.065, 0.072, 0.09, 0.92)))
-	inventory_grid.add_child(default_skin_card)
+	skin_grid.add_child(default_skin_card)
 	var default_skin_content := VBoxContainer.new()
 	default_skin_content.add_theme_constant_override("separation", 5)
 	default_skin_card.add_child(default_skin_content)
 	default_skin_icon = TextureRect.new()
-	default_skin_icon.custom_minimum_size = Vector2(0, 52)
+	default_skin_icon.custom_minimum_size = Vector2(0, 190 if DeviceProfile.mobile_ui else 200)
 	default_skin_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	default_skin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	default_skin_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1731,16 +1662,16 @@ func _build_player_menu() -> void:
 			continue
 		var skin_card := PanelContainer.new()
 		skin_card.name = "SkinCard%d" % int(skin_id)
-		skin_card.custom_minimum_size = Vector2(110, 140)
-		skin_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		skin_card.custom_minimum_size = Vector2(140, 275) if DeviceProfile.mobile_ui else Vector2(150, 285)
+		skin_card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		skin_card.add_theme_stylebox_override("panel", _panel_style(Color(0.4, 0.48, 0.63, 0.8), Color(0.065, 0.072, 0.09, 0.92)))
-		inventory_grid.add_child(skin_card)
+		skin_grid.add_child(skin_card)
 		var skin_content := VBoxContainer.new()
 		skin_content.add_theme_constant_override("separation", 5)
 		skin_card.add_child(skin_content)
 		var skin_icon := TextureRect.new()
 		skin_icon.texture = load(String(skin_item["icon"])) as Texture2D
-		skin_icon.custom_minimum_size = Vector2(0, 52)
+		skin_icon.custom_minimum_size = Vector2(0, 190 if DeviceProfile.mobile_ui else 200)
 		skin_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		skin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		skin_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1757,18 +1688,39 @@ func _build_player_menu() -> void:
 		skin_inventory_statuses[int(skin_id)] = skin_status
 		skin_inventory_buttons[int(skin_id)] = skin_button
 		skin_inventory_cards[int(skin_id)] = skin_card
-	# Скины держим сразу под стандартным оружием, чтобы не искать их внизу.
-	if default_skin_card != null:
-		inventory_grid.move_child(default_skin_card, 1)
-	var skin_slot := 2
-	for skin_key in SkinCatalog.ORDER:
-		var skin_card_node := skin_inventory_cards.get(int(skin_key)) as Control
-		if skin_card_node != null:
-			inventory_grid.move_child(skin_card_node, skin_slot)
-			skin_slot += 1
 	# Крылья временно убраны из инвентаря.
 	_finish_player_menu_layout()
 	_refresh_player_menu()
+
+
+func _make_inventory_weapon_row(title: String, status_text: String, button_text: String, button_disabled: bool, action: Callable) -> Dictionary:
+	var row := PanelContainer.new()
+	row.custom_minimum_size = Vector2(0, 44)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_theme_stylebox_override("panel", _panel_style(Color(0.34, 0.37, 0.44), Color(0.065, 0.072, 0.09, 0.92)))
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 10)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_top", 4)
+	margin.add_theme_constant_override("margin_bottom", 4)
+	row.add_child(margin)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 8)
+	margin.add_child(h)
+	var name_label := _make_label(title, 14, PALE)
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.clip_text = true
+	h.add_child(name_label)
+	var status := _make_label(status_text, 12, Color(0.62, 0.65, 0.72))
+	status.custom_minimum_size = Vector2(72, 0)
+	h.add_child(status)
+	var button := _make_action_button(button_text, false)
+	button.custom_minimum_size = Vector2(92, 30)
+	button.add_theme_font_size_override("font_size", _fs(12))
+	button.disabled = button_disabled
+	button.pressed.connect(action)
+	h.add_child(button)
+	return {"panel": row, "status": status, "button": button}
 
 
 func _place_inventory_column(panel: PanelContainer, left: float, right: float) -> void:
@@ -1958,7 +1910,8 @@ func _on_inventory_weapon_pressed(weapon_id: int) -> void:
 	var weapon_character := _weapon_character_key(weapon_id)
 	if weapon_character.is_empty():
 		return
-	MetaProgression.set_equipped_weapon(weapon_character, weapon_id)
+	var next_weapon := 0 if MetaProgression.get_equipped_weapon(weapon_character) == weapon_id else weapon_id
+	MetaProgression.set_equipped_weapon(weapon_character, next_weapon)
 	_refresh_weapon_shop()
 	_refresh_player_menu()
 
@@ -2717,7 +2670,8 @@ func _refresh_player_menu() -> void:
 	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
 	var character_level := int(MetaProgression.char_levels.get(character_key, 1))
 	var character_xp := int(MetaProgression.char_xps.get(character_key, 0))
-	menu_hero_name_label.text = _hero_display_name()
+	if menu_hero_name_label != null:
+		menu_hero_name_label.text = _hero_display_name()
 	_refresh_hero_preview()
 	menu_level_label.text = "Уровень %d — %s" % [character_level, _hero_display_name()]
 	var max_xp := MetaProgression.get_xp_for_next_level(character_key)
