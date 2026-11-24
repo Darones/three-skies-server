@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -22,6 +23,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -46,6 +48,13 @@ const compensationCooldown = 10 * time.Minute
 
 // Admin grants are guarded by the same token as the stats dashboard.
 const adminToken = "239837"
+
+func adminTokenValue() string {
+	if value := strings.TrimSpace(os.Getenv("ADMIN_TOKEN")); value != "" {
+		return value
+	}
+	return adminToken
+}
 
 const sessionHeader = "X-Session-Token"
 
@@ -81,6 +90,7 @@ type api struct {
 	dbHost  string
 	dbReady atomic.Bool
 	dbError atomic.Value
+	hub     *wsHub
 }
 
 func (service *api) setDatabaseReady() {
@@ -276,7 +286,24 @@ func main() {
 		IdleTimeout:       60 * time.Second,
 	}
 	log.Printf("server listening on :%s (health: /health)", port)
-	log.Fatal(server.ListenAndServe())
+	shutdownSignals := make(chan os.Signal, 1)
+	signal.Notify(shutdownSignals, syscall.SIGTERM, os.Interrupt)
+	go func() {
+		<-shutdownSignals
+		log.Printf("shutdown requested; finishing live matches")
+		hub.finishLiveMatches("server_restart")
+		// Let the clients receive match_finished and save the result before
+		// the process disappears.
+		time.Sleep(2 * time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := server.Shutdown(ctx); err != nil {
+			log.Printf("server shutdown: %v", err)
+		}
+	}()
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Fatal(err)
+	}
 }
 
 // normalizeDatabaseURL makes the managed PostgreSQL connection work with
@@ -323,6 +350,7 @@ func databaseHost(raw string) string {
 }
 
 func newRouter(service *api, hub *wsHub) http.Handler {
+	service.hub = hub
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", service.handleHealth)
 	mux.HandleFunc("/rules", service.handleRules)
@@ -683,6 +711,10 @@ func (service *api) handleHealth(w http.ResponseWriter, r *http.Request) {
 	}
 	if service.dbHost != "" {
 		response["database_host"] = service.dbHost
+	}
+	if service.hub != nil {
+		response["live_matches"] = service.hub.liveMatchCount()
+		response["online_players"] = service.hub.connectedClientCount()
 	}
 	if !service.dbReady.Load() {
 		response["status"] = "degraded"
@@ -1649,7 +1681,7 @@ func (service *api) handleAdminGrantShards(w http.ResponseWriter, r *http.Reques
 	if !requirePost(w, r) {
 		return
 	}
-	if r.Header.Get("X-Admin-Token") != adminToken {
+	if r.Header.Get("X-Admin-Token") != adminTokenValue() {
 		writeJSON(w, http.StatusForbidden, adminGrantResponse{Error: "Forbidden"})
 		return
 	}

@@ -277,6 +277,76 @@ func newWebSocketHub(db *sql.DB) *wsHub {
 	}
 }
 
+func (h *wsHub) liveMatchCount() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	count := 0
+	for _, room := range h.rooms {
+		if room != nil && room.state == "live" {
+			count++
+		}
+	}
+	return count
+}
+
+func (h *wsHub) connectedClientCount() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return len(h.clients)
+}
+
+// finishLiveMatches ends every live room with the current score and saves the
+// result before the container goes down. A deploy used to cut a match and the
+// player saw "МАТЧ ПРЕРВАН"; this turns a controlled restart into a normal
+// result.
+func (h *wsHub) finishLiveMatches(reason string) {
+	type finishedRoom struct {
+		roomID  int64
+		players []matchResultPlayer
+		score0  int
+		score1  int
+		winner  int
+	}
+	results := make([]finishedRoom, 0, 4)
+	h.mu.Lock()
+	for _, room := range h.rooms {
+		if room == nil || room.state != "live" {
+			continue
+		}
+		score0, score1 := room.score[0], room.score[1]
+		winner := 0
+		if score1 > score0 {
+			winner = 1
+		} else if score0 == score1 {
+			winner = int(time.Now().UnixNano() % 2)
+		}
+		players := h.finishMatchLocked(room)
+		results = append(results, finishedRoom{
+			roomID: room.id, players: players, score0: score0, score1: score1, winner: winner,
+		})
+	}
+	h.mu.Unlock()
+	for _, result := range results {
+		h.saveMatch(result.roomID, result.players, result.winner)
+		h.broadcastRoom(result.roomID, 0, wsOutgoing{
+			Type:        "match_score",
+			RoomID:      result.roomID,
+			Score0:      result.score0,
+			Score1:      result.score1,
+			SuddenDeath: false,
+		})
+		h.broadcastRoom(result.roomID, 0, wsOutgoing{
+			Type:        "match_finished",
+			RoomID:      result.roomID,
+			WinningTeam: result.winner,
+			Score0:      result.score0,
+			Score1:      result.score1,
+			Reason:      reason,
+		})
+		log.Printf("match finished on shutdown room=%d score=%d:%d winner=%d", result.roomID, result.score0, result.score1, result.winner)
+	}
+}
+
 func (h *wsHub) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := wsUpgrader.Upgrade(w, r, nil)
 	if err != nil {
