@@ -201,6 +201,15 @@ type reportResponse struct {
 	Error   string `json:"error,omitempty"`
 }
 
+type accountDeleteRequest struct {
+	PlayerID int64 `json:"player_id"`
+}
+
+type accountDeleteResponse struct {
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
+
 type matchRewardRequest struct {
 	PlayerID  int64  `json:"player_id"`
 	RoomID    int64  `json:"room_id"`
@@ -387,6 +396,7 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	mux.HandleFunc("/buy_weapon", service.handleBuyWeapon)
 	mux.HandleFunc("/match_reward", service.handleMatchReward)
 	mux.HandleFunc("/ad_interstitial", service.handleInterstitialShown)
+	mux.HandleFunc("/account/delete", service.handleAccountDelete)
 	mux.HandleFunc("/compensation", service.handleCompensation)
 	mux.HandleFunc("/admin/grant_shards", service.handleAdminGrantShards)
 	mux.HandleFunc("/stats/event", service.handleStatsEvent)
@@ -1907,6 +1917,79 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 		Bonus:         request.Bonus,
 	})
 }
+
+// handleAccountDelete removes the player's profile and personal fields.
+// Match history and analytics are kept but anonymized: their player_id is
+// zeroed and session/user-agent fields are cleared, so aggregate counters stay
+// correct without leaving a link to the person.
+func (service *api) handleAccountDelete(w http.ResponseWriter, r *http.Request) {
+	if !requirePost(w, r) {
+		return
+	}
+	var request accountDeleteRequest
+	if err := decodeJSON(w, r, &request); err != nil {
+		writeJSON(w, http.StatusBadRequest, accountDeleteResponse{Error: "Invalid JSON"})
+		return
+	}
+	if request.PlayerID <= 0 {
+		writeJSON(w, http.StatusBadRequest, accountDeleteResponse{Error: "Invalid player"})
+		return
+	}
+	if !service.requireSession(w, r, request.PlayerID) {
+		return
+	}
+	transaction, err := service.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		log.Printf("begin account delete: %v", err)
+		writeJSON(w, http.StatusInternalServerError, accountDeleteResponse{Error: "Internal server error"})
+		return
+	}
+	defer transaction.Rollback()
+	var nickname string
+	err = transaction.QueryRowContext(r.Context(),
+		`DELETE FROM players WHERE id = $1 RETURNING nickname`, request.PlayerID,
+	).Scan(&nickname)
+	if errors.Is(err, sql.ErrNoRows) {
+		// Already deleted: deletion is idempotent.
+		writeJSON(w, http.StatusOK, accountDeleteResponse{Success: true})
+		return
+	}
+	if err != nil {
+		log.Printf("delete player: %v", err)
+		writeJSON(w, http.StatusInternalServerError, accountDeleteResponse{Error: "Internal server error"})
+		return
+	}
+	if _, err := transaction.ExecContext(r.Context(),
+		`UPDATE stats_events SET player_id = 0, session_id = '', user_agent = '' WHERE player_id = $1`,
+		request.PlayerID,
+	); err != nil {
+		log.Printf("anonymize stats: %v", err)
+		writeJSON(w, http.StatusInternalServerError, accountDeleteResponse{Error: "Internal server error"})
+		return
+	}
+	if _, err := transaction.ExecContext(r.Context(),
+		`UPDATE matches SET player_id = 0 WHERE player_id = $1`, request.PlayerID,
+	); err != nil {
+		log.Printf("anonymize matches: %v", err)
+		writeJSON(w, http.StatusInternalServerError, accountDeleteResponse{Error: "Internal server error"})
+		return
+	}
+	if _, err := transaction.ExecContext(r.Context(),
+		`DELETE FROM reports WHERE reporter_id = $1 OR reported_nickname = $2`, request.PlayerID, nickname,
+	); err != nil {
+		log.Printf("delete reports: %v", err)
+		writeJSON(w, http.StatusInternalServerError, accountDeleteResponse{Error: "Internal server error"})
+		return
+	}
+	if err := transaction.Commit(); err != nil {
+		log.Printf("commit account delete: %v", err)
+		writeJSON(w, http.StatusInternalServerError, accountDeleteResponse{Error: "Internal server error"})
+		return
+	}
+	log.Printf("[ACCOUNT] deleted player=%d", request.PlayerID)
+	writeJSON(w, http.StatusOK, accountDeleteResponse{Success: true})
+}
+
 
 func (service *api) handleCompensation(w http.ResponseWriter, r *http.Request) {
 	if !requirePost(w, r) {
