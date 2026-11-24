@@ -763,8 +763,8 @@ func _build_shard_shop() -> void:
 	layout.add_child(shop_hint_label)
 
 	_build_topup_panel()
-	# No real payment adapter -> no buy-shards entry point in a public build.
-	shop_topup_button.visible = Platform.is_purchase_available()
+	# Keep the buy-shards entry point visible as a placeholder until payments are live.
+	shop_topup_button.visible = true
 	_refresh_shop()
 
 
