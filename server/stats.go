@@ -400,7 +400,11 @@ func (service *api) trackGamePage(next http.Handler) http.Handler {
 			if vkGameRoot {
 				prefix = "/game-vk/"
 			}
-			http.Redirect(w, r, prefix+"?v="+webBuildVersion, http.StatusFound)
+			// Keep vk_user_id/sign/vk_ts and other launch params. Replacing the
+			// whole query string made the URL fallback lose VK auth data.
+			query := r.URL.Query()
+			query.Set("v", webBuildVersion)
+			http.Redirect(w, r, prefix+"?"+query.Encode(), http.StatusFound)
 			return
 		}
 		if gameRoot || vkGameRoot {

@@ -114,9 +114,9 @@ body {
 		</script>
 		<script src="vk-bridge.min.js"></script>
 		<script>
-			if (window.vkBridge) {
-				window.vkBridge.send('VKWebAppInit').catch(function () {});
-			}
+			window.__tsVKInit = window.vkBridge
+				? window.vkBridge.send('VKWebAppInit').catch(function () {})
+				: Promise.resolve();
 		</script>
 		<script src="index.js"></script>
 		<script>
