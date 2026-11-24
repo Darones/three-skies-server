@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/md5"
+	"crypto/sha256"
 	"crypto/subtle"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -12,6 +15,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strconv"
@@ -136,9 +140,35 @@ func vkAppSecret() string {
 	return strings.TrimSpace(os.Getenv("VK_APP_SECRET"))
 }
 
-// vkSign implements VK's launch-params signature: sorted vk_* key=value pairs
-// concatenated without separators, followed by the application secret.
+func vkSignatureMessage(params map[string]string) string {
+	keys := make([]string, 0, len(params))
+	for key := range params {
+		if strings.HasPrefix(key, "vk_") {
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		// VK signs URL-encoded values. QueryEscape is close but uses "+" for
+		// spaces; VK's examples require %20.
+		value := strings.ReplaceAll(url.QueryEscape(params[key]), "+", "%20")
+		parts = append(parts, key+"="+value)
+	}
+	return strings.Join(parts, "&")
+}
+
+// vkSign is the current VK launch-params signature: HMAC-SHA256 over sorted
+// vk_* key=value pairs joined by "&", base64url without padding.
 func vkSign(params map[string]string, secret string) string {
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(vkSignatureMessage(params)))
+	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+// vkLegacySign is the old MD5 signature still accepted for launch params
+// generated before VK switched to HMAC-SHA256.
+func vkLegacySign(params map[string]string, secret string) string {
 	keys := make([]string, 0, len(params))
 	for key := range params {
 		if strings.HasPrefix(key, "vk_") {
@@ -182,12 +212,16 @@ func verifyVKLaunchParams(params map[string]string, appID, secret string, now ti
 	if _, err := strconv.ParseInt(userID, 10, 64); err != nil {
 		return errVKUserID
 	}
-	sign := strings.ToLower(strings.TrimSpace(params["sign"]))
+	// Base64url is case-sensitive; only the legacy hex form is lowercased.
+	sign := strings.TrimSpace(params["sign"])
 	if sign == "" {
 		return errVKMissingSign
 	}
 	expected := vkSign(params, secret)
-	if subtle.ConstantTimeCompare([]byte(sign), []byte(expected)) != 1 {
+	legacy := vkLegacySign(params, secret)
+	hmacOK := subtle.ConstantTimeCompare([]byte(sign), []byte(expected)) == 1
+	legacyOK := subtle.ConstantTimeCompare([]byte(strings.ToLower(sign)), []byte(legacy)) == 1
+	if !hmacOK && !legacyOK {
 		return errVKSignature
 	}
 	return nil

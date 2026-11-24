@@ -22,13 +22,29 @@ func vkTestParams() map[string]string {
 
 func TestVKSignKnownVector(t *testing.T) {
 	params := map[string]string{
+		"vk_user_id":                   "494075",
+		"vk_app_id":                    "6736218",
+		"vk_is_app_user":               "1",
+		"vk_are_notifications_enabled": "1",
+		"vk_language":                  "ru",
+		"vk_access_token_settings":     "",
+		"vk_platform":                  "android",
+	}
+	const want = "htQFduJpLxz7ribXRZpDFUH-XEUhC9rBPTJkjUFEkRA"
+	if got := vkSign(params, "wvl68m4dR1UpLrVRli"); got != want {
+		t.Fatalf("vkSign=%q, want %q", got, want)
+	}
+}
+
+func TestVKLegacySignKnownVector(t *testing.T) {
+	params := map[string]string{
 		"vk_app_id":  "54906713",
 		"vk_ts":      "1700000000",
 		"vk_user_id": "123",
 	}
 	const want = "7d6b4f8581a8f85b4259b56059f352fd"
-	if got := vkSign(params, "test_secret"); got != want {
-		t.Fatalf("vkSign=%q, want %q", got, want)
+	if got := vkLegacySign(params, "test_secret"); got != want {
+		t.Fatalf("vkLegacySign=%q, want %q", got, want)
 	}
 }
 
@@ -39,6 +55,15 @@ func TestVerifyVKLaunchParamsValid(t *testing.T) {
 	now := time.Unix(1700000100, 0)
 	if err := verifyVKLaunchParams(params, defaultVKAppID, vkAppSecret(), now); err != nil {
 		t.Fatalf("valid launch params rejected: %v", err)
+	}
+}
+
+func TestVerifyVKLaunchParamsAcceptsLegacyMD5(t *testing.T) {
+	t.Setenv("VK_APP_SECRET", "test_secret")
+	params := vkTestParams()
+	params["sign"] = vkLegacySign(params, "test_secret")
+	if err := verifyVKLaunchParams(params, defaultVKAppID, vkAppSecret(), time.Unix(1700000100, 0)); err != nil {
+		t.Fatalf("legacy MD5 launch params rejected: %v", err)
 	}
 }
 
