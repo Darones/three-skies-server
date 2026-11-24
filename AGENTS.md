@@ -61,8 +61,9 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
 - **Текущий прод (на 24.11.2026, день):**
   - PCK: `index_20261124_112239.pck`, на хосте `index.pck`, **48 953 300 байт**
     (D1: обучение 1→2→3, правила, новичковый пул, профили ботов).
-  - `main`: `94115d2` (сервер + PCK); вход `?v=20261124_082927`, `/health` ok.
-  - Исходники: ветка `mobile-ui` (`93bc770`; см. `git log`).
+  - `main`: `1538f1b` (сервер + PCK + VK Bridge в HTML); вход
+    `?v=20261124_085429`, `/health` ok.
+  - Исходники: ветка `mobile-ui` (`c94515b`; см. `git log`).
   - Сервер: `server/ws.go`, `server/main.go`, `server/stats.go` + `server/web/index.pck` в `main`.
   - Дашборд: `https://three-skies-server.relaxdev.ru/stats/dashboard?token=239837`.
 
@@ -298,8 +299,11 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
   отчёт `docs/QA-D1.md`.
 - Сборки: standalone PCK `48 953 300`, VK PCK `48 953 284`; обе грузятся в
   браузере без `SCRIPT ERROR`.
-- **Задеплоено 24.11:** `main` `94115d2`, на хосте `index.pck` `48 953 300`,
-  вход `?v=20261124_082927`; `/health` ok, `live_matches=0`.
+- **Задеплоено 24.11:** `main` `1538f1b`, на хосте `index.pck` `48 953 300`,
+  вход `?v=20261124_085429`; `/health` ok, `live_matches=0`.
+- В прод-HTML возвращён `vk-bridge.min.js` + `VKWebAppInit`: без него VK-webview
+  не стартовал. Сам PCK остаётся standalone (`Platform` = standalone); отдельная
+  VK-сборка с VK-адаптером — M2.
 
 - Сервер — источник времени матча; клиент синхронизирует `match_time` по `match_time_left_ms`.
 - Сервер владеет HP/смертью Оболочки, кристаллом, счётом, наградами.
