@@ -2541,6 +2541,7 @@ func _award_network_delivery(team: int, source_id: int) -> void:
 		play_sfx("shard_delivery", -5.0)
 	if source_id == NetworkManager.local_peer_id:
 		p_crystals += 1
+		player.match_crystals += 1
 	elif source_id < 0:
 		var bot = _network_combatant(source_id)
 		if bot != null and is_instance_valid(bot):

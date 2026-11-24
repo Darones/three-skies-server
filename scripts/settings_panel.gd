@@ -139,7 +139,11 @@ func _build_panel() -> void:
 	fps_toggle.name = "FpsToggle"
 	fps_toggle.text = "Показывать FPS"
 	fps_toggle.add_theme_font_override("font", UI_FONT)
-	fps_toggle.add_theme_font_size_override("font_size", _fs(16))
+	fps_toggle.add_theme_font_size_override("font_size", _fs(20))
+	fps_toggle.add_theme_color_override("font_color", Color(0.92, 0.94, 0.99))
+	fps_toggle.add_theme_color_override("font_hover_color", Color(1.0, 0.9, 0.6))
+	fps_toggle.add_theme_constant_override("h_separation", 16)
+	fps_toggle.custom_minimum_size = Vector2(0, 46)
 	fps_toggle.toggled.connect(_on_fps_toggled)
 	layout.add_child(fps_toggle)
 
@@ -172,11 +176,11 @@ func _build_panel() -> void:
 	footer.add_theme_constant_override("separation", 2)
 	footer.alignment = BoxContainer.ALIGNMENT_CENTER
 	layout.add_child(footer)
-	var credits_link := _make_flat_link("Авторы и лицензии", Color(0.58, 0.63, 0.72), 12 if mobile_layout else 11)
+	var credits_link := _make_flat_link("Авторы и лицензии", Color(0.7, 0.76, 0.88), 16 if mobile_layout else 15)
 	credits_link.name = "CreditsButton"
 	credits_link.pressed.connect(_open_credits)
 	footer.add_child(credits_link)
-	var reset_link := _make_flat_link("Сбросить общий прогресс", Color(0.66, 0.27, 0.25), 12 if mobile_layout else 11)
+	var reset_link := _make_flat_link("Сбросить общий прогресс", Color(0.78, 0.36, 0.32), 16 if mobile_layout else 15)
 	reset_link.name = "ResetProgressButton"
 	reset_link.pressed.connect(_confirm_reset_progress)
 	footer.add_child(reset_link)

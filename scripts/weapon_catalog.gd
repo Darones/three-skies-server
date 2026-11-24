@@ -83,7 +83,7 @@ const ITEMS := {
 		"rarity": "Легендарное", "price": 800,
 		"icon": "res://ui/icons/legendary_bow.png",
 		"builtin": false,
-		"shop_enabled": false,
+		"shop_enabled": true,
 		"model": "res://scenes/LegendaryBow.tscn",
 		"hand": "handslot.l", "scale": 1.43,
 		"rotation": Vector3(-47.4, 6.4, -3.39), "offset": Vector3(0.06, -0.02, -0.04),

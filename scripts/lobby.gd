@@ -732,9 +732,9 @@ func _build_shard_shop() -> void:
 	right_button.pressed.connect(_change_shop_page.bind(1))
 	cards_area.add_child(right_button)
 
-	shop_page_label = _make_label("1 / 1", 13, Color(0.62, 0.68, 0.78))
+	shop_page_label = _make_label("1 / 1", 14, Color(0.62, 0.68, 0.78))
 	layout.add_child(shop_page_label)
-	shop_hint_label = _make_label("Оружие и скины надеваются в инвентаре · 100 осколков = 1 голос", 12, Color(0.5, 0.56, 0.66))
+	shop_hint_label = _make_label("Оружие и скины надеваются в инвентаре · 100 осколков = 1 голос", 15, Color(0.6, 0.66, 0.76))
 	layout.add_child(shop_hint_label)
 
 	_build_topup_panel()
@@ -854,17 +854,24 @@ func _make_shop_card(item: Dictionary) -> Control:
 	content.add_theme_constant_override("separation", 6)
 	card.add_child(content)
 
+	var preview_frame := AspectRatioContainer.new()
+	preview_frame.ratio = 0.82
+	preview_frame.stretch_mode = AspectRatioContainer.STRETCH_FIT
+	preview_frame.custom_minimum_size = Vector2(140, 170) if DeviceProfile.mobile_ui else Vector2(190, 230)
+	preview_frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	preview_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content.add_child(preview_frame)
 	var preview := TextureRect.new()
 	if item.has("icon"):
 		preview.texture = item["icon"] as Texture2D
 	else:
 		preview.texture = load(String(item["preview"])) as Texture2D
-	preview.custom_minimum_size = Vector2(0, 120 if DeviceProfile.mobile_ui else 210)
+	preview.custom_minimum_size = Vector2.ZERO
 	preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	content.add_child(preview)
+	preview_frame.add_child(preview)
 
 	content.add_child(_make_label(String(item["name"]), 19, PALE))
 	var rarity := String(item.get("rarity", "Оружие"))
@@ -1322,14 +1329,14 @@ func _build_player_menu() -> void:
 	var nickname_cost_row := HBoxContainer.new()
 	nickname_cost_row.add_theme_constant_override("separation", 4)
 	profile_content.add_child(nickname_cost_row)
-	nickname_cost_label = _make_label("Ник: бесплатно", 12 if DeviceProfile.mobile_ui else 13, Color(0.76, 0.8, 0.89))
+	nickname_cost_label = _make_label("Ник: бесплатно", 18, Color(0.76, 0.8, 0.89))
 	nickname_cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	nickname_cost_label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	nickname_cost_row.add_child(nickname_cost_label)
 	nickname_cost_icon = _shard_icon(20)
 	nickname_cost_icon.visible = false
 	nickname_cost_row.add_child(nickname_cost_icon)
-	menu_shard_label = _make_label("Баланс: 0", 12 if DeviceProfile.mobile_ui else 13, Color(0.43, 0.84, 1.0))
+	menu_shard_label = _make_label("Баланс: 0", 18, Color(0.43, 0.84, 1.0))
 	menu_shard_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var cost_spacer := Control.new()
 	cost_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1621,36 +1628,11 @@ func _place_inventory_column(panel: PanelContainer, left: float, right: float) -
 
 
 func _finish_player_menu_layout() -> void:
-	if player_menu_overlay == null:
-		return
-	for button in [player_menu_report_button, player_menu_close_button]:
-		if button == null or not is_instance_valid(button):
-			continue
-		var old_parent: Node = button.get_parent()
-		if old_parent != null:
-			old_parent.remove_child(button)
-		player_menu_overlay.add_child(button)
-		button.z_index = 40
-	# Close and report float above the inventory window so the editor can
-	# place them freely.
-	if player_menu_close_button != null:
-		player_menu_close_button.anchor_left = 1.0
-		player_menu_close_button.anchor_right = 1.0
-		player_menu_close_button.anchor_top = 0.0
-		player_menu_close_button.anchor_bottom = 0.0
-		player_menu_close_button.offset_left = -106.0
-		player_menu_close_button.offset_right = -60.0
-		player_menu_close_button.offset_top = 44.0
-		player_menu_close_button.offset_bottom = 90.0
-	if player_menu_report_button != null:
-		player_menu_report_button.anchor_left = 1.0
-		player_menu_report_button.anchor_right = 1.0
-		player_menu_report_button.anchor_top = 0.0
-		player_menu_report_button.anchor_bottom = 0.0
-		player_menu_report_button.offset_left = -280.0
-		player_menu_report_button.offset_right = -116.0
-		player_menu_report_button.offset_top = 44.0
-		player_menu_report_button.offset_bottom = 90.0
+	# Keep the report and close buttons in the inventory header. The old code
+	# reparented them to the full-screen overlay with hand-made offsets, which
+	# made them drift outside the panel on different aspect ratios. The shop
+	# keeps its buttons in the header; do the same here.
+	return
 
 
 func _build_hero_preview_stage() -> void:
@@ -2058,10 +2040,23 @@ func _on_native_nick_changed(args: Array) -> String:
 func _on_native_nick_submit(args: Array) -> String:
 	if not args.is_empty():
 		_on_native_nick_changed(args)
+	var submitted := nickname_line_edit.text if nickname_line_edit != null else ""
 	_hide_native_nickname_input()
-	if nickname_line_edit != null:
-		_on_nickname_submitted(nickname_line_edit.text)
+	if touch_keyboard != null:
+		touch_keyboard.call("close")
+	# Let the webview finish hiding its keyboard/blurring the HTML input before
+	# opening the Godot confirmation/rename UI. Submitting synchronously from the
+	# DOM button handler froze the game on phones.
+	_submit_native_nick_deferred(submitted)
 	return ""
+
+
+func _submit_native_nick_deferred(submitted: String) -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_inside_tree():
+		return
+	_on_nickname_submitted(submitted)
 
 
 func _hide_native_nickname_input() -> void:
@@ -2668,8 +2663,8 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 	card.anchor_top = 0.5
 	card.anchor_right = 0.5
 	card.anchor_bottom = 0.5
-	var card_width := 260.0 if is_center else 160.0
-	var card_height := 400.0 if is_center else (250.0 if DeviceProfile.mobile_ui else 260.0)
+	var card_width := 260.0 if is_center else (160.0 if DeviceProfile.mobile_ui else 200.0)
+	var card_height := 400.0 if is_center else (250.0 if DeviceProfile.mobile_ui else 300.0)
 	var footer_height := 46.0 if is_center else 38.0
 	var frame_color: Color = CLASS_FRAME_COLORS.get(slot_classes[slot], GOLD)
 	card.custom_minimum_size = Vector2(card_width, card_height)
@@ -2684,11 +2679,11 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 		card.z_index = 2
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	else:
-		var side_offset := -310.0 if slot == 0 else 150.0
+		var side_offset := (-310.0 if DeviceProfile.mobile_ui else -350.0) if slot == 0 else 150.0
 		card.offset_left = side_offset
-		card.offset_top = -170.0 if mobile else -135.0
-		card.offset_right = side_offset + 160.0
-		card.offset_bottom = 80.0 if mobile else 125.0
+		card.offset_top = -170.0 if mobile else -180.0
+		card.offset_right = side_offset + card_width
+		card.offset_bottom = 80.0 if mobile else 120.0
 		card.z_index = 1
 	card.add_theme_stylebox_override("normal", _card_style(is_center, false, frame_color))
 	card.add_theme_stylebox_override("hover", _card_style(is_center, not is_center, frame_color))
@@ -2764,9 +2759,9 @@ func _build_actions() -> void:
 	play_button.anchor_top = 1.0
 	play_button.anchor_right = 1.0
 	play_button.anchor_bottom = 1.0
-	play_button.offset_left = -345.0
+	play_button.offset_left = -550.0
 	play_button.offset_top = -180.0
-	play_button.offset_right = -45.0
+	play_button.offset_right = -250.0
 	play_button.offset_bottom = -108.0
 	play_button.custom_minimum_size = Vector2(300.0, 72.0)
 	play_button.add_theme_font_size_override("font_size", _fs(26))
@@ -2787,9 +2782,9 @@ func _build_actions() -> void:
 	tutorial_button.anchor_top = 1.0
 	tutorial_button.anchor_right = 1.0
 	tutorial_button.anchor_bottom = 1.0
-	tutorial_button.offset_left = -345.0
+	tutorial_button.offset_left = -550.0
 	tutorial_button.offset_top = -100.0
-	tutorial_button.offset_right = -45.0
+	tutorial_button.offset_right = -250.0
 	tutorial_button.offset_bottom = -28.0
 	tutorial_button.custom_minimum_size = Vector2(300.0, 72.0)
 	tutorial_button.add_theme_font_size_override("font_size", _fs(22))
