@@ -921,3 +921,98 @@ func TestBotClassesFillMissingTeamClasses(t *testing.T) {
 		t.Fatalf("bot classes = %v, want %v", classes, want)
 	}
 }
+
+func TestBotDifficultyForNoviceRoom(t *testing.T) {
+	room := &wsRoom{novice: true, humanCount: 1}
+	room.players[0] = &wsClient{matchesPlayed: 2}
+	if got := botDifficultyForRoom(room); got != "easy" {
+		t.Fatalf("first novice matches should be easy, got %q", got)
+	}
+	room.players[0].matchesPlayed = 5
+	if got := botDifficultyForRoom(room); got != "normal" {
+		t.Fatalf("middle novice matches should be normal, got %q", got)
+	}
+	room.players[0].matchesPlayed = 9
+	if got := botDifficultyForRoom(room); got != "normal" {
+		t.Fatalf("late novice matches should stay normal, got %q", got)
+	}
+	room.novice = false
+	if got := botDifficultyForRoom(room); got != "normal" {
+		t.Fatalf("normal pool must stay normal, got %q", got)
+	}
+}
+
+func TestNoviceAfterMatchesOnlyGraduates(t *testing.T) {
+	cases := []struct {
+		matches int
+		wins    int
+		current bool
+		want    bool
+	}{
+		{1, 1, true, true},
+		{5, 3, true, true},
+		{5, 4, true, false},
+		{10, 0, true, false},
+		{1, 1, false, false},
+		{10, 10, false, false},
+	}
+	for _, tc := range cases {
+		if got := noviceAfterMatches(tc.matches, tc.wins, tc.current); got != tc.want {
+			t.Fatalf("noviceAfterMatches(%d,%d,%v)=%v, want %v", tc.matches, tc.wins, tc.current, got, tc.want)
+		}
+	}
+}
+
+func TestBotProfilesMatchClientContract(t *testing.T) {
+	easy := botProfileFor("easy")
+	normal := botProfileFor("normal")
+	hard := botProfileFor("hard")
+	if easy.damage != 0.6 || easy.hp != 0.8 {
+		t.Fatalf("easy profile = %+v", easy)
+	}
+	if normal.damage != 0.8 || normal.hp != 1.0 {
+		t.Fatalf("normal profile must preserve the old bot strength, got %+v", normal)
+	}
+	if hard.damage != 1.0 || hard.hp != 1.1 {
+		t.Fatalf("hard profile = %+v", hard)
+	}
+}
+
+func TestNoviceRoomsDoNotMixWithNormalRooms(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	hub.rooms[1] = &wsRoom{id: 1, state: "waiting", novice: true}
+	hub.rooms[2] = &wsRoom{id: 2, state: "waiting", novice: false}
+	noviceRoom, _ := hub.findRoomLocked(0, true)
+	if noviceRoom == nil || noviceRoom.id != 1 {
+		t.Fatalf("novice player should join the novice room, got %+v", noviceRoom)
+	}
+	normalRoom, _ := hub.findRoomLocked(0, false)
+	if normalRoom == nil || normalRoom.id != 2 {
+		t.Fatalf("experienced player should join the normal room, got %+v", normalRoom)
+	}
+}
+
+func TestStartRoomAppliesEasyBotProfile(t *testing.T) {
+	hub := newWebSocketHub(nil)
+	room := &wsRoom{id: 1, state: "waiting", humanCount: 1, hostID: 1, novice: true}
+	client := newTestClient(1, 0, 0, 0)
+	client.matchesPlayed = 1
+	room.players[0] = client
+	message, _ := hub.startRoomLocked(room)
+	if message.BotDifficulty != "easy" {
+		t.Fatalf("first novice match should be easy, got %q", message.BotDifficulty)
+	}
+	for _, player := range message.MatchPlayers {
+		if !player.Bot {
+			continue
+		}
+		wantHP := classBaseHP[player.Class] * 0.8
+		wantDamage := classBaseDamage[player.Class] * 0.6
+		if player.MaxHP != wantHP || player.AttackDamage != wantDamage {
+			t.Fatalf("easy bot stats = hp %.0f dmg %.0f, want hp %.0f dmg %.0f", player.MaxHP, player.AttackDamage, wantHP, wantDamage)
+		}
+	}
+	if room.finishTimer != nil {
+		room.finishTimer.Stop()
+	}
+}
