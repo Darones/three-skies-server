@@ -1,9 +1,9 @@
 # D1 QA — обучение 1→2→3 и новичковый пул (24.11.2026)
 
-Ветка `mobile-ui`, коммит `93bc770`. D1 задеплоен 24.11: `main` `1538f1b`,
-на хосте `index.pck` `48 953 300`, вход `?v=20261124_085429`, `/health` ok,
-`live_matches=0`. В прод-HTML возвращён `vk-bridge.min.js` + `VKWebAppInit`
-(без него VK-webview не стартовал); PCK остаётся standalone.
+Ветка `mobile-ui`, коммит `a28b5ca`. D1 + темп обучения задеплоены 24.11:
+`main` `03a6178`, на хосте `index.pck` `48 959 796`, вход
+`?v=20261124_102718`, `/health` ok, `live_matches=0`. В прод-HTML сохранены
+`vk-bridge.min.js` + `VKWebAppInit` и reset-скрипт; PCK остаётся standalone.
 
 ## Что сделано
 
@@ -67,6 +67,7 @@
 `build/web-vk/index_20261124_131645.pck`. В браузере `?tutorial=1` загружается,
 `[Platform] id=standalone`, `SCRIPT ERROR` нет. Обычный матч проверен кадром
 `docs/qa-pacing-normal-match.png` (старой кнопки «II» нет).
+Задеплоено: `main` `03a6178`, PCK `48 959 796`, вход `?v=20261124_102718`.
 
 ## Кадры
 

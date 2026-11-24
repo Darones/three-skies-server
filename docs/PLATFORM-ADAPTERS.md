@@ -175,10 +175,10 @@ players:
 
 ## Текущее состояние
 
-- Прод: PCK 48 953 300, `main` `1538f1b`, вход `?v=20261124_085429`.
-  M1 и D1 задеплоены 24.11; `/health` ok, `live_matches=0`. В прод-HTML есть
-  VK Bridge/init для VK-webview, но PCK остаётся standalone; отдельная
-  VK-сборка с адаптером — M2.
+- Прод: PCK 48 959 796, `main` `03a6178`, вход `?v=20261124_102718`.
+  M1, D1 и темп обучения задеплоены 24.11; `/health` ok, `live_matches=0`.
+  В прод-HTML есть VK Bridge/init для VK-webview, но PCK остаётся standalone;
+  отдельная VK-сборка с адаптером — M2.
 - **M1 сделан (24.11.2026).** Autoload `Platform` + `PlatformAdapter`,
   `StandaloneAdapter`, заглушки VK/OK/Yandex. `AdManager` и
   `shard_topup_panel` больше не mock: реклама/оплата только через адаптер,

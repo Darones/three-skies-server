@@ -59,11 +59,11 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
 - **Перед каждым деплоем проверять `/health` → `live_matches` и `online_players`; выкатывать только при `live_matches=0`.** Скрипт: `tools/check_deploy_safe.ps1`. Рестарт контейнера рвёт живой матч; 23.11 так оборвался занос Оболочки.
 - Сервер по SIGTERM завершает живые матчи текущим счётом, сохраняет результат и рассылает `match_finished` — контролируемый рестарт больше не должен давать «МАТЧ ПРЕРВАН».
 - **Текущий прод (на 24.11.2026, день):**
-  - PCK: `index_20261124_112239.pck`, на хосте `index.pck`, **48 953 300 байт**
-    (D1: обучение 1→2→3, правила, новичковый пул, профили ботов).
-  - `main`: `1538f1b` (сервер + PCK + VK Bridge в HTML); вход
-    `?v=20261124_085429`, `/health` ok.
-  - Исходники: ветка `mobile-ui` (`c94515b`; см. `git log`).
+  - PCK: `index_20261124_125614.pck`, на хосте `index.pck`, **48 959 796 байт**
+    (D1 + темп обучения: 3v3 без Оболочки, отдельный финал, монеты, HUD без «II»).
+  - `main`: `03a6178` (PCK + VK Bridge/reset в HTML); вход
+    `?v=20261124_102718`, `/health` ok.
+  - Исходники: ветка `mobile-ui` (`a28b5ca`; см. `git log`).
   - Сервер: `server/ws.go`, `server/main.go`, `server/stats.go` + `server/web/index.pck` в `main`.
   - Дашборд: `https://three-skies-server.relaxdev.ru/stats/dashboard?token=239837`.
 
@@ -309,10 +309,10 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
   `docs/qa-pacing-normal-match.png`, отчёт `docs/QA-D1.md`.
 - Старая отдельная кнопка «II» в HUD удалена; аватарка и Esc открывают меню,
   тур по аватарке и текст про паузу сохранены.
-- Пакет темпа собран в standalone PCK `48 959 796` и VK PCK `48 959 780`;
-  на момент записи не задеплоен.
-- **Задеплоено 24.11:** `main` `1538f1b`, на хосте `index.pck` `48 953 300`,
-  вход `?v=20261124_085429`; `/health` ok, `live_matches=0`.
+- Пакет темпа задеплоен: standalone PCK `48 959 796`, VK PCK `48 959 780`;
+  в прод-HTML сохранены VK Bridge и reset-скрипт.
+- **Задеплоено 24.11:** `main` `03a6178`, на хосте `index.pck` `48 959 796`,
+  вход `?v=20261124_102718`; `/health` ok, `live_matches=0`.
 - В прод-HTML возвращён `vk-bridge.min.js` + `VKWebAppInit`: без него VK-webview
   не стартовал. Сам PCK остаётся standalone (`Platform` = standalone); отдельная
   VK-сборка с VK-адаптером — M2.

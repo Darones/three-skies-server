@@ -12,8 +12,8 @@
 - `docs/DIFFICULTY-PLAN.md` — обучение 1→2→3 бота и новичковый пул;
 - `docs/VK-COMPLIANCE.md` — аудит требований VK и блокеры.
 
-Текущий прод: PCK `48 953 300`, `main` `1538f1b`, вход `?v=20261124_085429`,
-`/health` ok (`live_matches=0`). Исходники — ветка `mobile-ui` (`c94515b`).
+Текущий прод: PCK `48 959 796`, `main` `03a6178`, вход `?v=20261124_102718`,
+`/health` ok (`live_matches=0`). Исходники — ветка `mobile-ui` (`a28b5ca`).
 
 Цель: одна чистая игра без SDK в ядре + тонкие адаптеры и отдельные сборки
 `web-standalone`, `web-vk`, `web-ok`, позже `web-yandex`.
