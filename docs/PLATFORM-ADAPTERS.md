@@ -103,8 +103,9 @@ players:
 - `VKAdapter`: `VKWebAppGetLaunchParams` с fallback на URL-параметры,
   `VKWebAppGetUserInfo` для имени, `get_launch_token`.
 - Сервер: `players.platform/external_id` + partial unique index, `/auth/vk`,
-  проверка `vk_app_id`, MD5 `sign` (`VK_APP_SECRET` только из env) и свежести
-  `vk_ts` (≤3600 с), rate-limit. Профиль — по `(platform='vk', external_id)`.
+  проверка `vk_app_id`, HMAC-SHA256/base64url `sign` (`VK_APP_SECRET` только из
+  env; старый MD5-hex тоже принимается) и свежести `vk_ts` (≤3600 с),
+  rate-limit. Профиль — по `(platform='vk', external_id)`.
 - Клиент: экран входа/повтора, ник — из VK, без ручной регистрации.
 - Критерий: два разных VK-пользователя получают разные серверные профили;
   поддельный `sign` отклоняется. Unit-тесты `server/vk_auth_test.go`; живой

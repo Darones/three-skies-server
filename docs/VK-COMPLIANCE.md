@@ -51,9 +51,10 @@
 
 ## M2 — что закрыто кодом
 
-- `/auth/vk`: `vk_app_id` = `54906713`, MD5 `sign` по всем `vk_*` + секрет,
-  `vk_ts` не старше 3600 с, rate-limit 20/мин на IP; при ошибке — 401 без
-  создания профиля. Секрет и `sign` не логируются.
+- `/auth/vk`: `vk_app_id` = `54906713`, HMAC-SHA256/base64url `sign` по всем
+  `vk_*` + секрет (старый MD5-hex принимается как legacy), `vk_ts` не старше
+  3600 с, rate-limit 20/мин на IP; при ошибке — 401 без создания профиля.
+  Секрет и `sign` не логируются.
 - БД: `platform`, `external_id`, `level`, partial unique
   `(platform, external_id) WHERE external_id IS NOT NULL`; старые строки
   получили `platform='standalone'`, `external_id=id::text`.

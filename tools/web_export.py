@@ -95,9 +95,9 @@ def patch_vk_bridge() -> None:
     block = (
         '<script src="vk-bridge.min.js"></script>\n'
         "\t\t<script>\n"
-        "\t\t\tif (window.vkBridge) {\n"
-        "\t\t\t\twindow.vkBridge.send('VKWebAppInit').catch(function () {});\n"
-        "\t\t\t}\n"
+        "\t\t\twindow.__tsVKInit = window.vkBridge\n"
+        "\t\t\t\t? window.vkBridge.send('VKWebAppInit').catch(function () {})\n"
+        "\t\t\t\t: Promise.resolve();\n"
         "\t\t</script>\n"
         "\t\t"
     )

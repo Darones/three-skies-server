@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -217,6 +218,37 @@ func TestGameAssetsFetchFromOriginWhenTheBuildDropsThem(t *testing.T) {
 	cached, err := os.ReadFile(filepath.Join(dir, "index.wasm"))
 	if err != nil || string(cached) != "wasm-from-origin" {
 		t.Fatalf("asset not cached on disk: %q %v", cached, err)
+	}
+}
+
+func TestGameVKEntryRedirectKeepsLaunchParams(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "index.html"), []byte("<html>vk</html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("WEB_VK_DIR", dir)
+	service := &api{}
+	router := newRouter(service, newWebSocketHub(nil))
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/game-vk/?vk_user_id=42&vk_ts=123&sign=abc", nil)
+	router.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusFound {
+		t.Fatalf("status=%d, want redirect", recorder.Code)
+	}
+	location, err := url.Parse(recorder.Header().Get("Location"))
+	if err != nil {
+		t.Fatalf("parse location: %v", err)
+	}
+	if location.Path != "/game-vk/" {
+		t.Fatalf("path=%q", location.Path)
+	}
+	query := location.Query()
+	if query.Get("vk_user_id") != "42" || query.Get("vk_ts") != "123" || query.Get("sign") != "abc" {
+		t.Fatalf("launch params lost in redirect: %q", recorder.Header().Get("Location"))
+	}
+	if query.Get("v") == "" {
+		t.Fatalf("cache-busting v missing: %q", recorder.Header().Get("Location"))
 	}
 }
 

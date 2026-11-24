@@ -4,17 +4,18 @@
 
 - Repository: `Darones/three-skies-server`
 - Branch: `main`
-- Root directory / Build context: `server`
 - Build type: **Docker**
-- Dockerfile: `Dockerfile` (relative to the project root `server`)
 - Container port: `8080`
 
-If Root directory is left at the repository root, RelaxDev may pick up the wrong
-context. The Go server lives in `server/`; always build from there.
+RelaxDev currently builds with the **repository root** as build context and uses
+the root `Dockerfile` (paths are `COPY server/...`). Keep it in sync with
+`server/Dockerfile`, which is the canonical file for a `server` build context.
+Both must copy `web` and `web-vk` and set `WEB_VK_DIR`/`WEB_VK_ORIGIN`.
 
-Local Docker build check:
+Local Docker build check (either context):
 
 ```bash
+docker build -t three-skies-server .
 docker build -t three-skies-server ./server
 ```
 

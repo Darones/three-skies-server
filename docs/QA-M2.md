@@ -6,8 +6,10 @@
 ## Что сделано
 
 - `server/vk_auth.go`: `POST /auth/vk`, проверка `vk_app_id=54906713`,
-  MD5-подписи по всем `vk_*` + `VK_APP_SECRET`, свежести `vk_ts` (≤3600 с),
+  подписи по всем `vk_*` + `VK_APP_SECRET`, свежести `vk_ts` (≤3600 с),
   rate-limit 20 запросов/мин на IP, профиль по `(platform='vk', external_id)`.
+  Актуальный VK-алгоритм — HMAC-SHA256 + base64url (значения URL-кодируются,
+  `&` между парами); старый MD5-hex оставлен как legacy.
   Секрет читается только из env. Ошибка → `401` до создания профиля.
 - `server/main.go`: `players.platform/external_id/level`, partial unique index,
   идемпотентная миграция старых строк (`platform='standalone'`,
@@ -37,7 +39,8 @@ go test -count=1 -v -run 'TestVK|TestHandleVK' ./...  # ok
 
 Покрыто unit-тестами (`server/vk_auth_test.go`):
 
-- известный MD5-вектор подписи;
+- известный HMAC-SHA256/base64url вектор из документации VK;
+- старый MD5-вектор (legacy);
 - валидные launch params;
 - поддельный `sign` → 401;
 - просроченный `vk_ts` → 401;
@@ -67,7 +70,7 @@ go test -run TestVKProfileMigrationIntegration -v ./...
 
 `python tools/web_export.py --platform vk`:
 
-- PCK `48 973 924` байт (`index_20261124_202152.pck`);
+- PCK `48 974 276` байт (`index_20261124_210742.pck`);
 - `[Platform] id=vk adapter=VK`;
 - вне VK показывает «VK не передал данные для входа. Перезапусти игру из VK.»
   и кнопку «Повторить» (скриншот `docs/qa-m2-vk-no-params.jpeg`);
@@ -81,9 +84,9 @@ go test -run TestVKProfileMigrationIntegration -v ./...
 - экрана VK нет, лобби работает как раньше
   (`docs/qa-m2-standalone-lobby.jpeg`).
 
-`server/web-vk/index.pck` = `48 973 924`; локальный Go-сервер отдаёт
+`server/web-vk/index.pck` = `48 974 276`; локальный Go-сервер отдаёт
 `/game-vk/index.html`, `/game-vk/index.js`, `/game-vk/index.wasm` и
-range-запросы к PCK (`Content-Range: bytes 0-99/48973924`).
+range-запросы к PCK (`Content-Range: bytes 0-99/48974276`).
 
 ## Бэкап и проверка restore (24.11.2026)
 
@@ -138,6 +141,20 @@ range-запросы к PCK (`Content-Range: bytes 0-99/48973924`).
   локальные `warrior 6 / 321 XP`, `mage 3 / 654 XP`, `fairy 2 / 7 XP`,
   обучение `completed=true`, `battles_used=2`; в БД значения совпали,
   флаг стал `true`.
+
+## Прод-деплой 24.11.2026
+
+- Задеплоены `368ae2c`, `41030cf`, `ab71f03`, `abe11ef`, `0fb8554`:
+  `/game-vk/`, HMAC-подпись, сохранение launch params при redirect.
+- VK-приложение переведено на `https://three-skies-server.relaxdev.ru/game-vk/`
+  (все три URL: WebView, Web iframe, мобильная версия).
+- Реальный запуск `vk.com/app54906713`: профиль **«Андрей Давлеев»** загрузился
+  без регистрации, ошибок auth нет, лобби открылось.
+- Прод-БД после миграции: 103 старые строки сохранены, `sky_shards=679229`
+  (как до), `platform/external_id` заполнены у всех, дублей 0; всего 105
+  игроков, из них 1 VK (реальный тест).
+- `/game/` проверен: standalone-сборка загружается, VK-экрана нет.
+- `/game-vk/` вне VK: `[Platform] id=vk`, экран ошибки с повтором.
 
 ## Порядок перед деплоем
 

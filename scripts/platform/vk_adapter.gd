@@ -183,6 +183,21 @@ func _get_launch_params() -> Dictionary:
 			} catch (e) {}
 			return out;
 		}
+		function normalized(source) {
+			var out = {};
+			for (var key in source) {
+				if (source[key] !== null && source[key] !== undefined) out[key] = String(source[key]);
+			}
+			return out;
+		}
+		function chooseParams(data) {
+			// Never mix URL and bridge values: each set has its own sign. A
+			// mixed set is rejected even when both sources are individually
+			// valid. Prefer the URL because it is exactly what VK signed.
+			var url = urlParams();
+			if (url.sign && url.vk_user_id && url.vk_app_id && url.vk_ts) return url;
+			return normalized(data || {});
+		}
 		// A VK webview normally answers in well under a second. If the bridge
 		// hangs (opened outside VK, blocked script), fall back to the launch
 		// params VK put in the URL instead of waiting forever.
@@ -193,8 +208,16 @@ func _get_launch_params() -> Dictionary:
 			done({ok: true, params: urlParams(), source: 'url'});
 			return;
 		}
-		window.vkBridge.send('VKWebAppGetLaunchParams').then(function(data) {
-			done({ok: true, params: data || {}, source: 'bridge'});
+		// The parent VK frame may not answer before VKWebAppInit completes.
+		// Wait for init (or its error) and only then ask for launch params.
+		var init = window.__tsVKInit;
+		if (!init) {
+			try { init = window.vkBridge.send('VKWebAppInit'); } catch (e) { init = Promise.resolve(); }
+		}
+		Promise.resolve(init).catch(function() {}).then(function() {
+			return window.vkBridge.send('VKWebAppGetLaunchParams');
+		}).then(function(data) {
+			done({ok: true, params: chooseParams(data), source: 'bridge'});
 		}).catch(function(err) {
 			done({ok: true, params: urlParams(), source: 'url', bridge_error: String(err)});
 		});
