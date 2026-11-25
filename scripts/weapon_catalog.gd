@@ -8,28 +8,28 @@ const ITEMS := {
 	1: {
 		"id": 1, "class": 0, "name": "Двуручное оружие",
 		"rarity": "Легендарное", "price": 1500,
-		"icon": "res://ui/icons/legendary_greatsword.png",
+		"icon": "res://ui/shop/weapons/greatsword.png",
 		"builtin": true, "glow": Color(0.68, 0.32, 1.0), "glow_energy": 1.6,
 		"description": "Клинок, светящийся фиолетовым.",
 	},
 	2: {
 		"id": 2, "class": 2, "name": "Тяжёлый арбалет",
 		"rarity": "Легендарное", "price": 1500,
-		"icon": "res://assets/ui/shop/weapon_crossbow_2d.png",
+		"icon": "res://ui/shop/weapons/crossbow.png",
 		"builtin": true, "glow": Color(0.62, 0.38, 1.0), "glow_energy": 1.5,
 		"description": "Арбалет с фиолетовым сиянием.",
 	},
 	3: {
 		"id": 3, "class": 1, "name": "Посох волшебника",
 		"rarity": "Легендарное", "price": 1500,
-		"icon": "res://ui/icons/legendary_staff.png",
+		"icon": "res://ui/shop/weapons/staff.png",
 		"builtin": true, "glow": Color(1.0, 0.82, 0.35), "glow_energy": 1.6,
 		"description": "Посох, светящийся тёплым золотом.",
 	},
 	4: {
 		"id": 4, "class": 0, "name": "Боевой топор",
 		"rarity": "Редкое", "price": 100,
-		"icon": "res://addons/low_poly_rpg_items/icons/battle_axe.png",
+		"icon": "res://ui/shop/weapons/battle_axe.png",
 		"builtin": false,
 		"shop_enabled": true,
 		"model": "res://addons/low_poly_rpg_items/models/battle_axe_model.glb",
@@ -42,7 +42,7 @@ const ITEMS := {
 	5: {
 		"id": 5, "class": 2, "name": "Короткий лук",
 		"rarity": "Редкое", "price": 100,
-		"icon": "res://addons/low_poly_rpg_items/icons/short_bow.png",
+		"icon": "res://ui/shop/weapons/short_bow.png",
 		"builtin": false,
 		"shop_enabled": false,
 		"model": "res://addons/low_poly_rpg_items/models/short_bow_model.glb",
@@ -55,7 +55,7 @@ const ITEMS := {
 	6: {
 		"id": 6, "class": 1, "name": "Посох ученика",
 		"rarity": "Редкое", "price": 100,
-		"icon": "res://addons/low_poly_rpg_items/icons/staff_wizard.png",
+		"icon": "res://ui/shop/weapons/staff_wizard.png",
 		"builtin": false,
 		"shop_enabled": true,
 		"model": "res://addons/low_poly_rpg_items/models/staff_wizard_model.glb",
@@ -68,7 +68,7 @@ const ITEMS := {
 	7: {
 		"id": 7, "class": 0, "name": "Стальной меч",
 		"rarity": "Обычное", "price": 400,
-		"icon": "res://addons/low_poly_rpg_items/icons/longsword.png",
+		"icon": "res://ui/shop/weapons/longsword.png",
 		"builtin": false,
 		"shop_enabled": false,
 		"model": "res://addons/low_poly_rpg_items/models/longsword_model.glb",
@@ -81,7 +81,7 @@ const ITEMS := {
 	8: {
 		"id": 8, "class": 2, "name": "Эльфийский лук",
 		"rarity": "Легендарное", "price": 800,
-		"icon": "res://ui/icons/legendary_bow.png",
+		"icon": "res://ui/shop/weapons/legendary_bow.png",
 		"builtin": false,
 		"shop_enabled": true,
 		"model": "res://scenes/LegendaryBow.tscn",
@@ -94,7 +94,7 @@ const ITEMS := {
 	9: {
 		"id": 9, "class": 1, "name": "Кристальный посох",
 		"rarity": "Обычное", "price": 400,
-		"icon": "res://ui/icons/crystal_staff.png",
+		"icon": "res://ui/shop/weapons/crystal_staff.png",
 		"builtin": false,
 		"shop_enabled": true,
 		"model": "res://assets/weapons/wizards_staff_low.glb",
