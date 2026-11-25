@@ -177,6 +177,29 @@ LEGAL_HTML = """		<div id="age-rating">12+</div>
 		<div id="legal-consent">Продолжая игру, вы подтверждаете, что вам уже есть 12 лет, и соглашаетесь с политикой конфиденциальности.</div>
 """
 
+LEGAL_SCRIPT = """		<script>
+		(function () {
+			function sync() {
+				var status = document.getElementById('status');
+				var age = document.getElementById('age-rating');
+				var legal = document.getElementById('legal-consent');
+				var hidden = true;
+				if (status) {
+					hidden = status.hidden || getComputedStyle(status).display === 'none';
+				}
+				if (age) age.style.display = hidden ? 'none' : '';
+				if (legal) legal.style.display = hidden ? 'none' : '';
+			}
+			var status = document.getElementById('status');
+			if (status && window.MutationObserver) {
+				new MutationObserver(sync).observe(status, { attributes: true, attributeFilter: ['style', 'class', 'hidden'] });
+			}
+			window.setInterval(sync, 100);
+			sync();
+		})();
+		</script>
+"""
+
 
 def patch_legal_overlay() -> None:
     html_path = OUT_DIR / "index.html"
@@ -191,6 +214,8 @@ def patch_legal_overlay() -> None:
         html = html.replace('<div id="status">', LEGAL_HTML + '<div id="status">', 1)
     elif "</body>" in html:
         html = html.replace("</body>", LEGAL_HTML + "\t</body>", 1)
+    if "</body>" in html:
+        html = html.replace("</body>", LEGAL_SCRIPT + "\t</body>", 1)
     html_path.write_text(html, encoding="utf-8", newline="")
     print("LEGAL patched")
 

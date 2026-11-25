@@ -379,6 +379,87 @@ func _warm_first_clash_vfx() -> void:
 	await get_tree().process_frame
 
 
+func _warm_tutorial_assets() -> void:
+	# Runs deferred while the welcome card is on screen. Huntress first (the
+	# duel target), then the Warrior skill ring, then Mage and the ally
+	# Huntress. No HeroUnit, no heroes/tutorial_bots entry: only the real rigs
+	# are rendered once off-screen, so the first spawn does not compile them.
+	if not tutorial_mode:
+		return
+	var started := Time.get_ticks_msec()
+	await _warm_class_models([HeroUnit.Cls.FAIRY])
+	if player != null and is_instance_valid(player):
+		player.call("_set_crit_buff_ring", true)
+		player.call("_set_crit_buff_ring", false)
+	await _warm_class_models([HeroUnit.Cls.MAGE, HeroUnit.Cls.FAIRY])
+	await _warm_combat_world()
+	await _warm_first_clash_vfx()
+	print("[Tutorial] warmup done ms=%d" % (Time.get_ticks_msec() - started))
+
+
+func _warm_class_models(classes: Array) -> void:
+	var warm_viewport := SubViewport.new()
+	warm_viewport.name = "TutorialClassWarmup"
+	warm_viewport.size = Vector2i(192, 192)
+	warm_viewport.own_world_3d = false
+	warm_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(warm_viewport)
+	var warm_camera := Camera3D.new()
+	warm_camera.fov = 60.0
+	warm_camera.near = 0.1
+	warm_camera.far = 50.0
+	warm_camera.position = Vector3(0.0, -94.0, 8.0)
+	warm_viewport.add_child(warm_camera)
+	warm_camera.look_at(Vector3(0.0, -100.0, 0.0), Vector3.UP)
+	warm_camera.current = true
+	for cls in classes:
+		var folder := ""
+		match int(cls):
+			HeroUnit.Cls.WARRIOR:
+				folder = "res://art/generated/warrior"
+			HeroUnit.Cls.MAGE:
+				folder = "res://art/generated/mage"
+			HeroUnit.Cls.FAIRY:
+				folder = "res://art/generated/fairy"
+		if folder.is_empty():
+			continue
+		var scene_path := folder + "/character.tscn"
+		if not ResourceLoader.exists(scene_path):
+			continue
+		var packed := load(scene_path) as PackedScene
+		if packed == null:
+			continue
+		var model := packed.instantiate() as Node3D
+		if model == null:
+			continue
+		add_child(model)
+		model.global_position = Vector3(0.0, -100.0, 0.0)
+		var anim: AnimationPlayer = null
+		for node in model.find_children("*", "AnimationPlayer", true, false):
+			anim = node as AnimationPlayer
+			if anim != null:
+				break
+		if anim != null:
+			var names := anim.get_animation_list()
+			var pick := ""
+			for wanted in ["idle", "walk", "run", "attack", "1h_ranged_shoot", "spellcast_shoot"]:
+				if names.has(wanted):
+					pick = wanted
+					break
+			if pick.is_empty() and names.size() > 0:
+				pick = names[0]
+			if not pick.is_empty():
+				anim.play(pick)
+				anim.seek(0.05, true)
+		for _frame in 2:
+			await get_tree().process_frame
+		model.queue_free()
+		await get_tree().process_frame
+	if is_instance_valid(warm_viewport):
+		warm_viewport.queue_free()
+	await get_tree().process_frame
+
+
 func _apply_mobile_quality() -> void:
 	var quality := DeviceProfile.effective_quality()
 	var viewport := get_viewport()
@@ -1576,12 +1657,13 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 				if DeviceProfile.mobile_ui:
 					await get_tree().process_frame
 	var needs_shader_warmup := DeviceProfile.mobile_ui or OS.has_feature("web")
-	if needs_shader_warmup:
+	if needs_shader_warmup and not tutorial_mode:
 		# Warm the freshly spawned hero models and every hit VFX while the
 		# class-select panel still covers the screen. Without this the first
 		# frames of the match hitch on shader compilation. Web/Compatibility
 		# has no ubershaders, so this must run on desktop web too, not only on
-		# phones.
+		# phones. Tutorial does its own deferred warmup below, once the welcome
+		# card is already on screen.
 		await _warm_combat_world()
 		await _warm_first_clash_vfx()
 	state = "live"
@@ -1615,6 +1697,9 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 				hud.connect("tutorial_skip_requested", Callable(tutorial_controller, "request_skip"))
 			hud.call("set_tutorial_skip_visible", true)
 			tutorial_controller.call("begin")
+			# Warm during the welcome card, not before it: the card is already
+			# on screen and the duel is still a click plus the UI tour away.
+			call_deferred("_warm_tutorial_assets")
 		else:
 			announce("Бой за осколки!", Color(1.0, 0.86, 0.55), 2.6)
 

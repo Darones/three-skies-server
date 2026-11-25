@@ -382,7 +382,7 @@ func _build_tutorial_ui(root: Control) -> void:
 	tutorial_side_hint = _make_label("", 15, Color(0.95, 0.93, 0.86))
 	tutorial_side_hint.name = "TutorialSideHint"
 	tutorial_side_hint.anchor_left = 0.02
-	tutorial_side_hint.anchor_right = 0.28
+	tutorial_side_hint.anchor_right = 0.62 if view_width < 500.0 else 0.28
 	tutorial_side_hint.anchor_top = 0.0
 	tutorial_side_hint.anchor_bottom = 0.0
 	tutorial_side_hint.offset_left = 0.0

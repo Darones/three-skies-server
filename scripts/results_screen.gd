@@ -38,6 +38,9 @@ var leaving_results := false
 var replay_button: Button
 var menu_button: Button
 var double_reward_button: Button
+var ad_error_label: Label
+var ad_error_tween: Tween
+var last_ad_error_msec := -30000
 var shards_reward_label: Label
 var xp_reward_label: Label
 var stats_scroll: ScrollContainer
@@ -463,10 +466,17 @@ func _build_content() -> void:
 	double_reward_button.add_theme_stylebox_override("pressed", _ad_reward_button_style(true))
 	double_reward_button.pressed.connect(_double_rewards_for_ad)
 	panel_box.add_child(double_reward_button)
+	ad_error_label = _make_label("", 13, Color(0.72, 0.76, 0.86, 0.9))
+	ad_error_label.name = "AdErrorLabel"
+	ad_error_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ad_error_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ad_error_label.visible = false
+	panel_box.add_child(ad_error_label)
 	# Rewards and the x2 button stay pinned above the scrollable stats list.
 	panel_box.move_child(reward_line, 1)
 	panel_box.move_child(divider, 2)
 	panel_box.move_child(double_reward_button, 3)
+	panel_box.move_child(ad_error_label, 4)
 
 	players_scroll = ScrollContainer.new()
 	players_scroll.name = "PlayersScroll"
@@ -646,8 +656,6 @@ func _open_replay() -> void:
 	if menu_button != null:
 		menu_button.disabled = true
 	var show_interstitial := _can_show_results_interstitial()
-	if show_interstitial and replay_button != null:
-		replay_button.text = "Реклама..."
 	if show_interstitial:
 		await AdManager.maybe_show_interstitial_after_results()
 	_change_scene(REPLAY_SCENE)
@@ -662,8 +670,6 @@ func _open_menu() -> void:
 	if menu_button != null:
 		menu_button.disabled = true
 	var show_interstitial := _can_show_results_interstitial()
-	if show_interstitial and menu_button != null:
-		menu_button.text = "Реклама..."
 	if show_interstitial:
 		await AdManager.maybe_show_interstitial_after_results()
 	_change_scene(MENU_SCENE)
@@ -688,17 +694,38 @@ func _double_rewards_for_ad() -> void:
 	if not rewarded and not rewards_doubled:
 		ad_in_progress = false
 		_refresh_reward_ui()
-		var reason := Platform.get_last_ad_error()
-		var message := "Реклама недоступна. Попробуйте позже."
-		if not reason.is_empty():
-			message = "Реклама недоступна (%s). Попробуйте позже." % reason
-		_show_reward_banner(message, 3.0)
+		# The raw code/detail goes to the log only; the player sees a short,
+		# quiet line under the button and can try again later.
+		print("[Ads] results x2 failed error=%s detail=%s" % [
+			Platform.get_last_ad_error(), Platform.get_last_ad_detail(),
+		])
+		_show_ad_error_hint()
+
+
+func _show_ad_error_hint() -> void:
+	if ad_error_label == null:
+		return
+	var now := Time.get_ticks_msec()
+	if now - last_ad_error_msec < 30000:
+		return
+	last_ad_error_msec = now
+	ad_error_label.text = "Реклама временно недоступна. Попробуйте позже."
+	ad_error_label.visible = true
+	if ad_error_tween != null and ad_error_tween.is_valid():
+		ad_error_tween.kill()
+	ad_error_tween = create_tween()
+	ad_error_tween.tween_interval(3.5)
+	ad_error_tween.tween_callback(func() -> void: ad_error_label.visible = false)
 
 
 func _on_rewarded_ad_completed() -> void:
 	if not ad_in_progress or rewards_doubled:
 		return
 	ad_in_progress = false
+	if ad_error_label != null:
+		ad_error_label.visible = false
+	if ad_error_tween != null and ad_error_tween.is_valid():
+		ad_error_tween.kill()
 	var previous_shards := final_shards
 	var previous_xp := final_xp
 	final_xp *= 2
@@ -737,7 +764,7 @@ func _build_reward_banner() -> void:
 	reward_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	reward_banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	reward_banner.add_theme_font_override("font", UI_FONT_BOLD)
-	reward_banner.add_theme_font_size_override("font_size", _fs(42))
+	reward_banner.add_theme_font_size_override("font_size", _fs(30))
 	# The old position sat exactly on top of "ВЫ ЛУЧШИЙ ИГРОК МАТЧА!".
 	# Move it to the middle and give it a solid dark plate.
 	reward_banner.add_theme_stylebox_override("normal", _panel_style(GOLD, Color(0.015, 0.018, 0.03, 0.94)))
@@ -803,6 +830,8 @@ func _refresh_reward_ui() -> void:
 		# No real rewarded adapter: never promise an ad reward that cannot be
 		# delivered. The consolation for an interrupted match stays fixed too.
 		double_reward_button.visible = false
+		if ad_error_label != null:
+			ad_error_label.visible = false
 		return
 	double_reward_button.visible = true
 	if rewards_doubled:
