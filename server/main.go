@@ -387,6 +387,8 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	mux.HandleFunc("/ws", hub.handleWebSocket)
 	mux.HandleFunc("/auth/vk", service.handleVKAuth)
 	mux.HandleFunc("/auth/ok", service.handleOKAuth)
+	mux.HandleFunc("/vk/pay", service.handleVKPay)
+	mux.HandleFunc("/ok/pay", service.handleOKPay)
 	mux.HandleFunc("/register", service.handleRegister)
 	mux.HandleFunc("/session", service.handleSession)
 	mux.HandleFunc("/profile", service.handleProfile)
@@ -880,6 +882,9 @@ func createSchema(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 	if err := createMatchesTable(ctx, db); err != nil {
+		return err
+	}
+	if err := createPaymentsTable(ctx, db); err != nil {
 		return err
 	}
 	return backfillPlayerMatches(ctx, db)
