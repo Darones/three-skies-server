@@ -9,6 +9,8 @@ const SHARD_ICON: Texture2D = preload("res://ui/icons/sky_shard.png")
 const MIN_SHARDS := 100
 const MAX_SHARDS := 10000
 const SHARD_STEP := 100
+const GRANT_POLL_TIMEOUT := 90.0
+const GRANT_POLL_STEP := 3.0
 
 var shards_slider: HSlider
 var amount_label: Label
@@ -171,6 +173,7 @@ func _on_pay_pressed() -> void:
 	var shards := int(shards_slider.value)
 	var price := int(shards / 100.0)
 	var sku := "shards_%d" % shards
+	var before_shards := MetaProgression.sky_shards
 	pay_button.disabled = true
 	pay_button.text = "Оплата..."
 	status_label.visible = false
@@ -178,25 +181,49 @@ func _on_pay_pressed() -> void:
 	pay_button.disabled = false
 	_update_display()
 	var success := bool(result.get("success", false))
-	print("[Topup] sku=%s price=%d %s success=%s" % [
+	var error := String(result.get("error", ""))
+	print("[Topup] sku=%s price=%d %s success=%s error=%s" % [
 		sku,
 		price,
 		_price_currency_name(),
 		success,
+		error,
 	])
-	status_label.visible = true
 	if success:
-		status_label.text = "Платёж принят. Осколки зачислятся после проверки на сервере."
-		status_label.add_theme_color_override("font_color", PALE)
-		if MetaProgression.player_id > 0:
-			# The grant happens in the platform callback; fetch the profile a
-			# moment later so the lobby balance shows the purchased shards.
-			await get_tree().create_timer(2.0).timeout
-			MetaProgression.load_profile(MetaProgression.player_id)
+		_set_status("Платёж принят. Проверяем зачисление...", PALE)
+	elif error.to_lower().contains("cancel"):
+		_set_status("Оплата отменена.", Color(1.0, 0.62, 0.4))
+		return
 	else:
-		var error := String(result.get("error", ""))
-		status_label.text = "Оплата отменена." if error == "cancelled" else "Оплата не прошла. Попробуйте позже."
-		status_label.add_theme_color_override("font_color", Color(1.0, 0.62, 0.4))
+		# VK shows the order box while the server callback is still running and
+		# can return success=false for a payment that later completes. Poll the
+		# server profile instead of declaring the purchase failed.
+		_set_status("Платёж обрабатывается. Проверяем зачисление...", PALE)
+	await _wait_for_shards_grant(before_shards, shards)
+
+
+func _set_status(text: String, color: Color) -> void:
+	status_label.visible = true
+	status_label.text = text
+	status_label.add_theme_color_override("font_color", color)
+
+
+func _wait_for_shards_grant(before_shards: int, expected: int) -> void:
+	if MetaProgression.player_id <= 0:
+		return
+	var deadline := Time.get_ticks_msec() + int(GRANT_POLL_TIMEOUT * 1000.0)
+	while Time.get_ticks_msec() < deadline:
+		await get_tree().create_timer(GRANT_POLL_STEP).timeout
+		if not is_inside_tree():
+			return
+		# Do not reset profile_loaded here: a lightweight server profile fetch
+		# updates the balance without making the lobby look disconnected.
+		NetworkClient.load_player_profile(MetaProgression.player_id)
+		await get_tree().create_timer(1.0).timeout
+		if MetaProgression.sky_shards >= before_shards + expected:
+			_set_status("Осколки зачислены: +%d." % expected, PALE)
+			return
+	_set_status("Платёж ещё обрабатывается. Баланс обновится после подтверждения.", Color(1.0, 0.8, 0.4))
 
 
 func _on_close_pressed() -> void:
