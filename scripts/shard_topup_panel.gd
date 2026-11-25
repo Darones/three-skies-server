@@ -25,6 +25,12 @@ func _ready() -> void:
 	_update_display()
 
 
+func refresh() -> void:
+	# Called when the shop/top-up panel is opened, after VK/OK authentication.
+	_update_availability()
+	_update_display()
+
+
 func _build() -> void:
 	custom_minimum_size = Vector2(480, 0)
 	add_theme_stylebox_override("panel", _panel_style())
@@ -146,11 +152,7 @@ func _update_display() -> void:
 	var shards := int(shards_slider.value)
 	var price := int(shards / 100.0)
 	amount_label.text = str(shards)
-	var currency := _price_currency_name()
-	if currency.is_empty():
-		price_label.text = "Стоимость: %d" % price
-	else:
-		price_label.text = "Стоимость: %d %s" % [price, currency]
+	price_label.text = "Стоимость: " + _price_text(price)
 	var payment_currency := _payment_currency_name()
 	if payment_currency.is_empty():
 		pay_button.text = "Оплатить"
@@ -184,17 +186,46 @@ func _on_pay_pressed() -> void:
 	])
 	status_label.visible = true
 	if success:
-		# Real adapters must have the receipt verified server-side before any
-		# shards are granted. The panel never adds currency locally.
 		status_label.text = "Платёж принят. Осколки зачислятся после проверки на сервере."
 		status_label.add_theme_color_override("font_color", PALE)
+		if MetaProgression.player_id > 0:
+			# The grant happens in the platform callback; fetch the profile a
+			# moment later so the lobby balance shows the purchased shards.
+			await get_tree().create_timer(2.0).timeout
+			MetaProgression.load_profile(MetaProgression.player_id)
 	else:
-		status_label.text = "Оплата недоступна."
+		var error := String(result.get("error", ""))
+		status_label.text = "Оплата отменена." if error == "cancelled" else "Оплата не прошла. Попробуйте позже."
 		status_label.add_theme_color_override("font_color", Color(1.0, 0.62, 0.4))
 
 
 func _on_close_pressed() -> void:
 	visible = false
+
+
+func _price_text(price: int) -> String:
+	match Platform.get_currency():
+		"votes":
+			return "%d %s" % [price, _plural(price, "Голос", "Голоса", "Голосов")]
+		"oki":
+			return "%d %s" % [price, _plural(price, "ОК", "ОКа", "ОКов")]
+		"yandex":
+			return "%d %s" % [price, _plural(price, "Ян", "Яна", "Янов")]
+		_:
+			return str(price)
+
+
+func _plural(value: int, one: String, few: String, many: String) -> String:
+	var mod100 := value % 100
+	if mod100 >= 11 and mod100 <= 14:
+		return many
+	match value % 10:
+		1:
+			return one
+		2, 3, 4:
+			return few
+		_:
+			return many
 
 
 func _price_currency_name() -> String:

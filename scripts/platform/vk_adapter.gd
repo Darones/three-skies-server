@@ -104,6 +104,37 @@ func get_currency() -> String:
 	return "votes"
 
 
+func is_purchase_available() -> bool:
+	return _authenticated
+
+
+func purchase(sku: String) -> Dictionary:
+	if not _authenticated:
+		return {"success": false, "receipt": "", "error": "not_authenticated"}
+	# VK and OK both open the platform order box through VK Bridge. The shards
+	# are granted only by the server callback (/vk/pay or /ok/pay); the client
+	# never adds currency. The payment window can stay open for minutes.
+	var result := await _call_ad_bridge(
+		"VKWebAppShowOrderBox", {"type": "item", "item": sku}, 300.0
+	)
+	if not bool(result.get("ok", false)):
+		return {
+			"success": false,
+			"receipt": "",
+			"error": String(result.get("error", "show_error")),
+		}
+	var data: Variant = result.get("data", {})
+	var success := false
+	if data is Dictionary:
+		success = bool((data as Dictionary).get("success", false))
+		var nested: Variant = (data as Dictionary).get("data")
+		if not success and nested is Dictionary:
+			success = bool((nested as Dictionary).get("success", false))
+	if not success:
+		return {"success": false, "receipt": "", "error": "cancelled"}
+	return {"success": true, "receipt": ""}
+
+
 func is_rewarded_available() -> bool:
 	# The x2 button stays visible in VK. Whether an ad can actually be shown is
 	# decided by VKWebAppShowNativeAds at click time; a failed check is not a
@@ -190,7 +221,7 @@ func _refresh_ad_availability() -> void:
 	print("[Ads] availability reward=%s interstitial=%s" % [_rewarded_available, _interstitial_available])
 
 
-func _call_ad_bridge(method: String, params: Dictionary) -> Dictionary:
+func _call_ad_bridge(method: String, params: Dictionary, timeout := 20.0) -> Dictionary:
 	while _ad_busy:
 		if _host == null or _host.get_tree() == null:
 			return {"ok": false, "error": "busy"}
@@ -232,7 +263,7 @@ func _call_ad_bridge(method: String, params: Dictionary) -> Dictionary:
 	""" % [seq, JSON.stringify(method), payload]
 	bridge.call("eval", script, true)
 	var waited := 0.0
-	while not _ad_ready and waited < 20.0:
+	while not _ad_ready and waited < timeout:
 		if _host == null or _host.get_tree() == null:
 			break
 		await _host.get_tree().create_timer(0.05).timeout

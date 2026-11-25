@@ -236,6 +236,17 @@ def copy_editor_page() -> None:
     print("EDITOR copied")
 
 
+def copy_payment_icon() -> None:
+    # VK/OK require a non-empty photo_url in the order box. Serve the shard
+    # icon from the game server, not raw.githubusercontent (OK CSP blocks it).
+    icon = ROOT / "ui" / "icons" / "sky_shard.png"
+    if not icon.exists():
+        print("PAYMENT_ICON skipped")
+        return
+    shutil.copy2(icon, OUT_DIR / "shard.png")
+    print("PAYMENT_ICON copied")
+
+
 def prepare_server_web(pack: Path) -> None:
     """Copy the single build into server/web as one index.pck."""
     SERVER_WEB.mkdir(parents=True, exist_ok=True)
@@ -371,6 +382,7 @@ def main() -> None:
     patch_splash()
     patch_legal_overlay()
     copy_editor_page()
+    copy_payment_icon()
 
     packs = sorted(OUT_DIR.glob("index_*.pck"))
     if len(packs) != 1:

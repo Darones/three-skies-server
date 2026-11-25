@@ -56,3 +56,17 @@ ALTER TABLE matches ADD COLUMN IF NOT EXISTS rewarded_bonus BOOLEAN DEFAULT FALS
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS reward_shards INTEGER DEFAULT 0;
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS reward_xp INTEGER DEFAULT 0;
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS reward_character TEXT DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS payments (
+    id BIGSERIAL PRIMARY KEY,
+    platform TEXT NOT NULL,
+    external_id TEXT NOT NULL,
+    order_id TEXT NOT NULL,
+    item_id TEXT NOT NULL,
+    shards INTEGER NOT NULL,
+    amount INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (platform, order_id)
+);
+
+CREATE INDEX IF NOT EXISTS payments_external_id_idx ON payments (platform, external_id);

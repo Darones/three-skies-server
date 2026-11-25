@@ -316,8 +316,6 @@ func _ready() -> void:
 
 
 func _register_ui_layout() -> void:
-	if not DeviceProfile.mobile_ui:
-		return
 	UiLayout.register("lobby.logo", lobby_logo, "Логотип", "lobby")
 	UiLayout.register("lobby.profile", profile_button, "Профиль игрока", "lobby")
 	UiLayout.register("lobby.shard_shop", shard_shop_button, "Магазин осколков", "lobby")
@@ -326,6 +324,7 @@ func _register_ui_layout() -> void:
 	UiLayout.register("lobby.play", play_button, "Кнопка «Играть»", "lobby")
 	UiLayout.register("lobby.tutorial", tutorial_button, "Кнопка «Обучение»", "lobby")
 	UiLayout.register("lobby.settings", settings_button, "Настройки", "lobby")
+	UiLayout.register("lobby.rules", rules_button, "Кнопка «Правила»", "lobby")
 	if player_menu_panel != null:
 		UiLayout.register("inventory.panel", player_menu_panel, "Окно инвентаря", "inventory")
 		UiLayout.register("inventory.profile", player_menu_profile, "Профиль", "inventory")
@@ -984,6 +983,7 @@ func _build_topup_panel() -> void:
 func _open_topup_panel() -> void:
 	if topup_panel != null:
 		topup_panel.visible = true
+		topup_panel.call("refresh")
 
 
 func _close_topup_panel() -> void:
