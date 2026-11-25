@@ -52,13 +52,16 @@ func begin() -> void:
 	Stats.track("tutorial_start", {"class": int(game.player.hero_class) if game.player != null else 0})
 	_point_to(Vector3.ZERO, OBJECTIVE_GOLD)
 	var controls_hint := "Двигайся джойстиком слева, навыки — кнопки справа." if _uses_touch_controls() else "Двигайся клавишами WASD, навыки — 1, 2 и 3."
+	# The welcome plate is a notice, not a dialog: no button, the intro starts
+	# by itself so a new player never has to press "Продолжить".
 	game.hud.call(
 		"show_tutorial_card",
 		"Добро пожаловать!",
 		"Разбей Оболочку, забери Осколок и донеси его на базу. В обучении три боя и финал, погибнуть нельзя.\n\n%s" % controls_hint,
-		"Продолжить",
-		Callable(self, "_continue_intro")
+		"",
+		Callable()
 	)
+	_auto_advance("welcome", Callable(self, "_continue_intro"), CARD_ADVANCE_DELAY)
 
 
 func process(delta: float) -> void:

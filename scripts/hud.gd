@@ -1490,10 +1490,9 @@ func show_tutorial_press_hint(index: int) -> void:
 	if index < 0 or index >= ability_buttons.size():
 		tutorial_press_label.visible = false
 		return
-	if _uses_touch_controls():
-		tutorial_press_label.text = "НАЖМИ"
-	else:
-		tutorial_press_label.text = "НАЖМИ %d  ·  Num %d" % [index + 1, index + 1]
+	# The highlighted skill shows its own number on both layouts, so the plate
+	# names the same key; "Num 3" made the text too wide and was cut at the edge.
+	tutorial_press_label.text = "НАЖМИ %d" % [index + 1]
 	tutorial_press_label.visible = true
 
 
@@ -1517,7 +1516,12 @@ func _update_tutorial_press_hint() -> void:
 	tutorial_press_label.modulate.a = 0.55 + 0.45 * tutorial_pulse
 	var width := maxf(150.0, button.size.x + 40.0)
 	tutorial_press_label.size = Vector2(width, 30.0)
-	tutorial_press_label.global_position = button.global_position + Vector2((button.size.x - width) * 0.5, -38.0)
+	var hint_x := button.global_position.x + (button.size.x - width) * 0.5
+	var screen_width := get_viewport().get_visible_rect().size.x
+	# Keep the plate inside the screen when the highlighted skill sits on the
+	# right edge of the ability bar.
+	hint_x = clampf(hint_x, 8.0, maxf(8.0, screen_width - width - 8.0))
+	tutorial_press_label.global_position = Vector2(hint_x, button.global_position.y - 38.0)
 
 
 func _build_announcement(root: Control) -> void:
