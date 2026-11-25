@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Небесные осколки · Редактор UI</title>
+<title>Небесные осколки · Редактор экранов</title>
 <style>
 @font-face {
   font-family: "Philosopher";
@@ -164,6 +164,16 @@ main {
   background: #000;
 }
 
+#bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  background: #04060b;
+}
+
 #overlay {
   position: absolute;
   inset: 0;
@@ -180,6 +190,29 @@ main {
   pointer-events: auto;
   touch-action: none;
   transition: background-color 0.1s ease, border-color 0.1s ease;
+  overflow: hidden;
+}
+
+.box.plate {
+  border: 2px solid rgba(231, 194, 107, 0.82);
+  background: rgba(7, 11, 20, 0.74);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.55),
+    0 12px 34px rgba(0, 0, 0, 0.42),
+    inset 0 0 24px rgba(231, 194, 107, 0.06);
+}
+
+.box.plate:hover {
+  background: rgba(231, 194, 107, 0.14);
+  border-color: var(--gold-2);
+}
+
+.box.plate.selected {
+  border-color: var(--gold-2);
+  background: rgba(231, 194, 107, 0.17);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.55),
+    0 0 26px rgba(231, 194, 107, 0.35);
 }
 
 .box:hover {
@@ -215,6 +248,32 @@ main {
 
 .box.selected .tag { color: var(--gold-2); }
 .box.edited:not(.selected) .tag { color: #f0d79a; }
+
+.box .boxtext {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  max-height: calc(100% - 30px);
+  overflow: hidden;
+  color: rgba(240, 231, 208, 0.94);
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  pointer-events: none;
+}
+
+.box.plate .tag {
+  border: 1px solid rgba(231, 194, 107, 0.35);
+  background: rgba(8, 12, 20, 0.94);
+  color: #f0d79a;
+}
 
 .handle {
   position: absolute;
@@ -258,38 +317,71 @@ main {
 aside {
   display: flex;
   flex-direction: column;
-  width: 348px;
+  width: 384px;
   flex: 0 0 auto;
   border-left: 1px solid var(--line);
   background: linear-gradient(180deg, var(--panel-2), var(--panel));
   min-height: 0;
+  overflow-y: auto;
 }
 
-.tabs {
+aside::-webkit-scrollbar { width: 8px; }
+aside::-webkit-scrollbar-thumb { border-radius: 8px; background: #23324c; }
+
+.devicebar {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  padding: 14px 14px 10px;
+  padding: 12px 14px 8px;
 }
 
-.tabs button {
-  height: 38px;
+.ctl {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: #0a1120;
-  color: var(--muted);
-  font: 600 13px "Segoe UI", system-ui, sans-serif;
-  cursor: pointer;
-  transition: all 0.15s ease;
+  background: #070d19;
 }
 
-.tabs button:hover { color: var(--text); border-color: #31476c; }
+.ctl > span {
+  flex: 0 0 auto;
+  color: #73849f;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
 
-.tabs button.active {
-  border-color: rgba(231, 194, 107, 0.65);
-  background: linear-gradient(180deg, rgba(231, 194, 107, 0.16), rgba(231, 194, 107, 0.07));
-  color: var(--gold-2);
-  box-shadow: inset 0 0 18px rgba(231, 194, 107, 0.08);
+.ctl select,
+.ctl input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #e4edfa;
+  font: 12px "Segoe UI", system-ui, sans-serif;
+  user-select: text;
+}
+
+.ctl select option { background: #0b1220; color: #e4edfa; }
+
+.ctl.custom {
+  grid-column: 1 / -1;
+  display: none;
+}
+
+.ctl.custom.show { display: flex; }
+
+.ctl.custom input {
+  width: 64px;
+  padding: 2px 4px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-family: ui-monospace, Consolas, monospace;
+  text-align: center;
 }
 
 .hint {
@@ -305,11 +397,146 @@ aside {
 
 .hint b { color: #c7dcf5; font-weight: 600; }
 
+.pagelist {
+  max-height: 176px;
+  min-height: 92px;
+  overflow-y: auto;
+  padding: 0 10px 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.pagegroup {
+  padding: 7px 6px 4px;
+  color: #6d7f9a;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.pageitem {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  margin-bottom: 2px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.pageitem:hover { background: rgba(116, 200, 255, 0.05); }
+
+.pageitem.active {
+  border-color: rgba(231, 194, 107, 0.45);
+  background: rgba(231, 194, 107, 0.08);
+}
+
+.pageitem .pdot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #2d3d58;
+}
+
+.pageitem.edited .pdot {
+  background: var(--gold);
+  box-shadow: 0 0 7px rgba(231, 194, 107, 0.55);
+}
+
+.pageitem .pname {
+  min-width: 0;
+  overflow: hidden;
+  color: #cfdcef;
+  font-size: 12.5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pageitem.active .pname { color: var(--gold-2); }
+
+.pageitem .pcount {
+  color: #5f708c;
+  font: 10px ui-monospace, Consolas, monospace;
+}
+
+.pagebar {
+  display: none;
+  gap: 7px;
+  padding: 8px 14px 6px;
+}
+
+.pagebar.show { display: flex; }
+
+.pagebar button {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #0a1120;
+  color: #93a6c3;
+  font: 600 11px "Segoe UI", system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.pagebar button:hover { border-color: #3c5277; color: var(--text); }
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 14px 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.chips:empty { display: none; }
+
+.chip {
+  max-width: 100%;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #0a1120;
+  color: #a9b9d0;
+  font: 600 11px "Segoe UI", system-ui, sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chip:hover { border-color: #3c5277; color: var(--text); }
+
+.chip.selected {
+  border-color: var(--gold);
+  color: var(--gold-2);
+  background: rgba(231, 194, 107, 0.12);
+}
+
+.bgbright {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  color: #73849f;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.bgbright input {
+  width: 78px;
+  accent-color: var(--gold);
+}
+
 .section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 16px 8px;
+  gap: 8px;
+  padding: 8px 16px 8px;
   color: #9aabc4;
   font-size: 11px;
   font-weight: 600;
@@ -319,18 +546,37 @@ aside {
 
 .section-head .count { color: #5f708c; letter-spacing: 0; text-transform: none; }
 
+.miniadd {
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #0a1120;
+  color: #93a6c3;
+  font: 600 10.5px "Segoe UI", system-ui, sans-serif;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.miniadd:hover { border-color: #3c5277; color: var(--text); }
+.miniadd[hidden] { display: none; }
+
 #list {
-  flex: 1;
-  min-height: 90px;
+  flex: 0 0 auto;
+  max-height: 220px;
+  min-height: 80px;
   overflow-y: auto;
   padding: 0 10px 10px;
 }
 
 #list::-webkit-scrollbar,
-#sidebarScroll::-webkit-scrollbar { width: 8px; }
+#sidebarScroll::-webkit-scrollbar,
+.pagelist::-webkit-scrollbar { width: 8px; }
 
 #list::-webkit-scrollbar-thumb,
-#sidebarScroll::-webkit-scrollbar-thumb {
+#sidebarScroll::-webkit-scrollbar-thumb,
+.pagelist::-webkit-scrollbar-thumb {
   border-radius: 8px;
   background: #23324c;
 }
@@ -460,29 +706,56 @@ aside {
   user-select: text;
 }
 
+.field.wide {
+  grid-column: 1 / -1;
+}
+
+.field.wide span {
+  width: auto;
+  min-width: 40px;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.field.wide input { font-family: "Segoe UI", system-ui, sans-serif; }
+
 .field input::-webkit-outer-spin-button,
 .field input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
-#resetOne {
-  width: 100%;
-  height: 32px;
+.mini {
+  margin-top: 7px;
+  color: #5f708c;
+  font: 10.5px/1.4 ui-monospace, Consolas, monospace;
+}
+
+.props-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
   margin-top: 9px;
+}
+
+.props-actions button {
+  height: 30px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #0a1120;
   color: #93a6c3;
-  font: 600 11.5px "Segoe UI", system-ui, sans-serif;
+  font: 600 11px "Segoe UI", system-ui, sans-serif;
   cursor: pointer;
 }
 
-#resetOne:hover:not(:disabled) { border-color: #3c5277; color: var(--text); }
-#resetOne:disabled { opacity: 0.38; cursor: default; }
+.props-actions button:hover:not(:disabled) { border-color: #3c5277; color: var(--text); }
+.props-actions button:disabled { opacity: 0.38; cursor: default; }
+.props-actions button.danger:hover:not(:disabled) { border-color: rgba(239, 123, 114, 0.55); color: #ffc4be; }
+.props-actions button[hidden] { display: none; }
 
 .actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 7px;
-  padding: 10px 14px 14px;
+  padding: 10px 14px 10px;
   border-top: 1px solid var(--line);
 }
 
@@ -561,17 +834,17 @@ aside {
 
 .banner.show { display: block; }
 
-@media (max-width: 1050px) {
-  aside { width: 306px; }
+@media (max-width: 1100px) {
+  aside { width: 340px; }
 }
 
-@media (max-width: 820px) {
+@media (max-width: 860px) {
   body { overflow: auto; }
   main { flex-direction: column; }
   #stageWrap { min-height: 300px; }
   aside {
     width: 100%;
-    max-height: 55vh;
+    max-height: 62vh;
     border-left: 0;
     border-top: 1px solid var(--line);
   }
@@ -582,7 +855,7 @@ aside {
 <header>
   <div class="brand">
     <h1>Небесные осколки</h1>
-    <span>редактор интерфейса · 844 × 390</span>
+    <span id="brandSub">редактор экранов · 844 × 390</span>
   </div>
   <div class="header-spacer"></div>
   <div class="status loading" id="status"><span class="dot"></span><span id="statusText">Загрузка игры…</span></div>
@@ -595,30 +868,55 @@ aside {
 <main>
   <section id="stageWrap">
     <div id="stage">
+      <img id="bg" alt="">
       <iframe id="game" title="Игра" allow="autoplay; fullscreen"></iframe>
       <div id="overlay"></div>
     </div>
-    <div class="stage-caption">живое превью игры · тяни рамки и углы</div>
+    <div class="stage-caption" id="caption">живое превью · тяни рамки и углы</div>
   </section>
 
   <aside>
-    <div class="tabs">
-      <button type="button" id="tabLobby" class="active">Лобби</button>
-      <button type="button" id="tabBattle">Бой</button>
-      <button type="button" id="tabInventory">Инвентарь</button>
-      <button type="button" id="tabShop">Магазин</button>
+    <div class="devicebar">
+      <label class="ctl"><span>Версия</span>
+        <select id="modeSelect">
+          <option value="mobile">Мобильная</option>
+          <option value="web">Веб</option>
+        </select>
+      </label>
+      <label class="ctl"><span>Экран</span>
+        <select id="deviceSelect"></select>
+      </label>
+      <label class="ctl custom" id="customSize">
+        <span>Свой</span>
+        <input id="customW" type="number" min="320" max="3840" step="1" title="Ширина, px">
+        <span>×</span>
+        <input id="customH" type="number" min="240" max="2160" step="1" title="Высота, px">
+      </label>
     </div>
 
     <div class="hint">
-      <b>Как это работает:</b> выбери элемент в списке или прямо на экране.
-      Двигай его мышкой, тяни за углы для размера. Всё сразу применяется в игре
-      и сохраняется в браузере. Готовую раскладку скачай кнопкой ниже.
-      <br><br>Первый запуск качает ~95 МБ — подожди 1–2 минуты, статус покажет прогресс.
+      <b>Страницы:</b> выбери экран или шаг обучения. Плашки двигаются мышкой,
+      а точные числа X, Y, W, H можно вписать справа. Всё сохраняется в браузере.
+      <br><br>Для живых экранов (лобби, бой, инвентарь, магазин) превью — настоящая игра.
+      Шаги обучения показаны на снимках экрана.
     </div>
+
+    <div class="pagelist" id="pageList"></div>
+
+    <div class="pagebar" id="pageBar">
+      <button type="button" id="bgPick">Свой фон…</button>
+      <button type="button" id="bgClear">Стандартный</button>
+      <button type="button" id="bgNone">Без фона</button>
+      <label class="bgbright"><span>Фон</span><input type="range" id="bgOpacity" min="15" max="100" value="100"></label>
+      <input type="file" id="bgFile" accept="image/*" hidden>
+    </div>
+
+    <div class="chips" id="plateChips"></div>
 
     <div class="section-head">
       <span>Элементы</span>
       <span class="count" id="count">—</span>
+      <button type="button" class="miniadd" id="addPlate" hidden>+ плашка</button>
     </div>
     <div id="list"></div>
 
@@ -634,14 +932,24 @@ aside {
           <label class="field"><span>Y</span><input type="number" id="inputY" step="1"></label>
           <label class="field"><span>W</span><input type="number" id="inputW" step="1"></label>
           <label class="field"><span>H</span><input type="number" id="inputH" step="1"></label>
+          <label class="field wide"><span>Имя</span><input type="text" id="inputLabel"></label>
+          <label class="field wide"><span>Текст</span><input type="text" id="inputText"></label>
         </div>
-        <button type="button" id="resetOne">Вернуть по умолчанию</button>
+        <div class="mini" id="actualRect">—</div>
+        <div class="props-actions">
+          <button type="button" id="resetOne">По умолчанию</button>
+          <button type="button" id="duplicateOne">Дублировать</button>
+          <button type="button" class="danger" id="deleteOne" hidden>Удалить</button>
+        </div>
       </div>
     </div>
 
     <div class="actions">
-      <button type="button" class="primary" id="download">Скачать ui_layout.json</button>
+      <button type="button" class="primary" id="downloadScreens">Скачать screens_layout.json</button>
+      <button type="button" id="download">Скачать ui_layout.json</button>
       <button type="button" id="copy">Скопировать JSON</button>
+      <button type="button" id="importJson">Импорт JSON</button>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
       <button type="button" id="reload">Перезагрузить игру</button>
       <button type="button" id="undo" disabled>Отменить</button>
       <button type="button" id="redo" disabled>Повторить</button>
@@ -651,8 +959,8 @@ aside {
 
     <div class="footnote">
       Ctrl+Z — отменить, Ctrl+Shift+Z — вернуть. Сохраняется в
-      <code>localStorage</code>. Для всех игроков файл
-      <code>ui_layout.json</code> кладётся в корень проекта и попадает в сборку.
+      <code>localStorage</code>. <code>ui_layout.json</code> — для живых экранов,
+      <code>screens_layout.json</code> — все страницы и плашки обучения.
     </div>
   </aside>
 </main>
@@ -664,15 +972,173 @@ aside {
   "use strict";
 
   const REF = { w: 844, h: 390 };
-  const STORAGE_KEY = "three_skies_ui_layout";
-  const MIN_SIZE = 16;
+  const REF_WEB = { w: 1280, h: 720 };
+  const STORAGE_V1 = "three_skies_ui_layout";
+  const STORAGE_WEB = "three_skies_ui_layout_web";
+  const STORAGE_V2 = "three_skies_screen_layout_v2";
+  const MIN_SIZE = 8;
   const SNAP_PX = 5;
+
+  const DEVICES = {
+    mobile: [
+      { id: "844x390", label: "Телефон 844×390", w: 844, h: 390 },
+      { id: "852x393", label: "iPhone 15 852×393", w: 852, h: 393 },
+      { id: "896x414", label: "iPhone 11 896×414", w: 896, h: 414 },
+      { id: "915x412", label: "Android 915×412", w: 915, h: 412 },
+      { id: "926x428", label: "iPhone Max 926×428", w: 926, h: 428 },
+      { id: "960x540", label: "Телефон 16:9 960×540", w: 960, h: 540 },
+      { id: "780x360", label: "Малый 780×360", w: 780, h: 360 }
+    ],
+    web: [
+      { id: "1280x720", label: "Веб 1280×720", w: 1280, h: 720 },
+      { id: "1440x734", label: "Веб 1440×734", w: 1440, h: 734 },
+      { id: "1600x900", label: "Веб 1600×900", w: 1600, h: 900 },
+      { id: "1920x1080", label: "Веб 1920×1080", w: 1920, h: 1080 }
+    ]
+  };
+
+  const PLATE = {
+    dialog: { x: 84, y: 75, w: 676, h: 181, label: "Окно обучения", text: "" },
+    hint: { x: 300, y: 13, w: 324, h: 35, label: "Подсказка сверху", text: "" },
+    side: { x: 24, y: 67, w: 267, h: 55, label: "Подсказка слева", text: "" },
+    skip: { x: 633, y: 13, w: 198, h: 35, label: "Пропустить обучение", text: "Пропустить обучение" },
+    press: { x: 590, y: 236, w: 190, h: 52, label: "Подсказка «нажми навык»", text: "Нажми навык" },
+    nav: { x: 340, y: 130, w: 164, h: 164, label: "Стрелка к цели", text: "" }
+  };
+
+  function plate(id, text, label) {
+    const base = PLATE[id];
+    return {
+      x: base.x, y: base.y, w: base.w, h: base.h,
+      label: label || base.label,
+      text: text === undefined ? base.text : text
+    };
+  }
+
+  const PAGE_DEFS = [
+    { id: "loading", section: "Экраны", label: "Загрузка (HTML)", kind: "static", bg: "", defaults: {
+      "loading.logo": { x: 300, y: 70, w: 244, h: 64, label: "Логотип", text: "Небесные осколки" },
+      "loading.bar": { x: 222, y: 300, w: 400, h: 18, label: "Полоска загрузки", text: "" },
+      "loading.age": { x: 770, y: 18, w: 56, h: 32, label: "Плашка 12+", text: "12+" },
+      "loading.legal": { x: 150, y: 330, w: 544, h: 44, label: "Юридический текст", text: "Продолжая игру, вы подтверждаете, что вам уже есть 12 лет…" }
+    } },
+    { id: "lobby", section: "Экраны", label: "Лобби", kind: "live", group: "lobby", prefix: "lobby." },
+    { id: "search", section: "Экраны", label: "Поиск матча", kind: "static", bg: "editor-bg/search.jpg", defaults: {
+      "search.logo": { x: 352, y: 4, w: 140, h: 48, label: "Логотип", text: "" },
+      "search.title": { x: 362, y: 88, w: 120, h: 20, label: "«Поиск матча»", text: "ПОИСК МАТЧА" },
+      "search.light": { x: 30, y: 125, w: 303, h: 183, label: "Команда света", text: "" },
+      "search.dark": { x: 560, y: 125, w: 254, h: 183, label: "Команда тьмы", text: "" },
+      "search.vs": { x: 408, y: 196, w: 28, h: 18, label: "VS", text: "VS" },
+      "search.status": { x: 360, y: 318, w: 124, h: 20, label: "«Поиск игроков…»", text: "Поиск игроков…" },
+      "search.bar": { x: 102, y: 356, w: 636, h: 16, label: "Полоска поиска", text: "" },
+      "search.legal": { x: 96, y: 374, w: 652, h: 14, label: "Юридический текст", text: "12+" }
+    } },
+    { id: "rules", section: "Экраны", label: "Правила боя", kind: "static", bg: "editor-bg/rules.jpg", defaults: {
+      "rules.panel": { x: 90, y: 40, w: 664, h: 310, label: "Окно правил", text: "" },
+      "rules.close": { x: 700, y: 48, w: 42, h: 42, label: "Закрыть", text: "×" }
+    } },
+    { id: "battle", section: "Экраны", label: "Бой / HUD", kind: "live", group: "battle", prefix: "hud.", autoplay: true },
+    { id: "pause", section: "Экраны", label: "Пауза", kind: "static", bg: "editor-bg/battle.jpg", defaults: {
+      "pause.panel": { x: 240, y: 45, w: 364, h: 300, label: "Окно паузы", text: "" },
+      "pause.resume": { x: 310, y: 118, w: 224, h: 40, label: "Продолжить", text: "Продолжить" },
+      "pause.rules": { x: 310, y: 168, w: 224, h: 40, label: "Правила", text: "Правила" },
+      "pause.settings": { x: 310, y: 218, w: 224, h: 40, label: "Настройки", text: "Настройки" },
+      "pause.lobby": { x: 310, y: 268, w: 224, h: 40, label: "В лобби", text: "В лобби" }
+    } },
+    { id: "results", section: "Экраны", label: "Итоги боя", kind: "static", bg: "editor-bg/results.jpg", defaults: {
+      "results.title": { x: 331, y: 35, w: 183, h: 31, label: "Заголовок", text: "ПОБЕДА" },
+      "results.table": { x: 356, y: 140, w: 388, h: 284, label: "Таблица игроков", text: "" },
+      "results.x2": { x: 405, y: 218, w: 288, h: 30, label: "x2 за рекламу", text: "×2 за рекламу" },
+      "results.lobby": { x: 442, y: 473, w: 120, h: 37, label: "В лобби", text: "В лобби" }
+    } },
+    { id: "inventory", section: "Экраны", label: "Инвентарь", kind: "live", group: "inventory", prefix: "inventory.", view: "inventory" },
+    { id: "shop", section: "Экраны", label: "Магазин", kind: "live", group: "shop", prefix: "shop.", view: "shop" },
+    { id: "topup", section: "Экраны", label: "Пополнение осколков", kind: "static", bg: "editor-bg/topup.jpg", defaults: {
+      "topup.panel": { x: 170, y: 55, w: 504, h: 285, label: "Окно пополнения", text: "" },
+      "topup.close": { x: 640, y: 64, w: 36, h: 36, label: "Закрыть", text: "×" },
+      "topup.buy": { x: 300, y: 262, w: 244, h: 48, label: "Купить", text: "Купить" }
+    } },
+    { id: "settings", section: "Экраны", label: "Настройки", kind: "static", bg: "", defaults: {
+      "settings.panel": { x: 100, y: 30, w: 644, h: 330, label: "Панель настроек", text: "" },
+      "settings.close": { x: 700, y: 40, w: 42, h: 42, label: "Закрыть", text: "×" }
+    } },
+    { id: "credits", section: "Экраны", label: "Авторы и лицензии", kind: "static", bg: "", defaults: {
+      "credits.panel": { x: 120, y: 40, w: 604, h: 310, label: "Окно «Авторы»", text: "" },
+      "credits.close": { x: 680, y: 50, w: 36, h: 36, label: "Закрыть", text: "×" }
+    } },
+    { id: "t_welcome", section: "Обучение", label: "1. Добро пожаловать", kind: "static", bg: "editor-bg/t-welcome.jpg", defaults: {
+      "tutorial.dialog": plate("dialog", "Добро пожаловать! Цель игры — разбить Оболочку…"),
+      "tutorial.skip": plate("skip")
+    } },
+    { id: "t_uitour", section: "Обучение", label: "2. Тур по интерфейсу", kind: "static", bg: "editor-bg/t-duel.jpg", defaults: {
+      "tutorial.hint": plate("hint", "Тур: миникарта → скиллы → аватарка"),
+      "tutorial.skip": plate("skip")
+    } },
+    { id: "t_duel", section: "Обучение", label: "3. Дуэль 1v1", kind: "static", bg: "editor-bg/t-duel.jpg", defaults: {
+      "tutorial.hint": plate("hint", "Шаг 1/3 · Дуэль: победи тренировочного бота"),
+      "tutorial.press": plate("press", "Нажми навык 1"),
+      "tutorial.skip": plate("skip"),
+      "tutorial.navigator": plate("nav")
+    } },
+    { id: "t_step1", section: "Обучение", label: "4. Шаг 1/3 пройден", kind: "static", bg: "editor-bg/t-duel.jpg", defaults: {
+      "tutorial.dialog": plate("dialog", "Шаг 1/3 пройден. Дуэль позади. Теперь фонтан: собери 15 монет.")
+    } },
+    { id: "t_fountain", section: "Обучение", label: "5. Фонтан и монеты", kind: "static", bg: "editor-bg/t-fountain.jpg", defaults: {
+      "tutorial.hint": plate("hint", "Иди к фонтану и собери 15 монет"),
+      "tutorial.side": plate("side", "Собери 15 монет"),
+      "tutorial.skip": plate("skip")
+    } },
+    { id: "t_shop", section: "Обучение", label: "6. Лавка", kind: "static", bg: "editor-bg/t-shop.jpg", defaults: {
+      "tutorial.hint": plate("hint", "Монеты собраны. Иди в магазин"),
+      "tutorial.side": plate("side", "Купи «Крылатые ботинки»: +15% скорости"),
+      "tutorial.skip": plate("skip")
+    } },
+    { id: "t_team2_intro", section: "Обучение", label: "7. Вступление к 2v2", kind: "static", bg: "editor-bg/t-team2.jpg", defaults: {
+      "tutorial.dialog": plate("dialog", "Шаг 2/3 · Пара. Теперь с тобой союзница-Охотница.")
+    } },
+    { id: "t_team2", section: "Обучение", label: "8. Бой 2v2", kind: "static", bg: "editor-bg/t-team2.jpg", defaults: {
+      "tutorial.hint": plate("hint", "Шаг 2/3 · Пара: победи двух врагов"),
+      "tutorial.press": plate("press", "Нажми навык 2"),
+      "tutorial.skip": plate("skip")
+    } },
+    { id: "t_step2", section: "Обучение", label: "9. Шаг 2/3 пройден", kind: "static", bg: "editor-bg/t-team2.jpg", defaults: {
+      "tutorial.dialog": plate("dialog", "Шаг 2/3 пройден. Пара победила. Дальше — команда 3 на 3.")
+    } },
+    { id: "t_team3", section: "Обучение", label: "10. Бой 3v3", kind: "static", bg: "editor-bg/t-team3.jpg", defaults: {
+      "tutorial.hint": plate("hint", "Шаг 3/3 · Команда выходит в бой"),
+      "tutorial.press": plate("press", "Нажми навык 3"),
+      "tutorial.skip": plate("skip")
+    } },
+    { id: "t_step3", section: "Обучение", label: "11. Шаг 3/3 пройден", kind: "static", bg: "editor-bg/t-team3.jpg", defaults: {
+      "tutorial.dialog": plate("dialog", "Шаг 3/3 пройден. Команда победила. Осталась Оболочка.")
+    } },
+    { id: "t_shell_intro", section: "Обучение", label: "12. Вступление к Оболочке", kind: "static", bg: "editor-bg/t-shell.jpg", defaults: {
+      "tutorial.dialog": plate("dialog", "Финал: Оболочка. Разбей её и донеси Небесный Осколок на базу.")
+    } },
+    { id: "t_shell", section: "Обучение", label: "13. Оболочка", kind: "static", bg: "editor-bg/t-shell.jpg", defaults: {
+      "tutorial.hint": plate("hint", "Уничтожь Оболочку — внутри неё Небесный Осколок"),
+      "tutorial.press": plate("press", "Нажми навык 3"),
+      "tutorial.skip": plate("skip")
+    } },
+    { id: "t_crystal", section: "Обучение", label: "14. Осколок и база", kind: "static", bg: "editor-bg/t-shell.jpg", defaults: {
+      "tutorial.hint": plate("hint", "Неси Осколок на свою базу"),
+      "tutorial.skip": plate("skip"),
+      "tutorial.navigator": plate("nav")
+    } },
+    { id: "t_victory", section: "Обучение", label: "15. Победа обучения", kind: "static", bg: "editor-bg/t-skip.jpg", defaults: {
+      "tutorial.dialog": plate("dialog", "Обучение пройдено! Ты прошёл дуэль, пару, команду и Оболочку.")
+    } }
+  ];
 
   const stage = document.getElementById("stage");
   const stageWrap = document.getElementById("stageWrap");
   const frame = document.getElementById("game");
+  const bgEl = document.getElementById("bg");
+  const bgOpacity = document.getElementById("bgOpacity");
+  const bgNone = document.getElementById("bgNone");
   const overlay = document.getElementById("overlay");
   const listEl = document.getElementById("list");
+  const plateChips = document.getElementById("plateChips");
   const countEl = document.getElementById("count");
   const statusEl = document.getElementById("status");
   const statusTextEl = document.getElementById("statusText");
@@ -684,16 +1150,37 @@ aside {
   const inputY = document.getElementById("inputY");
   const inputW = document.getElementById("inputW");
   const inputH = document.getElementById("inputH");
+  const inputLabel = document.getElementById("inputLabel");
+  const inputText = document.getElementById("inputText");
+  const actualRectEl = document.getElementById("actualRect");
   const resetOne = document.getElementById("resetOne");
+  const duplicateOne = document.getElementById("duplicateOne");
+  const deleteOne = document.getElementById("deleteOne");
+  const importFile = document.getElementById("importFile");
   const toastEl = document.getElementById("toast");
   const fileBanner = document.getElementById("fileBanner");
   const undoButton = document.getElementById("undo");
   const redoButton = document.getElementById("redo");
+  const pageListEl = document.getElementById("pageList");
+  const pageBar = document.getElementById("pageBar");
+  const addPlateButton = document.getElementById("addPlate");
+  const modeSelect = document.getElementById("modeSelect");
+  const deviceSelect = document.getElementById("deviceSelect");
+  const customSize = document.getElementById("customSize");
+  const customW = document.getElementById("customW");
+  const customH = document.getElementById("customH");
+  const caption = document.getElementById("caption");
+  const brandSub = document.getElementById("brandSub");
 
-  let layout = { version: 1, reference: { width: REF.w, height: REF.h }, elements: {} };
+  let mode = "mobile";
+  let device = { id: "844x390", w: 844, h: 390 };
+  let pageId = "lobby";
+  let doc = { version: 2, pages: {} };
+  let layouts = { mobile: emptyLayout(REF), web: emptyLayout(REF_WEB) };
+  let layout = layouts.mobile;
   let sceneElements = [];
+  const suppressedSeed = new Set();
   let selectedId = null;
-  let mode = "lobby";
   let gameWin = null;
   let ready = false;
   let loadToken = 0;
@@ -701,18 +1188,20 @@ aside {
   let liveTimer = 0;
   let drag = null;
   let saveTimer = 0;
+  let saveDocTimer = 0;
   let pushRaf = 0;
   let pendingPush = null;
   let toastTimer = 0;
   let history = [];
   let future = [];
+  let fitScale = 1;
   const boxEls = new Map();
 
   if (location.protocol === "file:") {
     fileBanner.classList.add("show");
   }
 
-  /* ---------------- storage ---------------- */
+  /* ---------------- utils ---------------- */
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -733,28 +1222,153 @@ aside {
     return { x: round(x), y: round(y), w: round(w), h: round(h) };
   }
 
-  function loadLayout() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (!parsed || typeof parsed !== "object" || !parsed.elements) return;
-      const elements = {};
-      for (const [id, rect] of Object.entries(parsed.elements)) {
-        const normalized = normalizeRect(rect);
-        if (normalized) elements[id] = normalized;
+  function parseJson(text) {
+    try { return JSON.parse(text); } catch (error) { return null; }
+  }
+
+  function clone(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  /* ---------------- pages / storage ---------------- */
+
+  function pageDef(id) {
+    return PAGE_DEFS.find((p) => p.id === id) || PAGE_DEFS[0];
+  }
+
+  function currentPage() {
+    return pageDef(pageId);
+  }
+
+  function pageBg(def) {
+    const saved = doc.pages[def.id];
+    if (saved && typeof saved.bg === "string") return saved.bg;
+    return def.bg || "";
+  }
+
+  function isLive(page) {
+    return page.kind === "live";
+  }
+
+  function emptyLayout(refSize) {
+    return {
+      version: 1,
+      reference: { width: refSize.w, height: refSize.h },
+      elements: {}
+    };
+  }
+
+  function isWebLive() {
+    return isLive(currentPage()) && mode === "web";
+  }
+
+  function activeRef() {
+    return isWebLive() ? REF_WEB : REF;
+  }
+
+  function buildDefaults() {
+    const pages = {};
+    for (const def of PAGE_DEFS) {
+      if (def.kind !== "static") continue;
+      const plates = {};
+      for (const [id, p] of Object.entries(def.defaults || {})) {
+        plates[id] = {
+          x: round(p.x), y: round(p.y), w: round(p.w), h: round(p.h),
+          label: String(p.label || id),
+          text: String(p.text || "")
+        };
       }
-      layout = { version: 1, reference: { width: REF.w, height: REF.h }, elements };
-    } catch (error) {
-      console.warn("Не удалось прочитать раскладку", error);
+      pages[def.id] = { plates };
     }
+    return { version: 2, pages };
+  }
+
+  function loadAll() {
+    doc = buildDefaults();
+
+    const savedV2 = parseJson(localStorage.getItem(STORAGE_V2) || "");
+    if (savedV2 && typeof savedV2 === "object" && savedV2.pages) {
+      for (const [pid, page] of Object.entries(savedV2.pages)) {
+        if (!doc.pages[pid]) doc.pages[pid] = { plates: {} };
+        if (page && typeof page.bg === "string") doc.pages[pid].bg = page.bg;
+        const plates = (page && page.plates) || {};
+        for (const [eid, raw] of Object.entries(plates)) {
+          const rect = normalizeRect(raw);
+          if (!rect) continue;
+          doc.pages[pid].plates[eid] = {
+            x: rect.x, y: rect.y, w: rect.w, h: rect.h,
+            label: String(raw.label || eid),
+            text: String(raw.text || "")
+          };
+        }
+      }
+    }
+
+    const savedV1 = parseJson(localStorage.getItem(STORAGE_V1) || "");
+    if (savedV1 && typeof savedV1 === "object" && savedV1.elements) {
+      for (const [id, raw] of Object.entries(savedV1.elements)) {
+        const rect = normalizeRect(raw);
+        if (rect) layouts.mobile.elements[String(id)] = rect;
+      }
+    }
+
+    const savedWeb = parseJson(localStorage.getItem(STORAGE_WEB) || "");
+    if (savedWeb && typeof savedWeb === "object" && savedWeb.elements) {
+      for (const [id, raw] of Object.entries(savedWeb.elements)) {
+        const rect = normalizeRect(raw);
+        if (rect) layouts.web.elements[String(id)] = rect;
+      }
+    }
+
+    layout = layouts.mobile;
   }
 
   function saveLayoutNow() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(layout));
+      localStorage.setItem(STORAGE_V1, JSON.stringify(layouts.mobile));
+      localStorage.setItem(STORAGE_WEB, JSON.stringify(layouts.web));
     } catch (error) {
-      console.warn("Не удалось сохранить раскладку", error);
+      console.warn("Не удалось сохранить ui_layout", error);
+    }
+  }
+
+  async function fetchLayoutFile(url) {
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data && typeof data === "object" ? data : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function mergeBaked(target, data) {
+    if (!data || !data.elements || typeof data.elements !== "object") return false;
+    let changed = false;
+    for (const [id, raw] of Object.entries(data.elements)) {
+      if (target.elements[id]) continue;
+      const rect = normalizeRect(raw);
+      if (rect) {
+        target.elements[id] = rect;
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  async function loadBakedLayout() {
+    const [mobileData, webData] = await Promise.all([
+      fetchLayoutFile("ui_layout.json"),
+      fetchLayoutFile("ui_layout_web.json")
+    ]);
+    const changedMobile = mergeBaked(layouts.mobile, mobileData);
+    const changedWeb = mergeBaked(layouts.web, webData);
+    if (changedMobile || changedWeb) {
+      saveLayoutSoon();
+      if (isLive(currentPage())) readFromGame();
+      renderPages();
+      updateCounts();
     }
   }
 
@@ -763,19 +1377,36 @@ aside {
     saveTimer = setTimeout(saveLayoutNow, 220);
   }
 
-  function normalizedLayoutFrom(raw) {
-    const elements = {};
-    if (raw && typeof raw === "object" && raw.elements) {
-      for (const [id, rect] of Object.entries(raw.elements)) {
-        const normalized = normalizeRect(rect);
-        if (normalized) elements[id] = normalized;
-      }
+  function saveDocNow() {
+    try {
+      localStorage.setItem(STORAGE_V2, JSON.stringify(doc));
+    } catch (error) {
+      toast("Браузер не смог сохранить: хранилище переполнено");
     }
-    return { version: 1, reference: { width: REF.w, height: REF.h }, elements };
   }
 
-  function snapshotLayout() {
-    return JSON.stringify(layout);
+  function saveDocSoon() {
+    clearTimeout(saveDocTimer);
+    saveDocTimer = setTimeout(saveDocNow, 220);
+  }
+
+  function saveAllNow() {
+    saveLayoutNow();
+    saveDocNow();
+  }
+
+  function saveView() {
+    try {
+      localStorage.setItem("three_skies_editor_view", JSON.stringify({ mode, device, pageId }));
+    } catch (error) {
+      /* ignore */
+    }
+  }
+
+  /* ---------------- history ---------------- */
+
+  function snapshot() {
+    return JSON.stringify({ layout, doc });
   }
 
   function updateHistoryButtons() {
@@ -784,17 +1415,196 @@ aside {
   }
 
   function pushHistory() {
-    const snapshot = snapshotLayout();
-    if (history.length && history[history.length - 1] === snapshot) return;
-    history.push(snapshot);
-    if (history.length > 100) history.shift();
+    const snap = snapshot();
+    if (history.length && history[history.length - 1] === snap) return;
+    history.push(snap);
+    if (history.length > 80) history.shift();
     future = [];
     updateHistoryButtons();
   }
 
+  function restoreSnapshot(snap) {
+    const parsed = parseJson(snap);
+    if (parsed && parsed.layout && parsed.doc) {
+      layout = parsed.layout;
+      doc = parsed.doc;
+    }
+    saveAllNow();
+    applyLayoutToGame();
+    render();
+    updateHistoryButtons();
+    refreshFromGameSoon();
+  }
+
+  function undo() {
+    if (!history.length) return;
+    future.push(snapshot());
+    restoreSnapshot(history.pop());
+    toast("Действие отменено");
+  }
+
+  function redo() {
+    if (!future.length) return;
+    history.push(snapshot());
+    restoreSnapshot(future.pop());
+    toast("Действие возвращено");
+  }
+
+  /* ---------------- elements ---------------- */
+
+  function staticElements(page) {
+    const saved = (doc.pages[page.id] && doc.pages[page.id].plates) || {};
+    return Object.entries(saved).map(([id, p]) => {
+      const def = (page.defaults || {})[id];
+      return {
+        id,
+        label: p.label || id,
+        text: p.text || "",
+        rect: { x: p.x, y: p.y, w: p.w, h: p.h },
+        baseRect: def ? { x: def.x, y: def.y, w: def.w, h: def.h } : null
+      };
+    }).sort((a, b) => a.label.localeCompare(b.label, "ru"));
+  }
+
+  function activeElements() {
+    const page = currentPage();
+    if (!isLive(page)) return staticElements(page);
+    return sceneElements
+      .filter((el) => el.group === page.group)
+      .sort((a, b) => a.label.localeCompare(b.label, "ru"));
+  }
+
+  function findElement(id) {
+    return activeElements().find((el) => el.id === id) || null;
+  }
+
+  function effectiveRect(el) {
+    if (isLive(currentPage())) {
+      return layout.elements[el.id] ? { ...layout.elements[el.id] } : { ...el.rect };
+    }
+    return { ...el.rect };
+  }
+
+  function clampRect(rect) {
+    const ref = activeRef();
+    const x = round(clamp(rect.x, 0, ref.w - MIN_SIZE));
+    const y = round(clamp(rect.y, 0, ref.h - MIN_SIZE));
+    const w = round(clamp(rect.w, MIN_SIZE, ref.w - x));
+    const h = round(clamp(rect.h, MIN_SIZE, ref.h - y));
+    return { x, y, w, h };
+  }
+
+  function setRect(id, rect, options = {}) {
+    const el = findElement(id);
+    if (!el) return;
+    const next = clampRect(rect);
+    if (isLive(currentPage())) {
+      suppressedSeed.delete(id);
+      layout.elements[id] = next;
+      saveLayoutSoon();
+      if (options.push !== false) pushRect(id, next);
+    } else {
+      const page = doc.pages[pageId];
+      if (!page || !page.plates[id]) return;
+      page.plates[id].x = next.x;
+      page.plates[id].y = next.y;
+      page.plates[id].w = next.w;
+      page.plates[id].h = next.h;
+      saveDocSoon();
+    }
+    updateBox(id);
+    updateListItem(id);
+    if (selectedId === id) updateProps();
+    updateCounts();
+  }
+
+  function resetElement(id) {
+    const el = findElement(id);
+    if (!el) return;
+    pushHistory();
+    const page = currentPage();
+    if (isLive(page)) {
+      suppressedSeed.add(id);
+      delete layout.elements[id];
+      saveLayoutSoon();
+      if (gameWin && typeof gameWin.__uiReset === "function") {
+        try { gameWin.__uiReset(id); } catch (error) { console.warn(error); }
+      }
+      if (el.baseRect) el.rect = { ...el.baseRect };
+      refreshFromGameSoon();
+    } else {
+      const def = (page.defaults || {})[id];
+      const saved = doc.pages[pageId].plates[id];
+      if (def) {
+        saved.x = def.x; saved.y = def.y; saved.w = def.w; saved.h = def.h;
+        saved.label = def.label || saved.label;
+        saved.text = def.text || "";
+      } else {
+        delete doc.pages[pageId].plates[id];
+        if (selectedId === id) selectedId = null;
+      }
+      saveDocSoon();
+    }
+    render();
+    toast("Элемент возвращён по умолчанию");
+  }
+
+  function addPlate() {
+    const page = currentPage();
+    if (isLive(page)) return;
+    pushHistory();
+    let n = 1;
+    while (doc.pages[pageId].plates[`custom.${n}`]) n += 1;
+    doc.pages[pageId].plates[`custom.${n}`] = {
+      x: 322, y: 165, w: 200, h: 60,
+      label: `Плашка ${n}`,
+      text: ""
+    };
+    saveDocNow();
+    render();
+    select(`custom.${n}`);
+    toast("Плашка добавлена");
+  }
+
+  function duplicatePlate() {
+    if (!selectedId) return;
+    const page = currentPage();
+    if (isLive(page)) return;
+    const src = doc.pages[pageId].plates[selectedId];
+    if (!src) return;
+    pushHistory();
+    let n = 1;
+    while (doc.pages[pageId].plates[`custom.copy${n}`]) n += 1;
+    const id = `custom.copy${n}`;
+    doc.pages[pageId].plates[id] = {
+      x: clamp(src.x + 12, 0, REF.w - src.w),
+      y: clamp(src.y + 12, 0, REF.h - src.h),
+      w: src.w, h: src.h,
+      label: `${src.label} (копия)`,
+      text: src.text || ""
+    };
+    saveDocNow();
+    render();
+    select(id);
+  }
+
+  function deletePlate() {
+    if (!selectedId) return;
+    const page = currentPage();
+    if (isLive(page)) return;
+    if (!window.confirm("Удалить эту плашку со страницы?")) return;
+    pushHistory();
+    delete doc.pages[pageId].plates[selectedId];
+    selectedId = null;
+    saveDocNow();
+    render();
+  }
+
+  /* ---------------- live game ---------------- */
+
   function applyLayoutToGame() {
-    if (!gameWin) return;
-    for (const el of sceneElements) {
+    if (!gameWin || !isLive(currentPage())) return;
+    for (const el of activeElements()) {
       try {
         const rect = layout.elements[el.id];
         if (rect) {
@@ -809,80 +1619,10 @@ aside {
     }
   }
 
-  function restoreSnapshot(snapshot) {
-    try {
-      layout = normalizedLayoutFrom(JSON.parse(snapshot));
-    } catch (error) {
-      layout = { version: 1, reference: { width: REF.w, height: REF.h }, elements: {} };
-    }
-    saveLayoutNow();
-    for (const el of sceneElements) {
-      if (layout.elements[el.id]) {
-        el.rect = { ...layout.elements[el.id] };
-      } else if (el.baseRect) {
-        el.rect = { ...el.baseRect };
-      }
-    }
-    applyLayoutToGame();
-    render();
-    updateHistoryButtons();
-    refreshFromGameSoon();
-  }
-
   function refreshFromGameSoon(delay = 420) {
     setTimeout(() => {
       if (ready && !drag) readFromGame();
     }, delay);
-  }
-
-  function undo() {
-    if (!history.length) return;
-    future.push(snapshotLayout());
-    restoreSnapshot(history.pop());
-    toast("Действие отменено");
-  }
-
-  function redo() {
-    if (!future.length) return;
-    history.push(snapshotLayout());
-    restoreSnapshot(future.pop());
-    toast("Действие возвращено");
-  }
-
-  window.__uiEditorDebug = () => ({
-    mode,
-    ready,
-    hasWindow: Boolean(gameWin),
-    sceneCount: sceneElements.length,
-    groups: sceneElements.map((el) => `${el.group || "lobby"}:${el.id}`),
-    history: history.slice(),
-    future: future.slice(),
-    layout: JSON.parse(JSON.stringify(layout))
-  });
-
-  function layoutJson() {
-    const elements = {};
-    const ids = Object.keys(layout.elements).sort();
-    for (const id of ids) elements[id] = layout.elements[id];
-    return JSON.stringify({
-      version: 1,
-      reference: { width: REF.w, height: REF.h },
-      elements
-    }, null, 2) + "\n";
-  }
-
-  /* ---------------- scene / elements ---------------- */
-
-  function effectiveRect(el) {
-    return layout.elements[el.id] ? { ...layout.elements[el.id] } : { ...el.rect };
-  }
-
-  function findElement(id) {
-    return sceneElements.find((el) => el.id === id) || null;
-  }
-
-  function activeElements() {
-    return sceneElements.filter((el) => (el.group || "lobby") === mode);
   }
 
   function mergeScene(list) {
@@ -895,25 +1635,18 @@ aside {
       const id = String(raw.id);
       const old = previous.get(id);
       const overridden = Boolean(layout.elements[id]);
+      const suppressed = suppressedSeed.has(id);
       next.push({
         id,
         label: String(raw.label || id),
         group: String(raw.group || id.split(".")[0] || "lobby"),
-        rect: overridden ? { ...layout.elements[id] } : rect,
+        rect: overridden
+          ? { ...layout.elements[id] }
+          : (suppressed && old && old.baseRect ? { ...old.baseRect } : rect),
         baseRect: old && old.baseRect ? old.baseRect : (overridden ? null : rect)
       });
     }
-    next.sort((a, b) => a.label.localeCompare(b.label, "ru"));
     sceneElements = next;
-  }
-
-  function modeTitle() {
-    return {
-      lobby: "Лобби",
-      battle: "Бой",
-      inventory: "Инвентарь",
-      shop: "Магазин"
-    }[mode] || "Экран";
   }
 
   function readFromGame() {
@@ -921,9 +1654,7 @@ aside {
     try {
       const raw = gameWin.__uiLayoutElements;
       let parsed = raw;
-      if (typeof raw === "string") {
-        parsed = JSON.parse(raw);
-      }
+      if (typeof raw === "string") parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) return false;
       if (drag) return true;
       mergeScene(parsed);
@@ -942,6 +1673,7 @@ aside {
       let changed = false;
       for (const [id, raw] of Object.entries(all)) {
         if (layout.elements[id]) continue;
+        if (suppressedSeed.has(id)) continue;
         const rect = normalizeRect(raw);
         if (rect) {
           layout.elements[id] = rect;
@@ -961,14 +1693,12 @@ aside {
   /* ---------------- iframe ---------------- */
 
   function buildSrc() {
+    const page = currentPage();
     const params = new URLSearchParams();
-    params.set("mobile", "1");
+    if (mode === "mobile") params.set("mobile", "1");
     params.set("edit", "1");
-    if (mode === "battle") {
-      params.set("autoplay", "1");
-    } else if (mode === "inventory" || mode === "shop") {
-      params.set("view", mode);
-    }
+    if (page.autoplay) params.set("autoplay", "1");
+    if (page.view) params.set("view", page.view);
     params.set("_", String(Date.now()));
     return `index.html?${params.toString()}`;
   }
@@ -982,14 +1712,13 @@ aside {
     const modifier = event.ctrlKey || event.metaKey;
     if (!modifier) return;
     const key = String(event.key || "").toLowerCase();
-    if (key === "z") {
+    const code = String(event.code || "");
+    const isUndo = key === "z" || code === "KeyZ";
+    const isRedo = key === "y" || code === "KeyY";
+    if (isUndo) {
       event.preventDefault();
-      if (event.shiftKey) {
-        redo();
-      } else {
-        undo();
-      }
-    } else if (key === "y") {
+      if (event.shiftKey) redo(); else undo();
+    } else if (isRedo) {
       event.preventDefault();
       redo();
     }
@@ -1011,7 +1740,8 @@ aside {
       if (token !== loadToken) return;
       try {
         const win = frame.contentWindow;
-        if (win && win.__uiLayoutReady === true && typeof win.__uiSetRect === "function") {
+        const api = win && win.__uiLayoutReady === true && typeof win.__uiSetRect === "function";
+        if (api) {
           let parsed = null;
           try {
             const raw = win.__uiLayoutElements;
@@ -1019,18 +1749,16 @@ aside {
           } catch (error) {
             parsed = null;
           }
-          if (Array.isArray(parsed) && parsed.some((el) => (el.group || "lobby") === mode)) {
+          const page = currentPage();
+          const hasElements = Array.isArray(parsed) && parsed.some((el) => (el.group || "lobby") === page.group);
+          if (hasElements || Date.now() - started > 6000) {
             gameWin = win;
             ready = true;
-            try {
-              win.addEventListener("keydown", onIframeKeydown, true);
-            } catch (error) {
-              /* ignore */
-            }
-            setStatus("ok", `${modeTitle()} · готово`);
+            try { win.addEventListener("keydown", onIframeKeydown, true); } catch (error) { /* ignore */ }
             readFromGame();
             seedFromGameLayout(win);
             render();
+            setStatus("ok", `${currentPage().label} · готово`);
             clearInterval(liveTimer);
             liveTimer = setInterval(() => {
               if (!ready || drag) return;
@@ -1046,8 +1774,8 @@ aside {
       const elapsed = Date.now() - started;
       let percent = 0;
       try {
-        const doc = frame.contentDocument;
-        const progress = doc ? doc.getElementById("status-progress") : null;
+        const docIframe = frame.contentDocument;
+        const progress = docIframe ? docIframe.getElementById("status-progress") : null;
         if (progress && Number(progress.max) > 0 && Number(progress.value) > 0) {
           percent = Math.round((Number(progress.value) / Number(progress.max)) * 100);
         }
@@ -1072,81 +1800,233 @@ aside {
     startPolling();
   }
 
+  function showStaticPage() {
+    clearTimeout(pollTimer);
+    clearInterval(liveTimer);
+    gameWin = null;
+    ready = true;
+    sceneElements = [];
+    frame.src = "about:blank";
+    frame.style.display = "none";
+    bgEl.style.display = "block";
+    const page = currentPage();
+    const src = pageBg(page);
+    if (src) {
+      bgEl.src = src;
+      bgEl.style.visibility = "visible";
+    } else {
+      bgEl.removeAttribute("src");
+      bgEl.style.visibility = "hidden";
+    }
+    bgEl.style.opacity = String(Number(bgOpacity.value) / 100);
+    applyDeviceSize();
+    setStatus("ok", `${page.label} · готово`);
+    render();
+  }
+
+  function showLivePage() {
+    bgEl.style.display = "none";
+    frame.style.display = "block";
+    applyDeviceSize();
+    reloadGame();
+  }
+
   /* ---------------- applying rects ---------------- */
 
   function pushRect(id, rect) {
-    pendingPush = { id, rect: { ...rect } };
-    if (pushRaf) return;
-    pushRaf = requestAnimationFrame(() => {
-      pushRaf = 0;
-      const item = pendingPush;
-      pendingPush = null;
-      if (!item || !gameWin) return;
-      try {
-        if (typeof gameWin.__uiSetRect === "function") {
-          gameWin.__uiSetRect(item.id, item.rect.x, item.rect.y, item.rect.w, item.rect.h);
-        }
-      } catch (error) {
-        console.warn("Не удалось применить элемент", error);
+    if (!gameWin) return;
+    try {
+      if (typeof gameWin.__uiSetRect === "function") {
+        gameWin.__uiSetRect(id, rect.x, rect.y, rect.w, rect.h);
       }
-    });
-  }
-
-  function setRect(id, rect, options = {}) {
-    const el = findElement(id);
-    if (!el) return;
-    const x = round(clamp(rect.x, 0, REF.w - MIN_SIZE));
-    const y = round(clamp(rect.y, 0, REF.h - MIN_SIZE));
-    const w = round(clamp(rect.w, MIN_SIZE, REF.w - x));
-    const h = round(clamp(rect.h, MIN_SIZE, REF.h - y));
-    const next = { x, y, w, h };
-    layout.elements[id] = next;
-    saveLayoutSoon();
-    updateBox(id);
-    updateListItem(id);
-    if (selectedId === id) updateProps();
-    if (options.push !== false) pushRect(id, next);
-  }
-
-  function resetElement(id) {
-    const el = findElement(id);
-    if (!el) return;
-    pushHistory();
-    delete layout.elements[id];
-    saveLayoutSoon();
-    if (gameWin && typeof gameWin.__uiReset === "function") {
-      try {
-        gameWin.__uiReset(id);
-      } catch (error) {
-        console.warn("Не удалось вернуть элемент", error);
-      }
+    } catch (error) {
+      console.warn("Не удалось применить элемент", error);
     }
-    if (el.baseRect) el.rect = { ...el.baseRect };
+  }
+
+  /* ---------------- geometry ---------------- */
+
+  function deviceMetrics() {
+    const base = mode === "mobile" ? { w: 960, h: 540 } : { w: 1280, h: 720 };
+    const contentScale = Math.min(device.w / base.w, device.h / base.h);
+    const viewportW = device.w / contentScale;
+    const viewportH = device.h / contentScale;
+    const uiScale = Math.min(viewportW / REF.w, viewportH / REF.h);
+    return { contentScale, viewportW, viewportH, uiScale };
+  }
+
+  function actualRect(rect) {
+    if (isWebLive()) {
+      const webScale = Math.min(device.w / REF_WEB.w, device.h / REF_WEB.h);
+      return {
+        x: rect.x * webScale,
+        y: rect.y * webScale,
+        w: rect.w * webScale,
+        h: rect.h * webScale
+      };
+    }
+    const m = deviceMetrics();
+    const cx = rect.x + rect.w / 2;
+    const cy = rect.y + rect.h / 2;
+    let ax;
+    let ox;
+    if (cx < REF.w / 3) {
+      ax = 0;
+      ox = rect.x;
+    } else if (cx > REF.w * 2 / 3) {
+      ax = m.viewportW;
+      ox = rect.x - REF.w;
+    } else {
+      ax = m.viewportW / 2;
+      ox = rect.x - REF.w / 2;
+    }
+    let ay;
+    let oy;
+    if (cy < REF.h / 3) {
+      ay = 0;
+      oy = rect.y;
+    } else if (cy > REF.h * 2 / 3) {
+      ay = m.viewportH;
+      oy = rect.y - REF.h;
+    } else {
+      ay = m.viewportH / 2;
+      oy = rect.y - REF.h / 2;
+    }
+    return {
+      x: (ax + ox * m.uiScale) * m.contentScale,
+      y: (ay + oy * m.uiScale) * m.contentScale,
+      w: rect.w * m.uiScale * m.contentScale,
+      h: rect.h * m.uiScale * m.contentScale
+    };
+  }
+
+  function applyDeviceSize() {
+    stage.style.width = `${device.w}px`;
+    stage.style.height = `${device.h}px`;
+    fitStage();
     render();
-    refreshFromGameSoon();
-    toast("Элемент возвращён по умолчанию");
+  }
+
+  function fitStage() {
+    const pad = 26;
+    const width = Math.max(200, stageWrap.clientWidth - pad);
+    const height = Math.max(140, stageWrap.clientHeight - pad);
+    fitScale = Math.min(width / device.w, height / device.h, 1);
+    stage.style.transform = `scale(${fitScale})`;
+    const left = Math.max(pad / 2, (stageWrap.clientWidth - device.w * fitScale) / 2);
+    const top = Math.max(pad / 2, (stageWrap.clientHeight - device.h * fitScale) / 2 - 6);
+    stage.style.left = `${left}px`;
+    stage.style.top = `${top}px`;
+    caption.textContent = `${currentPage().label} · ${device.w} × ${device.h}${isLive(currentPage()) ? " · живая игра" : ""}`;
+    brandSub.textContent = `редактор экранов · ${mode === "mobile" ? "мобильная" : "веб"} · ${device.w} × ${device.h}`;
   }
 
   /* ---------------- rendering ---------------- */
 
+  function updateCounts() {
+    const page = currentPage();
+    const active = activeElements();
+    if (isLive(page)) {
+      const changed = active.filter((el) => layout.elements[el.id]).length;
+      countEl.textContent = active.length ? `${active.length} · изменено ${changed}` : "—";
+    } else {
+      const changed = active.filter((el) => {
+        if (!el.baseRect) return true;
+        const r = el.rect;
+        return r.x !== el.baseRect.x || r.y !== el.baseRect.y || r.w !== el.baseRect.w || r.h !== el.baseRect.h;
+      }).length;
+      countEl.textContent = active.length ? `${active.length} · изменено ${changed}` : "—";
+    }
+  }
+
   function render() {
+    renderPages();
+    renderChips();
     renderList();
     renderBoxes();
     updateProps();
+    updateCounts();
+    updateDownloadLabel();
+    fitStage();
+  }
+
+  function updateDownloadLabel() {
+    const button = document.getElementById("download");
+    button.textContent = isWebLive() ? "Скачать ui_layout_web.json" : "Скачать ui_layout.json";
+  }
+
+  function renderChips() {
+    plateChips.innerHTML = "";
     const active = activeElements();
-    const changed = active.filter((el) => layout.elements[el.id]).length;
-    countEl.textContent = active.length
-      ? `${active.length} · изменено ${changed}`
-      : "—";
+    for (const el of active) {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "chip";
+      chip.dataset.id = el.id;
+      if (el.id === selectedId) chip.classList.add("selected");
+      chip.textContent = el.label;
+      chip.title = el.id;
+      chip.addEventListener("click", () => select(el.id));
+      plateChips.appendChild(chip);
+    }
+  }
+
+  function pageEdited(def) {
+    if (def.kind === "live") return false;
+    const saved = (doc.pages[def.id] && doc.pages[def.id].plates) || {};
+    for (const [id, p] of Object.entries(saved)) {
+      const base = (def.defaults || {})[id];
+      if (!base) return true;
+      if (p.x !== base.x || p.y !== base.y || p.w !== base.w || p.h !== base.h) return true;
+    }
+    return false;
+  }
+
+  function renderPages() {
+    pageListEl.innerHTML = "";
+    let section = "";
+    for (const def of PAGE_DEFS) {
+      if (def.section !== section) {
+        section = def.section;
+        const head = document.createElement("div");
+        head.className = "pagegroup";
+        head.textContent = section;
+        pageListEl.appendChild(head);
+      }
+      const row = document.createElement("div");
+      row.className = "pageitem";
+      if (def.id === pageId) row.classList.add("active");
+      if (pageEdited(def)) row.classList.add("edited");
+      row.dataset.page = def.id;
+      const plates = def.kind === "live"
+        ? Object.keys(layout.elements).filter((id) => id.startsWith(def.prefix)).length
+        : Object.keys((doc.pages[def.id] && doc.pages[def.id].plates) || {}).length;
+      row.innerHTML = `<span class="pdot"></span><span class="pname"></span><span class="pcount"></span>`;
+      row.querySelector(".pname").textContent = def.label;
+      row.querySelector(".pcount").textContent = plates ? String(plates) : "";
+      row.addEventListener("click", () => selectPage(def.id));
+      pageListEl.appendChild(row);
+    }
   }
 
   function renderList() {
     listEl.innerHTML = "";
+    const page = currentPage();
     const active = activeElements();
     if (!active.length) {
       const empty = document.createElement("div");
       empty.className = "props-empty";
-      empty.textContent = ready ? "В этой сцене нет элементов." : "Ждём загрузку игры…";
+      if (isLive(page)) {
+        if (!ready) {
+          empty.textContent = "Ждём загрузку игры…";
+        } else if (mode !== "mobile") {
+          empty.textContent = "В веб-версии игра не отдаёт элементы раскладки: редактор двигает только мобильную раскладку. Переключи «Версия → Мобильная» или выбери статичную страницу, чтобы проверить её на веб-экране.";
+        } else {
+          empty.textContent = "В этой сцене нет элементов.";
+        }
+      } else {
+        empty.textContent = "Нажми «+ плашка», чтобы добавить элемент.";
+      }
       listEl.appendChild(empty);
       return;
     }
@@ -1155,13 +2035,11 @@ aside {
       row.className = "item";
       row.dataset.id = el.id;
       if (el.id === selectedId) row.classList.add("selected");
-      if (layout.elements[el.id]) row.classList.add("edited");
+      if (isLive(page) ? layout.elements[el.id] : (el.baseRect && (el.rect.x !== el.baseRect.x || el.rect.y !== el.baseRect.y || el.rect.w !== el.baseRect.w || el.rect.h !== el.baseRect.h))) {
+        row.classList.add("edited");
+      }
       row.title = el.id;
-      row.innerHTML = `
-        <span class="mark"></span>
-        <span class="name"></span>
-        <span class="coords"></span>
-      `;
+      row.innerHTML = `<span class="mark"></span><span class="name"></span><span class="coords"></span>`;
       row.querySelector(".name").textContent = el.label;
       row.querySelector(".coords").textContent = coordsText(effectiveRect(el));
       row.addEventListener("click", () => select(el.id));
@@ -1175,6 +2053,14 @@ aside {
 
   function renderBoxes() {
     const seen = new Set();
+    const page = currentPage();
+    if (isLive(page) && !ready) {
+      for (const [id, box] of boxEls) {
+        box.remove();
+        boxEls.delete(id);
+      }
+      return;
+    }
     for (const el of activeElements()) {
       seen.add(el.id);
       let box = boxEls.get(el.id);
@@ -1184,6 +2070,7 @@ aside {
         box.dataset.id = el.id;
         box.innerHTML = `
           <span class="tag"></span>
+          <span class="boxtext"></span>
           <span class="handle" data-handle="nw"></span>
           <span class="handle" data-handle="n"></span>
           <span class="handle" data-handle="ne"></span>
@@ -1197,6 +2084,7 @@ aside {
         boxEls.set(el.id, box);
       }
       box.querySelector(".tag").textContent = el.label;
+      box.querySelector(".boxtext").textContent = el.text || "";
       updateBox(el.id);
     }
     for (const [id, box] of boxEls) {
@@ -1212,12 +2100,17 @@ aside {
     const box = boxEls.get(id);
     if (!el || !box) return;
     const rect = effectiveRect(el);
-    box.style.left = `${rect.x}px`;
-    box.style.top = `${rect.y}px`;
-    box.style.width = `${rect.w}px`;
-    box.style.height = `${rect.h}px`;
+    const real = actualRect(rect);
+    box.style.left = `${real.x}px`;
+    box.style.top = `${real.y}px`;
+    box.style.width = `${real.w}px`;
+    box.style.height = `${real.h}px`;
     box.classList.toggle("selected", id === selectedId);
-    box.classList.toggle("edited", Boolean(layout.elements[id]));
+    box.classList.toggle("plate", !isLive(currentPage()));
+    const edited = isLive(currentPage())
+      ? Boolean(layout.elements[id])
+      : Boolean(el.baseRect && (rect.x !== el.baseRect.x || rect.y !== el.baseRect.y || rect.w !== el.baseRect.w || rect.h !== el.baseRect.h));
+    box.classList.toggle("edited", edited);
     box.style.zIndex = id === selectedId ? "20" : "5";
   }
 
@@ -1226,7 +2119,6 @@ aside {
     const el = findElement(id);
     if (!row || !el) return;
     row.querySelector(".coords").textContent = coordsText(effectiveRect(el));
-    row.classList.toggle("edited", Boolean(layout.elements[id]));
     row.classList.toggle("selected", id === selectedId);
   }
 
@@ -1244,11 +2136,15 @@ aside {
     for (const row of listEl.querySelectorAll(".item")) {
       row.classList.toggle("selected", row.dataset.id === id);
     }
+    for (const chip of plateChips.querySelectorAll(".chip")) {
+      chip.classList.toggle("selected", chip.dataset.id === id);
+    }
     updateProps();
   }
 
   function updateProps() {
     const el = selectedId ? findElement(selectedId) : null;
+    const page = currentPage();
     if (!el) {
       propsName.textContent = "Элемент не выбран";
       propsId.textContent = "—";
@@ -1265,7 +2161,19 @@ aside {
     if (document.activeElement !== inputY) inputY.value = String(round(rect.y));
     if (document.activeElement !== inputW) inputW.value = String(round(rect.w));
     if (document.activeElement !== inputH) inputH.value = String(round(rect.h));
-    resetOne.disabled = !layout.elements[el.id];
+    if (document.activeElement !== inputLabel) inputLabel.value = el.label || "";
+    if (document.activeElement !== inputText) inputText.value = el.text || "";
+    inputLabel.disabled = isLive(page);
+    inputText.disabled = isLive(page);
+    const real = actualRect(rect);
+    actualRectEl.textContent = `на экране ${device.w}×${device.h}: ${round(real.x)}, ${round(real.y)} · ${round(real.w)}×${round(real.h)}`;
+    if (isLive(page)) {
+      resetOne.disabled = !layout.elements[el.id];
+    } else {
+      resetOne.disabled = !el.baseRect && !doc.pages[pageId].plates[el.id];
+    }
+    duplicateOne.hidden = isLive(page);
+    deleteOne.hidden = isLive(page);
   }
 
   function applyFields() {
@@ -1282,22 +2190,46 @@ aside {
     }
     const current = effectiveRect(el);
     if (x === current.x && y === current.y && w === current.w && h === current.h) {
+      applyTextFields();
       return;
     }
     pushHistory();
     setRect(selectedId, { x, y, w, h });
+    applyTextFields();
+    updateProps();
+  }
+
+  function applyTextFields() {
+    if (!selectedId) return;
+    const page = currentPage();
+    if (isLive(page)) return;
+    const saved = doc.pages[pageId].plates[selectedId];
+    if (!saved) return;
+    const label = inputLabel.value.trim() || saved.label;
+    const text = inputText.value;
+    if (saved.label === label && saved.text === text) return;
+    saved.label = label;
+    saved.text = text;
+    saveDocSoon();
+    renderList();
+    renderBoxes();
     updateProps();
   }
 
   /* ---------------- drag ---------------- */
 
-  function stageScale() {
-    const rect = stage.getBoundingClientRect();
-    return rect.width > 0 ? rect.width / REF.w : 1;
+  function authoredFactor() {
+    if (isWebLive()) {
+      const webScale = Math.min(device.w / REF_WEB.w, device.h / REF_WEB.h);
+      return Math.max(0.0001, fitScale * webScale);
+    }
+    const m = deviceMetrics();
+    return Math.max(0.0001, fitScale * m.contentScale * m.uiScale);
   }
 
   function snapTargetsX(excludeId) {
-    const values = [0, REF.w / 2, REF.w];
+    const ref = activeRef();
+    const values = [0, ref.w / 2, ref.w];
     for (const el of activeElements()) {
       if (el.id === excludeId) continue;
       const r = effectiveRect(el);
@@ -1307,7 +2239,8 @@ aside {
   }
 
   function snapTargetsY(excludeId) {
-    const values = [0, REF.h / 2, REF.h];
+    const ref = activeRef();
+    const values = [0, ref.h / 2, ref.h];
     for (const el of activeElements()) {
       if (el.id === excludeId) continue;
       const r = effectiveRect(el);
@@ -1340,6 +2273,7 @@ aside {
   }
 
   function snapResize(rect, handle, dx, dy, targetsX, targetsY) {
+    const ref = activeRef();
     let x = rect.x;
     let y = rect.y;
     let right = rect.x + rect.w;
@@ -1356,10 +2290,10 @@ aside {
 
     if (handle.includes("w")) x = Math.min(x, right - MIN_SIZE);
     if (handle.includes("n")) y = Math.min(y, bottom - MIN_SIZE);
-    x = clamp(x, 0, REF.w - MIN_SIZE);
-    y = clamp(y, 0, REF.h - MIN_SIZE);
-    right = clamp(right, x + MIN_SIZE, REF.w);
-    bottom = clamp(bottom, y + MIN_SIZE, REF.h);
+    x = clamp(x, 0, ref.w - MIN_SIZE);
+    y = clamp(y, 0, ref.h - MIN_SIZE);
+    right = clamp(right, x + MIN_SIZE, ref.w);
+    bottom = clamp(bottom, y + MIN_SIZE, ref.h);
     return { x, y, w: right - x, h: bottom - y };
   }
 
@@ -1382,19 +2316,15 @@ aside {
       rect: effectiveRect(el),
       historyPushed: false
     };
-    try {
-      event.target.setPointerCapture(event.pointerId);
-    } catch (error) {
-      /* ignore */
-    }
+    try { event.target.setPointerCapture(event.pointerId); } catch (error) { /* ignore */ }
   });
 
   window.addEventListener("pointermove", (event) => {
     if (!drag || event.pointerId !== drag.pointerId) return;
     event.preventDefault();
-    const scale = stageScale() || 1;
-    const dx = (event.clientX - drag.startX) / scale;
-    const dy = (event.clientY - drag.startY) / scale;
+    const factor = authoredFactor();
+    const dx = (event.clientX - drag.startX) / factor;
+    const dy = (event.clientY - drag.startY) / factor;
     let next = { ...drag.rect };
     if (drag.mode === "move") {
       next.x += dx;
@@ -1403,14 +2333,7 @@ aside {
       next.x = clamp(next.x, 0, REF.w - next.w);
       next.y = clamp(next.y, 0, REF.h - next.h);
     } else {
-      next = snapResize(
-        drag.rect,
-        drag.handle,
-        dx,
-        dy,
-        snapTargetsX(drag.id),
-        snapTargetsY(drag.id)
-      );
+      next = snapResize(drag.rect, drag.handle, dx, dy, snapTargetsX(drag.id), snapTargetsY(drag.id));
     }
     if (!drag.historyPushed) {
       pushHistory();
@@ -1422,27 +2345,13 @@ aside {
   function endDrag(event) {
     if (!drag || (event && event.pointerId !== drag.pointerId)) return;
     drag = null;
-    saveLayoutNow();
+    saveAllNow();
     render();
   }
 
   window.addEventListener("pointerup", endDrag);
   window.addEventListener("pointercancel", endDrag);
   window.addEventListener("blur", () => endDrag(null));
-
-  /* ---------------- stage scaling ---------------- */
-
-  function fitStage() {
-    const pad = 26;
-    const width = Math.max(200, stageWrap.clientWidth - pad);
-    const height = Math.max(140, stageWrap.clientHeight - pad);
-    const scale = Math.min(width / REF.w, height / REF.h, 1);
-    stage.style.transform = `scale(${scale})`;
-    const left = Math.max(pad / 2, (stageWrap.clientWidth - REF.w * scale) / 2);
-    const top = Math.max(pad / 2, (stageWrap.clientHeight - REF.h * scale) / 2 - 6);
-    stage.style.left = `${left}px`;
-    stage.style.top = `${top}px`;
-  }
 
   /* ---------------- toast ---------------- */
 
@@ -1453,26 +2362,93 @@ aside {
     toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2200);
   }
 
-  /* ---------------- buttons ---------------- */
+  /* ---------------- page / device switching ---------------- */
 
-  document.getElementById("tabLobby").addEventListener("click", () => switchMode("lobby"));
-  document.getElementById("tabBattle").addEventListener("click", () => switchMode("battle"));
-  document.getElementById("tabInventory").addEventListener("click", () => switchMode("inventory"));
-  document.getElementById("tabShop").addEventListener("click", () => switchMode("shop"));
+  function selectPage(id) {
+    if (pageId === id) return;
+    pageId = id;
+    selectedId = null;
+    const page = currentPage();
+    renderPages();
+    pageBar.classList.toggle("show", !isLive(page));
+    addPlateButton.hidden = isLive(page);
+    bgEl.style.visibility = "hidden";
+    bgEl.removeAttribute("src");
+    if (isLive(page)) {
+      showLivePage();
+    } else {
+      showStaticPage();
+    }
+    saveView();
+  }
 
-  function switchMode(next) {
+  function rebuildDeviceOptions() {
+    deviceSelect.innerHTML = "";
+    for (const preset of DEVICES[mode]) {
+      const option = document.createElement("option");
+      option.value = preset.id;
+      option.textContent = preset.label;
+      deviceSelect.appendChild(option);
+    }
+    const custom = document.createElement("option");
+    custom.value = "custom";
+    custom.textContent = "Свой размер…";
+    deviceSelect.appendChild(custom);
+
+    const presets = DEVICES[mode];
+    const match = presets.find((p) => p.w === device.w && p.h === device.h);
+    deviceSelect.value = match ? match.id : "custom";
+    customSize.classList.toggle("show", deviceSelect.value === "custom");
+    customW.value = String(device.w);
+    customH.value = String(device.h);
+  }
+
+  function applyPreset(value) {
+    if (value === "custom") {
+      customSize.classList.add("show");
+      const w = clamp(Number(customW.value) || device.w, 320, 3840);
+      const h = clamp(Number(customH.value) || device.h, 240, 2160);
+      device = { id: "custom", w: round(w), h: round(h) };
+    } else {
+      const preset = DEVICES[mode].find((p) => p.id === value);
+      if (!preset) return;
+      customSize.classList.remove("show");
+      device = { id: preset.id, w: preset.w, h: preset.h };
+    }
+    applyDeviceSize();
+    if (isLive(currentPage())) reloadGame();
+    saveView();
+  }
+
+  function setMode(next) {
     if (mode === next) return;
     mode = next;
-    for (const [key, id] of Object.entries({
-      lobby: "tabLobby",
-      battle: "tabBattle",
-      inventory: "tabInventory",
-      shop: "tabShop"
-    })) {
-      document.getElementById(id).classList.toggle("active", mode === key);
-    }
-    selectedId = null;
-    reloadGame();
+    layout = layouts[mode];
+    const preset = DEVICES[mode][0];
+    device = { id: preset.id, w: preset.w, h: preset.h };
+    rebuildDeviceOptions();
+    applyDeviceSize();
+    if (isLive(currentPage())) reloadGame();
+    else render();
+    saveView();
+  }
+
+  /* ---------------- buttons ---------------- */
+
+  modeSelect.addEventListener("change", () => setMode(modeSelect.value));
+  deviceSelect.addEventListener("change", () => applyPreset(deviceSelect.value));
+  [customW, customH].forEach((input) => {
+    input.addEventListener("change", () => {
+      if (deviceSelect.value !== "custom") return;
+      applyPreset("custom");
+    });
+    input.addEventListener("keydown", (event) => event.stopPropagation());
+  });
+
+  function switchTo(delta) {
+    const index = PAGE_DEFS.findIndex((p) => p.id === pageId);
+    const next = clamp(index + delta, 0, PAGE_DEFS.length - 1);
+    if (next !== index) selectPage(PAGE_DEFS[next].id);
   }
 
   inputX.addEventListener("change", applyFields);
@@ -1488,30 +2464,57 @@ aside {
       event.stopPropagation();
     });
   });
-
-  resetOne.addEventListener("click", () => {
-    if (selectedId) resetElement(selectedId);
+  inputLabel.addEventListener("change", applyTextFields);
+  inputText.addEventListener("change", applyTextFields);
+  [inputLabel, inputText].forEach((input) => {
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        input.blur();
+        applyTextFields();
+      }
+      event.stopPropagation();
+    });
   });
+
+  resetOne.addEventListener("click", () => { if (selectedId) resetElement(selectedId); });
+  duplicateOne.addEventListener("click", duplicatePlate);
+  deleteOne.addEventListener("click", deletePlate);
+  addPlateButton.addEventListener("click", addPlate);
 
   undoButton.addEventListener("click", undo);
   redoButton.addEventListener("click", redo);
 
-  document.getElementById("download").addEventListener("click", () => {
-    saveLayoutNow();
-    const blob = new Blob([layoutJson()], { type: "application/json" });
+  document.getElementById("downloadScreens").addEventListener("click", () => {
+    saveAllNow();
+    const blob = new Blob([screensJson()], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "ui_layout.json";
+    link.download = "screens_layout.json";
     document.body.appendChild(link);
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
-    toast("ui_layout.json скачан");
+    toast("screens_layout.json скачан");
+  });
+
+  document.getElementById("download").addEventListener("click", () => {
+    saveLayoutNow();
+    const fileName = isWebLive() ? "ui_layout_web.json" : "ui_layout.json";
+    const blob = new Blob([layoutJson()], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    toast(`${fileName} скачан`);
   });
 
   document.getElementById("copy").addEventListener("click", async () => {
-    const text = layoutJson();
+    const text = screensJson();
     try {
       await navigator.clipboard.writeText(text);
       toast("JSON скопирован в буфер");
@@ -1532,21 +2535,120 @@ aside {
     }
   });
 
+  function rectFromAny(raw) {
+    if (Array.isArray(raw) && raw.length >= 4) {
+      return normalizeRect({ x: raw[0], y: raw[1], w: raw[2], h: raw[3] });
+    }
+    return normalizeRect(raw);
+  }
+
+  function mergeImportedLayout(text) {
+    const data = parseJson(text);
+    if (!data || typeof data !== "object") {
+      toast("Это не JSON раскладки");
+      return 0;
+    }
+    let applied = 0;
+    pushHistory();
+
+    if (data.pages && typeof data.pages === "object") {
+      for (const [pid, page] of Object.entries(data.pages)) {
+        const def = PAGE_DEFS.find((p) => p.id === pid);
+        if (!def) continue;
+        const plates = (page && page.plates) || {};
+        if (def.kind === "live") {
+          for (const [eid, raw] of Object.entries(plates)) {
+            const rect = rectFromAny(raw);
+            if (rect) {
+              layout.elements[eid] = rect;
+              applied += 1;
+            }
+          }
+          continue;
+        }
+        if (!doc.pages[pid]) doc.pages[pid] = { plates: {} };
+        if (page && typeof page.bg === "string") doc.pages[pid].bg = page.bg;
+        for (const [eid, raw] of Object.entries(plates)) {
+          const rect = rectFromAny(raw);
+          if (!rect) continue;
+          const prev = doc.pages[pid].plates[eid];
+          doc.pages[pid].plates[eid] = {
+            x: rect.x,
+            y: rect.y,
+            w: rect.w,
+            h: rect.h,
+            label: String((raw && raw.label) || (prev && prev.label) || eid),
+            text: String((raw && raw.text) || "")
+          };
+          applied += 1;
+        }
+      }
+    }
+
+    if (data.elements && typeof data.elements === "object") {
+      for (const [id, raw] of Object.entries(data.elements)) {
+        const rect = rectFromAny(raw);
+        if (rect) {
+          layout.elements[String(id)] = rect;
+          applied += 1;
+        }
+      }
+    }
+
+    if (!applied) {
+      toast("В файле нет плашек");
+      return 0;
+    }
+
+    saveAllNow();
+    render();
+    if (isLive(currentPage())) applyLayoutToGame();
+    toast(`Импортировано плашек: ${applied}`);
+    return applied;
+  }
+
+  document.getElementById("importJson").addEventListener("click", () => importFile.click());
+  importFile.addEventListener("change", () => {
+    const file = importFile.files && importFile.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      mergeImportedLayout(String(reader.result || ""));
+      importFile.value = "";
+    };
+    reader.readAsText(file, "utf-8");
+  });
+
   document.getElementById("reload").addEventListener("click", () => {
+    if (!isLive(currentPage())) {
+      toast("Это статичная страница — игра не нужна");
+      return;
+    }
     toast("Перезагружаю игру…");
     reloadGame();
   });
 
   document.getElementById("resetAll").addEventListener("click", () => {
-    if (!window.confirm("Сбросить все изменения? Игра вернётся к заводской раскладке.")) return;
-    layout = { version: 1, reference: { width: REF.w, height: REF.h }, elements: {} };
+    if (!window.confirm("Сбросить все изменения? Игра вернётся к заводской раскладке, страницы — к исходным плашкам.")) return;
+    layouts = { mobile: emptyLayout(REF), web: emptyLayout(REF_WEB) };
+    layout = layouts[mode];
+    suppressedSeed.clear();
+    doc = buildDefaults();
     try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch (error) {
-      /* ignore */
+      localStorage.removeItem(STORAGE_V1);
+      localStorage.removeItem(STORAGE_WEB);
+      localStorage.removeItem(STORAGE_V2);
+    } catch (error) { /* ignore */ }
+    selectedId = null;
+    bgOpacity.value = "100";
+    loadBakedLayout();
+    if (isLive(currentPage())) {
+      render();
+      reloadGame();
+    } else {
+      showStaticPage();
     }
-    reloadGame();
-    toast("Раскладка сброшена");
+    toast("Всё сброшено");
   });
 
   document.getElementById("resetView").addEventListener("click", () => {
@@ -1554,25 +2656,99 @@ aside {
     toast("Экран вписан");
   });
 
+  const bgFile = document.getElementById("bgFile");
+  document.getElementById("bgPick").addEventListener("click", () => bgFile.click());
+
+  function applyBgOpacity() {
+    bgEl.style.opacity = String(Number(bgOpacity.value) / 100);
+  }
+  bgOpacity.addEventListener("input", applyBgOpacity);
+
+  document.getElementById("bgClear").addEventListener("click", () => {
+    const page = currentPage();
+    if (isLive(page)) return;
+    pushHistory();
+    if (doc.pages[pageId]) delete doc.pages[pageId].bg;
+    const src = pageBg(page);
+    bgEl.src = src;
+    bgEl.style.visibility = src ? "visible" : "hidden";
+    applyBgOpacity();
+    saveDocNow();
+    toast("Стандартный фон страницы");
+  });
+
+  document.getElementById("bgNone").addEventListener("click", () => {
+    const page = currentPage();
+    if (isLive(page)) return;
+    pushHistory();
+    doc.pages[pageId].bg = "";
+    bgEl.removeAttribute("src");
+    bgEl.style.visibility = "hidden";
+    saveDocNow();
+    toast("Фон страницы убран");
+  });
+
+  bgFile.addEventListener("change", () => {
+    const file = bgFile.files && bgFile.files[0];
+    if (!file) return;
+    const page = currentPage();
+    if (isLive(page)) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 1600;
+        const scale = Math.min(1, maxW / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+        pushHistory();
+        doc.pages[pageId].bg = dataUrl;
+        bgEl.src = dataUrl;
+        bgEl.style.visibility = "visible";
+        applyBgOpacity();
+        saveDocNow();
+        toast("Фон страницы обновлён");
+      };
+      img.src = String(reader.result || "");
+    };
+    reader.readAsDataURL(file);
+    bgFile.value = "";
+  });
+
   window.addEventListener("keydown", (event) => {
     const modifier = event.ctrlKey || event.metaKey;
-    const inInput = Boolean(event.target.closest("input"));
-    if (modifier && !inInput && event.key.toLowerCase() === "z") {
+    const target = event.target;
+    const inInput = Boolean(target && target.closest && target.closest("input, textarea, select"));
+    const key = String(event.key || "").toLowerCase();
+    const code = String(event.code || "");
+    const isUndo = key === "z" || code === "KeyZ";
+    const isRedo = key === "y" || code === "KeyY";
+    if (modifier && !inInput && isUndo) {
       event.preventDefault();
-      if (event.shiftKey) {
-        redo();
-      } else {
-        undo();
-      }
+      if (event.shiftKey) redo(); else undo();
       return;
     }
-    if (modifier && !inInput && event.key.toLowerCase() === "y") {
+    if (modifier && !inInput && isRedo) {
       event.preventDefault();
       redo();
       return;
     }
     if (event.key === "Escape") {
       select(null);
+      return;
+    }
+    if (modifier && event.key === "ArrowLeft") {
+      event.preventDefault();
+      switchTo(-1);
+      return;
+    }
+    if (modifier && event.key === "ArrowRight") {
+      event.preventDefault();
+      switchTo(1);
       return;
     }
     if (!selectedId || inInput) return;
@@ -1591,21 +2767,97 @@ aside {
 
   window.addEventListener("resize", fitStage);
 
-  window.addEventListener("beforeunload", () => {
-    saveLayoutNow();
+  window.addEventListener("beforeunload", saveAllNow);
+
+  /* ---------------- export ---------------- */
+
+  function layoutJson() {
+    const ref = activeRef();
+    const elements = {};
+    for (const id of Object.keys(layout.elements).sort()) elements[id] = layout.elements[id];
+    return JSON.stringify({
+      version: 1,
+      reference: { width: ref.w, height: ref.h },
+      elements
+    }, null, 2) + "\n";
+  }
+
+  function screensJson() {
+    const pages = {};
+    for (const def of PAGE_DEFS) {
+      if (def.kind === "static") {
+        const plates = (doc.pages[def.id] && doc.pages[def.id].plates) || {};
+        const out = {};
+        for (const id of Object.keys(plates).sort()) {
+          const p = plates[id];
+          out[id] = {
+            x: round(p.x), y: round(p.y), w: round(p.w), h: round(p.h),
+            label: p.label || id
+          };
+          if (p.text) out[id].text = p.text;
+        }
+        pages[def.id] = { label: def.label, bg: pageBg(def), plates: out };
+      } else {
+        const ids = Object.keys(layout.elements).filter((id) => id.startsWith(def.prefix)).sort();
+        const out = {};
+        for (const id of ids) out[id] = layout.elements[id];
+        pages[def.id] = { label: def.label, kind: "live", plates: out };
+      }
+    }
+    return JSON.stringify({
+      version: 2,
+      platform: mode,
+      reference: { width: REF.w, height: REF.h },
+      pages
+    }, null, 2) + "\n";
+  }
+
+  window.__uiEditorDebug = () => ({
+    mode,
+    device,
+    pageId,
+    ready,
+    hasWindow: Boolean(gameWin),
+    sceneCount: sceneElements.length,
+    groups: sceneElements.map((el) => `${el.group || "lobby"}:${el.id}`),
+    history: history.slice(),
+    future: future.slice(),
+    layout: clone(layout),
+    doc: clone(doc)
   });
 
   /* ---------------- boot ---------------- */
 
-  loadLayout();
+  loadAll();
+  loadBakedLayout();
+  const savedView = parseJson(localStorage.getItem("three_skies_editor_view") || "");
+  if (savedView && typeof savedView === "object") {
+    if (savedView.mode === "mobile" || savedView.mode === "web") mode = savedView.mode;
+    if (savedView.pageId && PAGE_DEFS.some((p) => p.id === savedView.pageId)) pageId = savedView.pageId;
+    if (savedView.device && Number.isFinite(Number(savedView.device.w)) && Number.isFinite(Number(savedView.device.h))) {
+      device = {
+        id: String(savedView.device.id || "custom"),
+        w: round(clamp(Number(savedView.device.w), 320, 3840)),
+        h: round(clamp(Number(savedView.device.h), 240, 2160))
+      };
+    }
+  }
+  layout = layouts[mode];
+  rebuildDeviceOptions();
   updateHistoryButtons();
-  fitStage();
+  pageBar.classList.toggle("show", !isLive(currentPage()));
+  addPlateButton.hidden = isLive(currentPage());
+  applyDeviceSize();
   frame.addEventListener("load", () => {
     if (ready) return;
     startPolling();
   });
-  frame.src = buildSrc();
-  startPolling();
+  if (isLive(currentPage())) {
+    frame.src = buildSrc();
+    startPolling();
+  } else {
+    showStaticPage();
+  }
 })();
 </script>
 </body>
