@@ -174,10 +174,19 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
 - **Перед каждым деплоем проверять `/health` → `live_matches` и `online_players`; выкатывать только при `live_matches=0`.** Скрипт: `tools/check_deploy_safe.ps1`. Рестарт контейнера рвёт живой матч; 23.11 так оборвался занос Оболочки.
 - Сервер по SIGTERM завершает живые матчи текущим счётом, сохраняет результат и рассылает `match_finished` — контролируемый рестарт больше не должен давать «МАТЧ ПРЕРВАН».
 - **Текущий прод (на 25.11.2026, вечер):**
-  - `main`: `46b510d` (сборка `bfbfdba` + HTML-фикс скрытия 12+ после
-    старта), `/health` ok, `live_matches=0`.
-  - `/game/index.pck`: **48 975 700** байт — единственный PCK; внутри
-    обучение этапы 1–4 (бой, UI, реклама, прогрев).
+  - `main`: `9f5a585` (покупки VK/OK), `/health` ok, `live_matches=0`.
+  - `/game/index.pck`: **48 979 168** байт — единственный PCK; внутри
+    обучение этапы 1–4 (бой, UI, реклама, прогрев) и клиент покупок
+    осколков (`VKWebAppShowOrderBox`).
+  - `/game/shard.png`: 19 229 байт, `photo_url` для окна оплаты VK/OK.
+  - Сервер покупок: `POST /vk/pay` (VK-подпись MD5; OK `get_item` с
+    `site=OK` без подписи), `POST /ok/pay` (`callbacks.payment`), таблица
+    `payments` с уникальным `(platform, order_id)`; начисление только на
+    сервере. SKU `shards_100…shards_10000`, цена `N/100`.
+  - Исходники покупок: коммит `dfa5d66` в `mobile-ui`.
+  - **Не сделано:** в кабинете VK не заданы callback URL
+    (`/vk/pay`, `/ok/pay`), нет тестера платежей; реальная покупка ещё
+    не проверена. Кабинет VK с этого ПК недоступен (TLS timeout).
   - `/game-vk/index.html`: 1017 байт redirect-shell, `index.pck` → 404.
   - `/game-ok/index.html`: 1016 байт redirect-shell, `index.pck` → 404.
   - VK-приложение 54906713 и OK-приложение 512005268801: вход и лобби
