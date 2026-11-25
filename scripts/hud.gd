@@ -103,6 +103,9 @@ var tutorial_title: Label
 var tutorial_body: Label
 var tutorial_primary_button: Button
 var tutorial_secondary_button: Button
+var tutorial_card_panel: PanelContainer
+var tutorial_card_box: VBoxContainer
+var tutorial_card_modal := false
 var tutorial_hint: Label
 var tutorial_side_hint: Label
 var tutorial_primary_action := Callable()
@@ -322,40 +325,31 @@ func _build_tutorial_ui(root: Control) -> void:
 	tutorial_overlay.visible = false
 	root.add_child(tutorial_overlay)
 
-	var view_width: float = get_viewport().get_visible_rect().size.x
-	var narrow: bool = view_width < 900.0 or _mobile_ui()
-	var stack_actions: bool = view_width < 500.0
+	# Stage cards are notifications in the left column, under the player card.
+	# The panel never blocks input: the match keeps running behind it.
 	var panel := PanelContainer.new()
 	panel.name = "TutorialDialog"
-	panel.anchor_left = 0.10 if narrow else 0.28
-	panel.anchor_right = 0.90 if narrow else 0.72
-	panel.anchor_top = 0.0
-	panel.anchor_bottom = 0.0
-	panel.offset_left = 0.0
-	panel.offset_right = 0.0
-	panel.offset_top = 104.0
-	panel.offset_bottom = 104.0 + (300.0 if stack_actions else 250.0)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_theme_stylebox_override("panel", _panel_style(Color(0.78, 0.62, 0.32), Color(0.035, 0.045, 0.07, 0.98)))
-	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	tutorial_overlay.add_child(panel)
+	tutorial_card_panel = panel
 	var layout := VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 10)
+	layout.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layout.add_theme_constant_override("separation", 6)
 	panel.add_child(layout)
-	tutorial_title = _make_label("", 28 if narrow else 32, GOLD)
-	tutorial_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tutorial_card_box = layout
+	tutorial_title = _make_label("", 24, GOLD)
+	tutorial_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	tutorial_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	layout.add_child(tutorial_title)
-	tutorial_body = _make_label("", 16 if narrow else 18, PALE)
-	tutorial_body.custom_minimum_size = Vector2(0.0, 90.0)
+	tutorial_body = _make_label("", 16, PALE)
 	tutorial_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tutorial_body.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	tutorial_body.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	layout.add_child(tutorial_body)
-	var actions: BoxContainer
-	if stack_actions:
-		actions = VBoxContainer.new()
-	else:
-		actions = HBoxContainer.new()
-	actions.alignment = BoxContainer.ALIGNMENT_CENTER
+	var actions := HBoxContainer.new()
+	actions.alignment = BoxContainer.ALIGNMENT_BEGIN
+	actions.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	actions.add_theme_constant_override("separation", 8)
 	layout.add_child(actions)
 	tutorial_primary_button = _pause_action_button("Продолжить", true)
@@ -382,7 +376,7 @@ func _build_tutorial_ui(root: Control) -> void:
 	tutorial_side_hint = _make_label("", 15, Color(0.95, 0.93, 0.86))
 	tutorial_side_hint.name = "TutorialSideHint"
 	tutorial_side_hint.anchor_left = 0.02
-	tutorial_side_hint.anchor_right = 0.62 if view_width < 500.0 else 0.28
+	tutorial_side_hint.anchor_right = 0.28
 	tutorial_side_hint.anchor_top = 0.0
 	tutorial_side_hint.anchor_bottom = 0.0
 	tutorial_side_hint.offset_left = 0.0
@@ -435,6 +429,9 @@ func _build_tutorial_ui(root: Control) -> void:
 	fade_overlay.visible = false
 	root.add_child(fade_overlay)
 
+	if not get_viewport().size_changed.is_connected(_on_tutorial_viewport_resized):
+		get_viewport().size_changed.connect(_on_tutorial_viewport_resized)
+
 
 func fade_teleport(action: Callable, duration := 0.25) -> void:
 	if fade_overlay == null or not is_instance_valid(fade_overlay):
@@ -455,10 +452,37 @@ func set_tutorial_skip_visible(value: bool) -> void:
 
 
 func show_tutorial_card(title_text: String, body_text: String, button_text: String, action: Callable) -> void:
+	_set_tutorial_card_content(title_text, body_text, button_text, action)
+	# Notice card: left column, no action button, input passes through.
+	_layout_tutorial_card(false)
+
+
+func show_tutorial_victory(title_text: String, body_text: String, lobby_action: Callable, repeat_action: Callable) -> void:
+	_set_tutorial_card_content(title_text, body_text, "В лобби", lobby_action)
+	set_tutorial_skip_visible(false)
+	tutorial_secondary_action = repeat_action
+	tutorial_secondary_button.text = "Пройти ещё раз"
+	tutorial_secondary_button.visible = true
+	# A real choice: centred, blocking, with buttons.
+	_layout_tutorial_card(true)
+
+
+func show_tutorial_choice(title_text: String, body_text: String, primary_text: String, primary_action: Callable, secondary_text: String, secondary_action: Callable) -> void:
+	_set_tutorial_card_content(title_text, body_text, primary_text, primary_action)
+	tutorial_secondary_action = secondary_action
+	tutorial_secondary_button.text = secondary_text
+	tutorial_secondary_button.visible = true
+	_layout_tutorial_card(true)
+
+
+func _set_tutorial_card_content(title_text: String, body_text: String, button_text: String, action: Callable) -> void:
 	tutorial_title.text = title_text
 	tutorial_body.text = body_text
 	tutorial_primary_button.text = button_text
 	tutorial_primary_action = action
+	# An empty button text means "notification": nothing to press, the next
+	# stage starts on its own (see tutorial_controller._auto_advance).
+	tutorial_primary_button.visible = not button_text.is_empty() and action.is_valid()
 	tutorial_secondary_action = Callable()
 	tutorial_secondary_button.visible = false
 	tutorial_overlay.visible = true
@@ -467,19 +491,96 @@ func show_tutorial_card(title_text: String, body_text: String, button_text: Stri
 		tutorial_side_hint.visible = false
 
 
-func show_tutorial_victory(title_text: String, body_text: String, lobby_action: Callable, repeat_action: Callable) -> void:
-	show_tutorial_card(title_text, body_text, "В лобби", lobby_action)
-	set_tutorial_skip_visible(false)
-	tutorial_secondary_action = repeat_action
-	tutorial_secondary_button.text = "Пройти ещё раз"
-	tutorial_secondary_button.visible = true
+func _hud_viewport_size() -> Vector2:
+	var size := get_viewport().get_visible_rect().size
+	if size.x <= 0.0 or size.y <= 0.0:
+		size = Vector2(960.0, 540.0)
+	return size
 
 
-func show_tutorial_choice(title_text: String, body_text: String, primary_text: String, primary_action: Callable, secondary_text: String, secondary_action: Callable) -> void:
-	show_tutorial_card(title_text, body_text, primary_text, primary_action)
-	tutorial_secondary_action = secondary_action
-	tutorial_secondary_button.text = secondary_text
-	tutorial_secondary_button.visible = true
+func _layout_tutorial_card(modal: bool) -> void:
+	if tutorial_card_panel == null or not is_instance_valid(tutorial_card_panel):
+		return
+	tutorial_card_modal = modal
+	var viewport_size := _hud_viewport_size()
+	if modal:
+		# "Пропустить обучение?" and the victory screen keep their buttons and
+		# block the field: these are real choices, not stage notifications.
+		tutorial_overlay.color = Color(0.015, 0.02, 0.04, 0.55)
+		tutorial_card_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+		tutorial_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tutorial_body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tutorial_title.add_theme_font_size_override("font_size", _fs(26))
+		tutorial_body.add_theme_font_size_override("font_size", _fs(16))
+		var width := minf(660.0, viewport_size.x - 40.0)
+		var height := minf(_tutorial_card_height(width), viewport_size.y - 40.0)
+		tutorial_card_panel.anchor_left = 0.5
+		tutorial_card_panel.anchor_top = 0.5
+		tutorial_card_panel.anchor_right = 0.5
+		tutorial_card_panel.anchor_bottom = 0.5
+		tutorial_card_panel.offset_left = -width * 0.5
+		tutorial_card_panel.offset_top = -height * 0.5
+		tutorial_card_panel.offset_right = width * 0.5
+		tutorial_card_panel.offset_bottom = height * 0.5
+		return
+	# Notice card: left edge under the player card (owner: "сюда перенеси"),
+	# never over the avatar card or the left thumb joystick.
+	tutorial_overlay.color = Color(0.015, 0.02, 0.04, 0.0)
+	tutorial_card_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tutorial_card_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tutorial_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	tutorial_body.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	tutorial_title.add_theme_font_size_override("font_size", _fs(24))
+	tutorial_body.add_theme_font_size_override("font_size", _fs(16))
+	var left := 20.0
+	var top := 104.0
+	var width := minf(380.0, viewport_size.x - 40.0)
+	if player_panel != null and is_instance_valid(player_panel) and player_panel.visible:
+		left = maxf(16.0, player_panel.position.x)
+		top = player_panel.position.y + player_panel.size.y + 10.0
+		width = clampf(player_panel.size.x, 280.0, viewport_size.x - left - 20.0)
+	var bottom_limit := viewport_size.y - 16.0
+	if touch_joystick != null and is_instance_valid(touch_joystick) and touch_joystick.visible:
+		# Same parent (the HUD root), so `position` and `size` are comparable.
+		bottom_limit = minf(bottom_limit, touch_joystick.position.y - 8.0)
+	var max_height := maxf(96.0, bottom_limit - top)
+	var height := minf(_tutorial_card_height(width), max_height)
+	tutorial_card_panel.anchor_left = 0.0
+	tutorial_card_panel.anchor_top = 0.0
+	tutorial_card_panel.anchor_right = 0.0
+	tutorial_card_panel.anchor_bottom = 0.0
+	tutorial_card_panel.offset_left = left
+	tutorial_card_panel.offset_top = top
+	tutorial_card_panel.offset_right = left + width
+	tutorial_card_panel.offset_bottom = top + height
+
+
+func _tutorial_card_height(width: float) -> float:
+	# PanelContainer does not shrink to an autowrapped Label, so the height is
+	# measured from the current texts instead of guessed.
+	var inner := maxf(120.0, width - 28.0)
+	var title_height := 0.0
+	if not tutorial_title.text.is_empty():
+		title_height = tutorial_title.get_theme_font("font").get_multiline_string_size(
+			tutorial_title.text,
+			HORIZONTAL_ALIGNMENT_LEFT,
+			inner,
+			tutorial_title.get_theme_font_size("font_size")
+		).y
+	var body_height := 0.0
+	if not tutorial_body.text.is_empty():
+		body_height = tutorial_body.get_theme_font("font").get_multiline_string_size(
+			tutorial_body.text,
+			HORIZONTAL_ALIGNMENT_LEFT,
+			inner,
+			tutorial_body.get_theme_font_size("font_size")
+		).y
+	var actions_height := 0.0
+	if tutorial_primary_button.visible:
+		actions_height = tutorial_primary_button.get_combined_minimum_size().y + 6.0
+	if tutorial_secondary_button.visible:
+		actions_height = maxf(actions_height, tutorial_secondary_button.get_combined_minimum_size().y + 6.0)
+	return 16.0 + title_height + 6.0 + body_height + actions_height + 4.0
 
 
 func hide_tutorial_card() -> void:
@@ -494,14 +595,8 @@ func minimap_ping(world_position: Vector3, color: Color = Color(1.0, 0.82, 0.32)
 
 
 func show_tutorial_hint(text: String) -> void:
-	if tutorial_side_hint != null:
-		tutorial_side_hint.visible = false
-	var shop_open := shop_panel != null and shop_panel.visible
-	if shop_open and shop_hint_label != null:
-		shop_hint_label.text = text
-		shop_hint_label.visible = not text.is_empty()
-		tutorial_hint.visible = false
-		return
+	# Owner: every tutorial message lives in the top strip. The shop keeps its
+	# own label hidden so nothing is written twice.
 	if shop_hint_label != null:
 		shop_hint_label.visible = false
 	_layout_tutorial_hint(false)
@@ -510,17 +605,14 @@ func show_tutorial_hint(text: String) -> void:
 
 
 func show_tutorial_side_hint(text: String) -> void:
+	# The left plate is gone (owner: the strip is the only hint). The label is
+	# still laid out but never shown, so older probes keep a valid rect.
 	if tutorial_side_hint == null:
 		return
-	# The shop panel occupies the centre; once it is open the highlighted item
-	# is the instruction, so the left hint would only overlap the shop.
-	if shop_panel != null and shop_panel.visible:
-		tutorial_side_hint.visible = false
-		return
 	tutorial_side_hint.text = text
-	tutorial_side_hint.visible = not text.is_empty()
-	if not text.is_empty() and tutorial_hint != null:
-		tutorial_hint.visible = false
+	_layout_tutorial_side_hint()
+	tutorial_side_hint.visible = false
+	show_tutorial_hint(text)
 
 
 func hide_tutorial_side_hint() -> void:
@@ -531,20 +623,80 @@ func hide_tutorial_side_hint() -> void:
 func _layout_tutorial_hint(_shop_open: bool) -> void:
 	if tutorial_hint == null:
 		return
-	# Top-centre, below the avatar card and the skip button: never covers
-	# either corner. The fountain/shop side hint uses the left slot instead.
-	tutorial_hint.anchor_left = 0.34
-	tutorial_hint.anchor_right = 0.66
+	var viewport_size := tutorial_hint.get_parent_area_size()
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		viewport_size = get_viewport().get_visible_rect().size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return
+	# The always-on strip lives at the very top, between the player card and
+	# the skip button. It must never cover either corner.
+	var left := 12.0
+	var right := viewport_size.x - 12.0
+	if player_panel != null and is_instance_valid(player_panel):
+		left = player_panel.position.x + player_panel.size.x + 12.0
+	if tutorial_skip_button != null and is_instance_valid(tutorial_skip_button):
+		right = tutorial_skip_button.position.x - 12.0
+	var top := 18.0
+	var height := 48.0
+	# Very narrow phones leave no room between the avatar and "Пропустить".
+	# In that case drop the strip just below the top row and use full width.
+	if right - left < 220.0:
+		left = 12.0
+		right = viewport_size.x - 12.0
+		top = 102.0
+		height = 48.0
+	tutorial_hint.anchor_left = 0.0
+	tutorial_hint.anchor_right = 0.0
 	tutorial_hint.anchor_top = 0.0
 	tutorial_hint.anchor_bottom = 0.0
-	tutorial_hint.offset_left = 0.0
-	tutorial_hint.offset_top = 104.0
-	tutorial_hint.offset_right = 0.0
-	tutorial_hint.offset_bottom = 168.0
+	tutorial_hint.offset_left = left
+	tutorial_hint.offset_right = right
+	tutorial_hint.offset_top = top
+	tutorial_hint.offset_bottom = top + height
+	# Keep the project's mobile minimum (18) instead of shrinking to 13:
+	# the strip grows downwards when the text needs a second line.
 	tutorial_hint.add_theme_font_size_override("font_size", _fs(18))
 	tutorial_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tutorial_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tutorial_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
+
+func _layout_tutorial_side_hint() -> void:
+	if tutorial_side_hint == null or player_panel == null or not is_instance_valid(player_panel):
+		return
+	# The fountain/shop hint sits exactly under the player card: same left
+	# edge, same width, never wider than the avatar + nickname card.
+	var left := player_panel.position.x
+	var width := player_panel.size.x
+	var top := player_panel.position.y + player_panel.size.y + 8.0
+	tutorial_side_hint.anchor_left = 0.0
+	tutorial_side_hint.anchor_right = 0.0
+	tutorial_side_hint.anchor_top = 0.0
+	tutorial_side_hint.anchor_bottom = 0.0
+	tutorial_side_hint.offset_left = left
+	tutorial_side_hint.offset_right = left + width
+	tutorial_side_hint.offset_top = top
+	tutorial_side_hint.offset_bottom = top + 76.0
+	tutorial_side_hint.add_theme_font_size_override("font_size", _fs(15))
+	tutorial_side_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
+
+func _on_tutorial_viewport_resized() -> void:
+	call_deferred("_refresh_tutorial_layout_after_resize")
+
+
+func _refresh_tutorial_layout_after_resize() -> void:
+	# UiLayout re-applies its own overrides deferred as well; wait two frames
+	# so the player card has its final rect before pinning the hints to it.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_inside_tree():
+		return
+	_layout_tutorial_hint(false)
+	if tutorial_overlay != null and is_instance_valid(tutorial_overlay) and tutorial_overlay.visible:
+		_layout_tutorial_card(tutorial_card_modal)
+	if tutorial_side_hint != null and tutorial_side_hint.visible:
+		_layout_tutorial_side_hint()
 
 
 func _on_tutorial_primary_pressed() -> void:
@@ -877,14 +1029,18 @@ func _build_pause_menu(root: Control) -> void:
 	pause_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	pause_overlay.process_mode = Node.PROCESS_MODE_ALWAYS
 	pause_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	pause_overlay.z_index = 50
+	# Above the tutorial cards (100) and the skip button (110): the pause menu
+	# must stay reachable while a stage card is on screen.
+	pause_overlay.z_index = 150
 	pause_overlay.visible = false
+	pause_overlay.gui_input.connect(_on_pause_overlay_input)
 	root.add_child(pause_overlay)
 
 	var dim := ColorRect.new()
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dim.color = Color(0.005, 0.008, 0.018, 0.78)
-	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	# The overlay itself blocks the field; the dim only has to dim.
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	pause_overlay.add_child(dim)
 
 	var panel := PanelContainer.new()
@@ -963,6 +1119,30 @@ func _on_avatar_input(event: InputEvent) -> void:
 		_toggle_pause_menu()
 	elif event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
 		_toggle_pause_menu()
+
+
+func _on_pause_overlay_input(event: InputEvent) -> void:
+	# The player card is one big toggle: tapping it while the menu is open
+	# closes the menu again. The overlay covers the card, so the tap lands here.
+	if pause_menu_panel == null or not pause_menu_panel.visible:
+		return
+	if player_panel == null or not is_instance_valid(player_panel) or not player_panel.visible:
+		return
+	var local := Vector2.INF
+	if event is InputEventMouseButton:
+		var mouse := event as InputEventMouseButton
+		if not mouse.pressed or mouse.button_index != MOUSE_BUTTON_LEFT:
+			return
+		local = mouse.position
+	elif event is InputEventScreenTouch:
+		var touch := event as InputEventScreenTouch
+		if not touch.pressed:
+			return
+		local = touch.position
+	else:
+		return
+	if player_panel.get_global_rect().has_point(local + pause_overlay.global_position):
+		_resume_game()
 
 
 func _open_pause_menu() -> void:
@@ -1045,7 +1225,9 @@ func _build_player_panel(root: Control) -> void:
 	player_panel.offset_top = 20.0
 	player_panel.offset_right = 390.0
 	player_panel.offset_bottom = 94.0
-	player_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Owner: the whole player card opens the pause menu, not just the portrait.
+	player_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	player_panel.gui_input.connect(_on_avatar_input)
 	player_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.76, 0.63, 0.36, 0.62), Color(0.035, 0.035, 0.05, 0.3)))
 	root.add_child(player_panel)
 
@@ -1745,6 +1927,13 @@ func hide_class_select() -> void:
 func show_announcement(text: String, color: Color, duration: float) -> void:
 	if announce_label == null:
 		return
+	if game != null and bool(game.get("tutorial_mode")):
+		# Owner: in the tutorial everything is written in the top strip only,
+		# so a message that is also the strip hint is never drawn twice.
+		if _tutorial_announcement_duplicates_hint(text):
+			return
+		show_tutorial_hint(text)
+		return
 	announce_label.text = text
 	announce_label.add_theme_color_override("font_color", color)
 	if announce_tween != null and announce_tween.is_valid():
@@ -1754,6 +1943,22 @@ func show_announcement(text: String, color: Color, duration: float) -> void:
 	announce_tween.tween_property(announce_label, "modulate:a", 1.0, 0.2)
 	announce_tween.tween_interval(duration)
 	announce_tween.tween_property(announce_label, "modulate:a", 0.0, 0.7)
+
+
+func _tutorial_announcement_duplicates_hint(text: String) -> bool:
+	# The shard message exists twice in the code base: the tutorial strip
+	# ("Неси Осколок на свою базу") and game.gd's match announce ("Осколок у
+	# тебя! Неси на базу"). Keep the strip, drop the second line.
+	if tutorial_hint == null or not tutorial_hint.visible or tutorial_hint.text.is_empty():
+		return false
+	var message := text.to_lower().replace(" ", "")
+	var hint := tutorial_hint.text.to_lower().replace(" ", "")
+	if message == hint:
+		return true
+	return (
+		message.contains("осколок") and message.contains("баз")
+		and hint.contains("осколок") and hint.contains("баз")
+	)
 
 
 func _build_stun_badge(root: Control) -> void:

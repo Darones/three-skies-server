@@ -52,7 +52,8 @@ func _ready() -> void:
 		_check(duel_enemy.tutorial_stationary, "duel Huntress is stationary")
 		_check(duel_enemy.move_speed == 0.0, "duel Huntress cannot walk")
 		_check(duel_enemy.attack_damage == 10.0, "duel Huntress shoots for 10")
-		_check(duel_enemy.max_health == 120.0, "duel Huntress has training HP")
+		var standard_huntress_hp := float(HeroUnit.CLASS_DATA[HeroUnit.Cls.FAIRY]["hp"]) * float(HeroUnit.BOT_PROFILES["easy"]["hp"])
+		_check(duel_enemy.max_health == standard_huntress_hp, "duel Huntress keeps the standard Huntress HP")
 		duel_enemy.take_damage(99999.0, player)
 		await get_tree().create_timer(1.2).timeout
 		_check(not game.heroes.has(duel_enemy), "killed duel bot leaves the hero list")

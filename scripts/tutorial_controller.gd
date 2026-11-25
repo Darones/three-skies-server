@@ -11,7 +11,9 @@ const OBJECTIVE_SHELL := Color(0.85, 0.6, 1.0)
 const OBJECTIVE_CRYSTAL := Color(0.45, 0.92, 1.0)
 const TEAM_FIGHT_TIME := 60.0
 const FINAL_WAVE_RELEASE := 1.5
-const DUEL_BOT_HP := 120.0
+# Stage cards are notifications, not dialogs: the match keeps running and the
+# next stage starts on its own after this delay (owner: no "К фонтану"/"В бой").
+const CARD_ADVANCE_DELAY := 2.2
 const SHELL_TELEGRAPH_TIME := 2.0
 const SHELL_SOFT_CAP_TIME := 25.0
 
@@ -53,7 +55,7 @@ func begin() -> void:
 	game.hud.call(
 		"show_tutorial_card",
 		"Добро пожаловать!",
-		"Цель игры — разбить Оболочку, подобрать Осколок и донести его до базы. В обучении три боя и финал с Оболочкой. Ты не можешь погибнуть. Пропустить можно кнопкой сверху.\n\n%s" % controls_hint,
+		"Разбей Оболочку, забери Осколок и донеси его на базу. В обучении три боя и финал, погибнуть нельзя.\n\n%s" % controls_hint,
 		"Продолжить",
 		Callable(self, "_continue_intro")
 	)
@@ -84,12 +86,9 @@ func process(delta: float) -> void:
 		if _fountain_distance() <= 10.0:
 			_start_coin_collection()
 	elif stage == "collect_coins":
-		if _fountain_distance() <= 10.0:
-			game.hud.call("show_tutorial_side_hint", "Собери %d монет" % COINS_TO_COLLECT)
-		else:
-			game.hud.call("hide_tutorial_side_hint")
 		# Safety net if a coin was consumed or removed by a cleanup: never leave
 		# the player with an empty fountain and a task that cannot progress.
+		# The progress itself lives in the top strip (owner: no left plate).
 		if game.tutorial_coins_on_ground() == 0 and coins_spawned < COINS_TO_COLLECT:
 			_spawn_coin_batch()
 	elif stage == "go_shop":
@@ -97,10 +96,11 @@ func process(delta: float) -> void:
 			_show_shop_hint()
 	elif stage == "buy_item":
 		if game.is_hero_near_shop(game.player):
-			game.hud.call("show_tutorial_side_hint", "Купи «Крылатые ботинки»: +15% скорости")
+			_show_shop_hint()
 		else:
-			game.hud.call("hide_tutorial_side_hint")
 			stage = "go_shop"
+			_point_to(_shop_position(), OBJECTIVE_GOLD)
+			game.hud.call("show_tutorial_hint", "Иди к лавке и купи «Сапоги Ветра»")
 	elif stage == "team_fight_final_wait":
 		final_wave_release_timer = maxf(0.0, final_wave_release_timer - delta)
 		if final_wave_release_timer <= 0.0:
@@ -162,6 +162,10 @@ func on_coin_collected() -> void:
 	if coins_collected < COINS_TO_COLLECT:
 		if game.tutorial_coins_on_ground() == 0 and coins_spawned < COINS_TO_COLLECT:
 			_spawn_coin_batch()
+		game.hud.call(
+			"show_tutorial_hint",
+			"Собрано %d/%d монет" % [coins_collected, COINS_TO_COLLECT]
+		)
 		return
 	if game.gold < COINS_TO_COLLECT * GOLD_PER_COIN:
 		push_error("Tutorial fountain did not award the expected match gold")
@@ -180,6 +184,7 @@ func on_shop_item_bought(item_id: String) -> void:
 	if stage != "buy_item" or item_id != SHOP_ITEM_ID:
 		return
 	game.hud.call("hide_tutorial_side_hint")
+	_clear_target()
 	game.call("set_shop_open", false)
 	_start_team_fight_intro()
 
@@ -232,6 +237,20 @@ func _continue_intro() -> void:
 	_run_ui_tour()
 
 
+func _auto_advance(expected_stage: String, action: Callable, delay := CARD_ADVANCE_DELAY) -> void:
+	# Stage cards are notifications, not dialogs: the match keeps running and
+	# the next stage starts by itself. Probes and skips may already have moved
+	# the tutorial on, so only advance while the expected stage is current.
+	if delay > 0.0:
+		await get_tree().create_timer(delay).timeout
+	if not is_inside_tree() or completed or skipped:
+		return
+	if stage != expected_stage:
+		return
+	if action.is_valid():
+		action.call()
+
+
 func _run_ui_tour() -> void:
 	game.hud.call("show_ui_highlight", "minimap", "Это миникарта: на ней видно союзников, врагов и осколок.")
 	await get_tree().create_timer(3.4).timeout
@@ -266,7 +285,7 @@ func _start_coin_collection() -> void:
 	coins_collected = 0
 	coins_spawned = 0
 	_spawn_coin_batch()
-	game.hud.call("show_tutorial_side_hint", "Собери %d монет" % COINS_TO_COLLECT)
+	game.hud.call("show_tutorial_hint", "Собери %d монет" % COINS_TO_COLLECT)
 
 
 func _spawn_coin_batch() -> void:
@@ -284,19 +303,24 @@ func _show_shop_card() -> void:
 
 
 func _show_shop_hint() -> void:
-	if stage != "go_shop":
+	if stage != "go_shop" and stage != "buy_item":
 		return
+	var entering: bool = stage != "buy_item"
 	stage = "buy_item"
 	game.hud.call("hide_ui_highlight")
+	# Only the "wind_boots" card may be highlighted with the gold frame; the
+	# navigator arrow/circle is cleared so it cannot hang over another item.
 	game.hud.call("set_tutorial_shop_item", SHOP_ITEM_ID)
-	game.hud.call("show_tutorial_side_hint", "Купи «Крылатые ботинки»: +15% скорости")
+	if entering:
+		_clear_target()
+		game.hud.call("show_tutorial_hint", "Купи «Сапоги Ветра» (+15% скорости бега)")
 
 
 func _open_shop_for_tutorial() -> void:
 	# Compatibility: the shop opens by proximity when the stage is buy_item;
 	# there is no teleport/fade and no modal card.
 	if stage == "buy_item":
-		game.hud.call("show_tutorial_side_hint", "Купи «Крылатые ботинки»: +15% скорости")
+		game.hud.call("show_tutorial_hint", "Купи «Сапоги Ветра» (+15% скорости бега)")
 		return
 	if stage == "shop_intro":
 		stage = "go_shop"
@@ -319,13 +343,11 @@ func _start_duel() -> void:
 		"Тренировочный бот"
 	)
 	# Duel target: stands still, turns to the player and shoots weak bolts.
+	# HP stays the standard Huntress HP (owner: "HP как у обычной охотницы").
 	bot.tutorial_stationary = true
 	bot.move_speed = 0.0
 	bot.attack_damage = 10.0
-	bot.max_health = DUEL_BOT_HP
-	bot.health = DUEL_BOT_HP
 	bot.ability_cds = [99.0, 99.0, 99.0]
-	bot.call("_update_health_display")
 	var to_player: Vector3 = game.player.global_position - bot.global_position
 	to_player.y = 0.0
 	if to_player.length_squared() > 0.001:
@@ -347,7 +369,8 @@ func _finish_duel(_timed_out := false) -> void:
 	game.hud.call("set_tutorial_ability", -1)
 	_clear_target()
 	var body := "Дуэль пройдена. Дальше — фонтан и лавка: собери золото и купи улучшение."
-	game.hud.call("show_tutorial_card", "Этап 1/3 пройден", body, "К фонтану", Callable(self, "_begin_fountain"))
+	game.hud.call("show_tutorial_card", "Этап 1/3 пройден", body, "", Callable())
+	_auto_advance("duel_done", Callable(self, "_begin_fountain"))
 
 
 func _begin_fountain() -> void:
@@ -366,9 +389,10 @@ func _start_team_fight_intro() -> void:
 		"show_tutorial_card",
 		"Этап 2/3 · Пара",
 		"Теперь с тобой союзный бот. Примени второй навык и победи двух врагов — так ты научишься менять цель и отходить на базу.",
-		"В бой",
-		Callable(self, "_start_team_fight")
+		"",
+		Callable()
 	)
+	_auto_advance("team_fight_intro", Callable(self, "_start_team_fight"))
 
 
 func _start_team_fight() -> void:
@@ -414,7 +438,8 @@ func _finish_team_fight(_timed_out := false) -> void:
 	game.hud.call("set_tutorial_ability", -1)
 	_clear_target()
 	var body := "Пара пройдена. Сейчас 3 на 3, без Оболочки. Оболочка будет в финале."
-	game.hud.call("show_tutorial_card", "Этап 2/3 пройден", body, "К команде", Callable(self, "_start_team_fight_final"))
+	game.hud.call("show_tutorial_card", "Этап 2/3 пройден", body, "", Callable())
+	_auto_advance("team_fight_done", Callable(self, "_start_team_fight_final"))
 
 
 func _start_team_fight_final() -> void:
@@ -492,7 +517,8 @@ func _finish_team_fight_final(_timed_out := false) -> void:
 	game.hud.call("set_tutorial_ability", -1)
 	_clear_target()
 	var body := "Команда прошла. Теперь финал: Оболочка, осколок и база. В обучении она не атакует."
-	game.hud.call("show_tutorial_card", "Этап 3/3 пройден", body, "К финалу", Callable(self, "_start_shell_lesson"))
+	game.hud.call("show_tutorial_card", "Этап 3/3 пройден", body, "", Callable())
+	_auto_advance("team_fight_final_done", Callable(self, "_start_shell_lesson"))
 
 
 func _start_shell_lesson() -> void:
@@ -506,9 +532,10 @@ func _start_shell_lesson() -> void:
 		"show_tutorial_card",
 		"Финал · Оболочка",
 		"Разбей Оболочку, забери Осколок и донеси его на базу. В обучении она не атакует.",
-		"Начать финал",
-		Callable(self, "_begin_shell_prepare")
+		"",
+		Callable()
 	)
+	_auto_advance("shell_intro", Callable(self, "_begin_shell_prepare"))
 	Stats.track("tutorial_stage", {"stage": "shell", "index": 4})
 
 
@@ -588,6 +615,12 @@ func _cancel_skip() -> void:
 
 func _stage_hint() -> String:
 	match stage:
+		"collect_coins":
+			return "Собрано %d/%d монет" % [coins_collected, COINS_TO_COLLECT]
+		"go_shop":
+			return "Монеты собраны. Иди в магазин"
+		"buy_item":
+			return "Купи «Сапоги Ветра» (+15% скорости бега)"
 		"duel":
 			return "Этап 1/3 · Победи тренировочного бота"
 		"team_fight":

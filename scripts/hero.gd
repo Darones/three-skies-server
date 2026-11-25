@@ -18,6 +18,9 @@ const CRITICAL_DAMAGE_MULTIPLIER := 2.0
 const HEALTH_BAR_FILL_WIDTH := 1.7
 const GROUND_Y_OFFSET := -0.7
 const HEALTH_REGEN_PER_SECOND := 10.0
+# A stationary tutorial duel target still turns towards a visible enemy, so
+# its bolts are aimed at the player even from across the arena.
+const STATIONARY_FACE_RANGE := 40.0
 const BASE_REGEN_RADIUS := 6.5
 const BASE_SHIELD_RADIUS := 4.9
 const BUSH_REVEAL_DURATION := 3.0
@@ -1613,6 +1616,7 @@ func _physics_process(delta: float) -> void:
 		elif tutorial_stationary and not is_player:
 			# Duel target: stands still, turns to the player and shoots.
 			dir = Vector3.ZERO
+			_face_nearest_enemy(delta)
 		else:
 			dir = _ai_dir(delta)
 		if tutorial_base_block:
@@ -2250,6 +2254,23 @@ func _push_out_of_enemy_base() -> void:
 	var outside := center + offset.normalized() * limit
 	global_position = Vector3(outside.x, global_position.y, outside.z)
 	velocity = Vector3.ZERO
+
+
+func _face_nearest_enemy(_delta: float) -> void:
+	# Used by the stationary tutorial duel target: it never walks, but it must
+	# keep the player in front of its crossbow. Target picking in
+	# `_attack_target()` is facing-gated, so without this the Huntress spawned
+	# looking away from the player and never fired a single bolt.
+	if game == null:
+		return
+	var target: HeroUnit = game.nearest_enemy(global_position, team, STATIONARY_FACE_RANGE, self)
+	if target == null:
+		return
+	var to_target := target.global_position - global_position
+	to_target.y = 0.0
+	if to_target.length_squared() < 0.001:
+		return
+	_face(to_target.normalized(), _delta)
 
 
 func _try_auto_attack(movement_direction: Vector3) -> void:
