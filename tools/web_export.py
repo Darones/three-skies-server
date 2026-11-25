@@ -226,6 +226,18 @@ def copy_editor_page() -> None:
         print("EDITOR skipped")
         return
     shutil.copy2(editor, OUT_DIR / "ui_editor.html")
+    layout_file = ROOT / "ui_layout.json"
+    if layout_file.exists():
+        shutil.copy2(layout_file, OUT_DIR / "ui_layout.json")
+    web_layout_file = ROOT / "ui_layout_web.json"
+    if web_layout_file.exists():
+        shutil.copy2(web_layout_file, OUT_DIR / "ui_layout_web.json")
+    editor_bg = ROOT / "editor-bg"
+    if editor_bg.is_dir():
+        target_bg = OUT_DIR / "editor-bg"
+        if target_bg.exists():
+            shutil.rmtree(target_bg)
+        shutil.copytree(editor_bg, target_bg)
     for source_name, target_name in (
         ("Philosopher-Regular.ttf", "philosopher.ttf"),
         ("Philosopher-Bold.ttf", "philosopher_bold.ttf"),
@@ -259,9 +271,14 @@ def prepare_server_web(pack: Path) -> None:
     html = (OUT_DIR / "index.html").read_text(encoding="utf-8")
     total = 0
     for source in OUT_DIR.iterdir():
+        target = SERVER_WEB / ("index.pck" if source == pack else source.name)
+        if source.is_dir():
+            if target.exists():
+                shutil.rmtree(target)
+            shutil.copytree(source, target)
+            continue
         if not source.is_file():
             continue
-        target = SERVER_WEB / ("index.pck" if source == pack else source.name)
         shutil.copy2(source, target)
         total += target.stat().st_size
     html = html.replace(pack.name, "index.pck")

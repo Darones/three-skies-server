@@ -10,10 +10,15 @@ extends Node
 
 const REFERENCE_WIDTH := 844.0
 const REFERENCE_HEIGHT := 390.0
+const WEB_REFERENCE_WIDTH := 1280.0
+const WEB_REFERENCE_HEIGHT := 720.0
 const LAYOUT_PATH := "res://ui_layout.json"
+const WEB_LAYOUT_PATH := "res://ui_layout_web.json"
 const STORAGE_KEY := "three_skies_ui_layout"
+const WEB_STORAGE_KEY := "three_skies_ui_layout_web"
 
 var editor_mode := false
+var web_mode := false
 var _entries: Dictionary = {}
 var _overrides: Dictionary = {}
 var _js_installed := false
@@ -25,6 +30,7 @@ var _refresh_queued := false
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	editor_mode = DeviceProfile.edit_mode
+	web_mode = not DeviceProfile.mobile_ui
 	_load_baked_layout()
 	if editor_mode:
 		_load_storage_layout()
@@ -127,12 +133,24 @@ func _design_rect(control: Control) -> Rect2:
 	var viewport_size := get_viewport().get_visible_rect().size
 	if viewport_size.y <= 0.0:
 		return Rect2()
+	if web_mode:
+		var web_scale := minf(
+			viewport_size.x / WEB_REFERENCE_WIDTH,
+			viewport_size.y / WEB_REFERENCE_HEIGHT
+		)
+		if web_scale <= 0.0:
+			return Rect2()
+		var web_rect := control.get_global_rect()
+		return Rect2(web_rect.position / web_scale, web_rect.size / web_scale)
 	var scale := minf(viewport_size.x / REFERENCE_WIDTH, viewport_size.y / REFERENCE_HEIGHT)
 	var rect := control.get_global_rect()
 	return Rect2(rect.position / scale, rect.size / scale)
 
 
 func _apply(id: String, rect: Rect2) -> void:
+	if web_mode:
+		_apply_web(id, rect)
+		return
 	if not _entries.has(id):
 		return
 	var entry: Dictionary = _entries[id]
@@ -195,6 +213,34 @@ func _apply(id: String, rect: Rect2) -> void:
 	entry["rect"] = rect
 
 
+func _apply_web(id: String, rect: Rect2) -> void:
+	if not _entries.has(id):
+		return
+	var entry: Dictionary = _entries[id]
+	var control: Control = entry["control"]
+	if control == null or not is_instance_valid(control):
+		return
+	var viewport_size := get_viewport().get_visible_rect().size
+	if viewport_size.y <= 0.0:
+		return
+	var scale := minf(
+		viewport_size.x / WEB_REFERENCE_WIDTH,
+		viewport_size.y / WEB_REFERENCE_HEIGHT
+	)
+	if scale <= 0.0:
+		return
+	control.anchor_left = 0.0
+	control.anchor_top = 0.0
+	control.anchor_right = 0.0
+	control.anchor_bottom = 0.0
+	control.offset_left = rect.position.x * scale
+	control.offset_top = rect.position.y * scale
+	control.offset_right = (rect.position.x + rect.size.x) * scale
+	control.offset_bottom = (rect.position.y + rect.size.y) * scale
+	control.custom_minimum_size = rect.size * scale
+	entry["rect"] = rect
+
+
 func _restore(id: String) -> void:
 	if not _entries.has(id):
 		return
@@ -213,13 +259,16 @@ func _restore(id: String) -> void:
 	control.offset_right = offsets[2]
 	control.offset_bottom = offsets[3]
 	control.custom_minimum_size = entry["min_size"]
+	if (entry["base_rect"] as Rect2).size.x <= 0.0 or (entry["base_rect"] as Rect2).size.y <= 0.0:
+		entry["base_rect"] = _design_rect(control)
 	entry["rect"] = entry["base_rect"]
 
 
 func _load_baked_layout() -> void:
-	if not FileAccess.file_exists(LAYOUT_PATH):
+	var path := WEB_LAYOUT_PATH if web_mode else LAYOUT_PATH
+	if not FileAccess.file_exists(path):
 		return
-	var file := FileAccess.open(LAYOUT_PATH, FileAccess.READ)
+	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
@@ -231,9 +280,10 @@ func _load_storage_layout() -> void:
 	if not OS.has_feature("web") or not Engine.has_singleton("JavaScriptBridge"):
 		return
 	var bridge := Engine.get_singleton("JavaScriptBridge")
+	var storage_key := WEB_STORAGE_KEY if web_mode else STORAGE_KEY
 	var raw: Variant = bridge.call(
 		"eval",
-		"localStorage.getItem(%s)" % JSON.stringify(STORAGE_KEY),
+		"localStorage.getItem(%s)" % JSON.stringify(storage_key),
 		true
 	)
 	if raw is String and not (raw as String).is_empty():
@@ -291,9 +341,10 @@ func _save_storage_layout() -> void:
 		"elements": _serialize_elements(),
 	}
 	var text := JSON.stringify(payload)
+	var storage_key := WEB_STORAGE_KEY if web_mode else STORAGE_KEY
 	bridge.call(
 		"eval",
-		"localStorage.setItem(%s, %s);" % [JSON.stringify(STORAGE_KEY), JSON.stringify(text)],
+		"localStorage.setItem(%s, %s);" % [JSON.stringify(storage_key), JSON.stringify(text)],
 		true
 	)
 
@@ -380,6 +431,8 @@ func _refresh_js() -> void:
 		var rect: Rect2 = entry["rect"]
 		if rect.size.x <= 0.0 or rect.size.y <= 0.0:
 			rect = entry["base_rect"]
+		if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+			rect = _design_rect(control)
 		if rect.size.x <= 0.0 or rect.size.y <= 0.0:
 			continue
 		list.append({
