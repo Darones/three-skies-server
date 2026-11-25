@@ -420,6 +420,27 @@ const engine = new Engine(GODOT_CONFIG);
 	}
 }());
 		</script>
+		<script>
+		(function () {
+			function sync() {
+				var status = document.getElementById('status');
+				var age = document.getElementById('age-rating');
+				var legal = document.getElementById('legal-consent');
+				var hidden = true;
+				if (status) {
+					hidden = status.hidden || getComputedStyle(status).display === 'none';
+				}
+				if (age) age.style.display = hidden ? 'none' : '';
+				if (legal) legal.style.display = hidden ? 'none' : '';
+			}
+			var status = document.getElementById('status');
+			if (status && window.MutationObserver) {
+				new MutationObserver(sync).observe(status, { attributes: true, attributeFilter: ['style', 'class', 'hidden'] });
+			}
+			window.setInterval(sync, 100);
+			sync();
+		})();
+		</script>
 	</body>
 </html>
 
