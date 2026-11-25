@@ -78,8 +78,8 @@ var weaponPrices = map[int]int{
 	7:   400,
 	8:   800,
 	9:   400,
-	101: 1000,
-	102: 1000,
+	101: 5000,
+	102: 5000,
 }
 
 var startedAt = time.Now()
