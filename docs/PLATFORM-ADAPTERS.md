@@ -188,15 +188,16 @@ PCK и `tools/server_web_vk.py`/`server_web_ok.py` удалены.
 
 ## Текущее состояние
 
-- Прод (25.11.2026): **один PCK** `/game/index.pck` **48 971 828**,
-  `main` `56c5cc3`, `/health` ok, `live_matches=0`. `/game-vk/` и
+- Прод (25.11.2026, вечер): **один PCK** `/game/index.pck` **48 975 700**,
+  `main` `46b510d`, `/health` ok, `live_matches=0`. `/game-vk/` и
   `/game-ok/` — тонкие shell'ы (1017/1016 байт) без PCK; VK/OK выбираются
-  в runtime. Реальные VK- и OK-приложения загружают лобби через этот PCK.
+  в runtime. В PCK входят обучение этапы 1–4; 12+/юр-строка скрываются
+  после старта.
 - **M1 сделан (24.11.2026).** Autoload `Platform` + `PlatformAdapter`,
   `StandaloneAdapter`, заглушки VK/OK/Yandex. `AdManager` и
   `shard_topup_panel` больше не mock: реклама/оплата только через адаптер,
   без реального адаптера кнопки скрыты. В standalone нет VK Bridge.
-- **M2 сделан в коде (24.11.2026), не задеплоен.** `/auth/vk` со строгой
+- **M2 задеплоен (24.11.2026).** `/auth/vk` со строгой
   проверкой `sign`/`vk_ts`/`vk_app_id`, профиль `(platform='vk',
   external_id=vk_user_id)`, миграция `players`, VK-экран входа без регистрации
   по нику. XP/уровни персонажей и обучение перенесены в серверный профиль
