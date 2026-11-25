@@ -4,8 +4,22 @@ signal back_requested
 
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const GOLD := Color(0.95, 0.76, 0.38)
-const PALE := Color(0.9, 0.92, 0.98)
-const MUTED := Color(0.72, 0.77, 0.86)
+const PALE := Color(0.94, 0.95, 0.99)
+const MUTED := Color(0.82, 0.85, 0.92)
+const SECTIONS := [
+	["ЦЕЛЬ",
+		"Разбей Оболочку, забери Небесный осколок и донеси его на свою базу. Побеждает команда, которая первой доставит 3 осколка."],
+	["УПРАВЛЕНИЕ",
+		"WASD или джойстик — движение. Автоатака сама бьёт врага рядом. 1, 2 и 3 — навыки; на телефоне это кнопки справа."],
+	["ОБОЛОЧКА И ОСКОЛОК",
+		"Оболочка появляется на арене по расписанию. Разбей её, забери осколок и неси на базу. Носильщик виден всем, а осколок можно выбить."],
+	["МАГАЗИН",
+		"Золото боя собирается у фонтана. В лавке покупаются улучшения до конца матча. Осколки — общая валюта для оружия и скинов."],
+	["ПОБЕДА",
+		"3 осколка или больше очков к концу времени. При равном счёте начинается sudden death: решает один осколок."],
+	["БОТЫ",
+		"В первых матчах и при нехватке игроков могут быть боты. Они помечены на экране загрузки и в итогах боя. Мы не выдаём их за живых игроков и не пишем за них в чат."],
+]
 
 var mobile_layout := false
 var scroll: ScrollContainer
@@ -57,76 +71,102 @@ func _build() -> void:
 	panel.add_theme_stylebox_override("panel", _panel_style())
 	add_child(panel)
 
-	scroll = ScrollContainer.new()
-	scroll.name = "RulesScroll"
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	panel.add_child(scroll)
-
-	var margin := MarginContainer.new()
-	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	margin.add_theme_constant_override("margin_left", 20)
-	margin.add_theme_constant_override("margin_right", 20)
-	margin.add_theme_constant_override("margin_top", 16)
-	margin.add_theme_constant_override("margin_bottom", 16)
-	scroll.add_child(margin)
+	var outer := MarginContainer.new()
+	outer.name = "RulesMargin"
+	outer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	outer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	outer.add_theme_constant_override("margin_left", 22)
+	outer.add_theme_constant_override("margin_right", 22)
+	outer.add_theme_constant_override("margin_top", 18)
+	outer.add_theme_constant_override("margin_bottom", 18)
+	panel.add_child(outer)
 
 	var layout := VBoxContainer.new()
 	layout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	layout.add_theme_constant_override("separation", 12)
-	margin.add_child(layout)
+	layout.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	layout.add_theme_constant_override("separation", 16 if mobile_layout else 14)
+	outer.add_child(layout)
+
+	var title_size := 38 if mobile_layout else 34
+	var section_title_size := 27 if mobile_layout else 24
+	var body_size := 24 if mobile_layout else 20
+	var footer_size := 19 if mobile_layout else 17
+	var button_size := 22 if mobile_layout else 20
 
 	var header := HBoxContainer.new()
 	layout.add_child(header)
-	var title := _make_label("ПРАВИЛА БОЯ", 30, GOLD)
+	var title := _make_label("ПРАВИЛА БОЯ", title_size, GOLD)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	header.add_child(title)
 	var close_button := _make_button("×", false)
-	close_button.custom_minimum_size = Vector2(48.0, 42.0)
-	close_button.add_theme_font_size_override("font_size", _fs(24))
+	close_button.custom_minimum_size = Vector2(56.0, 50.0)
+	close_button.add_theme_font_size_override("font_size", _fs(title_size - 6))
 	close_button.pressed.connect(_on_back)
 	header.add_child(close_button)
 
-	layout.add_child(_section(
-		"ЦЕЛЬ",
-		"Разбей Оболочку, забери Небесный осколок и донеси его на свою базу. Побеждает команда, которая первой доставит 3 осколка."
-	))
-	layout.add_child(_section(
-		"УПРАВЛЕНИЕ",
-		"WASD или джойстик — движение. Автоатака сама бьёт врага рядом. 1, 2 и 3 — навыки; на телефоне это кнопки справа."
-	))
-	layout.add_child(_section(
-		"ОБОЛОЧКА И ОСКОЛОК",
-		"Оболочка появляется на арене по расписанию. Разбей её, забери осколок и неси на базу. Носильщик виден всем, а осколок можно выбить."
-	))
-	layout.add_child(_section(
-		"МАГАЗИН",
-		"Золото боя собирается у фонтана. В лавке покупаются улучшения до конца матча. Осколки — общая валюта для оружия и скинов."
-	))
-	layout.add_child(_section(
-		"ПОБЕДА",
-		"3 осколка или больше очков к концу времени. При равном счёте начинается sudden death: решает один осколок."
-	))
-	layout.add_child(_section(
-		"БОТЫ",
-		"В первых матчах и при нехватке игроков могут быть боты. Они помечены на экране загрузки и в итогах боя. Мы не выдаём их за живых игроков и не пишем за них в чат."
-	))
+	scroll = ScrollContainer.new()
+	scroll.name = "RulesScroll"
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	layout.add_child(scroll)
 
-	var footer := _make_label("Обучение можно пройти заново кнопкой «Обучение» в лобби.", 14, MUTED)
+	var content_margin := MarginContainer.new()
+	content_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content_margin.add_theme_constant_override("margin_left", 2)
+	content_margin.add_theme_constant_override("margin_right", 2)
+	content_margin.add_theme_constant_override("margin_top", 8)
+	content_margin.add_theme_constant_override("margin_bottom", 8)
+	scroll.add_child(content_margin)
+
+	var content := VBoxContainer.new()
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.add_theme_constant_override("separation", 16 if mobile_layout else 14)
+	content_margin.add_child(content)
+
+	if _use_two_columns():
+		var columns := HBoxContainer.new()
+		columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		columns.add_theme_constant_override("separation", 30)
+		content.add_child(columns)
+		var left := VBoxContainer.new()
+		left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		left.add_theme_constant_override("separation", 16)
+		columns.add_child(left)
+		var right := VBoxContainer.new()
+		right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		right.add_theme_constant_override("separation", 16)
+		columns.add_child(right)
+		for i in SECTIONS.size():
+			var column: VBoxContainer = left if i < SECTIONS.size() / 2 else right
+			column.add_child(_section(str(SECTIONS[i][0]), str(SECTIONS[i][1]), section_title_size, body_size))
+	else:
+		for entry in SECTIONS:
+			content.add_child(_section(str(entry[0]), str(entry[1]), section_title_size, body_size))
+
+	var footer := _make_label("Обучение можно пройти заново кнопкой «Обучение» в лобби.", footer_size, MUTED)
 	footer.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	layout.add_child(footer)
 	var back_button := _make_button("Назад", true)
-	back_button.custom_minimum_size = Vector2(0.0, 46.0)
+	back_button.custom_minimum_size = Vector2(0.0, 52.0)
+	back_button.add_theme_font_size_override("font_size", _fs(button_size))
 	back_button.pressed.connect(_on_back)
 	layout.add_child(back_button)
 
 
-func _section(title_text: String, body_text: String) -> VBoxContainer:
+func _use_two_columns() -> bool:
+	if not mobile_layout:
+		return false
+	var view := get_viewport_rect().size
+	return view.x >= view.y * 1.5
+
+
+func _section(title_text: String, body_text: String, title_size: int, body_size: int) -> VBoxContainer:
 	var section := VBoxContainer.new()
-	section.add_theme_constant_override("separation", 3)
-	section.add_child(_make_label(title_text, 18, GOLD))
-	var body := _make_label(body_text, 16, PALE)
+	section.add_theme_constant_override("separation", 5)
+	section.add_child(_make_label(title_text, title_size, GOLD))
+	var body := _make_label(body_text, body_size, PALE)
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	section.add_child(body)
@@ -143,6 +183,7 @@ func _make_label(text: String, font_size: int, color: Color) -> Label:
 	label.text = text
 	label.add_theme_font_override("font", UI_FONT)
 	label.add_theme_font_size_override("font_size", _fs(font_size))
+	label.add_theme_constant_override("line_spacing", 4)
 	label.add_theme_color_override("font_color", color)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
