@@ -13,6 +13,12 @@ https://heyheythere.itch.io/low-poly-rpg-items-free
 Лицензия: CC0 1.0
 https://polyy.ai
 
+New Low Poly
+Автор: Add Balmont Hmuriy
+Лицензия: Creative Commons Attribution (CC BY 4.0)
+https://skfb.ly/LTt8
+http://creativecommons.org/licenses/by/4.0/
+
 Stylized Hit FX (Binbun VFX Vol.2)
 Автор: Binbun3D (bun3d.com)
 Лицензия: CC0 1.0

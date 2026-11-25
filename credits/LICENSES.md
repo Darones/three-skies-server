@@ -16,6 +16,12 @@
 - Лицензия: **CC0 1.0**
 - Полный текст: `3d_fantasy_weapons_LICENSE.txt`
 
+### New Low Poly
+- Автор: Add Balmont Hmuriy
+- Лицензия: **CC BY 4.0**
+- Источник: https://skfb.ly/LTt8
+- Полный текст: `new_low_poly_LICENSE.txt`
+
 ### Stylized Hit FX (Binbun VFX Vol.2)
 - Автор: Binbun3D (bun3d.com)
 - Лицензия: **CC0 1.0**
