@@ -59,6 +59,7 @@ const LOBBY_LOGO: Texture2D = preload("res://ui/logo.png")
 const UI_CLICK_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/ui_menu/menu_selection_click.mp3")
 const SHARD_TOPUP_SCENE := preload("res://scenes/ShardTopupPanel.tscn")
 const RULES_PANEL_SCRIPT := preload("res://scripts/rules_panel.gd")
+const WELCOME_OVERLAY_SCRIPT := preload("res://scripts/welcome_overlay.gd")
 const SHARD_ICON: Texture2D = preload("res://ui/icons/sky_shard.png")
 const SETTINGS_GEAR_ICON: Texture2D = preload("res://ui/icons/settings_gear.png")
 const WeaponCatalog = preload("res://scripts/weapon_catalog.gd")
@@ -201,6 +202,8 @@ var skills_info_box: VBoxContainer
 var stats_box: VBoxContainer
 var stats_tab := "all"
 var stats_tab_buttons: Dictionary = {}
+var welcome_overlay: WELCOME_OVERLAY_SCRIPT
+var welcome_wait_token := 0
 
 
 func _notification(what: int) -> void:
@@ -235,6 +238,7 @@ func _ready() -> void:
 	_build_info_popup()
 	_build_vk_auth_overlay()
 	_build_level_up_banner()
+	_build_welcome_overlay()
 	_refresh_wing_shop()
 	_refresh_weapon_shop()
 	_refresh_selection()
@@ -242,6 +246,8 @@ func _ready() -> void:
 		MetaProgression.purchase_updated.connect(_on_purchase_updated)
 	if not MetaProgression.profile_updated.is_connected(_on_profile_updated):
 		MetaProgression.profile_updated.connect(_on_profile_updated)
+	if not MetaProgression.profile_failed.is_connected(_on_profile_failed):
+		MetaProgression.profile_failed.connect(_on_profile_failed)
 	if not NetworkClient.registration_completed.is_connected(_on_registration_completed):
 		NetworkClient.registration_completed.connect(_on_registration_completed)
 	if not NetworkManager.connection_succeeded.is_connected(_on_network_connected):
@@ -286,6 +292,9 @@ func _ready() -> void:
 				# matches_played/novice, so refresh the profile instead of showing
 				# the values from the previous lobby visit.
 				MetaProgression.load_profile(MetaProgression.player_id)
+	# New players get the welcome card while the profile request is in flight;
+	# everyone else sees the lobby exactly as before.
+	_refresh_welcome_overlay()
 	_setup_ui_click_sound()
 	_wire_ui_click_sounds(self)
 	touch_keyboard = preload("res://scripts/touch_keyboard.gd").new()
@@ -1110,6 +1119,21 @@ func _platform_display_name() -> String:
 	return "OK" if _is_ok_platform() else "VK"
 
 
+func _build_welcome_overlay() -> void:
+	welcome_overlay = WELCOME_OVERLAY_SCRIPT.new()
+	welcome_overlay.name = "WelcomeOverlay"
+	welcome_overlay.z_index = 200
+	welcome_overlay.apply_play_styles(
+		_play_button_style(false, false),
+		_play_button_style(true, false),
+		_play_button_style(true, false),
+		_play_button_style(false, true)
+	)
+	welcome_overlay.play_pressed.connect(_on_welcome_play_pressed)
+	welcome_overlay.retry_pressed.connect(_on_welcome_retry_pressed)
+	add_child(welcome_overlay)
+
+
 func _build_vk_auth_overlay() -> void:
 	vk_auth_overlay = ColorRect.new()
 	vk_auth_overlay.name = "VKAuthOverlay"
@@ -1422,6 +1446,113 @@ func _on_profile_updated() -> void:
 	_refresh_weapon_shop()
 	_refresh_player_profile()
 	_refresh_player_menu()
+	_refresh_welcome_overlay()
+
+
+func _on_profile_failed() -> void:
+	if not _welcome_is_active() or not _welcome_is_candidate_pending():
+		return
+	if _is_platform_auth() and vk_auth_overlay != null and vk_auth_overlay.visible:
+		return
+	welcome_wait_token += 1
+	welcome_overlay.show_error()
+
+
+## The welcome card belongs to the real lobby scene. Probes and previews that
+## embed Lobby.tscn keep the old lobby, so their screenshots stay valid.
+func _welcome_overlay_enabled() -> bool:
+	if OS.get_cmdline_user_args().has("--no-welcome"):
+		return false
+	if get_parent() == get_tree().root:
+		return true
+	return OS.get_cmdline_user_args().has("--welcome-preview")
+
+
+func _welcome_overlay_ready() -> bool:
+	return welcome_overlay != null and is_instance_valid(welcome_overlay)
+
+
+func _welcome_is_active() -> bool:
+	return _welcome_overlay_ready() and _welcome_overlay_enabled()
+
+
+## The card is for a first launch only: profile loaded, no matches yet, tutorial
+## untouched, and the device has not shown the card before.
+func _should_welcome_player() -> bool:
+	if not MetaProgression.profile_loaded:
+		return false
+	return _welcome_is_candidate_pending()
+
+
+func _welcome_is_candidate_pending() -> bool:
+	return (
+		not MetaProgression.welcome_seen
+		and MetaProgression.matches_played <= 0
+		and not MetaProgression.tutorial_completed
+		and not MetaProgression.tutorial_skipped
+	)
+
+
+func _refresh_welcome_overlay() -> void:
+	if not _welcome_overlay_ready():
+		return
+	welcome_wait_token += 1
+	# Probes and --no-welcome must never end up with a dark card over the lobby.
+	if not _welcome_overlay_enabled() or not _welcome_is_candidate_pending():
+		welcome_overlay.hide_overlay()
+		return
+	if _should_welcome_player():
+		welcome_overlay.show_welcome()
+		return
+	if _is_platform_auth() and vk_auth_overlay != null and vk_auth_overlay.visible:
+		# The VK/OK waiting card already covers the lobby during auth.
+		welcome_overlay.hide_overlay()
+		return
+	welcome_overlay.show_loading()
+	_watch_welcome_loading()
+
+
+## A profile request can fail without a signal when the response never comes;
+## after a short wait the card offers "Повторить" instead of loading forever.
+func _watch_welcome_loading() -> void:
+	welcome_wait_token += 1
+	var token := welcome_wait_token
+	var timer := get_tree().create_timer(10.0)
+	timer.timeout.connect(func() -> void:
+		if not is_inside_tree() or token != welcome_wait_token:
+			return
+		if _welcome_is_active() and _welcome_is_candidate_pending() and not MetaProgression.profile_loaded:
+			welcome_overlay.show_error()
+	)
+
+
+func _on_welcome_play_pressed() -> void:
+	if not MetaProgression.profile_loaded:
+		return
+	MetaProgression.mark_welcome_seen()
+	welcome_wait_token += 1
+	if _welcome_is_active():
+		welcome_overlay.hide_overlay()
+	if _tutorial_completed() or _tutorial_skipped():
+		return
+	_start_tutorial()
+
+
+func _on_welcome_retry_pressed() -> void:
+	if not _welcome_is_active():
+		return
+	welcome_overlay.show_loading()
+	_watch_welcome_loading()
+	_retry_profile_load()
+
+
+func _retry_profile_load() -> void:
+	if MetaProgression.player_id > 0:
+		MetaProgression.load_profile(MetaProgression.player_id)
+		return
+	if MetaProgression.player_nickname.is_empty():
+		MetaProgression.player_nickname = _generate_guest_nickname()
+	MetaProgression.register_player(MetaProgression.player_nickname)
 
 
 func _wing_card_style(is_owned: bool) -> StyleBoxFlat:

@@ -5,6 +5,7 @@ const SkinCatalog = preload("res://scripts/skin_catalog.gd")
 
 signal purchase_updated(success: bool, purchase_type: String, item_id: int, new_shards: int)
 signal profile_updated
+signal profile_failed
 
 const MAX_CHARACTER_LEVEL := 15
 const STATS_PATH := "user://stats.cfg"
@@ -34,6 +35,8 @@ var char_xps: Dictionary = {"warrior": 0, "mage": 0, "fairy": 0}
 var tutorial_completed := false
 var tutorial_skipped := false
 var tutorial_battles_used := 0
+# Local-only flag: the first-launch welcome card is shown once per device.
+var welcome_seen := false
 var progress_initialized := false
 var last_interstitial_at := 0
 var just_leveled_up: bool = false
@@ -103,6 +106,7 @@ func _load_meta() -> void:
 	pending_compensation = maxi(0, int(config.get_value("progression", "pending_compensation", 0)))
 	matches_played = maxi(0, int(config.get_value("progression", "matches_played", 0)))
 	novice = bool(config.get_value("progression", "novice", false))
+	welcome_seen = bool(config.get_value("progression", "welcome_seen", false))
 	account_level = maxi(1, int(config.get_value("progression", "account_level", 1)))
 	var levels: Variant = config.get_value("progression", "char_levels", {})
 	if levels is Dictionary:
@@ -128,6 +132,14 @@ func _on_session_ready(token: String) -> void:
 
 
 func persist_local() -> void:
+	_save_meta()
+
+
+func mark_welcome_seen() -> void:
+	# The welcome card is device-local: it must not touch the server profile.
+	if welcome_seen:
+		return
+	welcome_seen = true
 	_save_meta()
 
 
@@ -221,6 +233,7 @@ func _save_meta() -> void:
 	config.set_value("progression", "pending_compensation", pending_compensation)
 	config.set_value("progression", "matches_played", matches_played)
 	config.set_value("progression", "novice", novice)
+	config.set_value("progression", "welcome_seen", welcome_seen)
 	config.set_value("progression", "account_level", account_level)
 	# Before the first successful server save, keep the legacy local values so
 	# a failed upload does not lose them. Once the server owns progress they
@@ -245,6 +258,7 @@ func reset_all() -> void:
 	tutorial_completed = false
 	tutorial_skipped = false
 	tutorial_battles_used = 0
+	welcome_seen = false
 	progress_initialized = false
 	just_leveled_up = false
 	just_leveled_up_character = ""
@@ -568,6 +582,9 @@ func _on_profile_loaded(success: bool, loaded_player_id: int, server_shards: int
 		return
 	profile_loaded = success
 	if not success:
+		# The lobby shows a small retry card instead of leaving the welcome
+		# screen waiting forever.
+		profile_failed.emit()
 		return
 	sky_shards = maxi(0, server_shards)
 	matches_played = maxi(0, server_matches_played)
