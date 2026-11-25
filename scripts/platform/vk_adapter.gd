@@ -17,6 +17,14 @@ var _launch_ready := false
 var _launch_result: Dictionary = {}
 var _user_ready := false
 var _user_result: Dictionary = {}
+var _js_ad_cb = null
+var _ad_ready := false
+var _ad_result: Dictionary = {}
+var _ad_busy := false
+var _ad_request_seq := 0
+var _ads_checked := false
+var _rewarded_available := false
+var _interstitial_available := false
 
 
 func _init() -> void:
@@ -57,6 +65,9 @@ func authenticate() -> bool:
 				_apply_auth(updated)
 	_authenticated = true
 	_auth_in_progress = false
+	# Cache real VK ad fill before the results screen asks for it. The show
+	# methods still re-check at click time.
+	_refresh_ad_availability()
 	return true
 
 
@@ -91,6 +102,161 @@ func get_app_link() -> String:
 
 func get_currency() -> String:
 	return "votes"
+
+
+func is_rewarded_available() -> bool:
+	# The x2 button stays visible in VK. Whether an ad can actually be shown is
+	# decided by VKWebAppShowNativeAds at click time; a failed check is not a
+	# reason to hide the button, because ShowNativeAds may still load an ad.
+	return _authenticated
+
+
+func is_interstitial_available() -> bool:
+	if not _authenticated:
+		return false
+	return _interstitial_available if _ads_checked else true
+
+
+func show_rewarded_ad(placement: String) -> bool:
+	# CheckNativeAds only reports preloaded inventory. ShowNativeAds still
+	# requests an ad, so a failed check must not block the attempt: that was
+	# hiding a working reward ad behind a false negative.
+	last_ad_error = ""
+	last_ad_detail = ""
+	var started_ms := Time.get_ticks_msec()
+	var check := await _call_ad_bridge("VKWebAppCheckNativeAds", {"ad_format": "reward", "use_waterfall": true})
+	var check_ok := bool(check.get("ok", false))
+	var check_result := _ad_result_flag(check)
+	var check_error := String(check.get("error", ""))
+	print("[Ads] check reward placement=%s ok=%s result=%s error=%s" % [
+		placement, check_ok, check_result, check_error,
+	])
+	var shown := await _call_ad_bridge("VKWebAppShowNativeAds", {"ad_format": "reward", "use_waterfall": true})
+	var shown_ok := bool(shown.get("ok", false))
+	var shown_result := _ad_result_flag(shown)
+	var show_error := String(shown.get("error", ""))
+	var watched := shown_ok and shown_result
+	var elapsed_ms := Time.get_ticks_msec() - started_ms
+	print("[Ads] show reward placement=%s ok=%s result=%s error=%s ms=%d" % [
+		placement, shown_ok, shown_result, show_error, elapsed_ms,
+	])
+	last_ad_detail = "check_ok=%s check_result=%s check_error=%s show_ok=%s show_result=%s show_error=%s ms=%d" % [
+		check_ok, check_result, check_error, shown_ok, shown_result, show_error, elapsed_ms,
+	]
+	if not watched:
+		if not shown_ok:
+			last_ad_error = show_error if not show_error.is_empty() else "show_error"
+		elif not shown_result:
+			last_ad_error = "no_fill"
+		else:
+			last_ad_error = "not_completed"
+	_rewarded_available = watched
+	_ads_checked = true
+	return watched
+
+
+func show_interstitial(placement: String) -> bool:
+	if not _authenticated:
+		return false
+	var check := await _call_ad_bridge("VKWebAppCheckNativeAds", {"ad_format": "interstitial"})
+	print("[Ads] check interstitial placement=%s ok=%s result=%s error=%s" % [
+		placement, check.get("ok", false), _ad_result_flag(check), check.get("error", ""),
+	])
+	var shown := await _call_ad_bridge("VKWebAppShowNativeAds", {"ad_format": "interstitial"})
+	var displayed := bool(shown.get("ok", false)) and _ad_result_flag(shown)
+	print("[Ads] show interstitial placement=%s ok=%s result=%s error=%s" % [
+		placement, shown.get("ok", false), displayed, shown.get("error", ""),
+	])
+	_interstitial_available = displayed
+	_ads_checked = true
+	return displayed
+
+
+func _ad_result_flag(result: Dictionary) -> bool:
+	if not bool(result.get("ok", false)):
+		return false
+	var data: Variant = result.get("data", {})
+	if data is Dictionary:
+		return bool((data as Dictionary).get("result", false))
+	return false
+
+
+func _refresh_ad_availability() -> void:
+	var rewarded := await _call_ad_bridge("VKWebAppCheckNativeAds", {"ad_format": "reward", "use_waterfall": true})
+	_rewarded_available = _ad_result_flag(rewarded)
+	var interstitial := await _call_ad_bridge("VKWebAppCheckNativeAds", {"ad_format": "interstitial"})
+	_interstitial_available = _ad_result_flag(interstitial)
+	_ads_checked = true
+	print("[Ads] availability reward=%s interstitial=%s" % [_rewarded_available, _interstitial_available])
+
+
+func _call_ad_bridge(method: String, params: Dictionary) -> Dictionary:
+	while _ad_busy:
+		if _host == null or _host.get_tree() == null:
+			return {"ok": false, "error": "busy"}
+		await _host.get_tree().create_timer(0.05).timeout
+	if not OS.has_feature("web") or not Engine.has_singleton("JavaScriptBridge"):
+		return {"ok": false, "error": "bridge_unavailable"}
+	var bridge := Engine.get_singleton("JavaScriptBridge")
+	var window = bridge.call("get_interface", "window")
+	if window == null:
+		return {"ok": false, "error": "bridge_unavailable"}
+	if _js_ad_cb == null:
+		_js_ad_cb = bridge.call("create_callback", Callable(self, "_on_ad_js"))
+	if _js_ad_cb == null:
+		return {"ok": false, "error": "bridge_unavailable"}
+	_ad_busy = true
+	_ad_request_seq += 1
+	var seq := _ad_request_seq
+	window.__tsVKAdCB = _js_ad_cb
+	_ad_ready = false
+	_ad_result = {}
+	var payload := JSON.stringify(params)
+	var script := """
+	(function(){
+		var seq = %d;
+		function done(result) {
+			result.seq = seq;
+			try { window.__tsVKAdCB(JSON.stringify(result)); } catch (e) {}
+		}
+		if (typeof window.vkBridge === 'undefined' || !window.vkBridge || !window.vkBridge.send) {
+			done({ok: false, error: 'bridge_unavailable'});
+			return;
+		}
+		window.vkBridge.send(%s, %s).then(function(data) {
+			done({ok: true, data: data || {}});
+		}).catch(function(err) {
+			done({ok: false, error: String(err)});
+		});
+	})();
+	""" % [seq, JSON.stringify(method), payload]
+	bridge.call("eval", script, true)
+	var waited := 0.0
+	while not _ad_ready and waited < 20.0:
+		if _host == null or _host.get_tree() == null:
+			break
+		await _host.get_tree().create_timer(0.05).timeout
+		waited += 0.05
+	if not _ad_ready:
+		_ad_busy = false
+		return {"ok": false, "error": "timeout"}
+	_ad_busy = false
+	return _ad_result
+
+
+func _on_ad_js(args: Array) -> void:
+	if args.is_empty():
+		return
+	var parsed: Variant = JSON.parse_string(String(args[0]))
+	if not parsed is Dictionary:
+		return
+	var result: Dictionary = parsed
+	# A late promise from a timed-out show must not be mistaken for the answer
+	# to the next show request.
+	if int(result.get("seq", -1)) != _ad_request_seq:
+		return
+	_ad_result = result
+	_ad_ready = true
 
 
 func _fail(error: String) -> void:
@@ -148,6 +314,14 @@ func _map_error(error: String) -> String:
 			return "vk_missing_params"
 		"vk_bridge_unavailable":
 			return "vk_bridge_unavailable"
+		"ok_app_id_not_configured":
+			return "ok_app_id_not_configured"
+		"ok_auth_not_configured":
+			return "ok_auth_not_configured"
+		"ok_auth_denied", "invalid_ok_auth":
+			return "invalid_ok_auth"
+		"ok_bridge_unavailable":
+			return "ok_bridge_unavailable"
 		_:
 			return "vk_auth_failed"
 
@@ -175,11 +349,17 @@ func _get_launch_params() -> Dictionary:
 		}
 		function urlParams() {
 			var out = {};
-			try {
-				var query = new URLSearchParams(window.location.search);
-				query.forEach(function(value, key) {
+			function add(params) {
+				params.forEach(function(value, key) {
 					if (key === 'sign' || key.indexOf('vk_') === 0) out[key] = value;
 				});
+			}
+			try {
+				add(new URLSearchParams(window.location.search));
+				// VK can put the signed launch params in the hash. The one-build
+				// redirect preserves both, so read both here as well.
+				var hash = String(window.location.hash || '').replace(/^#/, '');
+				if (hash) add(new URLSearchParams(hash));
 			} catch (e) {}
 			return out;
 		}

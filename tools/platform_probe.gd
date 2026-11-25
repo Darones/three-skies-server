@@ -21,7 +21,8 @@ func _ready() -> void:
 	_check(vk_adapter.platform_id == "vk", "VK stub reports vk id")
 	_check(not vk_adapter.is_purchase_available(), "VK stub has no purchases yet")
 	_check(not vk_adapter.is_rewarded_available(), "VK stub has no rewarded ads yet")
-	_check(not vk_adapter.show_rewarded_ad("probe"), "VK stub grants no ad reward")
+	var vk_rewarded: bool = await vk_adapter.show_rewarded_ad("probe")
+	_check(not vk_rewarded, "VK stub grants no ad reward")
 
 	var reward_emitted := false
 	AdManager.rewarded_ad_completed.connect(func() -> void: reward_emitted = true)
@@ -40,7 +41,9 @@ func _ready() -> void:
 		var topup_button := lobby.find_child("TopupButton", true, false) as Button
 		_check(topup_button != null, "shop topup button exists")
 		if topup_button != null:
-			_check(not topup_button.visible, "shop topup button hidden in standalone")
+			# The placeholder stays visible; the payment button inside the
+			# panel is what must be hidden without a real adapter.
+			_check(topup_button.visible, "shop topup placeholder visible in standalone")
 		var pay_button := lobby.find_child("PayButton", true, false) as Button
 		_check(pay_button != null, "topup pay button exists")
 		if pay_button != null:

@@ -1511,6 +1511,11 @@ func play_sfx(key: String, volume_db := -4.0, pitch := 1.0) -> void:
 func start_match(player_class: int, requested_team: int = -1) -> void:
 	if state != "select" or match_started:
 		return
+	if tutorial_mode:
+		# The tutorial always teaches the Warrior; the lobby class choice is
+		# intentionally ignored here. Normal matches are untouched.
+		player_class = HeroUnit.Cls.WARRIOR
+		get_tree().set_meta("selected_class", HeroUnit.Cls.WARRIOR)
 	match_started = true
 	state = "starting"
 	Stats.track("match_start", {
@@ -3109,10 +3114,21 @@ func _update_tutorial_arrow(delta: float) -> void:
 func spawn_tutorial_bot(cls: int, team: int, pos: Vector3, difficulty := "easy", label := "") -> HeroUnit:
 	var bot := _spawn_hero(cls, team, false, pos, difficulty)
 	bot.name = "TutorialBot_%d" % tutorial_bots.size()
+	bot.tutorial_spawn_grace = 1.5
 	if not label.is_empty():
 		bot.set_display_name(label)
 	tutorial_bots.append(bot)
 	return bot
+
+
+func remove_tutorial_bot(bot: HeroUnit) -> void:
+	# A killed tutorial bot disappears for good: it is removed from both the
+	# match hero list and the controller's list, so no respawn timer or stage
+	# cleanup can bring it back.
+	if bot == null:
+		return
+	tutorial_bots.erase(bot)
+	heroes.erase(bot)
 
 
 func clear_tutorial_bots() -> void:

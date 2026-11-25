@@ -32,6 +32,7 @@ var final_shards := 0
 var final_xp := 0
 var rewards_doubled := false
 var rewards_committed := false
+var server_match := false
 var ad_in_progress := false
 var leaving_results := false
 var replay_button: Button
@@ -193,6 +194,10 @@ func _animate_rewards() -> void:
 func _ready() -> void:
 	font = UI_FONT
 	AdManager.begin_results()
+	# Refresh server-owned matches_played/novice/last_interstitial_at before
+	# the player can press «В лобби»; the timing rules use those fields.
+	if MetaProgression.player_id > 0:
+		MetaProgression.load_profile(MetaProgression.player_id)
 	if not AdManager.rewarded_ad_completed.is_connected(_on_rewarded_ad_completed):
 		AdManager.rewarded_ad_completed.connect(_on_rewarded_ad_completed)
 	selected_class = clampi(int(get_tree().get_meta("selected_class", 0)), 0, 2)
@@ -206,6 +211,8 @@ func _ready() -> void:
 	player_is_mvp = bool(get_tree().get_meta("last_match_is_mvp", false))
 	if player_is_mvp:
 		player_place = 1
+	var match_room := int(get_tree().get_meta("last_match_room", 0))
+	server_match = has_match and not match_aborted and match_room > 0
 	var kills := int(match_stats.get("p_kills", 0))
 	var shells_destroyed := int(match_stats.get("p_shells_destroyed", 0))
 	var crystals_delivered := int(match_stats.get("p_crystals", 0))
@@ -226,12 +233,16 @@ func _ready() -> void:
 		final_shards = 5 if player_won and player_is_mvp else 3 if player_won or player_is_mvp else 1
 		final_xp = kills * 10 + shells_destroyed * 25 + crystals_delivered * 25 + (50 if player_won else 20)
 		MetaProgression.record_match_result(player_won, player_place, match_stats, final_xp, final_shards)
-		_grant_match_reward_to_server(final_shards)
 		if not rewards_committed:
-			var level_before := int(MetaProgression.char_levels.get(character_key, 1))
-			MetaProgression.add_character_xp(character_key, final_xp)
-			entry_level = int(MetaProgression.char_levels.get(character_key, level_before))
-			entry_leveled_up = entry_level > level_before
+			if server_match:
+				# XP and the match payout are applied by the server atomically.
+				_grant_match_reward_to_server(final_shards, false, final_xp, character_key)
+			else:
+				var level_before := int(MetaProgression.char_levels.get(character_key, 1))
+				MetaProgression.add_character_xp(character_key, final_xp)
+				entry_level = int(MetaProgression.char_levels.get(character_key, level_before))
+				entry_leveled_up = entry_level > level_before
+				_grant_match_reward_to_server(final_shards)
 			rewards_committed = true
 	else:
 		final_shards = 0
@@ -618,6 +629,14 @@ func _button_style(primary: bool, hovered: bool) -> StyleBoxFlat:
 	return style
 
 
+func _can_show_results_interstitial() -> bool:
+	# Ads belong to a real, finished online match. An interrupted match, a
+	# tutorial or an offline fight must never end with an ad.
+	if not server_match or match_aborted:
+		return false
+	return AdManager.can_show_interstitial_after_results()
+
+
 func _open_replay() -> void:
 	if leaving_results or ad_in_progress:
 		return
@@ -626,9 +645,11 @@ func _open_replay() -> void:
 		replay_button.disabled = true
 	if menu_button != null:
 		menu_button.disabled = true
-	if AdManager.can_show_interstitial_after_results() and replay_button != null:
+	var show_interstitial := _can_show_results_interstitial()
+	if show_interstitial and replay_button != null:
 		replay_button.text = "Реклама..."
-	await AdManager.maybe_show_interstitial_after_results()
+	if show_interstitial:
+		await AdManager.maybe_show_interstitial_after_results()
 	_change_scene(REPLAY_SCENE)
 
 
@@ -640,16 +661,18 @@ func _open_menu() -> void:
 		replay_button.disabled = true
 	if menu_button != null:
 		menu_button.disabled = true
-	if AdManager.can_show_interstitial_after_results() and menu_button != null:
+	var show_interstitial := _can_show_results_interstitial()
+	if show_interstitial and menu_button != null:
 		menu_button.text = "Реклама..."
-	await AdManager.maybe_show_interstitial_after_results()
+	if show_interstitial:
+		await AdManager.maybe_show_interstitial_after_results()
 	_change_scene(MENU_SCENE)
 
 
-func _grant_match_reward_to_server(amount: int, bonus := false) -> void:
+func _grant_match_reward_to_server(amount: int, bonus := false, xp := 0, character := "") -> void:
 	if amount <= 0:
 		return
-	MetaProgression.grant_match_reward(amount, bonus)
+	MetaProgression.grant_match_reward(amount, bonus, xp, character)
 
 
 func _double_rewards_for_ad() -> void:
@@ -664,9 +687,12 @@ func _double_rewards_for_ad() -> void:
 	var rewarded: bool = await AdManager.show_rewarded_ad()
 	if not rewarded and not rewards_doubled:
 		ad_in_progress = false
-		if is_instance_valid(double_reward_button):
-			double_reward_button.text = "Реклама недоступна"
-			double_reward_button.disabled = false
+		_refresh_reward_ui()
+		var reason := Platform.get_last_ad_error()
+		var message := "Реклама недоступна. Попробуйте позже."
+		if not reason.is_empty():
+			message = "Реклама недоступна (%s). Попробуйте позже." % reason
+		_show_reward_banner(message, 3.0)
 
 
 func _on_rewarded_ad_completed() -> void:
@@ -678,9 +704,14 @@ func _on_rewarded_ad_completed() -> void:
 	final_xp *= 2
 	final_shards *= 2
 	var character_key: String = str(CHARACTER_KEYS[selected_class])
-	MetaProgression.add_character_xp(character_key, final_xp - previous_xp)
+	if server_match:
+		# The server owns the x2 payout and applies the stored base reward a
+		# second time, exactly once per match (rewarded_bonus).
+		_grant_match_reward_to_server(final_shards, true, final_xp, character_key)
+	else:
+		MetaProgression.add_character_xp(character_key, final_xp - previous_xp)
+		_grant_match_reward_to_server(final_shards - previous_shards, true, final_xp - previous_xp, character_key)
 	MetaProgression.add_reward_delta(final_xp - previous_xp, final_shards - previous_shards)
-	_grant_match_reward_to_server(final_shards - previous_shards, true)
 	rewards_doubled = true
 	_refresh_reward_ui()
 	_play_reward_fanfare()

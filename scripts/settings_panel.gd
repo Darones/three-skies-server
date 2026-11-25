@@ -27,6 +27,7 @@ var binding_buttons: Dictionary = {}
 var status_label: Label
 var credits_overlay: ColorRect
 var reset_dialog: ConfirmationDialog
+var delete_dialog: ConfirmationDialog
 
 
 func _ready() -> void:
@@ -36,6 +37,8 @@ func _ready() -> void:
 	visible = false
 	_build_panel()
 	_load_settings()
+	if not NetworkClient.account_deleted.is_connected(_on_account_deleted):
+		NetworkClient.account_deleted.connect(_on_account_deleted)
 
 
 func _build_panel() -> void:
@@ -184,6 +187,10 @@ func _build_panel() -> void:
 	reset_link.name = "ResetProgressButton"
 	reset_link.pressed.connect(_confirm_reset_progress)
 	footer.add_child(reset_link)
+	var delete_link := _make_flat_link("Удалить данные", Color(0.86, 0.24, 0.22), 16 if mobile_layout else 15)
+	delete_link.name = "DeleteAccountButton"
+	delete_link.pressed.connect(_confirm_delete_account)
+	footer.add_child(delete_link)
 
 
 func _build_binding_row(parent: VBoxContainer, action: String, label_text: String) -> void:
@@ -295,6 +302,27 @@ func _open_credits() -> void:
 	credits_overlay.visible = true
 
 
+func _credits_text() -> String:
+	var text := String(CREDITS_SCRIPT.TEXT)
+	if Platform.platform_id != "ok":
+		return text
+	# OK moderation: the application must not show links to external sites.
+	# Keep the author/license lines, drop raw http(s) URLs and any line that
+	# consisted only of a URL.
+	var regex := RegEx.new()
+	regex.compile("https?://\\S+")
+	var lines := PackedStringArray()
+	for line in text.split("\n"):
+		var cleaned := line
+		for found in regex.search_all(line):
+			cleaned = cleaned.replace(found.get_string(), "")
+		cleaned = cleaned.strip_edges()
+		if cleaned.is_empty() and not line.strip_edges().is_empty():
+			continue
+		lines.append(cleaned)
+	return "\n".join(lines)
+
+
 func _build_credits_overlay() -> void:
 	credits_overlay = ColorRect.new()
 	credits_overlay.name = "CreditsOverlay"
@@ -338,7 +366,7 @@ func _build_credits_overlay() -> void:
 	header.add_child(close_button)
 	var text_edit := TextEdit.new()
 	text_edit.name = "CreditsText"
-	text_edit.text = CREDITS_SCRIPT.TEXT
+	text_edit.text = _credits_text()
 	text_edit.editable = false
 	text_edit.custom_minimum_size = Vector2(0, 460)
 	text_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -372,6 +400,38 @@ func _confirm_reset_progress() -> void:
 	reset_dialog.confirmed.connect(_reset_progress)
 	add_child(reset_dialog)
 	reset_dialog.popup_centered()
+
+
+func _confirm_delete_account() -> void:
+	if delete_dialog != null and is_instance_valid(delete_dialog):
+		delete_dialog.queue_free()
+	delete_dialog = ConfirmationDialog.new()
+	delete_dialog.title = "Удалить данные?"
+	delete_dialog.dialog_text = "Будут удалены профиль, осколки, покупки, прогресс и статистика. Это действие нельзя отменить."
+	delete_dialog.get_ok_button().text = "Удалить"
+	delete_dialog.get_cancel_button().text = "Отмена"
+	delete_dialog.get_label().autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	delete_dialog.min_size = Vector2i(520, 0)
+	delete_dialog.confirmed.connect(_delete_account_data)
+	add_child(delete_dialog)
+	delete_dialog.popup_centered()
+
+
+func _delete_account_data() -> void:
+	if MetaProgression.player_id <= 0:
+		_reset_progress()
+		return
+	if status_label != null:
+		status_label.text = "Удаляем данные..."
+	NetworkClient.delete_account(MetaProgression.player_id)
+
+
+func _on_account_deleted(success: bool, error: String) -> void:
+	if success:
+		_reset_progress()
+		return
+	if status_label != null:
+		status_label.text = "Не удалось удалить данные: %s" % error
 
 
 func _clear_web_profile_storage() -> void:

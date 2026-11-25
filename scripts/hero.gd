@@ -228,6 +228,8 @@ var carrying := false
 var dead := false
 var tutorial_dummy := false
 var tutorial_hold := false
+var tutorial_stationary := false
+var tutorial_spawn_grace := 0.0
 var bot_gold := 0
 var match_coins_collected := 0
 var match_gold_spent := 0
@@ -1529,9 +1531,12 @@ func _physics_process(delta: float) -> void:
 	if tutorial_hold and not is_player:
 		# Tutorial waves wait for the controller's release signal: no chase,
 		# no auto-attack, no walking through the arena before the lesson starts.
+		tutorial_spawn_grace = maxf(0.0, tutorial_spawn_grace - delta)
 		velocity = Vector3.ZERO
 		_play_anim("idle")
 		return
+	if not is_player:
+		tutorial_spawn_grace = maxf(0.0, tutorial_spawn_grace - delta)
 
 	_push_out_of_enemy_base()
 
@@ -1563,6 +1568,12 @@ func _physics_process(delta: float) -> void:
 	slow_timer = maxf(0.0, slow_timer - delta)
 	if slow_timer <= 0.0:
 		slow_factor = 0.0
+	var tutorial_base_block := false
+	if game != null and bool(game.get("tutorial_mode")) and not is_player and not tutorial_hold and tutorial_spawn_grace <= 0.0:
+		# Tutorial rules: a bot that is inside its own base after the short
+		# spawn grace must walk out and cannot attack from there. This applies
+		# to allies and enemies; the player is not restricted.
+		tutorial_base_block = _is_at_own_base()
 	attack_cd = maxf(0.0, attack_cd - delta)
 	cast_flash = maxf(0.0, cast_flash - delta)
 	attack_anim_time = maxf(0.0, attack_anim_time - delta)
@@ -1599,11 +1610,19 @@ func _physics_process(delta: float) -> void:
 	if not channeling_storm and not channeling_crit and stun_timer <= 0.0:
 		if is_player and not afk_active:
 			dir = _player_dir()
+		elif tutorial_stationary and not is_player:
+			# Duel target: stands still, turns to the player and shoots.
+			dir = Vector3.ZERO
 		else:
 			dir = _ai_dir(delta)
+		if tutorial_base_block:
+			var to_center := Vector3.ZERO - global_position
+			to_center.y = 0.0
+			if to_center.length_squared() > 0.01:
+				dir = to_center.normalized()
 		var tutorial_controller := game.get("tutorial_controller") as Node if game != null else null
 		var training_abilities := game != null and bool(game.get("tutorial_mode")) and tutorial_controller != null and String(tutorial_controller.get("stage")) == "abilities"
-		if not training_abilities:
+		if not training_abilities and not tutorial_base_block:
 			_try_auto_attack(dir)
 
 	var speed := move_speed * (0.5 if carrying else 1.0) * (1.0 - (slow_factor if slow_timer > 0.0 else 0.0))
@@ -2253,7 +2272,9 @@ func _try_auto_attack(movement_direction: Vector3) -> void:
 	if target_direction.length_squared() < 0.001:
 		return
 	target_direction = target_direction.normalized()
-	if _facing_direction().dot(target_direction) < 0.0:
+	if tutorial_stationary and not is_player:
+		_face(target_direction, 1.0)
+	elif _facing_direction().dot(target_direction) < 0.0:
 		return
 	var planar_velocity := Vector3(velocity.x, 0.0, velocity.z)
 	var moving := movement_direction.length_squared() > 0.01 or planar_velocity.length() > 0.65
@@ -2751,13 +2772,32 @@ func take_damage(amount: float, source: Node = null, damage_type: String = "phys
 		return
 	if _is_under_base_shield():
 		return
-	if game != null and bool(game.get("tutorial_mode")) and is_player:
-		return
-	if game != null and bool(game.get("tutorial_mode")) and tutorial_dummy:
-		var dummy_source_multiplier := HERO_OUTGOING_DAMAGE_MULTIPLIER if source is HeroUnit else 1.0
-		health = maxf(1.0, health - maxf(amount, 0.0) * dummy_source_multiplier)
-		_update_health_display()
-		return
+	if game != null and bool(game.get("tutorial_mode")):
+		var tutorial_ally: bool = not is_player and game.player != null and is_instance_valid(game.player) and team == game.player.team
+		if is_player or tutorial_ally:
+			if amount <= 0.0:
+				return
+			# Tutorial rule: every hit costs exactly 10 HP, but neither the
+			# player nor an ally can die. HP floors at 1 and the HUD shows the
+			# real value; healing at the base and from items still works.
+			health = maxf(1.0, health - 10.0)
+			seconds_since_damage = 0.0
+			base_stand_timer = 0.0
+			_update_health_display()
+			if is_player:
+				Haptics.vibrate(50)
+				if game.hud != null:
+					game.hud.call("flash_damage", 0.3)
+			if game.has_method("damage_number"):
+				game.damage_number(global_position + Vector3(0.0, 2.0, 0.0), 10.0, team, false, false)
+			if source is HeroUnit:
+				(source as HeroUnit).on_damage_dealt(10.0)
+			return
+		if tutorial_dummy:
+			var dummy_source_multiplier := HERO_OUTGOING_DAMAGE_MULTIPLIER if source is HeroUnit else 1.0
+			health = maxf(1.0, health - maxf(amount, 0.0) * dummy_source_multiplier)
+			_update_health_display()
+			return
 	if amount > 0.0:
 		seconds_since_damage = 0.0
 		base_stand_timer = 0.0
@@ -2869,7 +2909,12 @@ func _die() -> void:
 	crit_cast_timer = 0.0
 	crit_cast_target = null
 	_stop_crit_cast_visuals()
-	respawn_timer = game.respawn_delay_for(self) if game != null and game.has_method("respawn_delay_for") else 8.0
+	var tutorial_one_shot := game != null and bool(game.get("tutorial_mode")) and not is_player
+	if tutorial_one_shot:
+		# Tutorial bots spawn once per stage: no respawn timer, no new body.
+		respawn_timer = 1.0e9
+	else:
+		respawn_timer = game.respawn_delay_for(self) if game != null and game.has_method("respawn_delay_for") else 8.0
 	velocity = Vector3.ZERO
 	carrying = false
 	stun_timer = 0.0
@@ -2894,6 +2939,12 @@ func _die() -> void:
 	if game != null:
 		game.on_hero_died(self)
 	hero_died.emit(self)
+	if tutorial_one_shot:
+		if game != null and game.has_method("remove_tutorial_bot"):
+			game.remove_tutorial_bot(self)
+		await get_tree().create_timer(0.8).timeout
+		if is_inside_tree():
+			queue_free()
 
 
 func _hide_after_death() -> void:

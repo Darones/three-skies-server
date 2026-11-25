@@ -142,6 +142,40 @@ func TestVKProfileMigrationIntegration(t *testing.T) {
 		t.Fatalf("loaded tutorial=%+v", loaded)
 	}
 
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin xp tx: %v", err)
+	}
+	levels, xps, levelUps, shardReward, err := applyCharacterXP(ctx, tx, first.id, "fairy", 1200)
+	if err != nil {
+		tx.Rollback()
+		t.Fatalf("apply xp: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("commit xp: %v", err)
+	}
+	if levels["fairy"] != 2 || xps["fairy"] != 200 {
+		t.Fatalf("level curve level=%d xp=%d", levels["fairy"], xps["fairy"])
+	}
+	if len(levelUps) != 1 || levelUps[0] != 2 || shardReward != 75 {
+		t.Fatalf("level ups=%v shards=%d", levelUps, shardReward)
+	}
+
+	if _, err := db.ExecContext(ctx,
+		`UPDATE players SET last_interstitial_at = NOW() WHERE id = $1`, first.id,
+	); err != nil {
+		t.Fatalf("set interstitial: %v", err)
+	}
+	var lastShown float64
+	if err := db.QueryRowContext(ctx,
+		`SELECT EXTRACT(EPOCH FROM last_interstitial_at) FROM players WHERE id = $1`, first.id,
+	).Scan(&lastShown); err != nil {
+		t.Fatalf("read interstitial: %v", err)
+	}
+	if lastShown <= 0 {
+		t.Fatalf("interstitial timestamp=%v", lastShown)
+	}
+
 	second, err := service.upsertVKProfile(ctx, "222", "Другой")
 	if err != nil {
 		t.Fatalf("second vk account: %v", err)

@@ -71,19 +71,24 @@ players:
 
 ## Сборки
 
-Четыре export preset:
+Один универсальный web-билд (25.11.2026):
 
-1. **Web Standalone** — без SDK, для теста и своего сайта.
-2. **Web VK** — `index.html` грузит `vk-bridge.min.js`; feature `vk`;
-   в PCK только `VKAdapter`.
-3. **Web OK** — тоже `vk-bridge.min.js`, но feature `ok`, только `OKAdapter`;
-   все ссылки/шеринг — на приложение в Одноклассниках.
-4. **Web Yandex** — `index.html` грузит Yandex SDK; feature `yandex`;
-   в PCK только `YandexAdapter`.
+1. **Web Standalone** — единственный export preset. В PCK входят все
+   адаптеры (`StandaloneAdapter`, `VKAdapter`, `OKAdapter`,
+   `YandexAdapter`); feature tag больше не выбирает платформу.
+2. `python tools/web_export.py` собирает `build/web`, кладёт один
+   `server/web/index.pck` и пишет тонкие shell'ы
+   `server/web-vk/index.html` и `server/web-ok/index.html`.
+3. `/game-vk/` и `/game-ok/` не содержат PCK: они перекидывают на `/game/`,
+   сохраняя `search` и `hash` (VK launch params). OK-shell добавляет
+   `vk_client=ok`; VK-shell делает то же, если referrer — `ok.ru`.
+4. `Platform` выбирает адаптер в runtime: OK (`vk_client=ok`, referrer
+   `ok.ru`, `local_access_token`), VK (`vk_user_id`/`vk_app_id`/`vk_ts`/
+   `vk_platform` в query или hash), иначе Standalone.
+5. `tools/patch_chunk_loader.py` один для всех: range-загрузка PCK.
 
-Чужие SDK и адаптеры в сборку не попадают. `tools/web_export.py` и
-`tools/patch_chunk_loader.py` должны принимать платформу, вставлять VK Bridge
-только в VK/OK и не вставлять его в Yandex/Standalone.
+Старые отдельные `Web VK`/`Web OK` presets, `build/web-vk`/`build/web-ok`
+PCK и `tools/server_web_vk.py`/`server_web_ok.py` удалены.
 
 ## Этапы
 
@@ -183,10 +188,10 @@ players:
 
 ## Текущее состояние
 
-- Прод: PCK 48 959 796, `main` `03a6178`, вход `?v=20261124_102718`.
-  M1, D1 и темп обучения задеплоены 24.11; `/health` ok, `live_matches=0`.
-  В прод-HTML есть VK Bridge/init для VK-webview, но PCK остаётся standalone;
-  отдельная VK-сборка с адаптером — M2.
+- Прод (25.11.2026): **один PCK** `/game/index.pck` **48 971 828**,
+  `main` `56c5cc3`, `/health` ok, `live_matches=0`. `/game-vk/` и
+  `/game-ok/` — тонкие shell'ы (1017/1016 байт) без PCK; VK/OK выбираются
+  в runtime. Реальные VK- и OK-приложения загружают лобби через этот PCK.
 - **M1 сделан (24.11.2026).** Autoload `Platform` + `PlatformAdapter`,
   `StandaloneAdapter`, заглушки VK/OK/Yandex. `AdManager` и
   `shard_topup_panel` больше не mock: реклама/оплата только через адаптер,
@@ -196,21 +201,23 @@ players:
   external_id=vk_user_id)`, миграция `players`, VK-экран входа без регистрации
   по нику. XP/уровни персонажей и обучение перенесены в серверный профиль
   (`POST /progress`). Подробно — `docs/QA-M2.md`.
-- Сборки: `Web Standalone` (`web-standalone`, `build/web`) и `Web VK`
-  (`web-vk,vk`, `build/web-vk`). `python tools/web_export.py --platform
-  standalone|vk`; без флага — standalone. VK Bridge вставляется только в VK.
-  `python tools/server_web_vk.py` готовит `server/web-vk`.
-- Проверки M1: `tools/PlatformProbe.tscn` 22/22 PASS, `go test` ok, оба
-  web-билда запускаются (`[Platform] id=standalone` / `id=vk`), кадры
-  `docs/qa-m1-shop-standalone.png`, `docs/qa-m1-topup-standalone.png`.
-  Подробно — `docs/QA-M1.md`.
-- Реальных VK Ads/Голосов пока нет (M4). OK-сборки нет (M2b/M5).
+- Сборки: один `Web Standalone` preset, один `build/web` и один
+  `server/web/index.pck`; `/game-vk/` и `/game-ok/` — тонкие redirect-shell'ы
+  без PCK. `python tools/web_export.py` делает всё за один запуск
+  (сборка, `server/web`, shell'ы); `python tools/server_web.py` оставлен
+  совместимым враппером. VK/OK выбираются в runtime по launch params.
+- Проверки 25.11: `PlatformProbe` 22/22, `OKUiProbe` 10/10, `go test`/`go vet`
+  ok; один PCK, в браузере `[Platform] id=standalone/vk/ok`; кадры
+  `docs/qa-single-pck-vk.png`, `docs/qa-single-pck-ok.png`.
+  Подробно — `docs/QA-SINGLE-PCK.md`.
+- Реальная VK-реклама подключена; VK Голоса и ОКи (платежи) — ещё нет
+  (M4/M5). В OK валюта и ссылки уже runtime-OK, но покупки честно недоступны.
+- Перед изменением панели VK/OK: URL можно оставить `/game-vk/` — shell
+  ведёт на `/game/` и сохраняет launch params; отдельный PCK не нужен.
 - Прогресс: осколки/скины/оружие, `matches_played`/`novice`, XP и уровни
   персонажей, прохождение/пропуск обучения — серверные (`players.char_levels`,
   `char_xps`, `tutorial_*`). Клиент синхронизирует их через `POST /progress`;
   старые standalone-сейвы один раз выгружаются при первом входе.
-- Перед запуском VK: сменить URL приложения на `/game-vk/`, сделать бэкап БД,
-  прогнать миграцию на копии и проверить два VK-аккаунта вручную.
 
 ## Правило
 

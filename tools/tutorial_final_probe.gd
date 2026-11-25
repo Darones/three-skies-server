@@ -27,10 +27,9 @@ func _ready() -> void:
 	tutorial.call("_start_shell_lesson")
 	_check(String(tutorial.get("stage")) == "shell_intro", "finale card shown")
 	tutorial.call("_begin_shell_prepare")
-	_check(String(tutorial.get("stage")) == "shell_prepare", "shell waits for distance")
-	_check(game.shell == null, "no shell at centre")
-	game.player.global_position = Vector3(0.0, 0.76, 12.0)
-	await get_tree().create_timer(3.5).timeout
+	_check(String(tutorial.get("stage")) == "shell_telegraph", "shell telegraph starts immediately")
+	_check(game.shell == null, "no shell during the telegraph")
+	await get_tree().create_timer(2.3).timeout
 	_check(String(tutorial.get("stage")) == "destroy_shell", "telegraph spawns the shell")
 	_check(game.shell != null and is_instance_valid(game.shell), "shell exists")
 	if game.shell != null and is_instance_valid(game.shell):

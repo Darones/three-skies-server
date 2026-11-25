@@ -35,6 +35,7 @@ var tutorial_completed := false
 var tutorial_skipped := false
 var tutorial_battles_used := 0
 var progress_initialized := false
+var last_interstitial_at := 0
 var just_leveled_up: bool = false
 var just_leveled_up_character: String = ""
 var last_xp_gain := 0
@@ -81,6 +82,8 @@ func _ready() -> void:
 		NetworkClient.progress_loaded.connect(_on_progress_loaded)
 	if not NetworkClient.progress_saved.is_connected(_on_progress_saved):
 		NetworkClient.progress_saved.connect(_on_progress_saved)
+	if not NetworkClient.interstitial_recorded.is_connected(_on_interstitial_recorded):
+		NetworkClient.interstitial_recorded.connect(_on_interstitial_recorded)
 	if not NetworkClient.purchase_completed.is_connected(_on_purchase_completed):
 		NetworkClient.purchase_completed.connect(_on_purchase_completed)
 	if not NetworkClient.match_reward_completed.is_connected(_on_match_reward_completed):
@@ -156,6 +159,11 @@ func _on_progress_loaded(success: bool, progress: Dictionary) -> void:
 	apply_server_progress(progress)
 
 
+func _on_interstitial_recorded(success: bool, last_interstitial_at_server: int) -> void:
+	if success and last_interstitial_at_server > 0:
+		last_interstitial_at = last_interstitial_at_server
+
+
 func _on_progress_saved(success: bool, progress: Dictionary) -> void:
 	if not success:
 		return
@@ -201,6 +209,7 @@ func _apply_progress_values(progress: Dictionary) -> void:
 	tutorial_completed = bool(progress.get("tutorial_completed", false))
 	tutorial_skipped = bool(progress.get("tutorial_skipped", false))
 	tutorial_battles_used = maxi(0, int(progress.get("tutorial_battles_used", 0)))
+	last_interstitial_at = maxi(0, int(progress.get("last_interstitial_at", last_interstitial_at)))
 
 
 func _save_meta() -> void:
@@ -377,7 +386,7 @@ func add_shards(shards_amount: int) -> void:
 	sky_shards += maxi(0, shards_amount)
 
 
-func grant_match_reward(amount: int, bonus := false) -> bool:
+func grant_match_reward(amount: int, bonus := false, xp := 0, character := "") -> bool:
 	if amount <= 0 or player_id <= 0:
 		return false
 	var room_id := int(NetworkManager.room_id)
@@ -389,14 +398,29 @@ func grant_match_reward(amount: int, bonus := false) -> bool:
 		_save_meta()
 		profile_updated.emit()
 		return true
-	NetworkClient.grant_match_reward(player_id, amount, room_id, bonus)
+	NetworkClient.grant_match_reward(player_id, amount, room_id, xp, character, bonus)
 	return true
 
 
-func _on_match_reward_completed(success: bool, _amount: int, new_shards: int) -> void:
-	# The server owns the balance: a failed request must not create shards.
+func _on_match_reward_completed(success: bool, _amount: int, new_shards: int, profile: Dictionary) -> void:
+	# The server owns the balance and match XP: a failed request must not
+	# create shards or levels.
 	if success:
 		sky_shards = maxi(0, new_shards)
+		var levels: Variant = profile.get("char_levels", {})
+		if levels is Dictionary:
+			for key in char_levels.keys():
+				char_levels[key] = clampi(int(levels.get(key, char_levels[key])), 1, MAX_CHARACTER_LEVEL)
+		var xps: Variant = profile.get("char_xps", {})
+		if xps is Dictionary:
+			for key in char_xps.keys():
+				char_xps[key] = maxi(0, int(xps.get(key, char_xps[key])))
+		if bool(profile.get("leveled_up", false)):
+			var character := String(profile.get("character", ""))
+			if character in char_levels:
+				just_leveled_up = true
+				just_leveled_up_character = character
+		_save_meta()
 	profile_updated.emit()
 
 

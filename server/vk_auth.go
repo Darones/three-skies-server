@@ -61,6 +61,7 @@ type vkAuthResponse struct {
 	TutorialSkipped     bool           `json:"tutorial_skipped"`
 	TutorialBattlesUsed int            `json:"tutorial_battles_used"`
 	ProgressInitialized bool           `json:"progress_initialized"`
+	LastInterstitialAt  int64          `json:"last_interstitial_at"`
 	Error               string         `json:"error,omitempty"`
 }
 
@@ -80,6 +81,7 @@ type vkProfileRow struct {
 	tutorialSkipped     bool
 	tutorialBattlesUsed int
 	progressInitialized bool
+	lastInterstitialAt  int64
 	sessionToken        string
 }
 
@@ -300,6 +302,39 @@ func vkClientIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 
+func authProfileResponse(profile vkProfileRow) vkAuthResponse {
+	unlockedWeapons := parseItemIDs(profile.weapons)
+	skins, weapons := splitUnlockedItems(unlockedWeapons)
+	progress := decodeStoredProgress(
+		profile.levelsJSON, profile.xpsJSON,
+		profile.tutorialCompleted, profile.tutorialSkipped, profile.tutorialBattlesUsed,
+		profile.progressInitialized,
+	)
+	return vkAuthResponse{
+		Success:             true,
+		PlayerID:            profile.id,
+		SessionToken:        profile.sessionToken,
+		Nickname:            profile.nickname,
+		NicknameCustom:      profile.nicknameCustom,
+		SkyShards:           profile.shards,
+		Level:               profile.level,
+		UnlockedWings:       parseItemIDs(profile.wings),
+		UnlockedWeapons:     unlockedWeapons,
+		Skins:               skins,
+		Weapons:             weapons,
+		MatchesPlayed:       profile.matchesPlayed,
+		Novice:              profile.novice,
+		CharLevels:          progress.CharLevels,
+		CharXPs:             progress.CharXPs,
+		TutorialCompleted:   progress.TutorialCompleted,
+		TutorialSkipped:     progress.TutorialSkipped,
+		TutorialBattlesUsed: progress.TutorialBattlesUsed,
+		ProgressInitialized: progress.ProgressInitialized,
+		LastInterstitialAt:  profile.lastInterstitialAt,
+	}
+}
+
+
 func (service *api) handleVKAuth(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
@@ -340,34 +375,7 @@ func (service *api) handleVKAuth(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, vkAuthResponse{Error: "Internal server error"})
 		return
 	}
-	unlockedWeapons := parseItemIDs(profile.weapons)
-	skins, weapons := splitUnlockedItems(unlockedWeapons)
-	progress := decodeStoredProgress(
-		profile.levelsJSON, profile.xpsJSON,
-		profile.tutorialCompleted, profile.tutorialSkipped, profile.tutorialBattlesUsed,
-		profile.progressInitialized,
-	)
-	writeJSON(w, http.StatusOK, vkAuthResponse{
-		Success:             true,
-		PlayerID:            profile.id,
-		SessionToken:        profile.sessionToken,
-		Nickname:            profile.nickname,
-		NicknameCustom:      profile.nicknameCustom,
-		SkyShards:           profile.shards,
-		Level:               profile.level,
-		UnlockedWings:       parseItemIDs(profile.wings),
-		UnlockedWeapons:     unlockedWeapons,
-		Skins:               skins,
-		Weapons:             weapons,
-		MatchesPlayed:       profile.matchesPlayed,
-		Novice:              profile.novice,
-		CharLevels:          progress.CharLevels,
-		CharXPs:             progress.CharXPs,
-		TutorialCompleted:   progress.TutorialCompleted,
-		TutorialSkipped:     progress.TutorialSkipped,
-		TutorialBattlesUsed: progress.TutorialBattlesUsed,
-		ProgressInitialized: progress.ProgressInitialized,
-	})
+	writeJSON(w, http.StatusOK, authProfileResponse(profile))
 }
 
 func firstNonEmpty(values ...string) string {
@@ -380,6 +388,14 @@ func firstNonEmpty(values ...string) string {
 }
 
 func (service *api) upsertVKProfile(ctx context.Context, externalID, displayName string) (vkProfileRow, error) {
+	return service.upsertPlatformProfile(ctx, "vk", "VK ", externalID, displayName)
+}
+
+func (service *api) upsertOKProfile(ctx context.Context, externalID, displayName string) (vkProfileRow, error) {
+	return service.upsertPlatformProfile(ctx, "ok", "OK ", externalID, displayName)
+}
+
+func (service *api) upsertPlatformProfile(ctx context.Context, platform, namePrefix, externalID, displayName string) (vkProfileRow, error) {
 	tx, err := service.db.BeginTx(ctx, nil)
 	if err != nil {
 		return vkProfileRow{}, err
@@ -390,7 +406,7 @@ func (service *api) upsertVKProfile(ctx context.Context, externalID, displayName
 	if err != nil {
 		return vkProfileRow{}, err
 	}
-	defaultName := "VK " + externalID
+	defaultName := namePrefix + externalID
 	if displayName != "" {
 		defaultName = displayName
 	}
@@ -399,9 +415,9 @@ func (service *api) upsertVKProfile(ctx context.Context, externalID, displayName
 			nickname, nickname_custom, sky_shards, unlocked_wings, unlocked_weapons,
 			matches_played, novice, session_token, platform, external_id, level,
 			progress_initialized
-		) VALUES ($1, FALSE, 0, '', '', 0, TRUE, $2, 'vk', $3, 1, TRUE)
+		) VALUES ($1, FALSE, 0, '', '', 0, TRUE, $2, $4, $3, 1, TRUE)
 		ON CONFLICT (platform, external_id) WHERE external_id IS NOT NULL DO NOTHING
-	`, defaultName, token, externalID)
+	`, defaultName, token, externalID, platform)
 	if err != nil {
 		return vkProfileRow{}, err
 	}
@@ -415,14 +431,15 @@ func (service *api) upsertVKProfile(ctx context.Context, externalID, displayName
 		       COALESCE(char_levels::text, ''), COALESCE(char_xps::text, ''),
 		       COALESCE(tutorial_completed, FALSE), COALESCE(tutorial_skipped, FALSE),
 		       COALESCE(tutorial_battles_used, 0), COALESCE(progress_initialized, FALSE),
+		       COALESCE(EXTRACT(EPOCH FROM last_interstitial_at)::bigint, 0),
 		       COALESCE(session_token, '')
-		FROM players WHERE platform = 'vk' AND external_id = $1 FOR UPDATE
-	`, externalID).Scan(
+		FROM players WHERE platform = $1 AND external_id = $2 FOR UPDATE
+	`, platform, externalID).Scan(
 		&profile.id, &profile.nickname, &profile.nicknameCustom, &profile.shards,
 		&profile.wings, &profile.weapons, &profile.matchesPlayed, &profile.novice,
 		&profile.level, &profile.levelsJSON, &profile.xpsJSON,
 		&profile.tutorialCompleted, &profile.tutorialSkipped, &profile.tutorialBattlesUsed,
-		&profile.progressInitialized, &profile.sessionToken,
+		&profile.progressInitialized, &profile.lastInterstitialAt, &profile.sessionToken,
 	)
 	if err != nil {
 		return vkProfileRow{}, err

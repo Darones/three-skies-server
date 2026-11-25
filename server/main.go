@@ -153,6 +153,7 @@ type playerProfileResponse struct {
 	TutorialSkipped     bool           `json:"tutorial_skipped"`
 	TutorialBattlesUsed int            `json:"tutorial_battles_used"`
 	ProgressInitialized bool           `json:"progress_initialized"`
+	LastInterstitialAt  int64          `json:"last_interstitial_at"`
 	SessionToken        string         `json:"session_token,omitempty"`
 	Error               string         `json:"error,omitempty"`
 }
@@ -200,18 +201,34 @@ type reportResponse struct {
 	Error   string `json:"error,omitempty"`
 }
 
-type matchRewardRequest struct {
+type accountDeleteRequest struct {
 	PlayerID int64 `json:"player_id"`
-	RoomID   int64 `json:"room_id"`
-	Amount   int   `json:"amount"`
-	Shards   int   `json:"shards"`
-	Bonus    bool  `json:"bonus"`
+}
+
+type accountDeleteResponse struct {
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
+
+type matchRewardRequest struct {
+	PlayerID  int64  `json:"player_id"`
+	RoomID    int64  `json:"room_id"`
+	Amount    int    `json:"amount"`
+	Shards    int    `json:"shards"`
+	XP        int    `json:"xp"`
+	Character string `json:"character"`
+	Bonus     bool   `json:"bonus"`
 }
 
 type matchRewardResponse struct {
-	Success   bool   `json:"success"`
-	NewShards int    `json:"new_shards,omitempty"`
-	Error     string `json:"error,omitempty"`
+	Success       bool           `json:"success"`
+	NewShards     int            `json:"new_shards,omitempty"`
+	CharLevels    map[string]int `json:"char_levels,omitempty"`
+	CharXPs       map[string]int `json:"char_xps,omitempty"`
+	LeveledUp     bool           `json:"leveled_up"`
+	LevelUpShards int            `json:"level_up_shards,omitempty"`
+	Bonus         bool           `json:"bonus"`
+	Error         string         `json:"error,omitempty"`
 }
 
 type compensationRequest struct {
@@ -369,6 +386,7 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	mux.HandleFunc("/rules", service.handleRules)
 	mux.HandleFunc("/ws", hub.handleWebSocket)
 	mux.HandleFunc("/auth/vk", service.handleVKAuth)
+	mux.HandleFunc("/auth/ok", service.handleOKAuth)
 	mux.HandleFunc("/register", service.handleRegister)
 	mux.HandleFunc("/session", service.handleSession)
 	mux.HandleFunc("/profile", service.handleProfile)
@@ -378,6 +396,8 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	mux.HandleFunc("/buy_wing", service.handleBuyWing)
 	mux.HandleFunc("/buy_weapon", service.handleBuyWeapon)
 	mux.HandleFunc("/match_reward", service.handleMatchReward)
+	mux.HandleFunc("/ad_interstitial", service.handleInterstitialShown)
+	mux.HandleFunc("/account/delete", service.handleAccountDelete)
 	mux.HandleFunc("/compensation", service.handleCompensation)
 	mux.HandleFunc("/admin/grant_shards", service.handleAdminGrantShards)
 	mux.HandleFunc("/stats/event", service.handleStatsEvent)
@@ -400,6 +420,12 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 		mux.Handle("/game-vk/", service.trackGamePage(http.StripPrefix("/game-vk/", staticGameHandlerWithFallback(vkDir, gameDir, gameVKOrigins()))))
 		go prefetchGamePack(vkDir, gameVKOrigins())
 	}
+	if okDir := gameOKWebDir(); okDir != "" {
+		// OK uses the same VK Bridge shell with the `ok` feature tag. It has
+		// its own PCK because only the OKAdapter is compiled in.
+		mux.Handle("/game-ok/", service.trackGamePage(http.StripPrefix("/game-ok/", staticGameHandlerWithFallback(okDir, gameDir, gameOKOrigins()))))
+		go prefetchGamePack(okDir, gameOKOrigins())
+	}
 	return cors(databaseGate(mux, service))
 }
 
@@ -420,6 +446,17 @@ func gameVKWebDir() string {
 	dir := strings.TrimSpace(os.Getenv("WEB_VK_DIR"))
 	if dir == "" {
 		dir = "web-vk"
+	}
+	if info, err := os.Stat(dir); err == nil && info.IsDir() {
+		return dir
+	}
+	return ""
+}
+
+func gameOKWebDir() string {
+	dir := strings.TrimSpace(os.Getenv("WEB_OK_DIR"))
+	if dir == "" {
+		dir = "web-ok"
 	}
 	if info, err := os.Stat(dir); err == nil && info.IsDir() {
 		return dir
@@ -537,6 +574,10 @@ func gameOrigins() []string {
 
 func gameVKOrigins() []string {
 	return originsFromEnv("WEB_VK_ORIGIN")
+}
+
+func gameOKOrigins() []string {
+	return originsFromEnv("WEB_OK_ORIGIN")
 }
 
 func originsFromEnv(name string) []string {
@@ -879,7 +920,8 @@ func createPlayersTable(ctx context.Context, db *sql.DB) error {
 			tutorial_completed BOOLEAN NOT NULL DEFAULT FALSE,
 			tutorial_skipped BOOLEAN NOT NULL DEFAULT FALSE,
 			tutorial_battles_used INTEGER NOT NULL DEFAULT 0,
-			progress_initialized BOOLEAN NOT NULL DEFAULT FALSE
+			progress_initialized BOOLEAN NOT NULL DEFAULT FALSE,
+			last_interstitial_at TIMESTAMPTZ
 		)
 	`)
 	if err != nil {
@@ -930,6 +972,7 @@ func createPlayersTable(ctx context.Context, db *sql.DB) error {
 		`ALTER TABLE players ADD COLUMN IF NOT EXISTS tutorial_skipped BOOLEAN NOT NULL DEFAULT FALSE`,
 		`ALTER TABLE players ADD COLUMN IF NOT EXISTS tutorial_battles_used INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE players ADD COLUMN IF NOT EXISTS progress_initialized BOOLEAN NOT NULL DEFAULT FALSE`,
+		`ALTER TABLE players ADD COLUMN IF NOT EXISTS last_interstitial_at TIMESTAMPTZ`,
 	} {
 		if _, err := db.ExecContext(ctx, statement); err != nil {
 			return err
@@ -1091,6 +1134,15 @@ func createMatchesTable(ctx context.Context, db *sql.DB) error {
 	if err != nil {
 		return err
 	}
+	for _, statement := range []string{
+		`ALTER TABLE matches ADD COLUMN IF NOT EXISTS reward_shards INTEGER DEFAULT 0`,
+		`ALTER TABLE matches ADD COLUMN IF NOT EXISTS reward_xp INTEGER DEFAULT 0`,
+		`ALTER TABLE matches ADD COLUMN IF NOT EXISTS reward_character TEXT DEFAULT ''`,
+	} {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
+			return err
+		}
+	}
 	// No unique index here: old deployments already contain duplicate
 	// (room_id, player_id) rows, and CREATE UNIQUE INDEX aborted the whole
 	// schema setup. Reward idempotency is guarded by SELECT ... FOR UPDATE.
@@ -1217,6 +1269,7 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 	var tutorialSkipped bool
 	var tutorialBattlesUsed int
 	var progressInitialized bool
+	var lastInterstitialAt int64
 	var storedToken string
 	err = service.db.QueryRowContext(r.Context(),
 		`SELECT nickname, COALESCE(nickname_custom, FALSE), sky_shards, COALESCE(level, 1),
@@ -1225,10 +1278,11 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 		        COALESCE(char_levels::text, ''), COALESCE(char_xps::text, ''),
 		        COALESCE(tutorial_completed, FALSE), COALESCE(tutorial_skipped, FALSE),
 		        COALESCE(tutorial_battles_used, 0), COALESCE(progress_initialized, FALSE),
+		        COALESCE(EXTRACT(EPOCH FROM last_interstitial_at)::bigint, 0),
 		        COALESCE(session_token, '')
 		 FROM players WHERE id = $1`, playerID,
 	).Scan(&nickname, &nicknameCustom, &shards, &level, &unlockedWings, &unlockedWeapons, &matchesPlayed, &novice,
-		&levelsJSON, &xpsJSON, &tutorialCompleted, &tutorialSkipped, &tutorialBattlesUsed, &progressInitialized, &storedToken)
+		&levelsJSON, &xpsJSON, &tutorialCompleted, &tutorialSkipped, &tutorialBattlesUsed, &progressInitialized, &lastInterstitialAt, &storedToken)
 	if errors.Is(err, sql.ErrNoRows) {
 		writeJSON(w, http.StatusNotFound, playerProfileResponse{Error: "Player not found"})
 		return
@@ -1261,6 +1315,7 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 				TutorialSkipped:     progress.TutorialSkipped,
 				TutorialBattlesUsed: progress.TutorialBattlesUsed,
 				ProgressInitialized: progress.ProgressInitialized,
+				LastInterstitialAt:  lastInterstitialAt,
 			})
 			return
 		}
@@ -1306,6 +1361,7 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 		TutorialSkipped:     progress.TutorialSkipped,
 		TutorialBattlesUsed: progress.TutorialBattlesUsed,
 		ProgressInitialized: progress.ProgressInitialized,
+		LastInterstitialAt:  lastInterstitialAt,
 		SessionToken:        sessionToken,
 	})
 }
@@ -1742,6 +1798,16 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 	if amount == 0 {
 		amount = request.Shards
 	}
+	character := strings.TrimSpace(request.Character)
+	xp := clampInt(request.XP, 0, maxMatchXP)
+	if character != "" && !validCharacterKey(character) {
+		writeJSON(w, http.StatusBadRequest, matchRewardResponse{Error: "Invalid character"})
+		return
+	}
+	if xp > 0 && character == "" {
+		writeJSON(w, http.StatusBadRequest, matchRewardResponse{Error: "Character is required for XP"})
+		return
+	}
 	if request.PlayerID <= 0 || request.RoomID <= 0 || amount <= 0 || amount > maxMatchReward {
 		writeJSON(w, http.StatusBadRequest, matchRewardResponse{Error: "Invalid reward"})
 		return
@@ -1756,16 +1822,23 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 	defer transaction.Rollback()
 
 	// One reward per finished match: the row is marked atomically, so a retry
-	// or a replayed request cannot grant shards twice.
+	// or a replayed request cannot grant shards or XP twice.
 	var won bool
 	var matchID int64
+	rewardShards := amount
+	rewardXP := xp
+	rewardCharacter := character
 	if request.Bonus {
 		// The rewarded-ad bonus is a second, separately idempotent payout for
-		// a match whose base reward was already claimed.
+		// a match whose base reward was already claimed. The stored base
+		// values are authoritative, so the bonus always pays exactly x2.
+		var storedShards, storedXP int
+		var storedCharacter string
 		err = transaction.QueryRowContext(r.Context(),
-			`SELECT id, won FROM matches WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = TRUE AND COALESCE(rewarded_bonus, FALSE) = FALSE ORDER BY id LIMIT 1 FOR UPDATE`,
+			`SELECT id, won, COALESCE(reward_shards, 0), COALESCE(reward_xp, 0), COALESCE(reward_character, '')
+			 FROM matches WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = TRUE AND COALESCE(rewarded_bonus, FALSE) = FALSE ORDER BY id LIMIT 1 FOR UPDATE`,
 			request.RoomID, request.PlayerID,
-		).Scan(&matchID, &won)
+		).Scan(&matchID, &won, &storedShards, &storedXP, &storedCharacter)
 		if errors.Is(err, sql.ErrNoRows) {
 			writeJSON(w, http.StatusConflict, matchRewardResponse{Error: "Reward already claimed"})
 			return
@@ -1774,6 +1847,13 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 			log.Printf("claim match bonus: %v", err)
 			writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
 			return
+		}
+		if storedShards > 0 {
+			rewardShards = storedShards
+		}
+		if storedXP > 0 && storedCharacter != "" {
+			rewardXP = storedXP
+			rewardCharacter = storedCharacter
 		}
 		if _, err := transaction.ExecContext(r.Context(),
 			`UPDATE matches SET rewarded_bonus = TRUE WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = TRUE AND COALESCE(rewarded_bonus, FALSE) = FALSE`,
@@ -1797,11 +1877,22 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
 			return
 		}
+		// The server owns the payout ceiling even though the client picks the
+		// 1/3/5 tier: a win can pay at most 5, a loss at most 3.
+		maxAward := 3
+		if won {
+			maxAward = 5
+		}
+		if rewardShards > maxAward {
+			rewardShards = maxAward
+		}
 		// Mark every duplicate row for this room/player as rewarded so a retry
-		// cannot farm the same match more than once.
+		// cannot farm the same match more than once. Store the base payout for
+		// the later, separately idempotent x2 bonus.
 		if _, err := transaction.ExecContext(r.Context(),
-			`UPDATE matches SET rewarded = TRUE WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = FALSE`,
-			request.RoomID, request.PlayerID,
+			`UPDATE matches SET rewarded = TRUE, reward_shards = $3, reward_xp = $4, reward_character = $5
+			 WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = FALSE`,
+			request.RoomID, request.PlayerID, rewardShards, rewardXP, rewardCharacter,
 		); err != nil {
 			log.Printf("mark match reward: %v", err)
 			writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
@@ -1809,19 +1900,19 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	levels, xps, levelUps, levelUpShards, err := applyCharacterXP(
+		r.Context(), transaction, request.PlayerID, rewardCharacter, rewardXP,
+	)
+	if err != nil {
+		log.Printf("apply match xp: %v", err)
+		writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
+		return
+	}
 	var newShards int
-	// The server owns the payout ceiling even though the client picks the
-	// 1/3/5 tier: a win can pay at most 5, a loss at most 3.
-	maxAward := 3
-	if won {
-		maxAward = 5
-	}
-	if amount > maxAward {
-		amount = maxAward
-	}
+	payout := rewardShards + levelUpShards
 	err = transaction.QueryRowContext(r.Context(),
 		`UPDATE players SET sky_shards = COALESCE(sky_shards, 0) + $1 WHERE id = $2 RETURNING sky_shards`,
-		amount, request.PlayerID,
+		payout, request.PlayerID,
 	).Scan(&newShards)
 	if errors.Is(err, sql.ErrNoRows) {
 		writeJSON(w, http.StatusNotFound, matchRewardResponse{Error: "Player not found"})
@@ -1838,8 +1929,89 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, matchRewardResponse{Success: true, NewShards: newShards})
+	writeJSON(w, http.StatusOK, matchRewardResponse{
+		Success:       true,
+		NewShards:     newShards,
+		CharLevels:    levels,
+		CharXPs:       xps,
+		LeveledUp:     len(levelUps) > 0,
+		LevelUpShards: levelUpShards,
+		Bonus:         request.Bonus,
+	})
 }
+
+// handleAccountDelete removes the player's profile and personal fields.
+// Match history and analytics are kept but anonymized: their player_id is
+// zeroed and session/user-agent fields are cleared, so aggregate counters stay
+// correct without leaving a link to the person.
+func (service *api) handleAccountDelete(w http.ResponseWriter, r *http.Request) {
+	if !requirePost(w, r) {
+		return
+	}
+	var request accountDeleteRequest
+	if err := decodeJSON(w, r, &request); err != nil {
+		writeJSON(w, http.StatusBadRequest, accountDeleteResponse{Error: "Invalid JSON"})
+		return
+	}
+	if request.PlayerID <= 0 {
+		writeJSON(w, http.StatusBadRequest, accountDeleteResponse{Error: "Invalid player"})
+		return
+	}
+	if !service.requireSession(w, r, request.PlayerID) {
+		return
+	}
+	transaction, err := service.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		log.Printf("begin account delete: %v", err)
+		writeJSON(w, http.StatusInternalServerError, accountDeleteResponse{Error: "Internal server error"})
+		return
+	}
+	defer transaction.Rollback()
+	var nickname string
+	err = transaction.QueryRowContext(r.Context(),
+		`DELETE FROM players WHERE id = $1 RETURNING nickname`, request.PlayerID,
+	).Scan(&nickname)
+	if errors.Is(err, sql.ErrNoRows) {
+		// Already deleted: deletion is idempotent.
+		writeJSON(w, http.StatusOK, accountDeleteResponse{Success: true})
+		return
+	}
+	if err != nil {
+		log.Printf("delete player: %v", err)
+		writeJSON(w, http.StatusInternalServerError, accountDeleteResponse{Error: "Internal server error"})
+		return
+	}
+	if _, err := transaction.ExecContext(r.Context(),
+		`UPDATE stats_events SET player_id = 0, session_id = '', user_agent = '' WHERE player_id = $1`,
+		request.PlayerID,
+	); err != nil {
+		log.Printf("anonymize stats: %v", err)
+		writeJSON(w, http.StatusInternalServerError, accountDeleteResponse{Error: "Internal server error"})
+		return
+	}
+	if _, err := transaction.ExecContext(r.Context(),
+		`UPDATE matches SET player_id = 0 WHERE player_id = $1`, request.PlayerID,
+	); err != nil {
+		log.Printf("anonymize matches: %v", err)
+		writeJSON(w, http.StatusInternalServerError, accountDeleteResponse{Error: "Internal server error"})
+		return
+	}
+	if _, err := transaction.ExecContext(r.Context(),
+		`DELETE FROM reports WHERE reporter_id = $1 OR reported_nickname = $2`, request.PlayerID, nickname,
+	); err != nil {
+		log.Printf("delete reports: %v", err)
+		writeJSON(w, http.StatusInternalServerError, accountDeleteResponse{Error: "Internal server error"})
+		return
+	}
+	if err := transaction.Commit(); err != nil {
+		log.Printf("commit account delete: %v", err)
+		writeJSON(w, http.StatusInternalServerError, accountDeleteResponse{Error: "Internal server error"})
+		return
+	}
+	log.Printf("[ACCOUNT] deleted player=%d", request.PlayerID)
+	writeJSON(w, http.StatusOK, accountDeleteResponse{Success: true})
+}
+
 
 func (service *api) handleCompensation(w http.ResponseWriter, r *http.Request) {
 	if !requirePost(w, r) {

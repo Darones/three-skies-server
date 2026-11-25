@@ -40,10 +40,8 @@ func _ready() -> void:
 	_check(overlay != null and not overlay.visible, "cancel closes the skip choice")
 	_check(skip_button != null and skip_button.visible, "skip button returns after cancel")
 	tutorial.call("_save_skip")
-	var config := ConfigFile.new()
-	_check(config.load("user://tutorial.cfg") == OK, "tutorial.cfg is readable")
-	_check(bool(config.get_value("tutorial", "skipped", false)), "skip flag is saved")
-	_check(not bool(config.get_value("tutorial", "completed", false)), "skip does not mark completion")
+	_check(MetaProgression.tutorial_skipped, "skip flag is saved")
+	_check(not MetaProgression.tutorial_completed, "skip does not mark completion")
 	_restore()
 	_finish()
 

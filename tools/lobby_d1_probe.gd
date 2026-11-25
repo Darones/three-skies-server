@@ -31,7 +31,11 @@ func _ready() -> void:
 		lobby.call("_close_rules")
 		_check(not lobby.get("rules_panel").visible, "rules panel closes")
 	var topup := lobby.find_child("TopupButton", true, false) as Button
-	_check(topup != null and not topup.visible, "standalone shop still has no fake topup")
+	_check(topup != null and topup.visible, "standalone shop shows the topup placeholder")
+	var old_completed: bool = MetaProgression.tutorial_completed
+	var old_skipped: bool = MetaProgression.tutorial_skipped
+	MetaProgression.tutorial_completed = false
+	MetaProgression.tutorial_skipped = false
 
 	var old_matches: int = MetaProgression.matches_played
 	var old_stats: int = int(MetaProgression.stats_all.get("matches", 0))
@@ -42,6 +46,8 @@ func _ready() -> void:
 	_check(not lobby.call("_should_force_tutorial"), "existing player is not forced into the tutorial")
 	MetaProgression.matches_played = old_matches
 	MetaProgression.stats_all["matches"] = old_stats
+	MetaProgression.tutorial_completed = old_completed
+	MetaProgression.tutorial_skipped = old_skipped
 	_restore()
 	_finish()
 

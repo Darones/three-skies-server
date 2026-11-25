@@ -6,14 +6,17 @@ extends Node
 signal registration_completed(success: bool, player_id: int)
 signal profile_loaded(success: bool, player_id: int, sky_shards: int, unlocked_wings: Array, unlocked_weapons: Array, nickname: String, nickname_custom: bool, matches_played: int, novice: bool)
 signal purchase_completed(success: bool, purchase_type: String, item_id: int, new_shards: int)
-signal match_reward_completed(success: bool, amount: int, new_shards: int)
+signal match_reward_completed(success: bool, amount: int, new_shards: int, profile: Dictionary)
 signal compensation_completed(success: bool, new_shards: int, error: String)
 signal rename_completed(success: bool, nickname: String, error: String, charged: bool, cost: int, new_shards: int)
 signal report_completed(success: bool, error: String)
 signal session_ready(token: String)
 signal vk_auth_completed(success: bool, profile: Dictionary, error: String)
+signal ok_auth_completed(success: bool, profile: Dictionary, error: String)
 signal progress_loaded(success: bool, progress: Dictionary)
 signal progress_saved(success: bool, progress: Dictionary)
+signal interstitial_recorded(success: bool, last_interstitial_at: int)
+signal account_deleted(success: bool, error: String)
 
 const API_BASE_URL := "https://three-skies-server.relaxdev.ru"
 
@@ -25,6 +28,8 @@ var current_http_request: Dictionary = {}
 var http_request_queue: Array[Dictionary] = []
 var _vk_auth_waiting := false
 var _vk_auth_result: Dictionary = {}
+var _ok_auth_waiting := false
+var _ok_auth_result: Dictionary = {}
 
 
 func _ready() -> void:
@@ -63,14 +68,16 @@ func buy_weapon_server(player_id: int, weapon_id: int, cost: int) -> void:
 	}, "purchase", "weapon", weapon_id)
 
 
-func grant_match_reward(player_id: int, amount: int, room_id: int, bonus := false) -> void:
+func grant_match_reward(player_id: int, amount: int, room_id: int, xp: int, character: String, bonus := false) -> void:
 	if player_id <= 0 or amount <= 0 or room_id <= 0:
-		match_reward_completed.emit(false, amount, 0)
+		match_reward_completed.emit(false, amount, 0, {})
 		return
 	var payload := {
 		"player_id": player_id,
 		"room_id": room_id,
 		"amount": amount,
+		"xp": maxi(0, xp),
+		"character": character,
 	}
 	if bonus:
 		payload["bonus"] = true
@@ -148,6 +155,42 @@ func auth_vk(params: Dictionary, display_name := "", avatar := "") -> Dictionary
 	return _vk_auth_result
 
 
+func auth_ok(local_access_token: String) -> Dictionary:
+	if _ok_auth_waiting:
+		return {"success": false, "profile": {}, "error": "auth_in_progress"}
+	_ok_auth_waiting = true
+	_ok_auth_result = {}
+	_send_post("/auth/ok", {"local_access_token": local_access_token}, "ok_auth")
+	var waited := 0.0
+	while _ok_auth_waiting and waited < 15.0:
+		await get_tree().create_timer(0.05).timeout
+		waited += 0.05
+	if _ok_auth_waiting:
+		_ok_auth_waiting = false
+		return {"success": false, "profile": {}, "error": "timeout"}
+	return _ok_auth_result
+
+
+func auth_ok_identity(ok_user_id: String, name: String, avatar: String) -> Dictionary:
+	if _ok_auth_waiting:
+		return {"success": false, "profile": {}, "error": "auth_in_progress"}
+	_ok_auth_waiting = true
+	_ok_auth_result = {}
+	_send_post("/auth/ok", {
+		"ok_user_id": ok_user_id,
+		"name": name,
+		"avatar": avatar,
+	}, "ok_auth")
+	var waited := 0.0
+	while _ok_auth_waiting and waited < 15.0:
+		await get_tree().create_timer(0.05).timeout
+		waited += 0.05
+	if _ok_auth_waiting:
+		_ok_auth_waiting = false
+		return {"success": false, "profile": {}, "error": "timeout"}
+	return _ok_auth_result
+
+
 func save_progress(player_id: int, levels: Dictionary, xps: Dictionary, tutorial_completed: bool, tutorial_skipped: bool, tutorial_battles_used: int) -> void:
 	if player_id <= 0:
 		progress_saved.emit(false, {})
@@ -172,6 +215,7 @@ func _progress_from_profile(data: Dictionary) -> Dictionary:
 		"tutorial_completed": bool(data.get("tutorial_completed", false)),
 		"tutorial_skipped": bool(data.get("tutorial_skipped", false)),
 		"tutorial_battles_used": maxi(0, int(data.get("tutorial_battles_used", 0))),
+		"last_interstitial_at": maxi(0, int(data.get("last_interstitial_at", 0))),
 	}
 
 
@@ -186,6 +230,20 @@ func _send_post(path: String, payload: Dictionary, request_type: String, purchas
 		"player_id": int(payload.get("player_id", 0)),
 	})
 	_start_next_http_request()
+
+
+func record_interstitial_shown(player_id: int) -> void:
+	if player_id <= 0:
+		interstitial_recorded.emit(false, 0)
+		return
+	_send_post("/ad_interstitial", {"player_id": player_id}, "interstitial")
+
+
+func delete_account(player_id: int) -> void:
+	if player_id <= 0:
+		account_deleted.emit(false, "no_player")
+		return
+	_send_post("/account/delete", {"player_id": player_id}, "delete_account")
 
 
 func _start_next_http_request() -> void:
@@ -255,19 +313,38 @@ func _on_http_request_completed(result: int, response_code: int, _headers: Packe
 	elif request["request_type"] == "progress":
 		var saved := _progress_from_profile(response if success and response is Dictionary else {})
 		progress_saved.emit(success, saved if success else {})
+	elif request["request_type"] == "interstitial":
+		var shown_at := int(response.get("last_interstitial_at", 0)) if response is Dictionary else 0
+		interstitial_recorded.emit(success, shown_at if success else 0)
 	elif request["request_type"] == "vk_auth":
 		var profile: Dictionary = response if response is Dictionary else {}
 		var error_text := String(profile.get("error", "")) if response is Dictionary else "Нет связи с сервером"
 		_vk_auth_result = {"success": success, "profile": profile, "error": error_text}
 		_vk_auth_waiting = false
 		vk_auth_completed.emit(success, profile, error_text)
+	elif request["request_type"] == "ok_auth":
+		var profile: Dictionary = response if response is Dictionary else {}
+		var error_text := String(profile.get("error", "")) if response is Dictionary else "Нет связи с сервером"
+		_ok_auth_result = {"success": success, "profile": profile, "error": error_text}
+		_ok_auth_waiting = false
+		ok_auth_completed.emit(success, profile, error_text)
 	elif request["request_type"] == "purchase":
 		var new_shards := int(response.get("new_shards", 0)) if response is Dictionary else 0
 		purchase_completed.emit(success, String(request["purchase_type"]), int(request["item_id"]), new_shards if success else 0)
 	elif request["request_type"] == "match_reward":
 		var awarded := int(request["payload"].get("amount", 0))
 		var new_shards := int(response.get("new_shards", 0)) if response is Dictionary else 0
-		match_reward_completed.emit(success, awarded, new_shards if success else 0)
+		var reward_profile: Dictionary = {}
+		if success and response is Dictionary:
+			reward_profile = {
+				"char_levels": response.get("char_levels", {}),
+				"char_xps": response.get("char_xps", {}),
+				"leveled_up": bool(response.get("leveled_up", false)),
+				"level_up_shards": int(response.get("level_up_shards", 0)),
+				"bonus": bool(response.get("bonus", false)),
+				"character": String(request["payload"].get("character", "")),
+			}
+		match_reward_completed.emit(success, awarded, new_shards if success else 0, reward_profile)
 	elif request["request_type"] == "compensation":
 		var error_text := String(response.get("error", "")) if response is Dictionary else "Нет связи с сервером"
 		var new_shards := int(response.get("new_shards", 0)) if response is Dictionary else 0
@@ -283,6 +360,9 @@ func _on_http_request_completed(result: int, response_code: int, _headers: Packe
 	elif request["request_type"] == "report":
 		var error_text := String(response.get("error", "")) if response is Dictionary else "Нет связи с сервером"
 		report_completed.emit(success, "" if success else error_text)
+	elif request["request_type"] == "delete_account":
+		var error_text := String(response.get("error", "")) if response is Dictionary else "Нет связи с сервером"
+		account_deleted.emit(success, "" if success else error_text)
 	_start_next_http_request()
 
 
@@ -294,17 +374,25 @@ func _emit_http_failure(request: Dictionary) -> void:
 		progress_loaded.emit(false, {})
 	elif request["request_type"] == "progress":
 		progress_saved.emit(false, {})
+	elif request["request_type"] == "interstitial":
+		interstitial_recorded.emit(false, 0)
 	elif request["request_type"] == "vk_auth":
 		_vk_auth_result = {"success": false, "profile": {}, "error": "Нет связи с сервером"}
 		_vk_auth_waiting = false
 		vk_auth_completed.emit(false, {}, "Нет связи с сервером")
+	elif request["request_type"] == "ok_auth":
+		_ok_auth_result = {"success": false, "profile": {}, "error": "Нет связи с сервером"}
+		_ok_auth_waiting = false
+		ok_auth_completed.emit(false, {}, "Нет связи с сервером")
 	elif request["request_type"] == "purchase":
 		purchase_completed.emit(false, String(request["purchase_type"]), int(request["item_id"]), 0)
 	elif request["request_type"] == "match_reward":
-		match_reward_completed.emit(false, int(request["payload"].get("amount", 0)), 0)
+		match_reward_completed.emit(false, int(request["payload"].get("amount", 0)), 0, {})
 	elif request["request_type"] == "compensation":
 		compensation_completed.emit(false, 0, "Нет связи с сервером")
 	elif request["request_type"] == "rename":
 		rename_completed.emit(false, String(request["payload"].get("nickname", "")), "Нет связи с сервером", false, 0, 0)
 	elif request["request_type"] == "report":
 		report_completed.emit(false, "Нет связи с сервером")
+	elif request["request_type"] == "delete_account":
+		account_deleted.emit(false, "Нет связи с сервером")

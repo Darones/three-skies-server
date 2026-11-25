@@ -9,13 +9,11 @@ const SHOP_ITEM_ID := "wind_boots"
 const OBJECTIVE_GOLD := Color(1.0, 0.82, 0.32)
 const OBJECTIVE_SHELL := Color(0.85, 0.6, 1.0)
 const OBJECTIVE_CRYSTAL := Color(0.45, 0.92, 1.0)
-const ENEMY_WAVE_TIMER := 90.0
-const SHELL_TELEGRAPH_TIME := 3.0
+const TEAM_FIGHT_TIME := 60.0
+const FINAL_WAVE_RELEASE := 1.5
+const DUEL_BOT_HP := 120.0
+const SHELL_TELEGRAPH_TIME := 2.0
 const SHELL_SOFT_CAP_TIME := 25.0
-const FOUNTAIN_TITLE := "Фонтан Осколков"
-const FOUNTAIN_TEXT := "Фонтан щедро рассыпает золото: новые монеты появляются сами, партиями по пять. Подойди к монетам — они потянутся к тебе.\n\nЭто золото боя. Оно не переносится в следующий поединок, зато здесь превращается в снаряжение.\n\nТвоё задание: собери %d монет."
-const SHOP_TITLE := "Лавка снаряжения"
-const SHOP_TEXT := "Здесь золото становится силой. Каждый предмет меняет характеристики героя: запас здоровья, урон, скорость или лечение.\n\nСнаряжение действует до конца поединка. Один удачный предмет может решить исход боя.\n\nВозьми «Крылатые ботинки»: они добавят 15% к скорости бега. Быстрее доберёшься до Оболочки — быстрее унесёшь Осколок."
 
 var game: Node
 var stage := "welcome"
@@ -27,6 +25,7 @@ var shell_hint_near := false
 var completed := false
 var skipped := false
 var stage_timer := 0.0
+var final_wave_release_timer := 0.0
 var duel_kills := 0
 var team_kills := 0
 var final_team_kills := 0
@@ -82,41 +81,36 @@ func process(delta: float) -> void:
 		if _player_distance_to_center() <= 5.0:
 			_start_duel()
 	elif stage == "go_fountain":
-		if game.gold_fountain != null and is_instance_valid(game.gold_fountain):
-			var distance := Vector2(
-				game.player.global_position.x - game.gold_fountain.global_position.x,
-				game.player.global_position.z - game.gold_fountain.global_position.z
-			).length()
-			if distance <= 10.0:
-				_show_fountain_card()
+		if _fountain_distance() <= 10.0:
+			_start_coin_collection()
 	elif stage == "collect_coins":
+		if _fountain_distance() <= 10.0:
+			game.hud.call("show_tutorial_side_hint", "Собери %d монет" % COINS_TO_COLLECT)
+		else:
+			game.hud.call("hide_tutorial_side_hint")
 		# Safety net if a coin was consumed or removed by a cleanup: never leave
 		# the player with an empty fountain and a task that cannot progress.
 		if game.tutorial_coins_on_ground() == 0 and coins_spawned < COINS_TO_COLLECT:
 			_spawn_coin_batch()
 	elif stage == "go_shop":
 		if game.is_hero_near_shop(game.player):
-			_show_shop_card()
-	elif stage == "team_fight_final_prepare":
-		# The exit spots are ~5.5m inside the enemy base; 18m from the base
-		# centre keeps every spawned enemy at least 12m from the player.
-		if _player_distance_to_enemy_base() >= 18.0:
-			_spawn_final_wave()
+			_show_shop_hint()
+	elif stage == "buy_item":
+		if game.is_hero_near_shop(game.player):
+			game.hud.call("show_tutorial_side_hint", "Купи «Крылатые ботинки»: +15% скорости")
+		else:
+			game.hud.call("hide_tutorial_side_hint")
+			stage = "go_shop"
 	elif stage == "team_fight_final_wait":
-		if _should_release_final_wave():
+		final_wave_release_timer = maxf(0.0, final_wave_release_timer - delta)
+		if final_wave_release_timer <= 0.0:
 			_release_final_wave()
 	elif stage == "shell_prepare":
-		if _player_distance_to_center() >= 10.0:
-			_begin_shell_telegraph()
+		_begin_shell_telegraph()
 	elif stage == "shell_telegraph":
 		shell_telegraph_timer = maxf(0.0, shell_telegraph_timer - delta)
 		if shell_telegraph_timer <= 0.0:
-			if _player_distance_to_center() < 10.0:
-				shell_telegraph_timer = 1.0
-				game.hud.call("show_tutorial_hint", "Отойди от центра — Оболочка пробуждается")
-				game.call("telegraph", Vector3.ZERO, 3.0, 1.0, Color(0.8, 0.5, 1.0))
-			else:
-				_spawn_shell_for_lesson()
+			_spawn_shell_for_lesson()
 	elif stage == "destroy_shell":
 		shell_fight_timer += delta
 		if shell_fight_timer >= SHELL_SOFT_CAP_TIME:
@@ -165,7 +159,6 @@ func on_coin_collected() -> void:
 	if stage != "collect_coins":
 		return
 	coins_collected += 1
-	game.hud.call("show_tutorial_hint", "Задание: собери монеты у фонтана — %d / %d" % [coins_collected, COINS_TO_COLLECT])
 	if coins_collected < COINS_TO_COLLECT:
 		if game.tutorial_coins_on_ground() == 0 and coins_spawned < COINS_TO_COLLECT:
 			_spawn_coin_batch()
@@ -173,6 +166,7 @@ func on_coin_collected() -> void:
 	if game.gold < COINS_TO_COLLECT * GOLD_PER_COIN:
 		push_error("Tutorial fountain did not award the expected match gold")
 		return
+	game.hud.call("hide_tutorial_side_hint")
 	stage = "go_shop"
 	_point_to(_shop_position(), OBJECTIVE_GOLD)
 	game.hud.call("show_tutorial_hint", "Монеты собраны. Иди в магазин")
@@ -185,6 +179,7 @@ func can_buy_item(item_id: String) -> bool:
 func on_shop_item_bought(item_id: String) -> void:
 	if stage != "buy_item" or item_id != SHOP_ITEM_ID:
 		return
+	game.hud.call("hide_tutorial_side_hint")
 	game.call("set_shop_open", false)
 	_start_team_fight_intro()
 
@@ -212,6 +207,7 @@ func on_delivery() -> void:
 	game.clear_tutorial_bots()
 	game.hud.call("set_tutorial_skip_visible", false)
 	game.hud.call("show_tutorial_hint", "")
+	game.hud.call("hide_tutorial_side_hint")
 	game.hud.call("hide_ui_highlight")
 	game.hud.call("set_tutorial_ability", -1)
 	Stats.track("tutorial_complete", {
@@ -256,28 +252,21 @@ func _run_ui_tour() -> void:
 
 
 func _show_fountain_card() -> void:
-	if stage != "go_fountain":
-		return
-	stage = "fountain_intro"
-	game.hud.call("hide_ui_highlight")
-	game.hud.call(
-		"show_tutorial_card",
-		FOUNTAIN_TITLE,
-		FOUNTAIN_TEXT % COINS_TO_COLLECT,
-		"Собрать монеты",
-		Callable(self, "_start_coin_collection")
-	)
+	# Compatibility for the old probes: there is no modal card any more.
+	_start_coin_collection()
 
 
 func _start_coin_collection() -> void:
-	if stage != "fountain_intro":
+	if stage == "collect_coins":
 		return
-	game.hud.call("hide_tutorial_card")
+	if stage != "go_fountain":
+		return
+	game.hud.call("hide_ui_highlight")
 	stage = "collect_coins"
 	coins_collected = 0
 	coins_spawned = 0
 	_spawn_coin_batch()
-	game.hud.call("show_tutorial_hint", "Задание: собери монеты у фонтана — 0 / %d" % COINS_TO_COLLECT)
+	game.hud.call("show_tutorial_side_hint", "Собери %d монет" % COINS_TO_COLLECT)
 
 
 func _spawn_coin_batch() -> void:
@@ -290,39 +279,28 @@ func _spawn_coin_batch() -> void:
 
 
 func _show_shop_card() -> void:
+	# Compatibility for the old probes: there is no modal card any more.
+	_show_shop_hint()
+
+
+func _show_shop_hint() -> void:
 	if stage != "go_shop":
 		return
-	stage = "shop_intro"
+	stage = "buy_item"
 	game.hud.call("hide_ui_highlight")
-	game.hud.call(
-		"show_tutorial_card",
-		SHOP_TITLE,
-		SHOP_TEXT,
-		"Открыть лавку",
-		Callable(self, "_open_shop_for_tutorial")
-	)
+	game.hud.call("set_tutorial_shop_item", SHOP_ITEM_ID)
+	game.hud.call("show_tutorial_side_hint", "Купи «Крылатые ботинки»: +15% скорости")
 
 
 func _open_shop_for_tutorial() -> void:
-	if stage != "shop_intro":
+	# Compatibility: the shop opens by proximity when the stage is buy_item;
+	# there is no teleport/fade and no modal card.
+	if stage == "buy_item":
+		game.hud.call("show_tutorial_side_hint", "Купи «Крылатые ботинки»: +15% скорости")
 		return
-	game.hud.call("hide_tutorial_card")
-	stage = "buy_item"
-	game.hud.call("set_tutorial_shop_item", SHOP_ITEM_ID)
-	game.hud.call("fade_teleport", Callable(self, "_teleport_to_shop"))
-
-
-func _teleport_to_shop() -> void:
-	if game.player != null and is_instance_valid(game.player):
-		# The shop tent has a collision box. Put the player on its
-		# centre-facing side so they cannot get pinned under the canopy.
-		var shop_point: Vector3 = game.SHOP_INTERACTION_POINT
-		game.player.global_position = game.clamp_to_arena(shop_point + Vector3(3.5, 0.0, 0.0))
-		game.player.velocity = Vector3.ZERO
-		game.player.seconds_since_damage = 5.0
-		game.player.shop_manual_dismissed = false
-		game.player._update_shop_proximity(0.0)
-	game.hud.call("show_tutorial_hint", "Купи учебный товар в магазине")
+	if stage == "shop_intro":
+		stage = "go_shop"
+	_show_shop_hint()
 
 
 func _start_duel() -> void:
@@ -334,12 +312,24 @@ func _start_duel() -> void:
 	game.clear_tutorial_bots()
 	game.player.reset_for_tutorial_stage()
 	var bot: HeroUnit = game.spawn_tutorial_bot(
-		HeroUnit.Cls.WARRIOR,
+		HeroUnit.Cls.FAIRY,
 		1 - int(game.player.team),
 		Vector3(0.0, 0.76, -4.0),
 		"easy",
 		"Тренировочный бот"
 	)
+	# Duel target: stands still, turns to the player and shoots weak bolts.
+	bot.tutorial_stationary = true
+	bot.move_speed = 0.0
+	bot.attack_damage = 10.0
+	bot.max_health = DUEL_BOT_HP
+	bot.health = DUEL_BOT_HP
+	bot.ability_cds = [99.0, 99.0, 99.0]
+	bot.call("_update_health_display")
+	var to_player: Vector3 = game.player.global_position - bot.global_position
+	to_player.y = 0.0
+	if to_player.length_squared() > 0.001:
+		bot.rotation.y = atan2(to_player.x, to_player.z)
 	game.hud.call("hide_ui_highlight")
 	game.hud.call("show_tutorial_hint", "Этап 1/3 · Дуэль: победи тренировочного бота")
 	game.hud.call("set_tutorial_ability", 0)
@@ -347,17 +337,16 @@ func _start_duel() -> void:
 	Stats.track("tutorial_stage", {"stage": "duel", "index": 1})
 
 
-func _finish_duel(timed_out := false) -> void:
+func _finish_duel(_timed_out := false) -> void:
 	if stage != "duel":
 		return
 	stage = "duel_done"
 	stage_timer = 0.0
 	game.clear_tutorial_bots()
+	game.player.reset_for_tutorial_stage()
 	game.hud.call("set_tutorial_ability", -1)
 	_clear_target()
 	var body := "Дуэль пройдена. Дальше — фонтан и лавка: собери золото и купи улучшение."
-	if timed_out:
-		body = "Время дуэли вышло, но это тренировка. Дальше — фонтан и лавка: собери золото и купи улучшение."
 	game.hud.call("show_tutorial_card", "Этап 1/3 пройден", body, "К фонтану", Callable(self, "_begin_fountain"))
 
 
@@ -389,14 +378,14 @@ func _start_team_fight() -> void:
 	stage = "team_fight"
 	team_kills = 0
 	team_ability_used = false
-	stage_timer = 75.0
+	stage_timer = TEAM_FIGHT_TIME
 	game.clear_tutorial_bots()
 	game.player.reset_for_tutorial_stage()
 	var ally_pos: Vector3 = game.clamp_to_arena(game.player.global_position + Vector3(3.0, 0.0, 0.0))
 	ally_pos.y = 0.76
-	game.spawn_tutorial_bot(HeroUnit.Cls.MAGE, int(game.player.team), ally_pos, "easy", "Союзник")
+	game.spawn_tutorial_bot(HeroUnit.Cls.FAIRY, int(game.player.team), ally_pos, "easy", "Союзник")
 	var enemy_one: HeroUnit = game.spawn_tutorial_bot(
-		HeroUnit.Cls.WARRIOR,
+		HeroUnit.Cls.MAGE,
 		1 - int(game.player.team),
 		Vector3(0.0, 0.76, -2.0),
 		"easy",
@@ -415,17 +404,16 @@ func _start_team_fight() -> void:
 	Stats.track("tutorial_stage", {"stage": "team_fight", "index": 2})
 
 
-func _finish_team_fight(timed_out := false) -> void:
+func _finish_team_fight(_timed_out := false) -> void:
 	if stage != "team_fight":
 		return
 	stage = "team_fight_done"
 	stage_timer = 0.0
 	game.clear_tutorial_bots()
+	game.player.reset_for_tutorial_stage()
 	game.hud.call("set_tutorial_ability", -1)
 	_clear_target()
 	var body := "Пара пройдена. Сейчас 3 на 3, без Оболочки. Оболочка будет в финале."
-	if timed_out:
-		body = "Время вышло, но это тренировка. Сейчас 3 на 3, без Оболочки. Оболочка будет в финале."
 	game.hud.call("show_tutorial_card", "Этап 2/3 пройден", body, "К команде", Callable(self, "_start_team_fight_final"))
 
 
@@ -434,25 +422,19 @@ func _start_team_fight_final() -> void:
 		return
 	game.hud.call("hide_tutorial_card")
 	game.hud.call("hide_ui_highlight")
-	stage = "team_fight_final_prepare"
-	stage_timer = 0.0
+	stage = "team_fight_final"
+	stage_timer = TEAM_FIGHT_TIME
 	final_team_kills = 0
 	game.clear_tutorial_bots()
 	game.player.reset_for_tutorial_stage()
 	Stats.track("tutorial_stage", {"stage": "team_fight_final", "index": 3})
-	if _player_distance_to_enemy_base() < 18.0:
-		game.hud.call("show_tutorial_hint", "Отойди от базы врагов — они выйдут, когда ты будешь дальше")
-		_point_to(Vector3.ZERO, OBJECTIVE_GOLD)
-	else:
-		_spawn_final_wave()
+	_spawn_final_wave()
 
 
 func _spawn_final_wave() -> void:
-	if stage != "team_fight_final_prepare":
-		return
 	stage = "team_fight_final_wait"
 	final_team_kills = 0
-	stage_timer = 0.0
+	final_wave_release_timer = FINAL_WAVE_RELEASE
 	game.clear_tutorial_bots()
 	var spots := _enemy_base_spots()
 	var enemy_team := 1 - int(game.player.team)
@@ -467,11 +449,13 @@ func _spawn_final_wave() -> void:
 		bot.tutorial_hold = true
 		bot.rotation.y = PI if enemy_team == 1 else 0.0
 	var player_pos: Vector3 = game.player.global_position
-	for offset in [Vector3(2.5, 0.0, 2.0), Vector3(-2.5, 0.0, 2.0)]:
-		var ally_pos: Vector3 = game.clamp_to_arena(player_pos + offset)
+	var ally_classes := [HeroUnit.Cls.MAGE, HeroUnit.Cls.FAIRY]
+	var ally_offsets := [Vector3(2.5, 0.0, 2.0), Vector3(-2.5, 0.0, 2.0)]
+	for index in 2:
+		var ally_pos: Vector3 = game.clamp_to_arena(player_pos + ally_offsets[index])
 		ally_pos.y = 0.76
 		var ally: HeroUnit = game.spawn_tutorial_bot(
-			HeroUnit.Cls.MAGE if offset.x > 0.0 else HeroUnit.Cls.WARRIOR,
+			ally_classes[index],
 			int(game.player.team),
 			ally_pos,
 			"easy",
@@ -479,25 +463,16 @@ func _spawn_final_wave() -> void:
 		)
 		ally.tutorial_hold = true
 	var enemy_base := _enemy_base_position()
-	game.hud.call("show_tutorial_hint", "Враги ждут на базе — выйди к центру")
+	game.hud.call("show_tutorial_hint", "Этап 3/3 · Враги выходят с базы")
 	_point_to(enemy_base, OBJECTIVE_GOLD)
 	game.hud.call("minimap_ping", enemy_base, OBJECTIVE_GOLD, 3.0)
 	Stats.track("tutorial_stage", {"stage": "team_fight_final_wait", "index": 3})
-
-
-func _should_release_final_wave() -> bool:
-	if game.player == null or not is_instance_valid(game.player):
-		return false
-	var center_distance := _player_distance_to_center()
-	var base_distance := _player_distance_to_enemy_base()
-	return center_distance <= 30.0 or base_distance <= 18.0
 
 
 func _release_final_wave() -> void:
 	if stage != "team_fight_final_wait":
 		return
 	stage = "team_fight_final"
-	stage_timer = ENEMY_WAVE_TIMER
 	for bot in game.tutorial_bots:
 		if bot != null and is_instance_valid(bot):
 			bot.release_tutorial_hold()
@@ -507,17 +482,16 @@ func _release_final_wave() -> void:
 	Stats.track("tutorial_stage", {"stage": "team_fight_final_start", "index": 3})
 
 
-func _finish_team_fight_final(timed_out := false) -> void:
+func _finish_team_fight_final(_timed_out := false) -> void:
 	if stage != "team_fight_final":
 		return
 	stage = "team_fight_final_done"
 	stage_timer = 0.0
 	game.clear_tutorial_bots()
+	game.player.reset_for_tutorial_stage()
 	game.hud.call("set_tutorial_ability", -1)
 	_clear_target()
 	var body := "Команда прошла. Теперь финал: Оболочка, осколок и база. В обучении она не атакует."
-	if timed_out:
-		body = "Время вышло, но это тренировка. Теперь финал: Оболочка, осколок и база. В обучении она не атакует."
 	game.hud.call("show_tutorial_card", "Этап 3/3 пройден", body, "К финалу", Callable(self, "_start_shell_lesson"))
 
 
@@ -545,11 +519,10 @@ func _begin_shell_prepare() -> void:
 	stage = "shell_prepare"
 	shell_telegraph_timer = 0.0
 	shell_fight_timer = 0.0
-	game.hud.call("show_tutorial_hint", "Финал · Оболочка. Отойди от центра — она пробуждается")
-	_point_to(Vector3(0.0, 0.0, 12.0), OBJECTIVE_SHELL)
+	game.hud.call("show_tutorial_hint", "Финал · Оболочка")
+	_point_to(Vector3.ZERO, OBJECTIVE_SHELL)
 	game.hud.call("minimap_ping", Vector3.ZERO, OBJECTIVE_SHELL, 3.0)
-	if _player_distance_to_center() >= 10.0:
-		_begin_shell_telegraph()
+	_begin_shell_telegraph()
 
 
 func _begin_shell_telegraph() -> void:
@@ -620,11 +593,11 @@ func _stage_hint() -> String:
 		"team_fight":
 			return "Этап 2/3 · Примени второй навык и победи двух врагов"
 		"team_fight_final_wait":
-			return "Этап 3/3 · Враги ждут на базе — выйди к центру"
+			return "Этап 3/3 · Враги выходят с базы"
 		"team_fight_final":
 			return "Этап 3/3 · Враги вышли с базы"
 		"shell_prepare":
-			return "Финал · Оболочка. Отойди от центра — она пробуждается"
+			return "Финал · Оболочка"
 		"shell_telegraph":
 			return "Оболочка пробуждается"
 		"destroy_shell":
@@ -711,14 +684,6 @@ func _enemy_base_spots() -> Array[Vector3]:
 	]
 
 
-func _player_distance_to_enemy_base() -> float:
-	if game.player == null or not is_instance_valid(game.player):
-		return INF
-	var position: Vector3 = game.player.global_position
-	var base := _enemy_base_position()
-	return Vector2(position.x - base.x, position.z - base.z).length()
-
-
 func _point_to(world_position: Vector3, color: Color) -> void:
 	if game != null and game.has_method("set_tutorial_target"):
 		game.call("set_tutorial_target", world_position, color)
@@ -733,6 +698,14 @@ func _fountain_position() -> Vector3:
 	if game.gold_fountain != null and is_instance_valid(game.gold_fountain):
 		return game.gold_fountain.global_position
 	return Vector3(37.0, 0.0, 0.0)
+
+
+func _fountain_distance() -> float:
+	if game.player == null or not is_instance_valid(game.player):
+		return INF
+	var fountain := _fountain_position()
+	var position: Vector3 = game.player.global_position
+	return Vector2(position.x - fountain.x, position.z - fountain.z).length()
 
 
 func _shop_position() -> Vector3:

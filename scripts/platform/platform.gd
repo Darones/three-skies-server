@@ -24,7 +24,47 @@ func _ready() -> void:
 	print("[Platform] id=%s adapter=%s" % [platform_id, adapter.display_name])
 
 
+func _web_location() -> Dictionary:
+	if not OS.has_feature("web") or not Engine.has_singleton("JavaScriptBridge"):
+		return {}
+	var bridge := Engine.get_singleton("JavaScriptBridge")
+	return {
+		"search": String(bridge.call("eval", "window.location.search", true)),
+		"hash": String(bridge.call("eval", "window.location.hash", true)),
+		"referrer": String(bridge.call("eval", "document.referrer", true)),
+	}
+
+
+func _url_platform_hint() -> String:
+	# One PCK serves every platform: the adapter is chosen at runtime from the
+	# launcher URL, not from export feature tags. OK is checked first because
+	# it also runs through VK Bridge and can carry vk_* names.
+	var location := _web_location()
+	if location.is_empty():
+		return ""
+	var launch := (String(location["search"]) + "&" + String(location["hash"])).to_lower()
+	var referrer := String(location["referrer"]).to_lower()
+	if launch.contains("vk_client=ok") or launch.contains("ok_client") \
+			or launch.contains("platform=ok") or launch.contains("local_access_token="):
+		return "ok"
+	# In OK the game runs inside an ok.ru iframe. The referrer is readable even
+	# when the launch query does not repeat the client name.
+	if referrer.contains("ok.ru"):
+		return "ok"
+	# VK launch params live in the query or in the hash. They are the signed
+	# identity source, so their presence is the reliable runtime VK marker.
+	if launch.contains("vk_user_id=") or launch.contains("vk_app_id=") \
+			or launch.contains("vk_ts=") or launch.contains("vk_platform="):
+		return "vk"
+	return ""
+
+
 func _detect_platform_id() -> String:
+	var hint := _url_platform_hint()
+	if not hint.is_empty():
+		return hint
+	# Legacy platform-specific PCKs still select by feature tag. The single
+	# build has no vk/ok tags and reaches this only as standalone.
 	# Custom export feature tags win over URL sniffing. `web-vk` is the preset
 	# tag; `vk` is kept for future native/hosted builds and matches the docs.
 	if OS.has_feature("vk") or OS.has_feature("web-vk"):
@@ -68,6 +108,18 @@ func get_auth_error() -> String:
 	if adapter == null:
 		return "adapter_unavailable"
 	return String(adapter.get_auth_error())
+
+
+func get_last_ad_error() -> String:
+	if adapter == null:
+		return "adapter_unavailable"
+	return String(adapter.get_last_ad_error())
+
+
+func get_last_ad_detail() -> String:
+	if adapter == null:
+		return ""
+	return String(adapter.get_last_ad_detail())
 
 
 func get_user() -> Dictionary:

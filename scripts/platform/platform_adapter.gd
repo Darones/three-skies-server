@@ -7,6 +7,8 @@ extends RefCounted
 
 var platform_id := "standalone"
 var display_name := "Standalone"
+var last_ad_error := ""
+var last_ad_detail := ""
 
 
 func initialize(_host: Node) -> void:
@@ -27,6 +29,14 @@ func is_authenticated() -> bool:
 
 func get_auth_error() -> String:
 	return ""
+
+
+func get_last_ad_error() -> String:
+	return last_ad_error
+
+
+func get_last_ad_detail() -> String:
+	return last_ad_detail
 
 
 func get_user() -> Dictionary:

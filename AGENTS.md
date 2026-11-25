@@ -61,13 +61,13 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
 
 Текущее состояние:
 
-- прод `main` **`a63a395`**, `/health` ok;
-- `/game/` — **48 979 412**; `/game-vk/` — **48 970 820**;
-  `/game-ok/` — **48 969 236**;
+- прод `main` **`56c5cc3`**, `/health` ok, `live_matches=0`;
+- один PCK `/game/` — **48 971 828**; `/game-vk/` и `/game-ok/` —
+  только redirect-shell'ы (1017/1016 байт), PCK у них 404;
 - VK-модерация подана 24.11, дедлайн **4.12.2026**;
 - OK-вход **работает** (проверено 25.11): OK-приложение 512005268801
-  открывает тот же `/game-vk/`, VK-сборка определяет `vk_client=ok`/
-  referrer `ok.ru` и включает OKAdapter;
+  открывает `/game-vk/` → shell → `/game/`; единый PCK определяет OK по
+  `vk_client=ok`/referrer `ok.ru` и включает OKAdapter;
 - OK-вход: `VKWebAppGetUserInfo(use_local:true)` → `/auth/ok`
   (`ok_user_id`, имя). OK отдаёт результат в обёртке `{type, data}` —
   клиент разворачивает; fallback — `vk_ok_user_id` из URL. `OK_APP_KEY`
@@ -81,6 +81,49 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
 прогресс VK/OK, ОКи, ссылка `ok.ru/game/512005268801`), проверка VK после
 модерации, затем критические баги (лаги/боты) — только с доказательствами.
 Геймплей, баланс и ботов без прямой просьбы не менять.
+
+## Один PCK и runtime-платформы (25.11.2026)
+
+- Сборка одна: `python tools/web_export.py` → `build/web` →
+  `server/web/index.pck` (+ `index.html` с VK Bridge и reset-скриптом).
+  Отдельных `web-vk`/`web-ok` PCK больше нет.
+- `server/web-vk/index.html` и `server/web-ok/index.html` — тонкие
+  redirect-shell'ы на `/game/`; сохраняют `search` + `hash` (VK launch
+  params). OK-shell добавляет `vk_client=ok`; VK-shell — если referrer
+  `ok.ru` (OK открывает тот же `/game-vk/`).
+- `Platform` выбирает адаптер в runtime: OK (`vk_client=ok`, referrer
+  `ok.ru`, `local_access_token`), VK (`vk_user_id`/`vk_app_id`/`vk_ts`/
+  `vk_platform` в query или hash), иначе Standalone. Все три адаптера
+  лежат в одном PCK; feature tags больше не выбирают платформу.
+- VK/OK-приложения ведут на один build через shell'ы. Прогресс раздельный:
+  `platform='vk'` / `platform='ok'` на сервере; в OK — ОКи и OK-ссылки.
+- Проверки 25.11: `PlatformProbe` 22/22, `OKUiProbe` 10/10, `go test`/`go vet`
+  ok; в браузере `[Platform] id=standalone/vk/ok` для `/game/`,
+  `/game-vk/?vk_client=ok`, `/game-vk/#vk_user_id=...`, `/game-ok/`.
+
+## Обучение: этап 1 готов, этап 2 в работе (25.11.2026)
+
+- **Этап 1 (бой) готов.** Игрок в обучении — Воин; 10 урона за удар,
+  HP не ниже 1, смерть запрещена; дуэль с неподвижной Охотницей (120 HP);
+  2v2 Воин + Охотница против Мага + Охотницы; 3v3 Воин + Маг + Охотница
+  против Воина + Мага + Охотницы; 60 с; спавн-холд 1.5 с; боты в своей базе
+  выталкиваются к центру и не бьют из базы; убитые боты одноразовые;
+  Оболочка — телеграф 2 с, HP 1000 → 700 через 25 с.
+- **Этап 2 (UI) в работе.** Плашка обучения сверху по центру (offset 104),
+  без затемнения; подсказки фонтана/магазина слева под аватаркой; при
+  открытой лавке подсказка скрывается; старый выбор героя скрыт; из поиска
+  матча убран «12+»; в стартовый HTML добавлены «12+» и юр-строка (патч
+  `web_export.py`, ещё не пересобирался).
+- **Этапы 3–4 не начаты:** тихие ошибки rewarded/interstitial и прогрев
+  Охотницы/Мага/скиллов Воина. Подробно — `docs/QA-TUTORIAL.md`.
+- Проверки: `TutorialCombatProbe` 29/29, `TutorialStagesProbe` 0 FAIL,
+  `TutorialFinalProbe` 0 FAIL, `TutorialSkipProbe` 0 FAIL,
+  `LobbyD1Probe` 0 FAIL, `D1ContractProbe` 0 FAIL.
+- Кадры: `docs/qa-tutorial-1440-*.png`, `docs/qa-tutorial-390-*.png`.
+- Прод **не менялся**: `main` `56c5cc3`, один PCK **48 971 828**.
+  Обучение только в `mobile-ui` (локальный WIP-коммит, не запушен).
+- Следующее: этап 3 (ошибки рекламы), этап 4 (прогрев), затем пересборка
+  одного PCK, проверка стартового HTML с 12+ и полный прогон обучения.
 
 ## Справочники и другие VK/OK проекты
 
@@ -120,28 +163,28 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
 - Деплой: пуш в `origin/main` → RelaxDev пересобирает и перезапускает. Иногда нужен пустой commit для повторного деплоя. После деплоя проверять uptime в `/health` и размер PCK, а не верить пушу.
 - **Перед каждым деплоем проверять `/health` → `live_matches` и `online_players`; выкатывать только при `live_matches=0`.** Скрипт: `tools/check_deploy_safe.ps1`. Рестарт контейнера рвёт живой матч; 23.11 так оборвался занос Оболочки.
 - Сервер по SIGTERM завершает живые матчи текущим счётом, сохраняет результат и рассылает `match_finished` — контролируемый рестарт больше не должен давать «МАТЧ ПРЕРВАН».
-- **Текущий прод (на 24.11.2026, вечер):**
-  - `main`: `a63a395` (OK-вход через `VKWebAppGetUserInfo`, `/auth/ok`,
-    `/game-ok/`, удаление данных, «12+»/согласие на загрузке), `/health` ok.
-  - `/game/`: standalone PCK **48 979 412 байт** (`index_20261124_202208.pck`).
-  - `/game-vk/`: VK PCK **48 970 820 байт**.
-  - `/game-ok/`: OK PCK **48 969 236** байт.
-  - VK-приложение 54906713 переведено на `/game-vk/`; реальный запуск
-    `vk.com/app54906713` проверен — профиль загрузился без регистрации.
-  - Исходники: ветка `mobile-ui` (см. `git log`).
+- **Текущий прод (на 25.11.2026, день):**
+  - `main`: `56c5cc3` (один PCK, runtime VK/OK, тонкие shell'ы;
+    OK-правки credits/app link), `/health` ok, `live_matches=0`.
+  - `/game/index.pck`: **48 971 828** байт — единственный PCK.
+  - `/game-vk/index.html`: 1017 байт redirect-shell, `index.pck` → 404.
+  - `/game-ok/index.html`: 1016 байт redirect-shell, `index.pck` → 404.
+  - VK-приложение 54906713: shell → `/game/`; живой запуск проверен,
+    `[Platform] id=vk`, лобби, профиль «Андрей Давлеев»,
+    **195 321** осколок.
+  - OK-приложение 512005268801: shell → `/game/`; живой запуск проверен,
+    `[Platform] id=ok`, отдельный профиль (0 осколков, уровень 1).
+  - Исходники: ветка `mobile-ui`; деплой-артефакты: `server/web/index.pck`
+    + `server/web-vk/index.html` + `server/web-ok/index.html`.
   - Сервер: `server/main.go`, `server/stats.go`, `server/vk_auth.go`,
-    `server/ok_auth.go`, `server/progress.go` + `server/web`, `server/web-vk`,
-    `server/web-ok` в `main`.
+    `server/ok_auth.go`, `server/progress.go`.
   - Дашборд: `https://three-skies-server.relaxdev.ru/stats/dashboard?token=239837`.
   - OK-приложение **512005268801**; отдельного URL в панели OK нет —
-    оно открывает тот же `/game-vk/`. VK-сборка определяет OK по
-    `vk_client=ok`/referrer `ok.ru` и включает OKAdapter.
+    оно открывает `/game-vk/`, который ведёт на `/game/`.
   - OK-вход: `VKWebAppGetUserInfo(use_local:true)` → `/auth/ok`
     (`ok_user_id`, имя) → профиль `(platform='ok', external_id=uid)`.
     OK API и `OK_APP_KEY` для входа не нужны. Проверено на сервере:
-    QA OK UID `999000111` → профиль `128` → удалён.
-  - `/game-ok/` тоже 200, PCK **48 969 236**, но OK-приложение
-    использует `/game-vk/`; отдельная OK-сборка оставлена на будущее.
+    QA OK UID `999000112` → профиль создан → `/account/delete` → удалён.
   - **Проверено 25.11:** живой вход в OK-приложении работает. OK отдаёт
     `VKWebAppGetUserInfo` как `{type, data}` — клиент разворачивает;
     fallback — `vk_ok_user_id` из URL. `OK_APP_KEY` не нужен.

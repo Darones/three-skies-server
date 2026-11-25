@@ -256,9 +256,9 @@ func _ready() -> void:
 		NetworkClient.rename_completed.connect(_on_rename_completed)
 	if not NetworkClient.report_completed.is_connected(_on_report_completed):
 		NetworkClient.report_completed.connect(_on_report_completed)
-	if _is_vk_platform():
-		# VK identity comes only from signed launch params and the server.
-		# Never reuse a local/standalone player_id or register by nickname.
+	if _is_platform_auth():
+		# VK/OK identity comes only from the platform and the server. Never
+		# reuse a local/standalone player_id or register by nickname.
 		_show_vk_auth_waiting()
 		call_deferred("_start_vk_auth")
 	else:
@@ -1069,6 +1069,18 @@ func _is_vk_platform() -> bool:
 	return Platform.platform_id == "vk"
 
 
+func _is_ok_platform() -> bool:
+	return Platform.platform_id == "ok"
+
+
+func _is_platform_auth() -> bool:
+	return _is_vk_platform() or _is_ok_platform()
+
+
+func _platform_display_name() -> String:
+	return "OK" if _is_ok_platform() else "VK"
+
+
 func _build_vk_auth_overlay() -> void:
 	vk_auth_overlay = ColorRect.new()
 	vk_auth_overlay.name = "VKAuthOverlay"
@@ -1099,10 +1111,10 @@ func _build_vk_auth_overlay() -> void:
 	var ornament := _make_label("*", 30, GOLD)
 	ornament.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	content.add_child(ornament)
-	var title := _make_label("ВХОД ЧЕРЕЗ VK", 26, GOLD)
+	var title := _make_label("ВХОД ЧЕРЕЗ " + _platform_display_name(), 26, GOLD)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	content.add_child(title)
-	vk_auth_status_label = _make_label("Получаем данные VK…", 18, PALE)
+	vk_auth_status_label = _make_label("Получаем данные %s…" % _platform_display_name(), 18, PALE)
 	vk_auth_status_label.name = "VKAuthStatus"
 	vk_auth_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vk_auth_status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -1128,13 +1140,13 @@ func _show_vk_auth_waiting() -> void:
 	if vk_auth_overlay == null:
 		return
 	vk_auth_overlay.visible = true
-	vk_auth_status_label.text = "Проверяем вход через VK…"
+	vk_auth_status_label.text = "Проверяем вход через %s…" % _platform_display_name()
 	vk_auth_status_label.add_theme_color_override("font_color", PALE)
 	vk_auth_retry_button.visible = false
 
 
 func _start_vk_auth() -> void:
-	if not _is_vk_platform() or vk_auth_in_progress:
+	if not _is_platform_auth() or vk_auth_in_progress:
 		return
 	vk_auth_in_progress = true
 	_show_vk_auth_waiting()
@@ -1155,20 +1167,26 @@ func _on_vk_auth_retry_pressed() -> void:
 func _on_vk_auth_failed(error: String) -> void:
 	if vk_auth_overlay == null:
 		return
-	var message := "Не удалось войти через VK. Попробуй ещё раз."
+	var message := "Не удалось войти через %s. Попробуй ещё раз." % _platform_display_name()
 	match error:
-		"vk_bridge_unavailable":
-			message = "VK Bridge недоступен. Открой игру внутри VK и нажми «Повторить»."
+		"vk_bridge_unavailable", "ok_bridge_unavailable":
+			message = "%s Bridge недоступен. Открой игру внутри %s и нажми «Повторить»." % [_platform_display_name(), _platform_display_name()]
 		"vk_missing_params":
-			message = "VK не передал данные для входа. Перезапусти игру из VK."
+			message = "%s не передал данные для входа. Перезапусти игру из %s." % [_platform_display_name(), _platform_display_name()]
 		"vk_invalid_auth":
-			message = "VK не подтвердил вход. Перезапусти игру из VK."
+			message = "%s не подтвердил вход. Перезапусти игру из %s." % [_platform_display_name(), _platform_display_name()]
 		"vk_rate_limited":
 			message = "Слишком много попыток входа. Подожди минуту и повтори."
 		"vk_network_timeout", "vk_auth_failed":
 			message = "Сервер не ответил. Проверь соединение и нажми «Повторить»."
 		"vk_server_not_configured":
-			message = "Вход через VK временно недоступен. Повтори позже."
+			message = "Вход через %s временно недоступен. Повтори позже." % _platform_display_name()
+		"ok_app_id_not_configured", "ok_auth_not_configured":
+			message = "Вход через OK временно недоступен. Повтори позже."
+		"ok_auth_denied", "invalid_ok_auth":
+			message = "OK не подтвердил вход. Перезапусти игру из OK."
+		"ok_auth_failed":
+			message = "Сервер не ответил. Проверь соединение и нажми «Повторить»."
 	vk_auth_overlay.visible = true
 	vk_auth_status_label.text = message
 	vk_auth_status_label.add_theme_color_override("font_color", Color(1.0, 0.62, 0.55))
@@ -1367,9 +1385,9 @@ func _on_purchase_updated(success: bool, purchase_type: String, item_id: int, _n
 
 
 func _on_profile_updated() -> void:
-	# VK profiles are identified by vk_user_id on the server; never mirror them
-	# into the standalone local player-id slot.
-	if not _is_vk_platform() and MetaProgression.player_id > 0 and not MetaProgression.player_nickname.is_empty():
+	# VK/OK profiles are identified by the platform on the server; never mirror
+	# them into the standalone local player-id slot.
+	if not _is_platform_auth() and MetaProgression.player_id > 0 and not MetaProgression.player_nickname.is_empty():
 		_save_player_id(MetaProgression.player_id)
 	_refresh_wing_shop()
 	_refresh_weapon_shop()
@@ -1476,7 +1494,7 @@ func _build_player_menu() -> void:
 	nickname_change_button.custom_minimum_size = Vector2(110, 40) if DeviceProfile.mobile_ui else Vector2(140, 42)
 	nickname_change_button.add_theme_font_size_override("font_size", _fs(14))
 	nickname_change_button.pressed.connect(_open_nickname_popup)
-	nickname_change_button.visible = not _is_vk_platform()
+	nickname_change_button.visible = not _is_platform_auth()
 	nickname_row.add_child(nickname_change_button)
 	nickname_status_label = _make_label("", 15, Color(0.58, 0.9, 0.64))
 	nickname_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -2061,7 +2079,7 @@ func _build_nickname_popup() -> void:
 
 
 func _open_nickname_popup() -> void:
-	if _is_vk_platform():
+	if _is_platform_auth():
 		return
 	if nickname_popup_overlay == null or nickname_line_edit == null:
 		return
@@ -2697,8 +2715,8 @@ func _refresh_player_menu() -> void:
 	if nickname_line_edit != null and nickname_popup_overlay != null and nickname_popup_overlay.visible and not nickname_line_edit.has_focus():
 		nickname_line_edit.text = MetaProgression.player_nickname
 	if nickname_cost_label != null:
-		if _is_vk_platform():
-			nickname_cost_label.text = "Ник из профиля VK"
+		if _is_platform_auth():
+			nickname_cost_label.text = "Ник из профиля %s" % _platform_display_name()
 			nickname_cost_label.add_theme_color_override("font_color", Color(0.62, 0.7, 0.82))
 			if nickname_cost_icon != null:
 				nickname_cost_icon.visible = false

@@ -104,6 +104,7 @@ var tutorial_body: Label
 var tutorial_primary_button: Button
 var tutorial_secondary_button: Button
 var tutorial_hint: Label
+var tutorial_side_hint: Label
 var tutorial_primary_action := Callable()
 var tutorial_secondary_action := Callable()
 var tutorial_ability_index := -1
@@ -314,39 +315,48 @@ func _play_heartbeat(index: int, health_fraction: float) -> void:
 func _build_tutorial_ui(root: Control) -> void:
 	tutorial_overlay = ColorRect.new()
 	tutorial_overlay.name = "TutorialDialogOverlay"
-	tutorial_overlay.color = Color(0.015, 0.02, 0.04, 0.78)
+	tutorial_overlay.color = Color(0.015, 0.02, 0.04, 0.0)
 	tutorial_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	tutorial_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	tutorial_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tutorial_overlay.z_index = 100
 	tutorial_overlay.visible = false
 	root.add_child(tutorial_overlay)
 
+	var view_width: float = get_viewport().get_visible_rect().size.x
+	var narrow: bool = view_width < 900.0 or _mobile_ui()
+	var stack_actions: bool = view_width < 500.0
 	var panel := PanelContainer.new()
 	panel.name = "TutorialDialog"
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.anchor_left = 0.5
-	panel.anchor_top = 0.5
-	panel.anchor_right = 0.5
-	panel.anchor_bottom = 0.5
-	panel.offset_left = -360.0
-	panel.offset_top = -180.0
-	panel.offset_right = 360.0
-	panel.offset_bottom = 180.0
+	panel.anchor_left = 0.10 if narrow else 0.28
+	panel.anchor_right = 0.90 if narrow else 0.72
+	panel.anchor_top = 0.0
+	panel.anchor_bottom = 0.0
+	panel.offset_left = 0.0
+	panel.offset_right = 0.0
+	panel.offset_top = 104.0
+	panel.offset_bottom = 104.0 + (300.0 if stack_actions else 250.0)
 	panel.add_theme_stylebox_override("panel", _panel_style(Color(0.78, 0.62, 0.32), Color(0.035, 0.045, 0.07, 0.98)))
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	tutorial_overlay.add_child(panel)
 	var layout := VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 14)
+	layout.add_theme_constant_override("separation", 10)
 	panel.add_child(layout)
-	tutorial_title = _make_label("", 38, GOLD)
+	tutorial_title = _make_label("", 28 if narrow else 32, GOLD)
+	tutorial_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tutorial_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	layout.add_child(tutorial_title)
-	tutorial_body = _make_label("", 21, PALE)
-	tutorial_body.custom_minimum_size = Vector2(620.0, 150.0)
+	tutorial_body = _make_label("", 16 if narrow else 18, PALE)
+	tutorial_body.custom_minimum_size = Vector2(0.0, 90.0)
 	tutorial_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	tutorial_body.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tutorial_body.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	layout.add_child(tutorial_body)
-	var actions := HBoxContainer.new()
+	var actions: BoxContainer
+	if stack_actions:
+		actions = VBoxContainer.new()
+	else:
+		actions = HBoxContainer.new()
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
-	actions.add_theme_constant_override("separation", 12)
+	actions.add_theme_constant_override("separation", 8)
 	layout.add_child(actions)
 	tutorial_primary_button = _pause_action_button("Продолжить", true)
 	tutorial_primary_button.pressed.connect(_on_tutorial_primary_pressed)
@@ -368,6 +378,26 @@ func _build_tutorial_ui(root: Control) -> void:
 	tutorial_hint.z_index = 40
 	tutorial_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(tutorial_hint)
+
+	tutorial_side_hint = _make_label("", 15, Color(0.95, 0.93, 0.86))
+	tutorial_side_hint.name = "TutorialSideHint"
+	tutorial_side_hint.anchor_left = 0.02
+	tutorial_side_hint.anchor_right = 0.28
+	tutorial_side_hint.anchor_top = 0.0
+	tutorial_side_hint.anchor_bottom = 0.0
+	tutorial_side_hint.offset_left = 0.0
+	tutorial_side_hint.offset_right = 0.0
+	tutorial_side_hint.offset_top = 104.0
+	tutorial_side_hint.offset_bottom = 214.0
+	tutorial_side_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tutorial_side_hint.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	tutorial_side_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	tutorial_side_hint.add_theme_stylebox_override("normal", _panel_style(Color(0.78, 0.62, 0.32, 0.9), Color(0.035, 0.045, 0.07, 0.92)))
+	tutorial_side_hint.add_theme_font_size_override("font_size", _fs(15))
+	tutorial_side_hint.visible = false
+	tutorial_side_hint.z_index = 40
+	tutorial_side_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(tutorial_side_hint)
 
 	tutorial_press_label = _make_label("", 18, Color(1.0, 0.92, 0.55))
 	tutorial_press_label.name = "TutorialPressHint"
@@ -433,6 +463,8 @@ func show_tutorial_card(title_text: String, body_text: String, button_text: Stri
 	tutorial_secondary_button.visible = false
 	tutorial_overlay.visible = true
 	tutorial_hint.visible = false
+	if tutorial_side_hint != null:
+		tutorial_side_hint.visible = false
 
 
 func show_tutorial_victory(title_text: String, body_text: String, lobby_action: Callable, repeat_action: Callable) -> void:
@@ -462,6 +494,8 @@ func minimap_ping(world_position: Vector3, color: Color = Color(1.0, 0.82, 0.32)
 
 
 func show_tutorial_hint(text: String) -> void:
+	if tutorial_side_hint != null:
+		tutorial_side_hint.visible = false
 	var shop_open := shop_panel != null and shop_panel.visible
 	if shop_open and shop_hint_label != null:
 		shop_hint_label.text = text
@@ -475,19 +509,38 @@ func show_tutorial_hint(text: String) -> void:
 	tutorial_hint.visible = not text.is_empty()
 
 
+func show_tutorial_side_hint(text: String) -> void:
+	if tutorial_side_hint == null:
+		return
+	# The shop panel occupies the centre; once it is open the highlighted item
+	# is the instruction, so the left hint would only overlap the shop.
+	if shop_panel != null and shop_panel.visible:
+		tutorial_side_hint.visible = false
+		return
+	tutorial_side_hint.text = text
+	tutorial_side_hint.visible = not text.is_empty()
+	if not text.is_empty() and tutorial_hint != null:
+		tutorial_hint.visible = false
+
+
+func hide_tutorial_side_hint() -> void:
+	if tutorial_side_hint != null:
+		tutorial_side_hint.visible = false
+
+
 func _layout_tutorial_hint(_shop_open: bool) -> void:
 	if tutorial_hint == null:
 		return
-	# Below the player card, top-center: never covers the card, minimap,
-	# skills or the shop grid.
-	tutorial_hint.anchor_left = 0.22
-	tutorial_hint.anchor_right = 0.78
-	tutorial_hint.anchor_top = 0.19
-	tutorial_hint.anchor_bottom = 0.19
+	# Top-centre, below the avatar card and the skip button: never covers
+	# either corner. The fountain/shop side hint uses the left slot instead.
+	tutorial_hint.anchor_left = 0.34
+	tutorial_hint.anchor_right = 0.66
+	tutorial_hint.anchor_top = 0.0
+	tutorial_hint.anchor_bottom = 0.0
 	tutorial_hint.offset_left = 0.0
-	tutorial_hint.offset_top = 0.0
+	tutorial_hint.offset_top = 104.0
 	tutorial_hint.offset_right = 0.0
-	tutorial_hint.offset_bottom = 46.0
+	tutorial_hint.offset_bottom = 168.0
 	tutorial_hint.add_theme_font_size_override("font_size", _fs(18))
 	tutorial_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tutorial_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1328,6 +1381,9 @@ func _build_select(root: Control) -> void:
 	select_panel = Control.new()
 	select_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	select_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# The lobby already chose a class; the old in-battle selection screen is
+	# gone. Direct Main.tscn runs without that meta keep the fallback panel.
+	select_panel.visible = not get_tree().has_meta("selected_class")
 	root.add_child(select_panel)
 
 	var dim := ColorRect.new()

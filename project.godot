@@ -18,10 +18,10 @@ config/name="Небесные осколки"
 config/description="3D-РёРіСЂР° РЅР° Godot 4 вЂ” РўСЂРё РќРµР±Р°"
 run/main_scene="res://scenes/Lobby.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
-config/icon="res://icon.svg"
 boot_splash/bg_color=Color(0.02, 0.03, 0.055, 1)
-boot_splash/fullsize=false
+boot_splash/stretch_mode=0
 boot_splash/image="res://ui/splash.png"
+config/icon="res://icon.svg"
 
 [autoload]
 
@@ -42,8 +42,8 @@ MCPRuntimeServer="*res://addons/godot_mcp_toolkit/runtime/mcp_runtime_server.gd"
 window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
-window/stretch/scale_mode="canvas_items"
 window/stretch/aspect="expand"
+window/stretch/scale_mode="canvas_items"
 window/handheld/orientation="landscape"
 
 [dotnet]
@@ -125,6 +125,12 @@ ability_ult={
 
 api_base_url="https://three-skies-server.relaxdev.ru"
 ws_url="wss://three-skies-server.relaxdev.ru/ws"
+ok_app_id="512005268801"
+ok_app_url="https://ok.ru/game/512005268801"
+
+[physics]
+
+common/physics_interpolation=true
 
 [renderer]
 
@@ -133,8 +139,8 @@ rendering_method.mobile="forward_plus"
 
 [rendering]
 
-textures/vram_compression/import_etc2_astc=true
 renderer/rendering_method.mobile="forward_plus"
+textures/vram_compression/import_etc2_astc=true
 textures/default_filters/anisotropic_filtering_level=4.0
 anti_aliasing/quality/screen_space_aa=1.0
 
@@ -144,8 +150,4 @@ light_2d_texture_filter=1
 
 [summer]
 
-version="0.8.5"
-
-[physics]
-
-common/physics_interpolation=true
+version="0.8.6"

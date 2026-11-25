@@ -109,7 +109,7 @@ func _ready() -> void:
 	game.player.global_position = Vector3(37.0, 0.76, 0.0)
 	tutorial.call("_start_team_fight_final")
 	await get_tree().process_frame
-	_check(String(tutorial.get("stage")) == "team_fight_final_wait", "3v3 waits for the player to approach")
+	_check(String(tutorial.get("stage")) == "team_fight_final_wait", "3v3 spawns immediately")
 	_check(game.tutorial_bots.size() == 5, "3v3 has two allies and three enemies")
 	_check(game.shell == null, "3v3 does not spawn the Shell")
 	var held_enemies := 0
@@ -123,12 +123,11 @@ func _ready() -> void:
 			_check(absf(bot.global_position.z) > 20.0, "3v3 enemy spawns at its base")
 			_check(game.player.global_position.distance_to(bot.global_position) >= 12.0, "3v3 enemy spawns at least 12m away")
 	_check(held_allies == 2 and held_enemies == 3, "3v3 composition is 2 allies / 3 enemies")
-	_check(float(tutorial.get("stage_timer")) == 0.0, "3v3 timer waits for release")
+	_check(float(tutorial.get("stage_timer")) > 59.0 and float(tutorial.get("stage_timer")) <= 60.0, "3v3 timer starts at 60")
+	_check(float(tutorial.get("final_wave_release_timer")) > 1.0 and float(tutorial.get("final_wave_release_timer")) <= 1.5, "3v3 release timer is 1.5s")
 
-	game.player.global_position = Vector3(0.0, 0.76, 0.0)
-	await get_tree().create_timer(0.6).timeout
-	_check(String(tutorial.get("stage")) == "team_fight_final", "3v3 releases when player reaches center")
-	_check(float(tutorial.get("stage_timer")) > 0.0, "3v3 timer starts on release")
+	await get_tree().create_timer(1.8).timeout
+	_check(String(tutorial.get("stage")) == "team_fight_final", "3v3 releases after the short spawn grace")
 	var released := true
 	for bot in game.tutorial_bots:
 		if bot.tutorial_hold:
@@ -145,7 +144,7 @@ func _ready() -> void:
 		await get_tree().process_frame
 	_check(String(tutorial.get("stage")) == "team_fight_final_done", "3v3 completes after three enemy deaths")
 
-	# Finale: no enemies, Shell only after the player is 10m from center.
+	# Finale: no enemies, Shell appears 2s after the wake-up message.
 	tutorial.call("_start_shell_lesson")
 	_check(String(tutorial.get("stage")) == "shell_intro", "Shell lesson shows the final card")
 	_check(
@@ -155,16 +154,11 @@ func _ready() -> void:
 		"ability cooldowns reset before the Shell finale"
 	)
 	tutorial.call("_begin_shell_prepare")
-	_check(String(tutorial.get("stage")) == "shell_prepare", "Shell waits for the player to leave center")
+	_check(String(tutorial.get("stage")) == "shell_telegraph", "Shell telegraph starts immediately")
 	_check(game.tutorial_bots.is_empty(), "Shell finale has no enemies")
-	_check(game.shell == null, "Shell is not spawned while the player stands at center")
-	game.player.global_position = Vector3(0.0, 0.76, 12.0)
-	await get_tree().process_frame
-	await get_tree().process_frame
-	_check(String(tutorial.get("stage")) == "shell_telegraph", "Shell telegraph starts outside 10m")
 	_check(game.shell == null, "Shell is still absent during the telegraph")
-	await get_tree().create_timer(3.3).timeout
-	_check(String(tutorial.get("stage")) == "destroy_shell", "Shell spawns after the telegraph")
+	await get_tree().create_timer(2.3).timeout
+	_check(String(tutorial.get("stage")) == "destroy_shell", "Shell spawns after the 2s telegraph")
 	_check(game.shell != null and is_instance_valid(game.shell), "Shell exists")
 	if game.shell != null and is_instance_valid(game.shell):
 		_check(game.shell.max_health == 1000.0, "Shell starts at 1000 HP")

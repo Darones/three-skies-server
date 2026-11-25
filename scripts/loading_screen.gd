@@ -445,21 +445,21 @@ func _build_screen() -> void:
 	search_label = _make_label('\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432...', 26, Color(1.0, 0.9, 0.7))
 	search_label.anchor_left = 0.12
 	search_label.anchor_right = 0.88
-	search_label.anchor_top = 0.765
-	search_label.anchor_bottom = 0.81
+	search_label.anchor_top = 0.76
+	search_label.anchor_bottom = 0.80
 	add_child(search_label)
 	found_count_label = _make_label('', 15, Color(0.88, 0.9, 0.98))
 	found_count_label.anchor_left = 0.12
 	found_count_label.anchor_right = 0.88
-	found_count_label.anchor_top = 0.81
-	found_count_label.anchor_bottom = 0.845
+	found_count_label.anchor_top = 0.80
+	found_count_label.anchor_bottom = 0.835
 	add_child(found_count_label)
 	progress_bar = ProgressBar.new()
 	progress_bar.name = 'MatchProgress'
 	progress_bar.anchor_left = 0.12
 	progress_bar.anchor_right = 0.88
-	progress_bar.anchor_top = 0.85
-	progress_bar.anchor_bottom = 0.89
+	progress_bar.anchor_top = 0.835
+	progress_bar.anchor_bottom = 0.87
 	progress_bar.max_value = 100.0
 	progress_bar.show_percentage = false
 	progress_bar.add_theme_stylebox_override('background', _progress_style(Color(0.025, 0.04, 0.075, 0.92), Color(0.72, 0.79, 0.9)))
@@ -468,22 +468,35 @@ func _build_screen() -> void:
 	connection_hint = _make_label('\u041e\u0436\u0438\u0434\u0430\u043d\u0438\u0435 \u0438\u0433\u0440\u043e\u043a\u043e\u0432', 14, Color(0.78, 0.83, 0.93))
 	connection_hint.anchor_left = 0.12
 	connection_hint.anchor_right = 0.88
-	connection_hint.anchor_top = 0.89
-	connection_hint.anchor_bottom = 0.925
+	connection_hint.anchor_top = 0.87
+	connection_hint.anchor_bottom = 0.90
 	add_child(connection_hint)
 	var caption := _make_label('\u041f\u041e\u041b\u0415\u0417\u041d\u042b\u0419 \u0421\u041e\u0412\u0415\u0422', 14, Color(1.0, 0.8, 0.42))
 	caption.anchor_left = 0.12
 	caption.anchor_right = 0.88
-	caption.anchor_top = 0.93
-	caption.anchor_bottom = 0.958
+	caption.anchor_top = 0.903
+	caption.anchor_bottom = 0.925
 	add_child(caption)
 	tip_label = _make_label(TIPS[0], 15, Color(0.96, 0.97, 1.0))
 	tip_label.anchor_left = 0.08
 	tip_label.anchor_right = 0.92
-	tip_label.anchor_top = 0.958
-	tip_label.anchor_bottom = 0.995
+	tip_label.anchor_top = 0.925
+	tip_label.anchor_bottom = 0.962
 	tip_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(tip_label)
+	var consent := _make_label('Продолжая игру, вы подтверждаете, что вам уже есть 12 лет, и соглашаетесь с политикой конфиденциальности.', 11, Color(1.0, 1.0, 1.0, 0.96))
+	consent.name = 'LegalConsent'
+	consent.anchor_left = 0.04
+	consent.anchor_right = 0.96
+	consent.anchor_top = 0.962
+	consent.anchor_bottom = 0.998
+	consent.autowrap_mode = TextServer.AUTOWRAP_OFF
+	consent.clip_text = true
+	consent.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	consent.add_theme_font_size_override('font_size', _fs(11))
+	consent.add_theme_color_override('font_outline_color', Color(0.0, 0.0, 0.0, 0.92))
+	consent.add_theme_constant_override('outline_size', 4)
+	add_child(consent)
 	_update_search_progress()
 
 func _build_team_panel(team_index: int) -> void:
