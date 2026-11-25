@@ -402,6 +402,11 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	mux.HandleFunc("/account/delete", service.handleAccountDelete)
 	mux.HandleFunc("/compensation", service.handleCompensation)
 	mux.HandleFunc("/admin/grant_shards", service.handleAdminGrantShards)
+	mux.HandleFunc(moderationPagePath, service.handleModerationPage)
+	mux.HandleFunc(moderationReportsPath, service.handleModerationReports)
+	mux.HandleFunc(moderationPlayersPath, service.handleModerationPlayers)
+	mux.HandleFunc(moderationReportsPath+"/", service.handleModerationResolve)
+	mux.HandleFunc(moderationPlayersPath+"/", service.handleModerationPlayerAction)
 	mux.HandleFunc("/stats/event", service.handleStatsEvent)
 	mux.HandleFunc("/stats/data", service.handleStatsData)
 	mux.HandleFunc("/stats/dashboard", service.handleStatsDashboard)
@@ -786,7 +791,7 @@ func cors(next http.Handler) http.Handler {
 // readable 503 instead of the platform reporting a dead backend.
 func databaseGate(next http.Handler, service *api) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/health" || r.URL.Path == "/ws" || strings.HasPrefix(r.URL.Path, "/game/") || strings.HasPrefix(r.URL.Path, "/game-vk/") || strings.HasPrefix(r.URL.Path, "/stats/") || service.dbReady.Load() {
+		if r.URL.Path == "/health" || r.URL.Path == "/ws" || strings.HasPrefix(r.URL.Path, "/game/") || strings.HasPrefix(r.URL.Path, "/game-vk/") || strings.HasPrefix(r.URL.Path, "/stats/") || strings.HasPrefix(r.URL.Path, "/admin/moderation") || service.dbReady.Load() {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -978,6 +983,10 @@ func createPlayersTable(ctx context.Context, db *sql.DB) error {
 		`ALTER TABLE players ADD COLUMN IF NOT EXISTS tutorial_battles_used INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE players ADD COLUMN IF NOT EXISTS progress_initialized BOOLEAN NOT NULL DEFAULT FALSE`,
 		`ALTER TABLE players ADD COLUMN IF NOT EXISTS last_interstitial_at TIMESTAMPTZ`,
+		`ALTER TABLE players ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ`,
+		`ALTER TABLE players ADD COLUMN IF NOT EXISTS nickname_hidden BOOLEAN NOT NULL DEFAULT FALSE`,
+		`ALTER TABLE players ADD COLUMN IF NOT EXISTS banned BOOLEAN NOT NULL DEFAULT FALSE`,
+		`ALTER TABLE players ADD COLUMN IF NOT EXISTS ban_reason TEXT NOT NULL DEFAULT ''`,
 	} {
 		if _, err := db.ExecContext(ctx, statement); err != nil {
 			return err
@@ -1105,7 +1114,25 @@ func createReportsTable(ctx context.Context, db *sql.DB) error {
 	if err != nil {
 		return err
 	}
+	for _, statement := range []string{
+		`ALTER TABLE reports ADD COLUMN IF NOT EXISTS reported_player_id BIGINT`,
+		`ALTER TABLE reports ADD COLUMN IF NOT EXISTS room_id BIGINT`,
+		`ALTER TABLE reports ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'open'`,
+		`ALTER TABLE reports ADD COLUMN IF NOT EXISTS action TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE reports ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ`,
+	} {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
+			return err
+		}
+	}
 	_, err = db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS reports_created_idx ON reports (created_at)`)
+	if err != nil {
+		return err
+	}
+	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS reports_status_idx ON reports (status, created_at)`); err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS reports_reported_player_idx ON reports (reported_player_id)`)
 	return err
 }
 
@@ -1226,7 +1253,7 @@ func (service *api) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err := service.db.QueryRowContext(r.Context(),
-		`INSERT INTO players (nickname, nickname_custom, session_token, novice, platform) VALUES ($1, $2, $3, TRUE, 'standalone') RETURNING id`, nickname, customNickname, token,
+		`INSERT INTO players (nickname, nickname_custom, session_token, novice, platform, last_seen_at) VALUES ($1, $2, $3, TRUE, 'standalone', NOW()) RETURNING id`, nickname, customNickname, token,
 	).Scan(&playerID)
 	if err != nil {
 		var postgresError *pq.Error
@@ -1400,6 +1427,7 @@ func (service *api) handleSession(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusUnauthorized, sessionResponse{Error: "Invalid session"})
 			return
 		}
+		service.touchPlayerLastSeen(r.Context(), request.PlayerID)
 		writeJSON(w, http.StatusOK, sessionResponse{Success: true, Token: token})
 		return
 	}
@@ -1426,7 +1454,18 @@ func (service *api) handleSession(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusConflict, sessionResponse{Error: "Session already claimed"})
 		return
 	}
+	service.touchPlayerLastSeen(r.Context(), request.PlayerID)
 	writeJSON(w, http.StatusOK, sessionResponse{Success: true, Token: newToken})
+}
+
+// touchPlayerLastSeen records a launch for the moderation page ("последний
+// вход"). It is best-effort: a failure must not block the session response.
+func (service *api) touchPlayerLastSeen(ctx context.Context, playerID int64) {
+	if _, err := service.db.ExecContext(ctx,
+		`UPDATE players SET last_seen_at = NOW() WHERE id = $1`, playerID,
+	); err != nil {
+		log.Printf("touch last seen: %v", err)
+	}
 }
 
 func (service *api) handleRename(w http.ResponseWriter, r *http.Request) {
@@ -1557,9 +1596,22 @@ func (service *api) handleReport(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusTooManyRequests, reportResponse{Error: "Too many reports"})
 		return
 	}
+	// Remember which player the nickname belonged to at report time, so the
+	// moderation page can target exactly that account. Nicknames are not
+	// unique: if several players match, leave it NULL and let the moderator
+	// choose by player_id.
+	var reportedPlayerID sql.NullInt64
+	if err := service.db.QueryRowContext(r.Context(),
+		`SELECT CASE WHEN COUNT(*) = 1 THEN MIN(id) END
+		   FROM players
+		  WHERE LOWER(BTRIM(nickname)) = LOWER(BTRIM($1))`,
+		nickname,
+	).Scan(&reportedPlayerID); err != nil {
+		log.Printf("resolve reported player: %v", err)
+	}
 	_, err = service.db.ExecContext(r.Context(),
-		`INSERT INTO reports (reporter_id, reported_nickname, reason) VALUES ($1, $2, $3)`,
-		request.PlayerID, nickname, reason,
+		`INSERT INTO reports (reporter_id, reported_nickname, reason, reported_player_id) VALUES ($1, $2, $3, $4)`,
+		request.PlayerID, nickname, reason, reportedPlayerID,
 	)
 	if err != nil {
 		log.Printf("save report: %v", err)

@@ -25,6 +25,10 @@ ALTER TABLE players ADD COLUMN IF NOT EXISTS tutorial_skipped BOOLEAN NOT NULL D
 ALTER TABLE players ADD COLUMN IF NOT EXISTS tutorial_battles_used INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE players ADD COLUMN IF NOT EXISTS progress_initialized BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE players ADD COLUMN IF NOT EXISTS last_interstitial_at TIMESTAMPTZ;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS nickname_hidden BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS banned BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS ban_reason TEXT NOT NULL DEFAULT '';
 ALTER TABLE players ALTER COLUMN sky_shards SET DEFAULT 0;
 ALTER TABLE players ALTER COLUMN unlocked_wings SET DEFAULT '';
 ALTER TABLE players ALTER COLUMN unlocked_weapons SET DEFAULT '';
@@ -70,3 +74,22 @@ CREATE TABLE IF NOT EXISTS payments (
 );
 
 CREATE INDEX IF NOT EXISTS payments_external_id_idx ON payments (platform, external_id);
+
+-- In-game "Пожаловаться" reports and manual moderation decisions.
+CREATE TABLE IF NOT EXISTS reports (
+    id BIGSERIAL PRIMARY KEY,
+    reporter_id BIGINT NOT NULL,
+    reported_nickname TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS reported_player_id BIGINT;
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS room_id BIGINT;
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'open';
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS action TEXT NOT NULL DEFAULT '';
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS reports_created_idx ON reports (created_at);
+CREATE INDEX IF NOT EXISTS reports_status_idx ON reports (status, created_at);
+CREATE INDEX IF NOT EXISTS reports_reported_player_idx ON reports (reported_player_id);
