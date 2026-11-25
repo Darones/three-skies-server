@@ -323,8 +323,8 @@ func TestGameStaticFilesAreServedFromTheGameServer(t *testing.T) {
 func TestSkinPrices(t *testing.T) {
 	// Skins are stored in the weapons array as 100 + skin id.
 	for _, skinID := range []int{101, 102} {
-		if weaponPrices[skinID] != 1000 {
-			t.Fatalf("skin %d price = %d, want 1000", skinID, weaponPrices[skinID])
+		if weaponPrices[skinID] != 5000 {
+			t.Fatalf("skin %d price = %d, want 5000", skinID, weaponPrices[skinID])
 		}
 	}
 }
