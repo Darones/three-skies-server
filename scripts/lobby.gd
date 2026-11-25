@@ -653,13 +653,14 @@ func _build_shard_shop() -> void:
 	shard_shop_overlay.z_index = 20
 	add_child(shard_shop_overlay)
 
+	var mobile := DeviceProfile.mobile_ui
 	shop_panel = PanelContainer.new()
 	shop_panel.name = "ShardShopPanel"
-	if DeviceProfile.mobile_ui:
-		shop_panel.anchor_left = 0.04
-		shop_panel.anchor_top = 0.05
-		shop_panel.anchor_right = 0.96
-		shop_panel.anchor_bottom = 0.95
+	if mobile:
+		shop_panel.anchor_left = 0.02
+		shop_panel.anchor_top = 0.01
+		shop_panel.anchor_right = 0.98
+		shop_panel.anchor_bottom = 0.99
 	else:
 		shop_panel.anchor_left = 0.11
 		shop_panel.anchor_top = 0.09
@@ -669,41 +670,41 @@ func _build_shard_shop() -> void:
 	shard_shop_overlay.add_child(shop_panel)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 14)
-	margin.add_theme_constant_override("margin_right", 14)
-	margin.add_theme_constant_override("margin_top", 12)
-	margin.add_theme_constant_override("margin_bottom", 12)
+	margin.add_theme_constant_override("margin_left", 8 if mobile else 14)
+	margin.add_theme_constant_override("margin_right", 8 if mobile else 14)
+	margin.add_theme_constant_override("margin_top", 6 if mobile else 12)
+	margin.add_theme_constant_override("margin_bottom", 6 if mobile else 12)
 	shop_panel.add_child(margin)
 
 	var layout := VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 10)
+	layout.add_theme_constant_override("separation", 6 if mobile else 10)
 	margin.add_child(layout)
 
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 12)
 	layout.add_child(header)
-	var title := _make_label("МАГАЗИН", 28, GOLD)
+	var title := _make_label("МАГАЗИН", 22 if mobile else 28, GOLD)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	header.add_child(title)
 	var balance_row := HBoxContainer.new()
 	balance_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	balance_row.add_theme_constant_override("separation", 6)
-	shop_balance_label = _make_label(str(MetaProgression.sky_shards), 24, Color(0.43, 0.84, 1.0))
+	shop_balance_label = _make_label(str(MetaProgression.sky_shards), 20 if mobile else 24, Color(0.43, 0.84, 1.0))
 	balance_row.add_child(shop_balance_label)
-	balance_row.add_child(_shard_icon(26))
+	balance_row.add_child(_shard_icon(20 if mobile else 26))
 	header.add_child(balance_row)
 	shop_balance_row = balance_row
 	var topup_button := _make_action_button("КУПИТЬ ОСКОЛКИ", true)
 	topup_button.name = "TopupButton"
-	topup_button.custom_minimum_size = Vector2(230, 46)
-	topup_button.add_theme_font_size_override("font_size", _fs(16))
+	topup_button.custom_minimum_size = Vector2(170, 38) if mobile else Vector2(230, 46)
+	topup_button.add_theme_font_size_override("font_size", _fs(13) if mobile else _fs(16))
 	topup_button.pressed.connect(_open_topup_panel)
 	header.add_child(topup_button)
 	shop_topup_button = topup_button
 	var close_button := _make_action_button("×", false)
-	close_button.custom_minimum_size = Vector2(46, 46)
-	close_button.add_theme_font_size_override("font_size", _fs(24))
+	close_button.custom_minimum_size = Vector2(38, 38) if mobile else Vector2(46, 46)
+	close_button.add_theme_font_size_override("font_size", _fs(20) if mobile else _fs(24))
 	close_button.pressed.connect(_close_shard_shop)
 	header.add_child(close_button)
 	shop_close_button = close_button
@@ -722,43 +723,43 @@ func _build_shard_shop() -> void:
 		tab_button.text = String(tab["name"])
 		tab_button.icon = load(String(tab["portrait"])) as Texture2D
 		tab_button.expand_icon = true
-		tab_button.custom_minimum_size = Vector2(210, 58)
+		tab_button.custom_minimum_size = Vector2(150, 46) if mobile else Vector2(210, 58)
 		tab_button.focus_mode = Control.FOCUS_NONE
 		tab_button.add_theme_font_override("font", font)
-		tab_button.add_theme_font_size_override("font_size", _fs(18))
-		tab_button.add_theme_constant_override("icon_max_width", 44)
+		tab_button.add_theme_font_size_override("font_size", _fs(15) if mobile else _fs(18))
+		tab_button.add_theme_constant_override("icon_max_width", 32 if mobile else 44)
 		tab_button.pressed.connect(_select_shop_hero.bind(i))
 		tabs.add_child(tab_button)
 		shop_hero_buttons.append(tab_button)
 
 	var cards_area := HBoxContainer.new()
 	cards_area.name = "ShopCardsArea"
-	cards_area.add_theme_constant_override("separation", 10)
+	cards_area.add_theme_constant_override("separation", 6 if mobile else 10)
 	cards_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(cards_area)
 	shop_cards_area = cards_area
 	var left_button := _make_action_button("‹", false)
-	left_button.custom_minimum_size = Vector2(34, 34)
+	left_button.custom_minimum_size = Vector2(28, 28) if mobile else Vector2(34, 34)
 	left_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	left_button.add_theme_font_size_override("font_size", _fs(20))
+	left_button.add_theme_font_size_override("font_size", _fs(18) if mobile else _fs(20))
 	left_button.pressed.connect(_change_shop_page.bind(-1))
 	cards_area.add_child(left_button)
 	shop_cards_row = HBoxContainer.new()
 	shop_cards_row.name = "ShopCards"
 	shop_cards_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	shop_cards_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	shop_cards_row.add_theme_constant_override("separation", 10)
+	shop_cards_row.add_theme_constant_override("separation", 6 if mobile else 10)
 	cards_area.add_child(shop_cards_row)
 	var right_button := _make_action_button("›", false)
-	right_button.custom_minimum_size = Vector2(34, 34)
+	right_button.custom_minimum_size = Vector2(28, 28) if mobile else Vector2(34, 34)
 	right_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	right_button.add_theme_font_size_override("font_size", _fs(20))
+	right_button.add_theme_font_size_override("font_size", _fs(18) if mobile else _fs(20))
 	right_button.pressed.connect(_change_shop_page.bind(1))
 	cards_area.add_child(right_button)
 
-	shop_page_label = _make_label("1 / 1", 14, Color(0.62, 0.68, 0.78))
+	shop_page_label = _make_label("1 / 1", 12 if mobile else 14, Color(0.62, 0.68, 0.78))
 	layout.add_child(shop_page_label)
-	shop_hint_label = _make_label("Оружие и скины надеваются в инвентаре", 15, Color(0.6, 0.66, 0.76))
+	shop_hint_label = _make_label("Оружие и скины надеваются в инвентаре", 11 if mobile else 15, Color(0.6, 0.66, 0.76))
 	layout.add_child(shop_hint_label)
 
 	_build_topup_panel()
@@ -789,6 +790,8 @@ func _shop_items_for(hero_index: int) -> Array:
 			"name": String(skin["name"]),
 			"price": int(skin["price"]),
 			"icon": load(String(skin["icon"])) as Texture2D,
+			"card": String(skin.get("card", "")),
+			"tier": String(skin.get("tier", "")),
 			"rarity": String(skin.get("rarity", "Скин")),
 			"description": String(skin.get("description", "")),
 		})
@@ -872,44 +875,70 @@ func _refresh_shop() -> void:
 
 
 func _make_shop_card(item: Dictionary) -> Control:
+	var mobile := DeviceProfile.mobile_ui
+	var is_legend_skin := String(item["type"]) == "skin" and not String(item.get("tier", "")).is_empty()
 	var card := PanelContainer.new()
 	card.name = "ShopCard_%s%d" % [String(item["type"]), int(item["id"])]
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	card.add_theme_stylebox_override("panel", _panel_style(Color(0.34, 0.42, 0.56, 0.85), Color(0.055, 0.07, 0.105, 0.98)))
+	var card_border := Color(0.62, 0.26, 1.0, 0.95) if is_legend_skin else Color(0.34, 0.42, 0.56, 0.85)
+	card.add_theme_stylebox_override("panel", _panel_style(card_border, Color(0.055, 0.07, 0.105, 0.98)))
 	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 6)
+	content.add_theme_constant_override("separation", 4 if mobile else 6)
 	card.add_child(content)
 
+	var card_image := String(item.get("card", ""))
 	var preview_frame := AspectRatioContainer.new()
-	preview_frame.ratio = 0.82
+	preview_frame.ratio = 0.75 if not card_image.is_empty() else 0.82
 	preview_frame.stretch_mode = AspectRatioContainer.STRETCH_FIT
-	preview_frame.custom_minimum_size = Vector2(140, 170) if DeviceProfile.mobile_ui else Vector2(190, 230)
+	preview_frame.custom_minimum_size = Vector2(110, 135) if mobile else Vector2(190, 230)
 	preview_frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	preview_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(preview_frame)
+	var preview_stack := Control.new()
+	preview_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	preview_stack.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	preview_frame.add_child(preview_stack)
 	var preview := TextureRect.new()
-	if item.has("icon"):
+	if not card_image.is_empty():
+		preview.texture = load(card_image) as Texture2D
+	elif item.has("icon"):
 		preview.texture = item["icon"] as Texture2D
 	else:
 		preview.texture = load(String(item["preview"])) as Texture2D
-	preview.custom_minimum_size = Vector2.ZERO
-	preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	preview.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	preview_frame.add_child(preview)
+	preview_stack.add_child(preview)
+	if is_legend_skin:
+		var tier_tag := _make_label("◆ ЛЕГЕНДА ◆", 13, Color(0.82, 0.60, 1.0))
+		tier_tag.name = "ShopCardTier"
+		tier_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tier_tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		tier_tag.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+		tier_tag.offset_top = -32.0
+		tier_tag.offset_bottom = -2.0
+		tier_tag.add_theme_color_override("font_outline_color", Color(0.28, 0.07, 0.52, 0.95))
+		tier_tag.add_theme_constant_override("outline_size", 4)
+		tier_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		preview_stack.add_child(tier_tag)
 
-	content.add_child(_make_label(String(item["name"]), 19, PALE))
+	var name_label := _make_label(String(item["name"]), 15 if mobile else 19, PALE)
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	name_label.clip_text = true
+	content.add_child(name_label)
 	var rarity := String(item.get("rarity", "Оружие"))
 	var type_name := "Крылья" if String(item["type"]) == "wing" else ("Скин" if String(item["type"]) == "skin" else "Оружие · %s" % rarity)
+	if is_legend_skin:
+		type_name = "Скин · %s" % String(item["tier"])
 	var type_color := GOLD if rarity == "Легендарное" else (Color(0.8, 0.55, 1.0) if String(item["type"]) == "skin" else (Color(1.0, 0.55, 0.4) if rarity == "Редкое" else Color(0.62, 0.68, 0.78)))
-	content.add_child(_make_label(type_name, 12, type_color))
+	content.add_child(_make_label(type_name, 10 if mobile else 12, type_color))
 
 	var price_row := HBoxContainer.new()
 	price_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	price_row.add_theme_constant_override("separation", 6)
-	price_row.add_child(_make_label(str(int(item["price"])), 16, Color(0.78, 0.84, 0.94)))
-	price_row.add_child(_shard_icon(18))
+	price_row.add_child(_make_label(str(int(item["price"])), 13 if mobile else 16, Color(0.78, 0.84, 0.94)))
+	price_row.add_child(_shard_icon(14 if mobile else 18))
 	content.add_child(price_row)
 
 	var owned := _shop_item_owned(item)
@@ -920,8 +949,8 @@ func _make_shop_card(item: Dictionary) -> Control:
 	var button_text := "Куплено" if owned else ("Покупка..." if pending else ("Загрузка..." if not profile_ready else "Купить"))
 	var buy_button := _make_action_button(button_text, not owned and affordable and profile_ready)
 	buy_button.name = "ShopBuy_%s%d" % [String(item["type"]), int(item["id"])]
-	buy_button.custom_minimum_size = Vector2(0, 40)
-	buy_button.add_theme_font_size_override("font_size", _fs(16))
+	buy_button.custom_minimum_size = Vector2(0, 32) if mobile else Vector2(0, 40)
+	buy_button.add_theme_font_size_override("font_size", _fs(13) if mobile else _fs(16))
 	buy_button.disabled = owned or pending or not profile_ready
 	buy_button.pressed.connect(_on_shop_item_pressed.bind(item))
 	content.add_child(buy_button)
@@ -2939,9 +2968,9 @@ func _build_actions() -> void:
 	play_button.anchor_top = 1.0
 	play_button.anchor_right = 1.0
 	play_button.anchor_bottom = 1.0
-	play_button.offset_left = -550.0
+	play_button.offset_left = -430.0
 	play_button.offset_top = -180.0
-	play_button.offset_right = -250.0
+	play_button.offset_right = -130.0
 	play_button.offset_bottom = -108.0
 	play_button.custom_minimum_size = Vector2(300.0, 72.0)
 	play_button.add_theme_font_size_override("font_size", _fs(26))
@@ -2962,9 +2991,9 @@ func _build_actions() -> void:
 	tutorial_button.anchor_top = 1.0
 	tutorial_button.anchor_right = 1.0
 	tutorial_button.anchor_bottom = 1.0
-	tutorial_button.offset_left = -550.0
+	tutorial_button.offset_left = -430.0
 	tutorial_button.offset_top = -100.0
-	tutorial_button.offset_right = -250.0
+	tutorial_button.offset_right = -130.0
 	tutorial_button.offset_bottom = -28.0
 	tutorial_button.custom_minimum_size = Vector2(300.0, 72.0)
 	tutorial_button.add_theme_font_size_override("font_size", _fs(22))
@@ -3019,14 +3048,24 @@ func _gear_button_style(hovered: bool) -> StyleBoxFlat:
 func _build_rules_button() -> void:
 	rules_button = _make_action_button("ПРАВИЛА", false)
 	rules_button.name = "RulesButton"
-	rules_button.anchor_left = 0.0
 	rules_button.anchor_top = 1.0
-	rules_button.anchor_right = 0.0
 	rules_button.anchor_bottom = 1.0
-	rules_button.offset_left = 120.0
-	rules_button.offset_top = -100.0
-	rules_button.offset_right = 260.0
-	rules_button.offset_bottom = -46.0
+	if DeviceProfile.mobile_ui:
+		# The mobile layout puts ИГРАТЬ/ОБУЧЕНИЕ in the lower-left corner.
+		# Keep ПРАВИЛА on the opposite side so the buttons do not overlap.
+		rules_button.anchor_left = 1.0
+		rules_button.anchor_right = 1.0
+		rules_button.offset_left = -150.0
+		rules_button.offset_top = -62.0
+		rules_button.offset_right = -20.0
+		rules_button.offset_bottom = -12.0
+	else:
+		rules_button.anchor_left = 0.0
+		rules_button.anchor_right = 0.0
+		rules_button.offset_left = 120.0
+		rules_button.offset_top = -100.0
+		rules_button.offset_right = 260.0
+		rules_button.offset_bottom = -46.0
 	rules_button.custom_minimum_size = Vector2(140.0, 54.0)
 	rules_button.add_theme_font_size_override("font_size", _fs(16))
 	rules_button.pressed.connect(_open_rules)
