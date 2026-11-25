@@ -6,7 +6,8 @@ extends RefCounted
 const ITEMS := {
 	1: {
 		"id": 1, "class": 0, "name": "Варвар", "short_name": "Варвар",
-		"rarity": "Скин", "price": 1000,
+		"rarity": "Скин", "tier": "Легенда", "price": 5000,
+		"card": "res://ui/skins/barbarian_legend.webp",
 		"icon": "res://ui/icons/skin_barbarian.png",
 		"model": "res://art/generated/warrior_barbarian/character.tscn",
 		"default_gear": ["1H_Axe", "1H_Axe_Offhand"],
@@ -15,7 +16,8 @@ const ITEMS := {
 	},
 	2: {
 		"id": 2, "class": 2, "name": "Охотница в капюшоне", "short_name": "Охотница",
-		"rarity": "Скин", "price": 1000,
+		"rarity": "Скин", "tier": "Легенда", "price": 5000,
+		"card": "res://ui/skins/hunter_legend.webp",
 		"icon": "res://ui/icons/skin_archer_hood.png",
 		"model": "res://art/generated/fairy_hooded/character.tscn",
 		"default_gear": ["1H_Crossbow"],
