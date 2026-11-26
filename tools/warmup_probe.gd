@@ -17,6 +17,7 @@ var elapsed_series: Array[float] = []
 var finished_count := 0
 var warmup_checks_done := false
 var target_size := Vector2i(1440, 734)
+var two_pass_policy := ""
 
 const WARMUP_FLOW_SCRIPT := preload("res://scripts/warmup_flow.gd")
 
@@ -31,6 +32,10 @@ func _ready() -> void:
 				target = Vector2i(int(parts[0]), int(parts[1]))
 		elif arg == "--mobile":
 			force_mobile = true
+		elif arg == "--warmup-two-pass":
+			two_pass_policy = "on"
+		elif arg == "--warmup-single-pass":
+			two_pass_policy = "off"
 	if force_mobile or target.x < 500:
 		DeviceProfile.mobile_ui = true
 		DeviceProfile.touch_controls = true
@@ -59,6 +64,8 @@ func _run_warmup() -> void:
 		_check(false, "WarmupFlow создаётся")
 		return
 	flow.name = "WarmupFlow"
+	if not two_pass_policy.is_empty() and flow.get("two_pass_policy") != null:
+		flow.set("two_pass_policy", two_pass_policy)
 	add_child(flow)
 	flow.progress_changed.connect(_on_progress)
 	flow.finished.connect(_on_finished)
@@ -111,6 +118,22 @@ func _run_warmup() -> void:
 	print("WARMUP_REPORT=", report)
 	print("WARMUP_MEMORY static_peak=%.1f MB video_peak=%.1f MB"
 		% [float(report.get("peak_static_mb", 0.0)), float(report.get("peak_video_mb", 0.0))])
+	print("WARMUP_TWO_PASS active=%s reason=%s pass1=%.1f pass2=%.1f after_free=%.1f switch=%.2fs"
+		% [
+			str(report.get("two_pass", false)),
+			str(report.get("two_pass_reason", "")),
+			float(report.get("pass1_video_mb", 0.0)),
+			float(report.get("pass2_video_mb", 0.0)),
+			float(report.get("video_after_arena_free_mb", 0.0)),
+			float(report.get("two_pass_switch_s", 0.0)),
+		])
+	print("WARMUP_CONTEXT mobile=%s quality=%s stats=%s elapsed=%.2fs"
+		% [
+			str(report.get("mobile", false)),
+			str(report.get("quality", "unknown")),
+			str(report.get("stats_tracked", false)),
+			float(report.get("elapsed", 0.0)),
+		])
 	_check(bool(report.get("main_scene_loaded", false)), "Main.tscn загружен")
 	_check(bool(report.get("main_script_stripped", false)),
 		"game.gd снят с инстанса (без матча/HUD)")
@@ -129,6 +152,45 @@ func _run_warmup() -> void:
 	_check(int(report.get("frames_rendered", 0)) >= 40,
 		"отрисовано кадров (%d)" % int(report.get("frames_rendered", 0)))
 	_check(not bool(report.get("failed", false)), "warmup без ошибок")
+
+	# --- two-pass / VRAM -----------------------------------------------------
+	var pass1 := float(report.get("pass1_video_mb", 0.0))
+	var pass2 := float(report.get("pass2_video_mb", 0.0))
+	var peak := float(report.get("peak_video_mb", 0.0))
+	_check(report.has("two_pass") and typeof(report.get("two_pass")) == TYPE_BOOL,
+		"report содержит two_pass")
+	_check(peak >= pass1 - 0.5 and peak >= pass2 - 0.5,
+		"общий пик не ниже пиков проходов (%.1f)" % peak)
+	if bool(report.get("two_pass", false)):
+		_check(stages.has("Второй проход"), "второй проход доложен как этап")
+		_check(pass1 > 0.0, "пик аренного прохода измерен (%.1f MB)" % pass1)
+		_check(pass2 > 0.0, "пик второго прохода измерен (%.1f MB)" % pass2)
+		_check(float(report.get("video_after_arena_free_mb", -1.0)) > 0.0,
+			"память после освобождения арены измерена (%.1f MB)"
+			% float(report.get("video_after_arena_free_mb", 0.0)))
+		_check(pass2 <= pass1 + 1.0,
+			"второй проход не тяжелее аренного (%.1f <= %.1f)" % [pass2, pass1])
+		var freed := pass1 - float(report.get("video_after_arena_free_mb", pass1))
+		print("WARMUP_TWO_PASS_DELTA pass1=%.1f pass2=%.1f arena_release=%.1f MB"
+			% [pass1, pass2, freed])
+		_check(int(report.get("heroes_warmed", 0)) == 5, "во втором проходе 5 бойцов")
+		_check(int(report.get("frames_rendered", 0)) >= 40, "второй проход отрисовал кадры")
+	else:
+		_check(pass2 == 0.0, "однопроходный режим без пика второго прохода")
+
+	# --- stage timings ------------------------------------------------------
+	var times: Dictionary = report.get("stage_times", {})
+	var stage_sum := 0.0
+	for value in times.values():
+		stage_sum += float(value)
+	_check(stage_sum > 0.0 and stage_sum <= float(report.get("elapsed", 0.0)) + 0.5,
+		"сумма этапов %.2fs <= общего времени %.2fs"
+		% [stage_sum, float(report.get("elapsed", 0.0))])
+	_check(absf(float(report.get("elapsed", 0.0)) - total) <= 2.0,
+		"report.elapsed сходится с прогоном (%.2f / %.2f)" % [float(report.get("elapsed", 0.0)), total])
+	if get_node_or_null("/root/Stats") != null:
+		_check(bool(report.get("stats_tracked", false)), "событие warmup_done отправлено в Stats")
+
 	_check(get_tree().root.find_child("HUD", true, false) == null,
 		"скрытый прогрев не создал HUD")
 	var leftovers: Array = flow.find_children("*WarmupFlowViewport*", "", true, false)

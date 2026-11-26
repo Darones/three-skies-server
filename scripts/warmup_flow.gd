@@ -20,12 +20,30 @@ extends Node
 ##   flow.progress_changed.connect(_on_progress)  # percent, elapsed, stage
 ##   flow.finished.connect(_on_ready)
 ##   flow.start()
+##
+## Mobile two-pass mode: the arena is rendered first, then freed (with its
+## viewport), and a second viewport warms fighters, weapons, VFX and shaders.
+## The arena therefore never shares VRAM with the fighter/prop/VFX set, which
+## is the moment the weakest phones used to run out of texture memory. The mode
+## is automatic on mobile only when the arena pass alone is already heavy
+## (TWO_PASS_TRIGGER_MB); `two_pass_policy` ("auto"/"on"/"off") and the
+## --warmup-two-pass / --warmup-single-pass user args override it for testing.
 
 signal progress_changed(percent: float, elapsed: float, stage: String)
 signal finished
 
 const MAIN_SCENE_PATH := "res://scenes/Main.tscn"
 const VFX_PRELOADER := preload("res://scripts/vfx_preloader.gd")
+
+const TWO_PASS_POLICY_AUTO := "auto"
+const TWO_PASS_POLICY_ON := "on"
+const TWO_PASS_POLICY_OFF := "off"
+## Video memory after the arena pass above which a second pass is worth it.
+const TWO_PASS_TRIGGER_MB := 380.0
+## Mobile floor: the arena pass is only part of the peak — the fighter, weapon
+## and VFX set measured another ~60-70 MB on top of it. A phone whose arena
+## alone is already past 320 MB has no room for that overlap.
+const TWO_PASS_MOBILE_BUDGET_MB := 320.0
 
 ## Base rigs and the two cosmetic skins that HeroUnit can spawn.
 const CHARACTER_SCENES := [
@@ -81,6 +99,7 @@ const STAGE_HEROES := "Бойцы и скины"
 const STAGE_WEAPONS := "Оружие и предметы"
 const STAGE_VFX := "Эффекты и шейдеры"
 const STAGE_SHADERS := "Шейдеры"
+const STAGE_SWITCH := "Второй проход"
 const STAGE_FINAL := "Финальный рендер"
 const STAGE_DONE := "Готово"
 
@@ -101,7 +120,25 @@ var report := {
 	"elapsed": 0.0,
 	"peak_static_mb": 0.0,
 	"peak_video_mb": 0.0,
+	"pass1_video_mb": 0.0,
+	"pass2_video_mb": 0.0,
+	"video_after_arena_mb": 0.0,
+	"video_after_vfx_mb": 0.0,
+	"video_after_arena_free_mb": 0.0,
+	"two_pass": false,
+	"two_pass_policy": TWO_PASS_POLICY_AUTO,
+	"two_pass_reason": "",
+	"two_pass_switch_ms": 0,
+	"two_pass_switch_s": 0.0,
+	"video_mem_available": false,
+	"mobile": false,
+	"quality": "unknown",
+	"stats_tracked": false,
 }
+
+## "auto" (mobile + heavy arena), "on" (always) or "off". Probes and the
+## --warmup-two-pass / --warmup-single-pass args override it before start().
+var two_pass_policy := TWO_PASS_POLICY_AUTO
 
 var _running := false
 var _done := false
@@ -117,11 +154,22 @@ var _main: Node3D
 var _frames := 0
 var _peak_static_mb := 0.0
 var _peak_video_mb := 0.0
+var _video_mem_available := false
+var _two_pass := false
+var _pass := 1
+var _pass_peak_mb := 0.0
 
 
 func start() -> void:
 	if _running or _done:
 		return
+	if two_pass_policy == TWO_PASS_POLICY_AUTO:
+		for arg in OS.get_cmdline_user_args():
+			if arg == "--warmup-two-pass":
+				two_pass_policy = TWO_PASS_POLICY_ON
+			elif arg == "--warmup-single-pass":
+				two_pass_policy = TWO_PASS_POLICY_OFF
+	report["two_pass_policy"] = two_pass_policy
 	_running = true
 	_started_ms = Time.get_ticks_msec()
 	_stage_started_ms = _started_ms
@@ -189,9 +237,16 @@ func _run() -> void:
 	if not _alive():
 		return
 	_emit(36.0)
-	report["video_after_arena_mb"] = snappedf(
-		float(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED)) / 1048576.0, 0.1
-	)
+	report["video_after_arena_mb"] = _video_mb()
+	report["mobile"] = _is_mobile()
+	report["quality"] = _quality()
+	report["video_mem_available"] = _video_mem_available
+	_decide_two_pass(float(report["video_after_arena_mb"]))
+	if _two_pass:
+		await _switch_to_second_pass()
+		if not _alive():
+			return
+		_emit(37.0, STAGE_SWITCH)
 
 	await _warm_characters()
 	if not _alive():
@@ -207,9 +262,7 @@ func _run() -> void:
 	if not _alive():
 		return
 	_emit(88.0)
-	report["video_after_vfx_mb"] = snappedf(
-		float(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED)) / 1048576.0, 0.1
-	)
+	report["video_after_vfx_mb"] = _video_mb()
 
 	_set_stage(STAGE_SHADERS)
 	_emit(88.0)
@@ -239,13 +292,18 @@ func _run() -> void:
 		return
 	_done = true
 	_running = false
+	_finalize_pass()
 	report["stage_times"] = _stage_times()
+	_track_stats()
 	finished.emit()
 
 
-func _setup_viewport() -> void:
+func _setup_viewport(pass_two := false) -> void:
 	_viewport = SubViewport.new()
-	_viewport.name = "WarmupFlowViewport"
+	if pass_two:
+		_viewport.name = "WarmupFlowViewport2"
+	else:
+		_viewport.name = "WarmupFlowViewport"
 	_viewport.size = Vector2i(384, 216)
 	_viewport.own_world_3d = true
 	_viewport.transparent_bg = false
@@ -261,6 +319,26 @@ func _setup_viewport() -> void:
 	_viewport.add_child(_camera)
 	_camera.look_at(Vector3(0.0, 0.5, 0.0), Vector3.UP)
 	_camera.current = true
+	if pass_two:
+		# The arena instance (and its lighting) is gone by now; fighters and
+		# PBR shaders still need one lit draw or the lit variant stays cold.
+		var light := DirectionalLight3D.new()
+		light.name = "WarmupFlowKeyLight"
+		light.rotation_degrees = Vector3(-45.0, -30.0, 0.0)
+		light.light_energy = 1.1
+		_viewport.add_child(light)
+		var ground := MeshInstance3D.new()
+		ground.name = "WarmupFlowGround"
+		var plane := PlaneMesh.new()
+		plane.size = Vector2(30.0, 30.0)
+		ground.mesh = plane
+		var material := StandardMaterial3D.new()
+		material.albedo_color = Color(0.32, 0.3, 0.27)
+		material.roughness = 0.95
+		ground.material_override = material
+		ground.position = Vector3(0.0, -0.05, 0.0)
+		ground.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_viewport.add_child(ground)
 
 
 func _warm_characters() -> void:
@@ -540,6 +618,7 @@ func _render_frames(count: int) -> void:
 		await get_tree().process_frame
 		_frames += 1
 		report["frames_rendered"] = _frames
+		_sample_memory()
 
 
 func _load_threaded(path: String) -> Resource:
@@ -571,7 +650,8 @@ func _alive() -> bool:
 
 func _cleanup() -> void:
 	if _viewport != null and is_instance_valid(_viewport):
-		report["main_freed"] = _main != null
+		if _main != null:
+			report["main_freed"] = true
 		_viewport.queue_free()
 	if _canvas != null and is_instance_valid(_canvas):
 		_canvas.queue_free()
@@ -582,11 +662,148 @@ func _cleanup() -> void:
 	_arena = null
 
 
+func _decide_two_pass(arena_video_mb: float) -> void:
+	var policy := String(two_pass_policy)
+	var mobile := _is_mobile()
+	var reason := ""
+	_two_pass = false
+	if policy == TWO_PASS_POLICY_ON:
+		_two_pass = true
+		reason = "forced"
+	elif policy != TWO_PASS_POLICY_AUTO and policy != "":
+		reason = "disabled"
+	elif not mobile:
+		reason = "desktop"
+	elif not _video_mem_available:
+		reason = "video_mem_unavailable"
+	elif arena_video_mb >= TWO_PASS_TRIGGER_MB:
+		_two_pass = true
+		reason = "arena_peak_%.0f_mb>=%.0f" % [arena_video_mb, TWO_PASS_TRIGGER_MB]
+	elif arena_video_mb >= TWO_PASS_MOBILE_BUDGET_MB:
+		_two_pass = true
+		reason = "arena_peak_%.0f_mb>=%.0f" % [arena_video_mb, TWO_PASS_MOBILE_BUDGET_MB]
+	else:
+		reason = "arena_peak_%.0f_mb" % arena_video_mb
+	report["two_pass"] = _two_pass
+	report["two_pass_policy"] = policy
+	report["two_pass_reason"] = reason
+	report["mobile"] = mobile
+	if _two_pass:
+		print("[WarmupFlow] two-pass: %s (arena %.1f MB)" % [reason, arena_video_mb])
+
+
+## Frees the arena instance and its viewport so the second pass never shares
+## VRAM (arena textures, generated meshes, shadow atlas, world buffers) with
+## the fighters/weapons/VFX set. The Main.tscn resource stays in the loader
+## cache, so the real scene switch still gets a warm cache.
+func _switch_to_second_pass() -> void:
+	_set_stage(STAGE_SWITCH)
+	var started := Time.get_ticks_msec()
+	_finalize_pass()
+	if _main != null and is_instance_valid(_main):
+		_main.queue_free()
+		report["main_freed"] = true
+	_main = null
+	_arena = null
+	if _viewport != null and is_instance_valid(_viewport):
+		_viewport.queue_free()
+	_viewport = null
+	_camera = null
+	await _render_frames(2)
+	await RenderingServer.frame_post_draw
+	await RenderingServer.frame_post_draw
+	report["video_after_arena_free_mb"] = _video_mb()
+	_pass = 2
+	_pass_peak_mb = 0.0
+	_setup_viewport(true)
+	await _render_frames(2)
+	report["two_pass_switch_ms"] = Time.get_ticks_msec() - started
+	report["two_pass_switch_s"] = snappedf(float(report["two_pass_switch_ms"]) / 1000.0, 0.01)
+
+
+func _finalize_pass() -> void:
+	if _pass <= 1:
+		report["pass1_video_mb"] = snappedf(_pass_peak_mb, 0.1)
+	else:
+		report["pass2_video_mb"] = snappedf(_pass_peak_mb, 0.1)
+
+
+func _is_mobile() -> bool:
+	var profile := get_node_or_null("/root/DeviceProfile")
+	if profile != null and bool(profile.get("mobile_ui")):
+		return true
+	return OS.has_feature("mobile")
+
+
+func _quality() -> String:
+	var profile := get_node_or_null("/root/DeviceProfile")
+	if profile != null and profile.has_method("effective_quality"):
+		return String(profile.call("effective_quality"))
+	return "unknown"
+
+
+func _video_mb() -> float:
+	return snappedf(
+		float(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED)) / 1048576.0, 0.1
+	)
+
+
+## Samples static and video memory. Video memory is sampled on every rendered
+## frame, otherwise a short-lived spike between progress steps goes unnoticed.
+func _sample_memory() -> void:
+	_peak_static_mb = maxf(_peak_static_mb, float(OS.get_static_memory_usage()) / 1048576.0)
+	var video := float(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED)) / 1048576.0
+	if video > 0.0:
+		_video_mem_available = true
+	_peak_video_mb = maxf(_peak_video_mb, video)
+	_pass_peak_mb = maxf(_pass_peak_mb, video)
+	report["peak_static_mb"] = snappedf(_peak_static_mb, 0.1)
+	report["peak_video_mb"] = snappedf(_peak_video_mb, 0.1)
+	report["video_mem_available"] = _video_mem_available
+	if _pass <= 1:
+		report["pass1_video_mb"] = snappedf(_pass_peak_mb, 0.1)
+	else:
+		report["pass2_video_mb"] = snappedf(_pass_peak_mb, 0.1)
+
+
+## Fire-and-forget analytics. Warmup must never fail because Stats (or its
+## network client) is missing, so every access is guarded.
+func _track_stats() -> void:
+	report["stats_tracked"] = false
+	var stats := get_node_or_null("/root/Stats")
+	if stats == null or not stats.has_method("track"):
+		return
+	var payload := {
+		"elapsed": snappedf(float(report["elapsed"]), 0.01),
+		"stage_times": report["stage_times"],
+		"peak_static_mb": report["peak_static_mb"],
+		"peak_video_mb": report["peak_video_mb"],
+		"pass1_video_mb": report["pass1_video_mb"],
+		"pass2_video_mb": report["pass2_video_mb"],
+		"video_after_arena_mb": report["video_after_arena_mb"],
+		"heroes": int(report["heroes_warmed"]),
+		"props": int(report["props_warmed"]),
+		"vfx": int(report["vfx_scenes_warmed"]),
+		"shaders": int(report["shaders_warmed"]),
+		"frames": int(report["frames_rendered"]),
+		"mobile": bool(report["mobile"]),
+		"quality": String(report["quality"]),
+		"two_pass": _two_pass,
+		"two_pass_reason": String(report["two_pass_reason"]),
+		"failed": bool(report["failed"]),
+	}
+	stats.call("track", "warmup_done", payload)
+	report["stats_tracked"] = true
+
+
 func _fail(message: String) -> void:
 	report["failed"] = true
 	report["error"] = message
 	report["elapsed"] = _elapsed()
+	report["stage_times"] = _stage_times()
+	_finalize_pass()
 	push_error("[WarmupFlow] " + message)
+	_track_stats()
 	_cleanup()
 	_done = true
 	_running = false
@@ -614,13 +831,7 @@ func _stage_times() -> Dictionary:
 func _emit(percent: float, stage_name := "") -> void:
 	if not stage_name.is_empty():
 		_set_stage(stage_name)
-	_peak_static_mb = maxf(_peak_static_mb, float(OS.get_static_memory_usage()) / 1048576.0)
-	_peak_video_mb = maxf(
-		_peak_video_mb,
-		float(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED)) / 1048576.0
-	)
-	report["peak_static_mb"] = snappedf(_peak_static_mb, 0.1)
-	report["peak_video_mb"] = snappedf(_peak_video_mb, 0.1)
+	_sample_memory()
 	_progress = clampf(percent, 0.0, 100.0)
 	progress_changed.emit(_progress, _elapsed(), _stage)
 
