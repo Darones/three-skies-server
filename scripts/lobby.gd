@@ -1022,6 +1022,23 @@ func _open_topup_panel() -> void:
 	if topup_panel != null:
 		topup_panel.visible = true
 		topup_panel.call("refresh")
+		# Standalone hides the slider/price/pay rows; a fixed 500x360 card
+		# then showed a big empty box. Size the card to its visible content
+		# and keep it centred in both the standalone and VK/OK variants.
+		_fit_topup_panel.call_deferred()
+
+
+func _fit_topup_panel() -> void:
+	if topup_panel == null or not is_instance_valid(topup_panel):
+		return
+	var min_size := topup_panel.get_combined_minimum_size()
+	var view := get_viewport_rect().size
+	var width := minf(maxf(500.0, min_size.x), view.x * 0.92)
+	var height := minf(maxf(150.0, min_size.y), view.y * 0.92)
+	topup_panel.offset_left = -width * 0.5
+	topup_panel.offset_right = width * 0.5
+	topup_panel.offset_top = -height * 0.5
+	topup_panel.offset_bottom = height * 0.5
 
 
 func _close_topup_panel() -> void:
@@ -1865,6 +1882,7 @@ func _build_player_menu() -> void:
 	default_weapon_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	default_content.add_child(default_weapon_icon)
 	default_weapon_name_label = _make_label("Стандартное оружие", 12, PALE)
+	default_weapon_name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	default_content.add_child(default_weapon_name_label)
 	default_weapon_status = _make_label("Надето", 12, Color(0.58, 0.9, 0.64))
 	default_content.add_child(default_weapon_status)
@@ -1894,7 +1912,9 @@ func _build_player_menu() -> void:
 		weapon_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		weapon_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		weapon_content.add_child(weapon_icon)
-		weapon_content.add_child(_make_label(String(weapon_item["name"]), 12, PALE))
+		var weapon_name := _make_label(String(weapon_item["name"]), 12, PALE)
+		weapon_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		weapon_content.add_child(weapon_name)
 		var weapon_status := _make_label("В магазине", 12, Color(0.62, 0.65, 0.72))
 		weapon_content.add_child(weapon_status)
 		var weapon_button := _make_action_button("Купить", false)
@@ -1922,7 +1942,9 @@ func _build_player_menu() -> void:
 	default_skin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	default_skin_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	default_skin_content.add_child(default_skin_icon)
-	default_skin_content.add_child(_make_label("Стандартный вид", 12, PALE))
+	var default_skin_name := _make_label("Стандартный вид", 12, PALE)
+	default_skin_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	default_skin_content.add_child(default_skin_name)
 	default_skin_status = _make_label("Надето", 12, GOLD)
 	default_skin_content.add_child(default_skin_status)
 	default_skin_button = _make_action_button("Надето", false)
@@ -1950,7 +1972,9 @@ func _build_player_menu() -> void:
 		skin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		skin_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		skin_content.add_child(skin_icon)
-		skin_content.add_child(_make_label(String(skin_item["name"]), 12, PALE))
+		var skin_name := _make_label(String(skin_item["name"]), 12, PALE)
+		skin_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		skin_content.add_child(skin_name)
 		var skin_status := _make_label("В магазине", 12, Color(0.62, 0.65, 0.72))
 		skin_content.add_child(skin_status)
 		var skin_button := _make_action_button("Купить", false)

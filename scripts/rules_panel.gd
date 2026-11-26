@@ -23,6 +23,7 @@ const SECTIONS := [
 
 var mobile_layout := false
 var scroll: ScrollContainer
+var scroll_fade: TextureRect
 
 
 func _ready() -> void:
@@ -38,6 +39,7 @@ func open() -> void:
 	if scroll != null:
 		await get_tree().process_frame
 		scroll.scroll_vertical = 0
+		_update_scroll_fade()
 
 
 func close() -> void:
@@ -153,6 +155,53 @@ func _build() -> void:
 	back_button.add_theme_font_size_override("font_size", _fs(button_size))
 	back_button.pressed.connect(_on_back)
 	layout.add_child(back_button)
+
+	_build_scroll_fade()
+	if scroll.get_v_scroll_bar() != null:
+		scroll.get_v_scroll_bar().value_changed.connect(func(_value: float) -> void: _update_scroll_fade())
+	scroll.resized.connect(_update_scroll_fade)
+	call_deferred("_update_scroll_fade")
+
+
+func _build_scroll_fade() -> void:
+	# The scroll viewport cuts the last visible line in half at 844x390.
+	# A short gradient makes that edge read as "scroll for more" instead of
+	# as a broken glyph row. It sits above the scroll but below nothing else.
+	var gradient := Gradient.new()
+	gradient.set_color(0, Color(0.035, 0.045, 0.07, 0.0))
+	gradient.set_color(1, Color(0.035, 0.045, 0.07, 0.98))
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.width = 8
+	texture.height = 64
+	texture.fill_from = Vector2(0.0, 0.0)
+	texture.fill_to = Vector2(0.0, 1.0)
+	scroll_fade = TextureRect.new()
+	scroll_fade.name = "RulesScrollFade"
+	scroll_fade.texture = texture
+	scroll_fade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	scroll_fade.stretch_mode = TextureRect.STRETCH_SCALE
+	scroll_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	scroll_fade.visible = false
+	add_child(scroll_fade)
+
+
+func _update_scroll_fade() -> void:
+	if scroll_fade == null or scroll == null or not scroll.is_inside_tree():
+		return
+	var bar := scroll.get_v_scroll_bar()
+	if bar == null:
+		scroll_fade.visible = false
+		return
+	var can_scroll_down := bar.visible and bar.max_value - bar.page > scroll.scroll_vertical + 1.0
+	scroll_fade.visible = can_scroll_down
+	if not can_scroll_down:
+		return
+	var fade_height := 44.0 if mobile_layout else 30.0
+	var rect := scroll.get_global_rect()
+	var base := get_global_rect().position
+	scroll_fade.position = Vector2(rect.position.x - base.x, rect.end.y - base.y - fade_height)
+	scroll_fade.size = Vector2(rect.size.x - 24.0, fade_height)
 
 
 func _use_two_columns() -> bool:

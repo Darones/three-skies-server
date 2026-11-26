@@ -38,6 +38,13 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute("user://ui_shots")
 	var image := get_viewport().get_texture().get_image()
 	image.save_png("user://ui_shots/loading_search_%s.png" % tag)
+	# The failure state adds a "В ЛОББИ" button above the tip. Capture it too:
+	# this is the state a player sees when the server is unreachable.
+	scene.call("_on_network_failed", "Сервер недоступен")
+	for i in 5:
+		await get_tree().process_frame
+	image = get_viewport().get_texture().get_image()
+	image.save_png("user://ui_shots/loading_failed_%s.png" % tag)
 	print("LOADING_UI_DIR=", ProjectSettings.globalize_path("user://ui_shots"))
 	print("LOADING_UI_FAILURES=%d" % failures)
 	get_tree().quit(1 if failures > 0 else 0)

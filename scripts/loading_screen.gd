@@ -33,6 +33,7 @@ var progress_bar: ProgressBar
 var search_label: Label
 var connection_hint: Label
 var tip_label: Label
+var tip_caption_label: Label
 var found_count_label: Label
 var elapsed := 0.0
 var next_player_time := 1.2
@@ -211,6 +212,12 @@ func _on_network_failed(reason: String) -> void:
 	for spinner in searching_spinners:
 		if is_instance_valid(spinner):
 			spinner.visible = false
+	# The back button occupies the bottom tip area; the tip would otherwise
+	# be drawn underneath it. Hide the optional tip rows on the failure state.
+	if tip_caption_label != null:
+		tip_caption_label.visible = false
+	if tip_label != null:
+		tip_label.visible = false
 	_add_back_button()
 
 
@@ -222,8 +229,9 @@ func _add_back_button() -> void:
 	back_button.custom_minimum_size = Vector2(220, 56)
 	back_button.anchor_left = 0.5
 	back_button.anchor_right = 0.5
-	back_button.anchor_top = 0.9
-	back_button.anchor_bottom = 0.9
+	var back_anchor_y := 0.91 if DeviceProfile.mobile_ui else 0.94
+	back_button.anchor_top = back_anchor_y
+	back_button.anchor_bottom = back_anchor_y
 	back_button.offset_left = -110.0
 	back_button.offset_right = 110.0
 	back_button.offset_top = -28.0
@@ -446,21 +454,25 @@ func _build_screen() -> void:
 	search_label = _make_label('\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432...', 22 if mobile else 26, Color(1.0, 0.9, 0.7))
 	search_label.anchor_left = 0.12
 	search_label.anchor_right = 0.88
-	search_label.anchor_top = 0.73 if mobile else 0.76
-	search_label.anchor_bottom = 0.77 if mobile else 0.80
+	# On the phone the old 13-15 px bands were shorter than the clamped
+	# 18 px font: "Игроки найдены" was drawn on top of the progress bar and
+	# the tip was pinned to the screen edge. Keep every row taller than its
+	# line height and leave a real gutter before the bottom edge.
+	search_label.anchor_top = 0.655 if mobile else 0.76
+	search_label.anchor_bottom = 0.704 if mobile else 0.80
 	add_child(search_label)
 	found_count_label = _make_label('', 13 if mobile else 15, Color(0.88, 0.9, 0.98))
 	found_count_label.anchor_left = 0.12
 	found_count_label.anchor_right = 0.88
-	found_count_label.anchor_top = 0.77 if mobile else 0.80
-	found_count_label.anchor_bottom = 0.80 if mobile else 0.835
+	found_count_label.anchor_top = 0.708 if mobile else 0.80
+	found_count_label.anchor_bottom = 0.752 if mobile else 0.835
 	add_child(found_count_label)
 	progress_bar = ProgressBar.new()
 	progress_bar.name = 'MatchProgress'
 	progress_bar.anchor_left = 0.12
 	progress_bar.anchor_right = 0.88
-	progress_bar.anchor_top = 0.80 if mobile else 0.835
-	progress_bar.anchor_bottom = 0.83 if mobile else 0.87
+	progress_bar.anchor_top = 0.76 if mobile else 0.835
+	progress_bar.anchor_bottom = 0.788 if mobile else 0.87
 	progress_bar.max_value = 100.0
 	progress_bar.show_percentage = false
 	progress_bar.add_theme_stylebox_override('background', _progress_style(Color(0.025, 0.04, 0.075, 0.92), Color(0.72, 0.79, 0.9)))
@@ -469,20 +481,21 @@ func _build_screen() -> void:
 	connection_hint = _make_label('\u041e\u0436\u0438\u0434\u0430\u043d\u0438\u0435 \u0438\u0433\u0440\u043e\u043a\u043e\u0432', 13 if mobile else 14, Color(0.78, 0.83, 0.93))
 	connection_hint.anchor_left = 0.12
 	connection_hint.anchor_right = 0.88
-	connection_hint.anchor_top = 0.835 if mobile else 0.87
-	connection_hint.anchor_bottom = 0.86 if mobile else 0.90
+	connection_hint.anchor_top = 0.795 if mobile else 0.87
+	connection_hint.anchor_bottom = 0.836 if mobile else 0.90
 	add_child(connection_hint)
 	var caption := _make_label('\u041f\u041e\u041b\u0415\u0417\u041d\u042b\u0419 \u0421\u041e\u0412\u0415\u0422', 13 if mobile else 14, Color(1.0, 0.8, 0.42))
 	caption.anchor_left = 0.12
 	caption.anchor_right = 0.88
-	caption.anchor_top = 0.868 if mobile else 0.903
-	caption.anchor_bottom = 0.89 if mobile else 0.925
+	caption.anchor_top = 0.842 if mobile else 0.903
+	caption.anchor_bottom = 0.881 if mobile else 0.925
 	add_child(caption)
+	tip_caption_label = caption
 	tip_label = _make_label(TIPS[0], 13 if mobile else 15, Color(0.96, 0.97, 1.0))
 	tip_label.anchor_left = 0.08
 	tip_label.anchor_right = 0.92
-	tip_label.anchor_top = 0.895 if mobile else 0.925
-	tip_label.anchor_bottom = 0.975 if mobile else 0.962
+	tip_label.anchor_top = 0.888 if mobile else 0.925
+	tip_label.anchor_bottom = 0.988 if mobile else 0.962
 	tip_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(tip_label)
 	_update_search_progress()
@@ -493,7 +506,7 @@ func _build_team_panel(team_index: int) -> void:
 	panel.anchor_left = 0.035 if team_index == 0 else 0.665
 	panel.anchor_right = 0.395 if team_index == 0 else 0.965
 	panel.anchor_top = 0.24 if DeviceProfile.mobile_ui else 0.29
-	panel.anchor_bottom = 0.68 if DeviceProfile.mobile_ui else 0.735
+	panel.anchor_bottom = 0.64 if DeviceProfile.mobile_ui else 0.735
 	panel.add_theme_stylebox_override('panel', _team_style(team_index))
 	add_child(panel)
 	var layout := VBoxContainer.new()
@@ -508,7 +521,7 @@ func _build_team_panel(team_index: int) -> void:
 func _build_player_slot(team_index: int, slot_index: int, parent: VBoxContainer) -> Dictionary:
 	var panel := PanelContainer.new()
 	panel.name = 'PlayerSlot_%d' % (slot_index + 1)
-	panel.custom_minimum_size = Vector2(0.0, 52.0 if DeviceProfile.mobile_ui else 86.0)
+	panel.custom_minimum_size = Vector2(0.0, 48.0 if DeviceProfile.mobile_ui else 86.0)
 	panel.add_theme_stylebox_override('panel', _slot_style(team_index, false))
 	parent.add_child(panel)
 	var row := HBoxContainer.new()
@@ -516,7 +529,7 @@ func _build_player_slot(team_index: int, slot_index: int, parent: VBoxContainer)
 	panel.add_child(row)
 	var portrait := TextureRect.new()
 	portrait.name = 'ClassIcon'
-	portrait.custom_minimum_size = Vector2(44.0 if DeviceProfile.mobile_ui else 72.0, 44.0 if DeviceProfile.mobile_ui else 72.0)
+	portrait.custom_minimum_size = Vector2(40.0 if DeviceProfile.mobile_ui else 72.0, 40.0 if DeviceProfile.mobile_ui else 72.0)
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	portrait.visible = false

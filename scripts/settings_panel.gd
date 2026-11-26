@@ -77,18 +77,27 @@ func _build_panel() -> void:
 	panel.add_theme_stylebox_override("panel", panel_style)
 	add_child(panel)
 
+	# Header, Back and the legal footer stay outside the scroll: on a 734 px
+	# high desktop the eight key-binding rows used to push "Назад" and all
+	# three footer links out of the visible area.
+	var root := VBoxContainer.new()
+	root.name = "SettingsRoot"
+	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	root.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	root.add_theme_constant_override("separation", 10)
+	panel.add_child(root)
+
 	var scroll := ScrollContainer.new()
 	scroll.name = "SettingsScroll"
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	panel.add_child(scroll)
 	var layout := VBoxContainer.new()
 	layout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	layout.add_theme_constant_override("separation", 10)
 	scroll.add_child(layout)
 
 	var header := HBoxContainer.new()
-	layout.add_child(header)
+	root.add_child(header)
 	var title := _make_label("НАСТРОЙКИ", 28, Color(0.95, 0.76, 0.38))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -98,6 +107,7 @@ func _build_panel() -> void:
 	back_button.add_theme_font_size_override("font_size", _fs(22))
 	back_button.pressed.connect(_on_back_pressed)
 	header.add_child(back_button)
+	root.add_child(scroll)
 
 	layout.add_child(_make_label("ЗВУК", 17, Color(0.9, 0.92, 0.98)))
 	var volume_row := HBoxContainer.new()
@@ -166,11 +176,12 @@ func _build_panel() -> void:
 
 	status_label = _make_label("", 13, Color(0.76, 0.8, 0.89))
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	layout.add_child(status_label)
+	status_label.visible = false
+	root.add_child(status_label)
 	var close_button := _make_button("Назад", true)
 	close_button.custom_minimum_size = Vector2(0.0, 46.0)
 	close_button.pressed.connect(_on_back_pressed)
-	layout.add_child(close_button)
+	root.add_child(close_button)
 
 	# Footer: deliberately tiny and low-contrast so these rare actions are
 	# not pressed by accident. Placed below the Back button.
@@ -178,7 +189,7 @@ func _build_panel() -> void:
 	footer.name = "SettingsFooter"
 	footer.add_theme_constant_override("separation", 2)
 	footer.alignment = BoxContainer.ALIGNMENT_CENTER
-	layout.add_child(footer)
+	root.add_child(footer)
 	var credits_link := _make_flat_link("Авторы и лицензии", Color(0.7, 0.76, 0.88), 16 if mobile_layout else 15)
 	credits_link.name = "CreditsButton"
 	credits_link.pressed.connect(_open_credits)
@@ -368,7 +379,7 @@ func _build_credits_overlay() -> void:
 	text_edit.name = "CreditsText"
 	text_edit.text = _credits_text()
 	text_edit.editable = false
-	text_edit.custom_minimum_size = Vector2(0, 460)
+	text_edit.custom_minimum_size = Vector2(0, 260 if mobile_layout else 460)
 	text_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	text_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
 	text_edit.add_theme_font_override("font", UI_FONT)
@@ -422,7 +433,7 @@ func _delete_account_data() -> void:
 		_reset_progress_local()
 		return
 	if status_label != null:
-		status_label.text = "Удаляем данные..."
+		_set_status("Удаляем данные...")
 	NetworkClient.delete_account(MetaProgression.player_id)
 
 
@@ -431,7 +442,7 @@ func _on_account_deleted(success: bool, error: String) -> void:
 		_reset_progress_local()
 		return
 	if status_label != null:
-		status_label.text = "Не удалось удалить данные: %s" % error
+		_set_status("Не удалось удалить данные: %s" % error)
 
 
 func _clear_web_profile_storage() -> void:
@@ -451,7 +462,7 @@ func _reset_progress() -> void:
 	# server row first, then clear the local files and reload.
 	if MetaProgression.player_id > 0:
 		if status_label != null:
-			status_label.text = "Удаляем профиль..."
+			_set_status("Удаляем профиль...")
 		NetworkClient.delete_account(MetaProgression.player_id)
 		return
 	_reset_progress_local()
@@ -495,7 +506,10 @@ func _reset_progress_local() -> void:
 		"""
 		JavaScriptBridge.eval(script)
 	else:
-		get_tree().reload_current_scene()
+		# Always land in the lobby after a full wipe: the settings panel can
+		# also be opened from a live match, and reloading Main would start a
+		# match without a profile.
+		get_tree().change_scene_to_file("res://scenes/Lobby.tscn")
 
 
 func _load_settings() -> void:
@@ -571,11 +585,11 @@ func _on_quality_selected(value: String) -> void:
 	if status_label != null:
 		match value:
 			DeviceProfile.QUALITY_LOW:
-				status_label.text = "Графика: низкое качество — меньше нагрева."
+				_set_status("Графика: низкое качество — меньше нагрева.")
 			DeviceProfile.QUALITY_MEDIUM:
-				status_label.text = "Графика: среднее качество."
+				_set_status("Графика: среднее качество.")
 			_:
-				status_label.text = "Графика: высокое качество."
+				_set_status("Графика: высокое качество.")
 
 
 func _refresh_quality_buttons() -> void:
@@ -597,7 +611,7 @@ func _on_fps_toggled(enabled: bool) -> void:
 
 func _begin_rebind(action: String) -> void:
 	listening_action = action
-	status_label.text = "Нажмите клавишу для действия… Esc — отмена"
+	_set_status("Нажмите клавишу для действия… Esc — отмена")
 	_update_binding_button(action)
 
 
@@ -616,7 +630,7 @@ func _input(event: InputEvent) -> void:
 			_on_back_pressed()
 		else:
 			listening_action = ""
-			status_label.text = ""
+			_set_status("")
 			_update_all_binding_buttons()
 		get_viewport().set_input_as_handled()
 		return
@@ -629,7 +643,7 @@ func _input(event: InputEvent) -> void:
 	listening_action = ""
 	_apply_binding(action, key_code)
 	_save_value("controls", action, key_code)
-	status_label.text = "Управление сохранено."
+	_set_status("Управление сохранено.")
 	_update_all_binding_buttons()
 	get_viewport().set_input_as_handled()
 
@@ -662,6 +676,14 @@ func _update_binding_button(action: String) -> void:
 func _update_all_binding_buttons() -> void:
 	for binding in CONTROL_BINDINGS:
 		_update_binding_button(String(binding["action"]))
+
+
+func _set_status(text: String) -> void:
+	if status_label == null:
+		return
+	status_label.text = text
+	# An empty status row only steals height from the scroll area.
+	status_label.visible = not text.strip_edges().is_empty()
 
 
 func _on_back_pressed() -> void:
