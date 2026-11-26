@@ -113,6 +113,131 @@ func TestNormalizeVKDisplayName(t *testing.T) {
 	}
 }
 
+func TestPlatformRenameDecision(t *testing.T) {
+	tests := []struct {
+		name         string
+		oldNickname  string
+		newDisplay   string
+		hidden       bool
+		custom       bool
+		wantNickname string
+		wantUnhide   bool
+	}{
+		{
+			name:         "changed name unhides a hidden nickname",
+			oldNickname:  "Старый",
+			newDisplay:   "Новый",
+			hidden:       true,
+			wantNickname: "Новый",
+			wantUnhide:   true,
+		},
+		{
+			name:         "changed name keeps a visible profile visible",
+			oldNickname:  "Старый",
+			newDisplay:   "Новый",
+			hidden:       false,
+			wantNickname: "Новый",
+			wantUnhide:   false,
+		},
+		{
+			name:         "same name keeps the hidden flag",
+			oldNickname:  "Иван",
+			newDisplay:   "Иван",
+			hidden:       true,
+			wantNickname: "Иван",
+			wantUnhide:   false,
+		},
+		{
+			name:         "surrounding spaces do not count as a rename",
+			oldNickname:  "Иван",
+			newDisplay:   "  Иван  ",
+			hidden:       true,
+			wantNickname: "Иван",
+			wantUnhide:   false,
+		},
+		{
+			name:         "custom nickname ignores the platform name",
+			oldNickname:  "Свой",
+			newDisplay:   "Новое",
+			hidden:       true,
+			custom:       true,
+			wantNickname: "Свой",
+			wantUnhide:   false,
+		},
+		{
+			name:         "empty platform name changes nothing",
+			oldNickname:  "Иван",
+			newDisplay:   "",
+			hidden:       true,
+			wantNickname: "Иван",
+			wantUnhide:   false,
+		},
+		{
+			name:         "whitespace platform name changes nothing",
+			oldNickname:  "Иван",
+			newDisplay:   "   ",
+			hidden:       true,
+			wantNickname: "Иван",
+			wantUnhide:   false,
+		},
+		{
+			name:         "profane rename keeps the old hidden nickname",
+			oldNickname:  "Иван",
+			newDisplay:   "ебаный",
+			hidden:       true,
+			wantNickname: "Иван",
+			wantUnhide:   false,
+		},
+		{
+			name:         "profane rename does not change a visible profile",
+			oldNickname:  "Иван",
+			newDisplay:   "shit",
+			hidden:       false,
+			wantNickname: "Иван",
+			wantUnhide:   false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			nickname, unhide := platformRenameDecision(test.oldNickname, test.newDisplay, test.hidden, test.custom)
+			if nickname != test.wantNickname {
+				t.Fatalf("nickname=%q, want %q", nickname, test.wantNickname)
+			}
+			if unhide != test.wantUnhide {
+				t.Fatalf("unhide=%v, want %v", unhide, test.wantUnhide)
+			}
+		})
+	}
+}
+
+func TestAuthProfileResponseHidesNickname(t *testing.T) {
+	hidden := authProfileResponse(vkProfileRow{
+		nickname:       "НастоящийНик",
+		nicknameCustom: true,
+		nicknameHidden: true,
+	})
+	if hidden.Nickname != hiddenNickname {
+		t.Fatalf("hidden nickname=%q, want %q", hidden.Nickname, hiddenNickname)
+	}
+	if hidden.Nickname != "Игрок" {
+		t.Fatalf("hidden nickname=%q, want %q", hidden.Nickname, "Игрок")
+	}
+	if hidden.NicknameCustom {
+		t.Fatal("a hidden nickname must not be reported as custom")
+	}
+
+	visible := authProfileResponse(vkProfileRow{
+		nickname:       "НастоящийНик",
+		nicknameCustom: true,
+	})
+	if visible.Nickname != "НастоящийНик" {
+		t.Fatalf("visible nickname=%q, want %q", visible.Nickname, "НастоящийНик")
+	}
+	if !visible.NicknameCustom {
+		t.Fatal("a visible custom nickname must stay custom")
+	}
+}
+
 func TestSplitUnlockedItems(t *testing.T) {
 	skins, weapons := splitUnlockedItems([]int{1, 5, 101, 102})
 	if len(skins) != 2 || skins[0] != 101 || skins[1] != 102 {

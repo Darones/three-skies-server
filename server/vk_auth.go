@@ -69,6 +69,7 @@ type vkProfileRow struct {
 	id                  int64
 	nickname            string
 	nicknameCustom      bool
+	nicknameHidden      bool
 	shards              int
 	wings               string
 	weapons             string
@@ -241,6 +242,31 @@ func normalizeVKDisplayName(name string) string {
 	return strings.TrimSpace(name)
 }
 
+// platformRenameDecision decides what a platform display name does to a stored
+// profile on VK/OK login. A real rename is applied together with
+// nickname_hidden = FALSE: the nickname that moderation hid no longer exists,
+// so the new one must be visible again. An unchanged, empty, custom or profane
+// name never changes the profile, and in particular never lifts the hide flag.
+//
+// unhide reports whether the stored hide flag is actually being cleared; a
+// rename of an already visible profile still updates the nickname but has
+// nothing to unhide.
+func platformRenameDecision(oldNickname, newDisplayName string, hidden, custom bool) (newNickname string, unhide bool) {
+	if custom {
+		return oldNickname, false
+	}
+	name := strings.TrimSpace(newDisplayName)
+	if name == "" || name == oldNickname {
+		return oldNickname, false
+	}
+	// A new profane platform name must not be published and must not reveal
+	// the old hidden nickname; keep the profile exactly as it was.
+	if containsProfanity(name) {
+		return oldNickname, false
+	}
+	return name, hidden
+}
+
 func splitUnlockedItems(ids []int) ([]int, []int) {
 	skins := make([]int, 0, 2)
 	weapons := make([]int, 0, len(ids))
@@ -314,8 +340,8 @@ func authProfileResponse(profile vkProfileRow) vkAuthResponse {
 		Success:             true,
 		PlayerID:            profile.id,
 		SessionToken:        profile.sessionToken,
-		Nickname:            profile.nickname,
-		NicknameCustom:      profile.nicknameCustom,
+		Nickname:            publicNickname(profile.nickname, profile.nicknameHidden),
+		NicknameCustom:      profile.nicknameCustom && !profile.nicknameHidden,
 		SkyShards:           profile.shards,
 		Level:               profile.level,
 		UnlockedWings:       parseItemIDs(profile.wings),
@@ -333,7 +359,6 @@ func authProfileResponse(profile vkProfileRow) vkAuthResponse {
 		LastInterstitialAt:  profile.lastInterstitialAt,
 	}
 }
-
 
 func (service *api) handleVKAuth(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -424,7 +449,8 @@ func (service *api) upsertPlatformProfile(ctx context.Context, platform, namePre
 
 	var profile vkProfileRow
 	err = tx.QueryRowContext(ctx, `
-		SELECT id, nickname, COALESCE(nickname_custom, FALSE), COALESCE(sky_shards, 0),
+		SELECT id, nickname, COALESCE(nickname_custom, FALSE), COALESCE(nickname_hidden, FALSE),
+		       COALESCE(sky_shards, 0),
 		       COALESCE(unlocked_wings, ''), COALESCE(unlocked_weapons, ''),
 		       COALESCE(matches_played, 0), COALESCE(novice, FALSE),
 		       COALESCE(level, 1),
@@ -435,7 +461,8 @@ func (service *api) upsertPlatformProfile(ctx context.Context, platform, namePre
 		       COALESCE(session_token, '')
 		FROM players WHERE platform = $1 AND external_id = $2 FOR UPDATE
 	`, platform, externalID).Scan(
-		&profile.id, &profile.nickname, &profile.nicknameCustom, &profile.shards,
+		&profile.id, &profile.nickname, &profile.nicknameCustom, &profile.nicknameHidden,
+		&profile.shards,
 		&profile.wings, &profile.weapons, &profile.matchesPlayed, &profile.novice,
 		&profile.level, &profile.levelsJSON, &profile.xpsJSON,
 		&profile.tutorialCompleted, &profile.tutorialSkipped, &profile.tutorialBattlesUsed,
@@ -450,11 +477,30 @@ func (service *api) upsertPlatformProfile(ctx context.Context, platform, namePre
 		}
 		profile.sessionToken = token
 	}
-	if displayName != "" && !profile.nicknameCustom {
-		if _, err := tx.ExecContext(ctx, `UPDATE players SET nickname = $1 WHERE id = $2`, displayName, profile.id); err != nil {
+	newNickname, unhide := platformRenameDecision(profile.nickname, displayName, profile.nicknameHidden, profile.nicknameCustom)
+	if newNickname != profile.nickname {
+		// The rename and the moderation unhide are one write. A rejected UPDATE
+		// (for example a leftover UNIQUE nickname index) must not abort the
+		// whole login transaction, so isolate it in a savepoint and keep the
+		// old profile on failure.
+		if _, err := tx.ExecContext(ctx, `SAVEPOINT platform_rename`); err != nil {
 			return vkProfileRow{}, err
 		}
-		profile.nickname = displayName
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE players SET nickname = $1, nickname_hidden = FALSE WHERE id = $2`,
+			newNickname, profile.id,
+		); err != nil {
+			log.Printf("%sprofile rename rejected for player %d, keeping old nickname: %v", namePrefix, profile.id, err)
+			if _, rollbackErr := tx.ExecContext(ctx, `ROLLBACK TO SAVEPOINT platform_rename`); rollbackErr != nil {
+				return vkProfileRow{}, rollbackErr
+			}
+		} else {
+			if unhide {
+				log.Printf("%sprofile %d: platform rename lifted a hidden nickname", namePrefix, profile.id)
+			}
+			profile.nickname = newNickname
+			profile.nicknameHidden = false
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return vkProfileRow{}, err
