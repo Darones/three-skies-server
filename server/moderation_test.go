@@ -39,7 +39,7 @@ func TestModerationPageRequiresToken(t *testing.T) {
 	if contentType := recorder.Header().Get("Content-Type"); !strings.HasPrefix(contentType, "text/html") {
 		t.Fatalf("expected an HTML page, got %q", contentType)
 	}
-	if !strings.Contains(recorder.Body.String(), "Модерация ников") {
+	if !strings.Contains(recorder.Body.String(), "Админка") {
 		t.Fatal("page does not look like the moderation page")
 	}
 	if strings.Contains(recorder.Body.String(), "s3cret") {
