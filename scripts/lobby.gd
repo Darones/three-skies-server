@@ -214,6 +214,11 @@ var warmup_watch_token := 0
 var novice_status: PanelContainer
 var novice_status_title: Label
 var novice_status_hint: Label
+var moderation_ban_overlay: ColorRect
+var moderation_ban_reason_label: Label
+var moderation_warning_overlay: ColorRect
+var moderation_warning_reason_label: Label
+var moderation_warning_ok_button: Button
 
 
 func _notification(what: int) -> void:
@@ -252,6 +257,7 @@ func _ready() -> void:
 	_build_vk_auth_overlay()
 	_build_level_up_banner()
 	_build_welcome_overlay()
+	_build_moderation_ui()
 	_refresh_wing_shop()
 	_refresh_weapon_shop()
 	_refresh_selection()
@@ -275,6 +281,10 @@ func _ready() -> void:
 		NetworkClient.rename_completed.connect(_on_rename_completed)
 	if not NetworkClient.report_completed.is_connected(_on_report_completed):
 		NetworkClient.report_completed.connect(_on_report_completed)
+	if not NetworkClient.account_ban_updated.is_connected(_on_account_ban_updated):
+		NetworkClient.account_ban_updated.connect(_on_account_ban_updated)
+	if not NetworkClient.warnings_updated.is_connected(_on_warnings_updated):
+		NetworkClient.warnings_updated.connect(_on_warnings_updated)
 	if _is_platform_auth():
 		# VK/OK identity comes only from the platform and the server. Never
 		# reuse a local/standalone player_id or register by nickname.
@@ -308,6 +318,7 @@ func _ready() -> void:
 	# New players get the welcome card while the profile request is in flight;
 	# everyone else sees the lobby exactly as before.
 	_refresh_welcome_overlay()
+	_apply_moderation_state()
 	_setup_ui_click_sound()
 	_wire_ui_click_sounds(self)
 	touch_keyboard = preload("res://scripts/touch_keyboard.gd").new()
@@ -1253,6 +1264,217 @@ func _show_info(message: String, title: String = "Небесные осколк�
 	info_ok_button.grab_focus()
 
 
+## Moderation UI: the server owns the ban/warning state in NetworkClient, the
+## lobby only presents it. The ban card sits above every other layer (Welcome
+## included) and offers no Play/Tutorial/shop actions.
+func _build_moderation_ui() -> void:
+	moderation_warning_overlay = ColorRect.new()
+	moderation_warning_overlay.name = "WarningOverlay"
+	moderation_warning_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	moderation_warning_overlay.color = Color(0.005, 0.008, 0.018, 0.78)
+	moderation_warning_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	moderation_warning_overlay.visible = false
+	moderation_warning_overlay.z_index = 250
+	add_child(moderation_warning_overlay)
+	var warning_center := CenterContainer.new()
+	warning_center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	warning_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	moderation_warning_overlay.add_child(warning_center)
+	var warning_panel := PanelContainer.new()
+	warning_panel.name = "WarningPanel"
+	warning_panel.custom_minimum_size = Vector2(360 if DeviceProfile.mobile_ui else 520, 0)
+	warning_panel.add_theme_stylebox_override("panel", _panel_style(GOLD, Color(0.035, 0.045, 0.07, 0.99)))
+	warning_center.add_child(warning_panel)
+	var warning_margin := MarginContainer.new()
+	warning_margin.add_theme_constant_override("margin_left", 26)
+	warning_margin.add_theme_constant_override("margin_right", 26)
+	warning_margin.add_theme_constant_override("margin_top", 22)
+	warning_margin.add_theme_constant_override("margin_bottom", 22)
+	warning_panel.add_child(warning_margin)
+	var warning_content := VBoxContainer.new()
+	warning_content.add_theme_constant_override("separation", 12)
+	warning_margin.add_child(warning_content)
+	var warning_ornament := _make_label("!", 32, GOLD)
+	warning_ornament.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	warning_content.add_child(warning_ornament)
+	var warning_title := _make_label("ПРЕДУПРЕЖДЕНИЕ", 27, GOLD)
+	warning_title.name = "WarningTitle"
+	warning_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	warning_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	warning_content.add_child(warning_title)
+	moderation_warning_reason_label = _make_label("", 18, PALE)
+	moderation_warning_reason_label.name = "WarningReason"
+	moderation_warning_reason_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	moderation_warning_reason_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	moderation_warning_reason_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	moderation_warning_reason_label.custom_minimum_size = Vector2(300 if DeviceProfile.mobile_ui else 450, 0)
+	warning_content.add_child(moderation_warning_reason_label)
+	var warning_hint := _make_label("Игра остаётся доступной. Правила — в разделе «Правила».", 14, Color(0.62, 0.7, 0.82))
+	warning_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	warning_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	warning_hint.custom_minimum_size = Vector2(300 if DeviceProfile.mobile_ui else 450, 0)
+	warning_content.add_child(warning_hint)
+	moderation_warning_ok_button = _make_action_button("Понятно", true)
+	moderation_warning_ok_button.name = "WarningOk"
+	moderation_warning_ok_button.focus_mode = Control.FOCUS_ALL
+	moderation_warning_ok_button.custom_minimum_size = Vector2(210, 46)
+	moderation_warning_ok_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	moderation_warning_ok_button.add_theme_font_size_override("font_size", _fs(17))
+	moderation_warning_ok_button.pressed.connect(_hide_moderation_warning)
+	warning_content.add_child(moderation_warning_ok_button)
+
+	moderation_ban_overlay = ColorRect.new()
+	moderation_ban_overlay.name = "BanOverlay"
+	moderation_ban_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	moderation_ban_overlay.color = Color(0.02, 0.012, 0.02, 0.98)
+	moderation_ban_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	moderation_ban_overlay.visible = false
+	moderation_ban_overlay.z_index = 300
+	add_child(moderation_ban_overlay)
+	var ban_center := CenterContainer.new()
+	ban_center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	ban_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	moderation_ban_overlay.add_child(ban_center)
+	var ban_panel := PanelContainer.new()
+	ban_panel.name = "BanPanel"
+	ban_panel.custom_minimum_size = Vector2(360 if DeviceProfile.mobile_ui else 560, 0)
+	ban_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.9, 0.42, 0.36), Color(0.075, 0.03, 0.04, 0.99)))
+	ban_center.add_child(ban_panel)
+	var ban_margin := MarginContainer.new()
+	ban_margin.add_theme_constant_override("margin_left", 26)
+	ban_margin.add_theme_constant_override("margin_right", 26)
+	ban_margin.add_theme_constant_override("margin_top", 24)
+	ban_margin.add_theme_constant_override("margin_bottom", 24)
+	ban_panel.add_child(ban_margin)
+	var ban_content := VBoxContainer.new()
+	ban_content.add_theme_constant_override("separation", 14)
+	ban_margin.add_child(ban_content)
+	var ban_ornament := _make_label("!", 34, Color(0.96, 0.55, 0.48))
+	ban_ornament.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ban_content.add_child(ban_ornament)
+	var ban_title := _make_label("ДОСТУП ОГРАНИЧЕН", 28, Color(0.98, 0.64, 0.57))
+	ban_title.name = "BanTitle"
+	ban_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ban_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ban_content.add_child(ban_title)
+	moderation_ban_reason_label = _make_label("", 18, PALE)
+	moderation_ban_reason_label.name = "BanReason"
+	moderation_ban_reason_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	moderation_ban_reason_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	moderation_ban_reason_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	moderation_ban_reason_label.custom_minimum_size = Vector2(300 if DeviceProfile.mobile_ui else 490, 0)
+	ban_content.add_child(moderation_ban_reason_label)
+	var ban_hint := _make_label("Если ограничение кажется ошибкой, напишите в поддержку.", 14, Color(0.62, 0.7, 0.82))
+	ban_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ban_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ban_hint.custom_minimum_size = Vector2(300 if DeviceProfile.mobile_ui else 490, 0)
+	ban_content.add_child(ban_hint)
+
+
+func _apply_moderation_state() -> void:
+	if moderation_ban_overlay == null:
+		return
+	if NetworkClient.account_banned:
+		_show_moderation_ban(NetworkClient.account_ban_reason)
+	else:
+		moderation_ban_overlay.visible = false
+	if NetworkClient.warning_count > 0:
+		# The profile request may have finished before the lobby connected its
+		# signals; the stored fields are the same state the signal would carry.
+		_handle_warning_update(NetworkClient.warning_count, NetworkClient.last_warning_reason, NetworkClient.last_warning_at)
+
+
+func _on_account_ban_updated(banned: bool, reason: String) -> void:
+	if banned:
+		_show_moderation_ban(reason)
+		return
+	if moderation_ban_overlay != null:
+		moderation_ban_overlay.visible = false
+	if is_inside_tree():
+		_refresh_welcome_overlay()
+
+
+func _show_moderation_ban(reason: String) -> void:
+	if moderation_ban_overlay == null:
+		return
+	_hide_moderation_warning()
+	var clean := reason.strip_edges()
+	if clean.is_empty():
+		moderation_ban_reason_label.text = "Аккаунт ограничен модератором сервера."
+	else:
+		moderation_ban_reason_label.text = "Причина: " + clean
+	moderation_ban_overlay.visible = true
+	if _welcome_is_active():
+		welcome_overlay.hide_overlay()
+	if info_overlay != null:
+		info_overlay.visible = false
+	_close_touch_keyboard()
+
+
+func _on_warnings_updated(count: int, reason: String, at: int) -> void:
+	_handle_warning_update(count, reason, at)
+
+
+## One card per new warning timestamp. A profile refresh re-emits the same
+## warnings_updated payload, so the timestamp is remembered for the session
+## (tree meta survives a lobby->match->lobby round trip).
+func _handle_warning_update(count: int, reason: String, at: int) -> void:
+	if moderation_warning_overlay == null or count <= 0:
+		return
+	# A ban outranks the warning; the warning is shown after an unban instead.
+	if NetworkClient.account_banned:
+		return
+	var tree := get_tree()
+	if at > 0:
+		if int(tree.get_meta("moderation_warning_seen_at", 0)) == at:
+			return
+		tree.set_meta("moderation_warning_seen_at", at)
+	else:
+		if bool(tree.get_meta("moderation_generic_warning_shown", false)):
+			return
+		tree.set_meta("moderation_generic_warning_shown", true)
+	_show_moderation_warning(reason, at)
+
+
+func _show_moderation_warning(reason: String, at: int) -> void:
+	if moderation_warning_overlay == null:
+		return
+	var clean := reason.strip_edges()
+	if not clean.is_empty():
+		moderation_warning_reason_label.text = "Причина: " + clean
+	elif at > 0:
+		moderation_warning_reason_label.text = "Модератор сделал замечание по правилам игры."
+	else:
+		moderation_warning_reason_label.text = "Есть замечание модератора по правилам игры."
+	moderation_warning_overlay.visible = true
+	if moderation_warning_ok_button != null:
+		moderation_warning_ok_button.grab_focus()
+	_close_touch_keyboard()
+
+
+func _hide_moderation_warning() -> void:
+	if moderation_warning_overlay != null:
+		moderation_warning_overlay.visible = false
+
+
+## The on-screen keyboard stacks at z=500; a moderation card must stay on top.
+func _close_touch_keyboard() -> void:
+	if touch_keyboard != null and is_instance_valid(touch_keyboard):
+		touch_keyboard.call("close")
+
+
+func is_moderation_ban_visible() -> bool:
+	return moderation_ban_overlay != null and moderation_ban_overlay.visible
+
+
+func is_moderation_warning_visible() -> bool:
+	return moderation_warning_overlay != null and moderation_warning_overlay.visible
+
+
+func _account_is_banned() -> bool:
+	return NetworkClient.account_banned
+
+
 func _is_vk_platform() -> bool:
 	return Platform.platform_id == "vk"
 
@@ -1619,6 +1841,9 @@ func _on_profile_updated() -> void:
 
 
 func _on_profile_failed() -> void:
+	if _account_is_banned():
+		# The ban card owns the screen; the Welcome error card must not stack over it.
+		return
 	if welcome_overlay != null and welcome_overlay.is_warming():
 		return
 	if not _welcome_is_active() or not _welcome_is_candidate_pending():
@@ -1666,6 +1891,11 @@ func _welcome_is_candidate_pending() -> bool:
 
 func _refresh_welcome_overlay() -> void:
 	if not _welcome_overlay_ready():
+		return
+	# A banned account never sees the Welcome card, not even mid-warmup.
+	if _account_is_banned():
+		welcome_wait_token += 1
+		welcome_overlay.hide_overlay()
 		return
 	# A profile response or any other refresh must never replace the warmup
 	# card while WarmupFlow is running.
@@ -3647,6 +3877,9 @@ func _on_side_card_pressed(slot: int) -> void:
 
 
 func _on_play_pressed() -> void:
+	if _account_is_banned():
+		_show_moderation_ban(NetworkClient.account_ban_reason)
+		return
 	if MetaProgression.player_id > 0 and not MetaProgression.profile_loaded:
 		_show_info("Загружаем профиль. Попробуйте через секунду.")
 		return
@@ -3744,6 +3977,9 @@ func _start_battle() -> void:
 
 func _start_tutorial() -> void:
 	if tutorial_button == null or tutorial_button.disabled:
+		return
+	if _account_is_banned():
+		_show_moderation_ban(NetworkClient.account_ban_reason)
 		return
 	DeviceProfile.auto_tutorial = false
 	_save_selection()
