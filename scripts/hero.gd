@@ -415,6 +415,11 @@ func _update_weapon_transform() -> void:
 
 
 func _process(delta: float) -> void:
+	# Health is drawn every rendered frame, not only on damage: regen, base
+	# heal, server sync and respawn must all move the 3D bar immediately.
+	# Keeping it in _process also covers heroes whose physics is paused
+	# (tutorial hold/dummy) and dead heroes waiting for respawn.
+	_update_health_display()
 	_update_weapon_transform()
 	if stun_label != null and is_instance_valid(stun_label):
 		var stunned := stun_timer > 0.0 and not dead and (is_player or not occluded_from_player)
@@ -2402,7 +2407,6 @@ func _facing_direction() -> Vector3:
 
 
 func _update_look(_delta: float) -> void:
-	_update_health_display()
 	if health_fill == null:
 		return
 	if lightning_storm_timer > 0.0:

@@ -1820,9 +1820,29 @@ func _update_player_panel() -> void:
 		player_panel.add_theme_stylebox_override("panel", _panel_style(border_color, Color(0.035, 0.035, 0.05, 0.3)))
 		if player_team_icon != null:
 			player_team_icon.texture = _team_icon(player.team)
-	player_hp_bar.max_value = maxf(1.0, player.max_health)
-	player_hp_bar.value = clampf(player.health, 0.0, player_hp_bar.max_value)
-	player_hp_label.text = "%d / %d" % [roundi(player.health), roundi(player.max_health)]
+
+
+func _update_player_health() -> void:
+	# HP is the one value that must never lag: the bar above the hero is
+	# redrawn every frame, so a 10 Hz player card showed a different health
+	# during every burst. The slower panel refresh still owns the nickname,
+	# portrait and team, but health is read live in _process.
+	if player_hp_bar == null or player_hp_label == null or game == null:
+		return
+	var player := game.player as HeroUnit
+	if player == null or not is_instance_valid(player) or game.state == "select":
+		player_panel.visible = false
+		return
+	player_panel.visible = true
+	var hp_max := maxf(1.0, player.max_health)
+	var hp_value := clampf(player.health, 0.0, hp_max)
+	if not is_equal_approx(player_hp_bar.max_value, hp_max):
+		player_hp_bar.max_value = hp_max
+	if not is_equal_approx(player_hp_bar.value, hp_value):
+		player_hp_bar.value = hp_value
+	var hp_text := "%d / %d" % [roundi(player.health), roundi(player.max_health)]
+	if player_hp_label.text != hp_text:
+		player_hp_label.text = hp_text
 
 
 func set_shop_open(open: bool) -> void:
@@ -2001,6 +2021,7 @@ func _process(_delta: float) -> void:
 	_update_focus_panel()
 	if game == null:
 		return
+	_update_player_health()
 	if stun_badge != null:
 		var stunned_player = game.player
 		var is_stunned: bool = (
