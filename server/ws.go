@@ -163,6 +163,7 @@ type wsBot struct {
 	rotation       float64
 	maxHP          float64
 	hp             float64
+	hpTick         int64
 	attackDamage   float64
 	alive          bool
 	animation      string
@@ -199,6 +200,7 @@ type wsClient struct {
 	alive          bool
 	maxHP          float64
 	hp             float64
+	hpTick         int64
 	attackDamage   float64
 	lastAttacks    map[string]time.Time
 	lastSync       time.Time
@@ -261,6 +263,7 @@ type wsBotSnapshot struct {
 	AttackDamage float64 `json:"attack_damage,omitempty"`
 	Alive        bool    `json:"alive"`
 	Animation    string  `json:"animation,omitempty"`
+	Tick         int64   `json:"tick,omitempty"`
 }
 
 type wsShellState struct {
@@ -345,6 +348,12 @@ type wsOutgoing struct {
 	ItemID          string          `json:"item_id,omitempty"`
 	OK              bool            `json:"ok,omitempty"`
 	Stun            float64         `json:"stun,omitempty"`
+	// Tick is the per-entity HP revision this message was generated from.
+	// State packets and damage/heal/death/respawn packets are produced by
+	// different goroutines, so they can arrive swapped on the same socket.
+	// The client applies HP/alive only when the revision is newer, which stops
+	// a stale snapshot from undoing a confirmed hit or resurrecting a corpse.
+	Tick int64 `json:"tick,omitempty"`
 }
 
 func newWebSocketHub(db *sql.DB) *wsHub {
@@ -1170,6 +1179,14 @@ func (h *wsHub) updateState(client *wsClient, message wsIncoming) {
 	if syncDue {
 		client.lastSync = time.Now()
 	}
+	// A fresh state sample is a new HP revision: every state packet is a
+	// complete snapshot, so a client that has already applied a newer sample
+	// must not be dragged back by an older one in flight.
+	stateTick := bumpHPTick(&client.hpTick)
+	syncTick := int64(0)
+	if syncDue {
+		syncTick = bumpHPTick(&client.hpTick)
+	}
 	syncMessage := wsOutgoing{
 		Type:            "sync",
 		ID:              client.id,
@@ -1177,6 +1194,10 @@ func (h *wsHub) updateState(client *wsClient, message wsIncoming) {
 		HP:              client.hp,
 		MaxHP:           client.maxHP,
 		Alive:           client.alive,
+		Tick:            syncTick,
+		Score0:          room.score[0],
+		Score1:          room.score[1],
+		SuddenDeath:     room.suddenDeath,
 		MatchTimeLeftMS: maxInt64(0, time.Until(room.matchEndsAt).Milliseconds()),
 	}
 	var crystalMoved *wsCrystalState
@@ -1212,6 +1233,14 @@ func (h *wsHub) updateState(client *wsClient, message wsIncoming) {
 	stateX, stateY, stateZ, stateRot := client.x, client.y, client.z, client.rotation
 	stateHP, stateMaxHP, stateAlive := client.hp, client.maxHP, client.alive
 	roomID := room.id
+	// A dropped crystal_state has no other repair path: the shard would stay
+	// on the ground (or on a corpse) for every later client until the next
+	// pickup/drop. The 1 Hz sync carries a cheap heartbeat as well.
+	var crystalHeartbeat *wsCrystalState
+	if syncDue && room.crystal != nil {
+		c := *room.crystal
+		crystalHeartbeat = &c
+	}
 	h.mu.Unlock()
 	h.sendToClients(targets, wsOutgoing{
 		Type:     "state",
@@ -1226,9 +1255,19 @@ func (h *wsHub) updateState(client *wsClient, message wsIncoming) {
 		HP:       stateHP,
 		MaxHP:    stateMaxHP,
 		Alive:    stateAlive,
+		Tick:     stateTick,
 	})
 	if syncDue {
 		client.sendJSON(syncMessage)
+	}
+	if crystalHeartbeat != nil {
+		// A distinct type: this is a repair snapshot, not a pickup/deliver
+		// event, so event-only handlers keep their existing behaviour.
+		client.sendJSON(wsOutgoing{
+			Type:    "crystal_sync",
+			RoomID:  roomID,
+			Crystal: crystalHeartbeat,
+		})
 	}
 	if crystalMoved != nil {
 		h.broadcastRoom(roomID, 0, wsOutgoing{
@@ -1307,6 +1346,7 @@ func (h *wsHub) relayStats(client *wsClient, message wsIncoming) {
 	hp = client.hp
 	maxHP := client.maxHP
 	attackDamage := client.attackDamage
+	tick := bumpHPTick(&client.hpTick)
 	targets := roomClientsLocked(room, client.id)
 	h.mu.Unlock()
 	h.sendToClients(targets, wsOutgoing{
@@ -1315,6 +1355,7 @@ func (h *wsHub) relayStats(client *wsClient, message wsIncoming) {
 		MaxHP:        maxHP,
 		HP:           hp,
 		AttackDamage: attackDamage,
+		Tick:         tick,
 	})
 }
 
@@ -1345,6 +1386,7 @@ func (h *wsHub) relayHeal(client *wsClient, message wsIncoming) {
 	}
 	client.healTokens -= 1.0
 	var targetID int64
+	var targetTick int64
 	applied := 0.0
 	if target := findRoomPlayerLocked(room, message.TargetID); target != nil {
 		if !target.alive || target.team != client.team || target.maxHP <= 0 {
@@ -1355,6 +1397,7 @@ func (h *wsHub) relayHeal(client *wsClient, message wsIncoming) {
 		target.hp = math.Min(target.maxHP, target.hp+amount)
 		applied = target.hp - before
 		targetID = target.id
+		targetTick = bumpHPTick(&target.hpTick)
 	} else if bot := findRoomBotLocked(room, message.TargetID); bot != nil {
 		if !bot.alive || bot.team != client.team {
 			h.mu.Unlock()
@@ -1364,6 +1407,7 @@ func (h *wsHub) relayHeal(client *wsClient, message wsIncoming) {
 		bot.hp = math.Min(bot.maxHP, bot.hp+amount)
 		applied = bot.hp - before
 		targetID = bot.id
+		targetTick = bumpHPTick(&bot.hpTick)
 	} else {
 		h.mu.Unlock()
 		return
@@ -1387,6 +1431,7 @@ func (h *wsHub) relayHeal(client *wsClient, message wsIncoming) {
 		SourceID: client.id,
 		TargetID: targetID,
 		Amount:   applied,
+		Tick:     targetTick,
 	})
 }
 
@@ -1406,11 +1451,12 @@ func (h *wsHub) relayDeath(client *wsClient) {
 	client.alive = false
 	client.hp = 0
 	client.diedAt = time.Now()
+	tick := bumpHPTick(&client.hpTick)
 	crystal := h.dropCrystalForLocked(room, client.id, client.x, client.z)
 	targets := roomClientsLocked(room, client.id)
 	roomID := room.id
 	h.mu.Unlock()
-	h.sendToClients(targets, wsOutgoing{Type: "death", ID: client.id, RoomID: roomID})
+	h.sendToClients(targets, wsOutgoing{Type: "death", ID: client.id, RoomID: roomID, Tick: tick})
 	if crystal != nil {
 		h.broadcastRoom(roomID, 0, wsOutgoing{Type: "crystal_state", RoomID: roomID, Crystal: crystal})
 	}
@@ -1447,6 +1493,7 @@ func (h *wsHub) relayRespawn(client *wsClient, message wsIncoming) {
 	client.z = clampArenaZ(message.Z)
 	client.rotation = message.Rotation
 	client.hasState = true
+	tick := bumpHPTick(&client.hpTick)
 	x, y, z, rotation := client.x, client.y, client.z, client.rotation
 	targets := roomClientsLocked(room, client.id)
 	roomID := room.id
@@ -1459,6 +1506,7 @@ func (h *wsHub) relayRespawn(client *wsClient, message wsIncoming) {
 		Y:        y,
 		Z:        z,
 		Rotation: rotation,
+		Tick:     tick,
 	})
 }
 
@@ -1510,6 +1558,10 @@ func (h *wsHub) relayBotStates(client *wsClient, message wsIncoming) {
 		bot.z = state.Z
 		bot.rotation = state.Rotation
 		bot.animation = truncateText(state.Animation, 24)
+		// Every snapshot below is a fresh HP sample for this bot, so give it
+		// a new revision; a snapshot created before a confirmed hit must lose
+		// against the hit's revision on the client.
+		bumpHPTick(&bot.hpTick)
 		// The host owns bot shop purchases. When a bot buys "+150 max HP",
 		// accept the new maximum (with a cap) and mirror the heal, otherwise
 		// the next server snapshot pulled the bot back to its old max HP.
@@ -1673,20 +1725,25 @@ func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
 	}
 	stun := stunForSkill(skill)
 	died := target.applyDamage(damage)
+	targetTick := int64(0)
 	if target.client != nil {
 		target.client.lastDamaged = time.Now()
 		target.client.baseStandSince = time.Time{}
+		targetTick = bumpHPTick(&target.client.hpTick)
 	}
 	if target.bot != nil {
 		target.bot.lastDamaged = time.Now()
 		target.bot.baseStandSince = time.Time{}
+		targetTick = bumpHPTick(&target.bot.hpTick)
 	}
 	// Lifesteal is a server rule too: 15% of the confirmed hit returns as HP.
 	var stealHeal float64
+	stealTick := int64(0)
 	if damage > 0 && source.client != nil && source.client.bought != nil && source.client.bought["vampire_fang"] {
 		stealHeal = math.Min(damage*0.15, source.client.maxHP-source.client.hp)
 		if stealHeal > 0 {
 			source.client.hp += stealHeal
+			stealTick = bumpHPTick(&source.client.hpTick)
 		}
 	}
 	if died && source.client != nil {
@@ -1717,6 +1774,7 @@ func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
 		Crit:     message.Crit,
 		Stun:     stun,
 		Amount:   damage,
+		Tick:     targetTick,
 	})
 	if stealHeal > 0 {
 		h.broadcastRoom(roomID, 0, wsOutgoing{
@@ -1726,10 +1784,11 @@ func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
 			SourceID: sourceID,
 			TargetID: sourceID,
 			Amount:   stealHeal,
+			Tick:     stealTick,
 		})
 	}
 	if died {
-		h.broadcastRoom(roomID, 0, wsOutgoing{Type: "death", ID: targetID, RoomID: roomID, SourceID: sourceID})
+		h.broadcastRoom(roomID, 0, wsOutgoing{Type: "death", ID: targetID, RoomID: roomID, SourceID: sourceID, Tick: targetTick})
 		if crystal != nil {
 			h.broadcastRoom(roomID, 0, wsOutgoing{Type: "crystal_state", RoomID: roomID, Crystal: crystal})
 		}
@@ -1913,6 +1972,7 @@ func (h *wsHub) handleBotDamage(client *wsClient, message wsIncoming) {
 			bot.deadSince = time.Now()
 		}
 	}
+	tick := bumpHPTick(&bot.hpTick)
 	roomID := room.id
 	targetID := bot.id
 	var crystal *wsCrystalState
@@ -1926,9 +1986,10 @@ func (h *wsHub) handleBotDamage(client *wsClient, message wsIncoming) {
 		TargetID: targetID,
 		Skill:    "shell",
 		Amount:   message.Amount,
+		Tick:     tick,
 	})
 	if died {
-		h.broadcastRoom(roomID, 0, wsOutgoing{Type: "death", ID: targetID, RoomID: roomID})
+		h.broadcastRoom(roomID, 0, wsOutgoing{Type: "death", ID: targetID, RoomID: roomID, Tick: tick})
 		if crystal != nil {
 			h.broadcastRoom(roomID, 0, wsOutgoing{Type: "crystal_state", RoomID: roomID, Crystal: crystal})
 		}
@@ -1949,6 +2010,13 @@ var matchItemPrices = map[string]int{
 	"wind_boots":       250,
 	"hourglass":        350,
 	"cleansing_charm":  250,
+}
+
+// bumpHPTick returns the next revision for one entity's HP/alive state.
+// Callers hold h.mu, so revisions follow the same order as the HP changes.
+func bumpHPTick(tick *int64) int64 {
+	*tick = *tick + 1
+	return *tick
 }
 
 // The server derives combat stats from the class and the purchased items, so a
@@ -2089,6 +2157,7 @@ func (h *wsHub) handleBuyItem(client *wsClient, message wsIncoming) {
 		client.hp = client.maxHP
 	}
 	maxHP, hp, attackDamage := client.maxHP, client.hp, client.attackDamage
+	tick := bumpHPTick(&client.hpTick)
 	targets := roomClientsLocked(room, client.id)
 	h.mu.Unlock()
 	client.sendJSON(wsOutgoing{Type: "shop_purchase", ItemID: itemID, OK: true, Gold: gold})
@@ -2098,6 +2167,7 @@ func (h *wsHub) handleBuyItem(client *wsClient, message wsIncoming) {
 		MaxHP:        maxHP,
 		HP:           hp,
 		AttackDamage: attackDamage,
+		Tick:         tick,
 	})
 }
 
@@ -2142,6 +2212,7 @@ func (h *wsHub) handleWorldDamage(client *wsClient, message wsIncoming) {
 	damage := message.Amount * (1.0 - damageReductionFor(target))
 	stun := stunForSkill("shell")
 	died := combatantFromClient(target).applyDamage(damage)
+	tick := bumpHPTick(&target.hpTick)
 	targetID := target.id
 	roomID := room.id
 	var crystal *wsCrystalState
@@ -2157,9 +2228,10 @@ func (h *wsHub) handleWorldDamage(client *wsClient, message wsIncoming) {
 		Skill:    "shell",
 		Stun:     stun,
 		Amount:   damage,
+		Tick:     tick,
 	})
 	if died {
-		h.broadcastRoom(roomID, 0, wsOutgoing{Type: "death", ID: targetID, RoomID: roomID})
+		h.broadcastRoom(roomID, 0, wsOutgoing{Type: "death", ID: targetID, RoomID: roomID, Tick: tick})
 		if crystal != nil {
 			h.broadcastRoom(roomID, 0, wsOutgoing{Type: "crystal_state", RoomID: roomID, Crystal: crystal})
 		}
@@ -2544,6 +2616,7 @@ func botSnapshotsLocked(room *wsRoom) []wsBotSnapshot {
 			AttackDamage: bot.attackDamage,
 			Alive:        bot.alive,
 			Animation:    bot.animation,
+			Tick:         bot.hpTick,
 		})
 	}
 	return snapshots

@@ -154,9 +154,41 @@ body {
 				? window.vkBridge.send('VKWebAppInit').catch(function () {})
 				: Promise.resolve();
 		</script>
+				<script>
+		/* TS_DPR_CLAMP: phones/VK pay DPR 2.5-4 for a 960x540 HUD. */
+		(function () {
+			var match = /[?&]dpr=([^&]+)/.exec(window.location.search || '');
+			var requested = match ? match[1] : '';
+			var nativeDpr = window.devicePixelRatio || 1;
+			var cap = 0;
+			var phone = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '') ||
+				(navigator.maxTouchPoints > 0 && Math.min(screen.width, screen.height) <= 900);
+			if (requested === 'native' || requested === '0') {
+				cap = 0;
+			} else if (requested && !isNaN(parseFloat(requested))) {
+				cap = Math.max(1, Math.min(3, parseFloat(requested)));
+			} else if (phone) {
+				cap = 1.5;
+			}
+			var applied = nativeDpr;
+			if (cap > 0 && nativeDpr > cap) {
+				applied = cap;
+				try {
+					Object.defineProperty(window, 'devicePixelRatio', {
+						configurable: true,
+						get: function () { return applied; }
+					});
+				} catch (e) {
+					try { window.devicePixelRatio = applied; } catch (e2) {}
+				}
+			}
+			window.__tsDpr = { native: nativeDpr, applied: applied, capped: applied < nativeDpr };
+		})();
+		</script>
+		<script src="vk_perf_diag.js"></script>
 		<script src="index.js"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","mainPack":"index.pck","experimentalVK":false,"fileSizes":{"index.pck":27839484,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","mainPack":"index.pck","experimentalVK":false,"fileSizes":{"index.pck":27859676,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
