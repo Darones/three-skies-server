@@ -402,7 +402,7 @@ func _confirm_reset_progress() -> void:
 	if reset_dialog != null and is_instance_valid(reset_dialog):
 		reset_dialog.queue_free()
 	reset_dialog = ConfirmationDialog.new()
-	reset_dialog.title = "Сбросить общий прогресс<-"
+	reset_dialog.title = "Сбросить общий прогресс?"
 	reset_dialog.dialog_text = "Вы потеряете всё, что успели накопить: уровни, баланс, покупки, статистику и ник. Это действие нельзя отменить."
 	reset_dialog.get_ok_button().text = "Сбросить"
 	reset_dialog.get_cancel_button().text = "Отмена"

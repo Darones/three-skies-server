@@ -315,9 +315,9 @@ func _build_header() -> void:
 	var subtitle := _make_label(subtitle_text, 18 if mobile else 17, Color(0.76, 0.78, 0.84))
 	subtitle.name = "MatchSummary"
 	subtitle.anchor_left = 0.08
-	subtitle.anchor_top = 0.105 if mobile else 0.137
+	subtitle.anchor_top = 0.112 if mobile else 0.145
 	subtitle.anchor_right = 0.92
-	subtitle.anchor_bottom = 0.145 if mobile else 0.18
+	subtitle.anchor_bottom = 0.152 if mobile else 0.188
 	add_child(subtitle)
 
 	var placement_text := "МАТЧ НЕ ЗАСЧИТАН" if match_aborted else ("ВЫ ЛУЧШИЙ ИГРОК МАТЧА!" if player_is_mvp else "ВАШЕ МЕСТО: %d" % player_place)
@@ -325,9 +325,9 @@ func _build_header() -> void:
 	var placement := _make_label(placement_text, 26 if mobile else 29, placement_color)
 	placement.name = "PlayerPlacement"
 	placement.anchor_left = 0.08
-	placement.anchor_top = 0.148 if mobile else 0.184
+	placement.anchor_top = 0.155 if mobile else 0.192
 	placement.anchor_right = 0.92
-	placement.anchor_bottom = 0.198 if mobile else 0.238
+	placement.anchor_bottom = 0.207 if mobile else 0.246
 	add_child(placement)
 
 
@@ -336,7 +336,7 @@ func _build_content() -> void:
 	var content := HBoxContainer.new()
 	content.name = "ResultsContent"
 	content.anchor_left = 0.05 if mobile else 0.12
-	content.anchor_top = 0.20 if mobile else 0.27
+	content.anchor_top = 0.214 if mobile else 0.27
 	content.anchor_right = 0.95 if mobile else 0.88
 	content.anchor_bottom = 0.74 if mobile else 0.755
 	content.add_theme_constant_override("separation", 16 if mobile else 30)
@@ -476,10 +476,16 @@ func _build_content() -> void:
 	ad_error_label.visible = false
 	panel_box.add_child(ad_error_label)
 	# Rewards and the x2 button stay pinned above the scrollable stats list.
-	panel_box.move_child(reward_line, 1)
-	panel_box.move_child(divider, 2)
-	panel_box.move_child(double_reward_button, 3)
-	panel_box.move_child(ad_error_label, 4)
+	# On an aborted match the reward row is replaced by "Награды не начислены"
+	# and is not a child of panel_box; never move a foreign node.
+	if reward_line.get_parent() == panel_box:
+		panel_box.move_child(reward_line, 1)
+	if divider.get_parent() == panel_box:
+		panel_box.move_child(divider, 2)
+	if double_reward_button.get_parent() == panel_box:
+		panel_box.move_child(double_reward_button, 3)
+	if ad_error_label.get_parent() == panel_box:
+		panel_box.move_child(ad_error_label, 4)
 
 	players_scroll = ScrollContainer.new()
 	players_scroll.name = "PlayersScroll"

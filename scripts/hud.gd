@@ -449,6 +449,48 @@ func fade_teleport(action: Callable, duration := 0.25) -> void:
 func set_tutorial_skip_visible(value: bool) -> void:
 	if tutorial_skip_button != null and is_instance_valid(tutorial_skip_button):
 		tutorial_skip_button.visible = value
+		if value:
+			_layout_tutorial_skip_button()
+			_refresh_skip_layout_after_show()
+
+
+func _refresh_skip_layout_after_show() -> void:
+	# The match-info VBox has not laid out its hidden score/timer children on
+	# the first frame of the match, so the gold line rect is still provisional.
+	# Reposition after two frames, when the rect is final.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_inside_tree():
+		return
+	if tutorial_skip_button != null and is_instance_valid(tutorial_skip_button) and tutorial_skip_button.visible:
+		_layout_tutorial_skip_button()
+
+
+func _layout_tutorial_skip_button() -> void:
+	# The top-right match info keeps "Золото" on the first visible line in the
+	# tutorial (score and timer are hidden). Put the skip plate just under it
+	# instead of on top of it: on desktop the old rect covered the gold line
+	# completely, on mobile it clipped the last pixels at the screen edge.
+	if tutorial_skip_button == null or not is_instance_valid(tutorial_skip_button):
+		return
+	var viewport_size := _hud_viewport_size()
+	var width := minf(274.0, maxf(180.0, viewport_size.x - 36.0))
+	var top := 18.0
+	if gold_label != null and is_instance_valid(gold_label) and gold_label.is_visible_in_tree():
+		var origin := Vector2.ZERO
+		var hud_root := get_child(0) as Control if get_child_count() > 0 else null
+		if hud_root != null:
+			origin = hud_root.global_position
+		top = maxf(top, gold_label.get_global_rect().end.y - origin.y + 6.0)
+	tutorial_skip_button.anchor_left = 1.0
+	tutorial_skip_button.anchor_top = 0.0
+	tutorial_skip_button.anchor_right = 1.0
+	tutorial_skip_button.anchor_bottom = 0.0
+	tutorial_skip_button.offset_left = -width - 18.0
+	tutorial_skip_button.offset_top = top
+	tutorial_skip_button.offset_right = -18.0
+	tutorial_skip_button.offset_bottom = top + 48.0
+	tutorial_skip_button.custom_minimum_size = Vector2(width, 48.0)
 
 
 func show_tutorial_card(title_text: String, body_text: String, button_text: String, action: Callable) -> void:
@@ -623,6 +665,7 @@ func hide_tutorial_side_hint() -> void:
 func _layout_tutorial_hint(_shop_open: bool) -> void:
 	if tutorial_hint == null:
 		return
+	_layout_tutorial_skip_button()
 	var viewport_size := tutorial_hint.get_parent_area_size()
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		viewport_size = get_viewport().get_visible_rect().size
@@ -692,6 +735,8 @@ func _refresh_tutorial_layout_after_resize() -> void:
 	await get_tree().process_frame
 	if not is_inside_tree():
 		return
+	if shop_panel != null and is_instance_valid(shop_panel) and shop_panel.visible:
+		_layout_shop_panel()
 	_layout_tutorial_hint(false)
 	if tutorial_overlay != null and is_instance_valid(tutorial_overlay) and tutorial_overlay.visible:
 		_layout_tutorial_card(tutorial_card_modal)
@@ -1796,8 +1841,14 @@ func _update_player_panel() -> void:
 	var skin := SkinCatalog.get_item(skin_id)
 	if _mobile_ui():
 		player_name_label.text = "%s · %s" % [nickname, class_text]
+		var compact_card := player_panel.size.x < 365.0
+		player_name_label.add_theme_font_size_override("font_size", 16 if compact_card else 18)
 		if player_team_label != null:
-			player_team_label.visible = true
+			# Wide phones (the 1168-wide canvas) have room for the faction
+			# word; a 960-wide canvas does not, and the class name was cut to
+			# "Игрок 6414 · ...". The team icon and the card border still show
+			# the side, so drop only the redundant word on narrow cards.
+			player_team_label.visible = not compact_card
 			player_team_label.text = team_short
 			player_team_label.add_theme_color_override("font_color", Color(0.55, 0.85, 1.0) if player.team == 0 else Color(0.78, 0.62, 1.0))
 	else:
@@ -1820,6 +1871,15 @@ func _update_player_panel() -> void:
 		player_panel.add_theme_stylebox_override("panel", _panel_style(border_color, Color(0.035, 0.035, 0.05, 0.3)))
 		if player_team_icon != null:
 			player_team_icon.texture = _team_icon(player.team)
+	# The kill feed is authored just below the 60px player card, but the
+	# portrait frame forces the card to ~84px. On a 960-wide canvas the
+	# scaled feed top (75px) lands under the card; keep an 8px gap.
+	if _mobile_ui() and kill_feed_box != null and is_instance_valid(kill_feed_box) and kill_feed_box.size.y > 0.0:
+		var feed_top := player_panel.position.y + player_panel.size.y + 8.0
+		if kill_feed_box.position.y < feed_top:
+			var feed_height := kill_feed_box.size.y
+			kill_feed_box.offset_top = feed_top
+			kill_feed_box.offset_bottom = feed_top + feed_height
 
 
 func _update_player_health() -> void:
@@ -1848,6 +1908,7 @@ func _update_player_health() -> void:
 func set_shop_open(open: bool) -> void:
 	if shop_panel == null:
 		return
+	_layout_shop_panel()
 	shop_panel.visible = open
 	if shop_dim != null:
 		shop_dim.visible = open
@@ -1859,6 +1920,48 @@ func set_shop_open(open: bool) -> void:
 		if shop_hint_label != null:
 			shop_hint_label.visible = false
 		set_focus_target(null)
+
+
+func _layout_shop_panel() -> void:
+	# The in-battle shop is a modal over a 960x540 phone canvas. In the
+	# tutorial the top strip and the skip plate stay above it, so the mobile
+	# shop is pinned below that row instead of under it; the header used to be
+	# hidden behind "Собирай 15 монет" / "Пропустить обучение".
+	if shop_panel == null or not is_instance_valid(shop_panel):
+		return
+	var viewport_size := _hud_viewport_size()
+	var mobile := _mobile_ui()
+	var tutorial_bar := (
+		mobile
+		and game != null
+		and bool(game.get("tutorial_mode"))
+		and tutorial_skip_button != null
+		and tutorial_skip_button.visible
+	)
+	shop_panel.anchor_left = 0.5
+	shop_panel.anchor_right = 0.5
+	var half_width := minf(400.0, maxf(280.0, (viewport_size.x - 24.0) * 0.5))
+	shop_panel.offset_left = -half_width
+	shop_panel.offset_right = half_width
+	if tutorial_bar:
+		var top := 84.0
+		if tutorial_hint != null and is_instance_valid(tutorial_hint) and tutorial_hint.visible:
+			var origin := Vector2.ZERO
+			var hud_root := get_child(0) as Control if get_child_count() > 0 else null
+			if hud_root != null:
+				origin = hud_root.global_position
+			top = maxf(top, tutorial_hint.get_global_rect().end.y - origin.y + 6.0)
+		top = minf(top, viewport_size.y - 310.0)
+		var height := minf(520.0, maxf(300.0, viewport_size.y - top - 10.0))
+		shop_panel.anchor_top = 0.0
+		shop_panel.anchor_bottom = 0.0
+		shop_panel.offset_top = top
+		shop_panel.offset_bottom = top + height
+		return
+	shop_panel.anchor_top = 0.5
+	shop_panel.anchor_bottom = 0.5
+	shop_panel.offset_top = -260.0
+	shop_panel.offset_bottom = 260.0
 
 
 func update_gold() -> void:
