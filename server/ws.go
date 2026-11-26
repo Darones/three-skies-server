@@ -22,6 +22,9 @@ const (
 	wsPingPeriod     = (wsPongWait * 9) / 10
 	wsMaxMessageSize = 16384
 	wsSendBuffer     = 256
+	// wsCriticalSendWait bounds how long a critical message (match_finished)
+	// waits for room in a congested send buffer before the socket is closed.
+	wsCriticalSendWait = 1 * time.Second
 
 	roomSlots = 6
 	// Р‘РѕС‚С‹ Р·Р°РїРѕР»РЅСЏСЋС‚ РєРѕРјРЅР°С‚Сѓ С‡РµСЂРµР· 30 СЃРµРєСѓРЅРґ РїРѕСЃР»Рµ РїРѕСЃР»РµРґРЅРµРіРѕ Р¶РёРІРѕРіРѕ РёРіСЂРѕРєР°.
@@ -346,10 +349,25 @@ type wsOutgoing struct {
 
 func newWebSocketHub(db *sql.DB) *wsHub {
 	return &wsHub{
-		clients: make(map[int64]*wsClient),
-		rooms:   make(map[int64]*wsRoom),
-		db:      db,
+		clients:    make(map[int64]*wsClient),
+		rooms:      make(map[int64]*wsRoom),
+		nextRoomID: roomIDSeed(time.Now()),
+		db:         db,
 	}
+}
+
+// roomIDSeed makes room ids unique across process restarts. Matches in the
+// database are keyed by room_id; a counter that restarts at 1 would let
+// /match_reward claim an unrelated old match row. Microsecond time shifted by
+// 2 bits stays below JavaScript's 2^53 exact-integer limit (~7.2e15 in 2026)
+// and still leaves four ids per microsecond.
+func roomIDSeed(now time.Time) int64 {
+	const jsSafeMask = int64(1)<<53 - 1
+	seed := (now.UnixMicro() << 2) & jsSafeMask
+	if seed <= 0 {
+		return 1
+	}
+	return seed
 }
 
 func (h *wsHub) liveMatchCount() int {
@@ -410,7 +428,7 @@ func (h *wsHub) finishLiveMatches(reason string) {
 			Score1:      result.score1,
 			SuddenDeath: false,
 		})
-		h.broadcastRoom(result.roomID, 0, wsOutgoing{
+		h.broadcastRoomCritical(result.roomID, 0, wsOutgoing{
 			Type:        "match_finished",
 			RoomID:      result.roomID,
 			WinningTeam: result.winner,
@@ -632,6 +650,55 @@ func (h *wsHub) playerNovice(playerID int64) (bool, int) {
 	return novice, matchesPlayed
 }
 
+// playerMatchAccess is the moderation state a join needs: whether the account
+// is banned, and whether its nickname must be replaced with a safe one.
+type playerMatchAccess struct {
+	Nickname  string
+	Hidden    bool
+	Banned    bool
+	BanReason string
+}
+
+// playerMatchAccess reads the ban and hidden-nickname flags once per join.
+// A database error is treated as "no moderation flags": a hiccup must not lock
+// every player out, and the ban is re-checked on the next profile/session.
+func (h *wsHub) playerMatchAccess(playerID int64) playerMatchAccess {
+	if h.db == nil || playerID <= 0 {
+		return playerMatchAccess{}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	var access playerMatchAccess
+	if err := h.db.QueryRowContext(ctx,
+		`SELECT COALESCE(nickname, ''), COALESCE(nickname_hidden, FALSE),
+		        COALESCE(banned, FALSE), COALESCE(ban_reason, '')
+		 FROM players WHERE id = $1`, playerID,
+	).Scan(&access.Nickname, &access.Hidden, &access.Banned, &access.BanReason); err != nil {
+		return playerMatchAccess{}
+	}
+	return access
+}
+
+// visibleJoinName picks the name that goes into lobby_state and match_start.
+// A hidden nickname is replaced even if the client sends the original, and a
+// readable server profile overrides a client-supplied name.
+func visibleJoinName(requested string, access playerMatchAccess, clientID int64) string {
+	name := strings.TrimSpace(requested)
+	if access.Hidden {
+		name = hiddenNickname
+	} else if strings.TrimSpace(access.Nickname) != "" {
+		name = strings.TrimSpace(access.Nickname)
+	}
+	if name == "" {
+		name = fmt.Sprintf("Игрок %d", clientID)
+	}
+	runes := []rune(name)
+	if len(runes) > 32 {
+		name = string(runes[:32])
+	}
+	return name
+}
+
 func (h *wsHub) sessionAllowed(playerID int64, token string) bool {
 	if playerID <= 0 || h.db == nil {
 		return true
@@ -659,18 +726,22 @@ func (h *wsHub) joinMatchmaking(client *wsClient, message wsIncoming) {
 	if class < 0 {
 		return
 	}
-	name := strings.TrimSpace(message.Name)
-	if name == "" {
-		name = fmt.Sprintf("Игрок %d", client.id)
-	}
-	runes := []rune(name)
-	if len(runes) > 32 {
-		name = string(runes[:32])
-	}
 	if !h.sessionAllowed(message.PlayerID, message.Token) {
 		client.sendJSON(wsOutgoing{Type: "error", Error: "invalid_session"})
 		return
 	}
+	access := h.playerMatchAccess(message.PlayerID)
+	if access.Banned {
+		// A banned account never enters a room. The distinct code and reason
+		// let the client show the ban screen instead of retrying.
+		client.sendJSON(wsOutgoing{
+			Type:   "error",
+			Error:  accountBannedError,
+			Reason: access.BanReason,
+		})
+		return
+	}
+	name := visibleJoinName(message.Name, access, client.id)
 	novice, matchesPlayed := h.playerNovice(message.PlayerID)
 
 	h.mu.Lock()
@@ -2225,7 +2296,7 @@ func (h *wsHub) handleCrystalDeliver(client *wsClient, message wsIncoming) {
 	})
 	if winner >= 0 {
 		h.saveMatch(roomID, players, winner)
-		h.broadcastRoom(roomID, 0, wsOutgoing{
+		h.broadcastRoomCritical(roomID, 0, wsOutgoing{
 			Type:        "match_finished",
 			RoomID:      roomID,
 			WinningTeam: winner,
@@ -2349,7 +2420,7 @@ func (h *wsHub) finishMatchByTimeout(roomID int64) {
 		Score1:      score1,
 		SuddenDeath: false,
 	})
-	h.broadcastRoom(roomID, 0, wsOutgoing{
+	h.broadcastRoomCritical(roomID, 0, wsOutgoing{
 		Type:        "match_finished",
 		RoomID:      roomID,
 		WinningTeam: winner,
@@ -2781,7 +2852,29 @@ func (h *wsHub) broadcastRoom(roomID int64, exceptID int64, message wsOutgoing) 
 	h.sendToClients(targets, message)
 }
 
+// broadcastRoomCritical is for the one message a client cannot infer or
+// recover: match_finished. If the per-client send buffer is full, the sender
+// waits briefly for the writer instead of silently dropping the result.
+func (h *wsHub) broadcastRoomCritical(roomID int64, exceptID int64, message wsOutgoing) {
+	h.mu.Lock()
+	room := h.rooms[roomID]
+	var targets []*wsClient
+	if room != nil {
+		targets = roomClientsLocked(room, exceptID)
+	}
+	h.mu.Unlock()
+	h.sendToClientsCritical(targets, message)
+}
+
 func (h *wsHub) sendToClients(clients []*wsClient, message wsOutgoing) {
+	h.sendToClientsMode(clients, message, false)
+}
+
+func (h *wsHub) sendToClientsCritical(clients []*wsClient, message wsOutgoing) {
+	h.sendToClientsMode(clients, message, true)
+}
+
+func (h *wsHub) sendToClientsMode(clients []*wsClient, message wsOutgoing, critical bool) {
 	if len(clients) == 0 {
 		return
 	}
@@ -2791,6 +2884,10 @@ func (h *wsHub) sendToClients(clients []*wsClient, message wsOutgoing) {
 		return
 	}
 	for _, client := range clients {
+		if critical {
+			client.trySendCritical(data)
+			continue
+		}
 		client.trySend(data)
 	}
 }
@@ -3018,6 +3115,35 @@ func (c *wsClient) trySend(data []byte) {
 	select {
 	case c.send <- data:
 	default:
+	}
+}
+
+// trySendCritical must not silently lose the message. It first tries the normal
+// non-blocking path, then waits up to wsCriticalSendWait for the writer. If the
+// buffer is still full the connection is closed: the client sees a disconnect
+// and can abort locally, which is better than a results screen that never opens.
+func (c *wsClient) trySendCritical(data []byte) bool {
+	select {
+	case <-c.done:
+		return false
+	default:
+	}
+	select {
+	case c.send <- data:
+		return true
+	default:
+	}
+	timer := time.NewTimer(wsCriticalSendWait)
+	defer timer.Stop()
+	select {
+	case c.send <- data:
+		return true
+	case <-c.done:
+		return false
+	case <-timer.C:
+		log.Printf("[WS] critical message could not be queued (client buffer full); closing client")
+		c.close()
+		return false
 	}
 }
 

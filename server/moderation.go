@@ -25,6 +25,14 @@ const (
 
 	moderationStatusOpen     = "open"
 	moderationStatusResolved = "resolved"
+
+	// accountBannedError is the machine-readable ban code shared by /profile,
+	// /session and the WebSocket join. Clients must show a ban screen instead
+	// of retrying the normal flow.
+	accountBannedError = "account_banned"
+	// hiddenNickname replaces a moderated nickname everywhere other players can
+	// see it: the profile payload and the match/lobby roster.
+	hiddenNickname = "Игрок"
 )
 
 // moderationActions are the decisions a moderator can take on one report.
@@ -42,6 +50,7 @@ var moderationActions = map[string]bool{
 var playerModerationActions = map[string]bool{
 	"hide_nickname":   true,
 	"unhide_nickname": true,
+	"warn":            true,
 	"ban":             true,
 	"unban":           true,
 }
@@ -76,15 +85,18 @@ type moderationReport struct {
 }
 
 type moderationPlayer struct {
-	ID             int64      `json:"id"`
-	Nickname       string     `json:"nickname"`
-	Platform       string     `json:"platform"`
-	MatchesPlayed  int        `json:"matches_played"`
-	LastSeenAt     *time.Time `json:"last_seen_at"`
-	ReportsCount   int        `json:"reports_count"`
-	NicknameHidden bool       `json:"nickname_hidden"`
-	Banned         bool       `json:"banned"`
-	BanReason      string     `json:"ban_reason"`
+	ID                int64      `json:"id"`
+	Nickname          string     `json:"nickname"`
+	Platform          string     `json:"platform"`
+	MatchesPlayed     int        `json:"matches_played"`
+	LastSeenAt        *time.Time `json:"last_seen_at"`
+	ReportsCount      int        `json:"reports_count"`
+	NicknameHidden    bool       `json:"nickname_hidden"`
+	Banned            bool       `json:"banned"`
+	BanReason         string     `json:"ban_reason"`
+	Warnings          int        `json:"warnings"`
+	LastWarningReason string     `json:"last_warning_reason"`
+	LastWarningAt     *time.Time `json:"last_warning_at"`
 }
 
 type moderationReportsResponse struct {
@@ -103,6 +115,7 @@ type moderationActionRequest struct {
 	Action    string `json:"action"`
 	PlayerID  int64  `json:"player_id"`
 	BanReason string `json:"ban_reason"`
+	Reason    string `json:"reason"`
 }
 
 type moderationActionResponse struct {
@@ -138,6 +151,38 @@ func (service *api) requireModerationJSON(w http.ResponseWriter, r *http.Request
 	}
 	writeJSON(w, http.StatusForbidden, moderationActionResponse{Error: "Forbidden"})
 	return false
+}
+
+// publicNickname is the only place a moderated nickname is replaced. It is
+// used by the profile payload and by the match/lobby roster, so the original
+// string never reaches another player.
+func publicNickname(nickname string, hidden bool) string {
+	if hidden {
+		return hiddenNickname
+	}
+	return nickname
+}
+
+// writeBannedProfile answers /profile without any game data or session token.
+// The ban is distinguishable by error="account_banned" and the banned flag, so
+// the client can stop retrying instead of treating it as a network failure.
+func (service *api) writeBannedProfile(w http.ResponseWriter, reason string) {
+	writeJSON(w, http.StatusForbidden, playerProfileResponse{
+		Success:   false,
+		Banned:    true,
+		BanReason: reason,
+		Error:     accountBannedError,
+	})
+}
+
+// writeBannedSession answers /session the same way: no token, a distinct code.
+func (service *api) writeBannedSession(w http.ResponseWriter, reason string) {
+	writeJSON(w, http.StatusForbidden, sessionResponse{
+		Success:   false,
+		Banned:    true,
+		BanReason: reason,
+		Error:     accountBannedError,
+	})
 }
 
 func (service *api) requireModerationPage(w http.ResponseWriter, r *http.Request) bool {
@@ -258,16 +303,19 @@ func (service *api) handleModerationPlayers(w http.ResponseWriter, r *http.Reque
 	for rows.Next() {
 		var player moderationPlayer
 		var lastSeen sql.NullTime
+		var lastWarningAt sql.NullTime
 		if err := rows.Scan(
 			&player.ID, &player.Nickname, &player.Platform, &player.MatchesPlayed,
 			&lastSeen, &player.ReportsCount, &player.NicknameHidden,
-			&player.Banned, &player.BanReason,
+			&player.Banned, &player.BanReason, &player.Warnings,
+			&player.LastWarningReason, &lastWarningAt,
 		); err != nil {
 			log.Printf("scan moderation player: %v", err)
 			writeJSON(w, http.StatusInternalServerError, moderationPlayersResponse{Error: "Internal server error"})
 			return
 		}
 		player.LastSeenAt = nullableTime(lastSeen)
+		player.LastWarningAt = nullableTime(lastWarningAt)
 		players = append(players, player)
 	}
 	if err := rows.Err(); err != nil {
@@ -362,7 +410,7 @@ func (service *api) handleModerationResolve(w http.ResponseWriter, r *http.Reque
 			}
 			return
 		}
-		if err := applyPlayerModerationAction(r.Context(), transaction, playerID, action, request.BanReason, reportReason); err != nil {
+		if err := applyPlayerModerationAction(r.Context(), transaction, playerID, action, moderationActionReason(request), reportReason); err != nil {
 			log.Printf("apply moderation action: %v", err)
 			writeJSON(w, http.StatusInternalServerError, moderationActionResponse{Error: "Internal server error"})
 			return
@@ -431,7 +479,7 @@ func (service *api) handleModerationPlayerAction(w http.ResponseWriter, r *http.
 	}
 	defer transaction.Rollback()
 
-	if err := applyPlayerModerationAction(r.Context(), transaction, playerID, action, request.BanReason, ""); err != nil {
+	if err := applyPlayerModerationAction(r.Context(), transaction, playerID, action, moderationActionReason(request), ""); err != nil {
 		if errors.Is(err, errModerationPlayerNotFound) {
 			writeJSON(w, http.StatusNotFound, moderationActionResponse{Error: "Player not found"})
 			return
@@ -454,7 +502,16 @@ func (service *api) handleModerationPlayerAction(w http.ResponseWriter, r *http.
 	})
 }
 
-func applyPlayerModerationAction(ctx context.Context, transaction *sql.Tx, playerID int64, action, banReason, fallbackReason string) error {
+// moderationActionReason accepts both the legacy ban_reason field and the
+// generic reason used by warnings, preferring the explicit reason.
+func moderationActionReason(request moderationActionRequest) string {
+	if reason := strings.TrimSpace(request.Reason); reason != "" {
+		return reason
+	}
+	return strings.TrimSpace(request.BanReason)
+}
+
+func applyPlayerModerationAction(ctx context.Context, transaction *sql.Tx, playerID int64, action, actionReason, fallbackReason string) error {
 	var statement string
 	var arguments []any
 	switch action {
@@ -464,8 +521,21 @@ func applyPlayerModerationAction(ctx context.Context, transaction *sql.Tx, playe
 	case "unhide_nickname":
 		statement = `UPDATE players SET nickname_hidden = FALSE WHERE id = $1`
 		arguments = []any{playerID}
+	case "warn":
+		reason := strings.TrimSpace(actionReason)
+		if reason == "" {
+			reason = strings.TrimSpace(fallbackReason)
+		}
+		if reason == "" {
+			reason = "Нарушение правил"
+		}
+		reason = truncateText(reason, 300)
+		// Warnings are additive and keep the latest reason and timestamp.
+		statement = `UPDATE players SET warnings = COALESCE(warnings, 0) + 1,
+			last_warning_reason = $2, last_warning_at = NOW() WHERE id = $1`
+		arguments = []any{playerID, reason}
 	case "ban":
-		reason := strings.TrimSpace(banReason)
+		reason := strings.TrimSpace(actionReason)
 		if reason == "" {
 			reason = strings.TrimSpace(fallbackReason)
 		}
@@ -476,7 +546,7 @@ func applyPlayerModerationAction(ctx context.Context, transaction *sql.Tx, playe
 		statement = `UPDATE players SET banned = FALSE, ban_reason = '' WHERE id = $1`
 		arguments = []any{playerID}
 	default:
-		// dismiss and warn do not touch player flags.
+		// dismiss does not touch player flags.
 		return nil
 	}
 	result, err := transaction.ExecContext(ctx, statement, arguments...)
@@ -550,6 +620,7 @@ func readModerationAction(w http.ResponseWriter, r *http.Request) (moderationAct
 	}
 	request.Action = r.PostForm.Get("action")
 	request.BanReason = r.PostForm.Get("ban_reason")
+	request.Reason = r.PostForm.Get("reason")
 	if raw := strings.TrimSpace(r.PostForm.Get("player_id")); raw != "" {
 		playerID, err := strconv.ParseInt(raw, 10, 64)
 		if err != nil {
@@ -630,7 +701,8 @@ SELECT p.id, p.nickname, COALESCE(p.platform, ''), COALESCE(p.matches_played, 0)
          WHERE r.reported_player_id = p.id
             OR (r.reported_player_id IS NULL
                 AND LOWER(BTRIM(r.reported_nickname)) = LOWER(BTRIM(p.nickname)))) AS reports_count,
-       COALESCE(p.nickname_hidden, FALSE), COALESCE(p.banned, FALSE), COALESCE(p.ban_reason, '')
+       COALESCE(p.nickname_hidden, FALSE), COALESCE(p.banned, FALSE), COALESCE(p.ban_reason, ''),
+       COALESCE(p.warnings, 0), COALESCE(p.last_warning_reason, ''), p.last_warning_at
 FROM players p
 WHERE ($1 <> '' AND p.nickname ILIKE '%' || $1 || '%')
    OR ($1 = '' AND (

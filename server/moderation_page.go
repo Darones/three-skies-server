@@ -83,7 +83,7 @@ input,select{font:inherit;color:var(--text);background:#0f1824;border:1px solid 
         <tbody id="reports"><tr><td class="empty" colspan="9">Загрузка…</td></tr></tbody>
       </table>
     </div>
-    <p class="foot muted">«Скрыть ник» и «Бан» записывают флаги игрока. Если ник встречается у нескольких игроков, страница попросит player_id.</p>
+    <p class="foot muted">«Скрыть ник», «Предупредить» и «Бан» записывают флаги игрока. Предупреждения считаются, у последнего хранятся причина и время. Если ник встречается у нескольких игроков, страница попросит player_id.</p>
   </section>
 
   <section class="panel">
@@ -242,6 +242,7 @@ input,select{font:inherit;color:var(--text);background:#0f1824;border:1px solid 
     } else {
       html += '<button class="mini bad" type="button" data-player-act="ban" data-player="' + player.id + '">Бан</button>';
     }
+    html += ' <button class="mini warn" type="button" data-player-act="warn" data-player="' + player.id + '">Предупредить</button>';
     if (player.nickname_hidden) {
       html += ' <button class="mini" type="button" data-player-act="unhide_nickname" data-player="' + player.id + '">Показать ник</button>';
     } else {
@@ -259,7 +260,14 @@ input,select{font:inherit;color:var(--text);background:#0f1824;border:1px solid 
       var nick = '<b>' + esc(player.nickname) + '</b>';
       if (player.banned) nick += '<span class="badge bad">бан</span>';
       if (player.nickname_hidden) nick += '<span class="badge">ник скрыт</span>';
+      if (player.warnings > 0) {
+        nick += '<span class="badge warn">предупр.: ' + player.warnings + '</span>';
+      }
       if (player.ban_reason) nick += '<div class="muted small">' + esc(player.ban_reason) + '</div>';
+      if (player.last_warning_reason) {
+        nick += '<div class="muted small">последнее: ' + esc(player.last_warning_reason) +
+          (player.last_warning_at ? ' · ' + fmtDate(player.last_warning_at) : '') + '</div>';
+      }
       html.push('<tr>' +
         '<td>#' + player.id + '</td>' +
         '<td>' + nick + '</td>' +
@@ -319,18 +327,26 @@ input,select{font:inherit;color:var(--text);background:#0f1824;border:1px solid 
       if (!playerId || playerId < 1) { notice('Нужен корректный player_id', true); return; }
     }
     var banReason = '';
+    var actionReason = '';
     if (action === 'ban') {
       var reason = prompt('Причина бана (необязательно):', report.reason || '');
       if (reason === null) return;
       banReason = reason;
       if (!confirm('Забанить игрока #' + playerId + ' (' + report.reported_nickname + ')?')) return;
     }
+    if (action === 'warn') {
+      var warnReason = prompt('Причина предупреждения:', report.reason || '');
+      if (warnReason === null) return;
+      actionReason = warnReason;
+      if (!confirm('Выдать предупреждение игроку #' + playerId + ' (' + report.reported_nickname + ')?')) return;
+    }
     if (action === 'hide_nickname' && !confirm('Скрыть ник «' + report.reported_nickname + '»?')) return;
     try {
       var result = await postJSON('/admin/moderation/reports/' + report.id + '/resolve', {
         action: action,
         player_id: playerId,
-        ban_reason: banReason
+        ban_reason: banReason,
+        reason: actionReason
       });
       notice('Готово: ' + actionLabel(action) + (result.player_id ? ' · игрок #' + result.player_id : ''));
       await refreshAll();
@@ -341,18 +357,26 @@ input,select{font:inherit;color:var(--text);background:#0f1824;border:1px solid 
 
   async function actOnPlayer(player, action) {
     var banReason = '';
+    var actionReason = '';
     if (action === 'ban') {
       var reason = prompt('Причина бана для «' + player.nickname + '» (необязательно):', player.ban_reason || '');
       if (reason === null) return;
       banReason = reason;
       if (!confirm('Забанить #' + player.id + ' «' + player.nickname + '»?')) return;
     }
+    if (action === 'warn') {
+      var warnReason = prompt('Причина предупреждения для «' + player.nickname + '»:', player.last_warning_reason || '');
+      if (warnReason === null) return;
+      actionReason = warnReason;
+      if (!confirm('Выдать предупреждение #' + player.id + ' «' + player.nickname + '»?')) return;
+    }
     if (action === 'unban' && !confirm('Снять бан с #' + player.id + ' «' + player.nickname + '»?')) return;
     if (action === 'hide_nickname' && !confirm('Скрыть ник «' + player.nickname + '»?')) return;
     try {
       await postJSON('/admin/moderation/players/' + player.id + '/action', {
         action: action,
-        ban_reason: banReason
+        ban_reason: banReason,
+        reason: actionReason
       });
       notice('Готово: ' + actionLabel(action) + ' · игрок #' + player.id);
       await refreshAll();
