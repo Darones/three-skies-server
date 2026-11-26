@@ -1730,7 +1730,9 @@ func (service *api) handleBuyWing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if containsWing(unlockedWings, request.WingID) {
-		writeJSON(w, http.StatusConflict, buyWingResponse{Error: "Wing already unlocked"})
+		// Idempotent retry: a lost response after a committed purchase must not
+		// look like a failure and must not charge the player twice.
+		writeJSON(w, http.StatusOK, buyWingResponse{Success: true, NewShards: shards})
 		return
 	}
 	if shards < price {
@@ -1804,7 +1806,9 @@ func (service *api) handleBuyWeapon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if containsWing(unlockedWeapons, request.WeaponID) {
-		writeJSON(w, http.StatusConflict, buyWeaponResponse{Error: "Weapon already unlocked"})
+		// Idempotent retry: a lost response after a committed purchase must not
+		// look like a failure and must not charge the player twice.
+		writeJSON(w, http.StatusOK, buyWeaponResponse{Success: true, NewShards: shards})
 		return
 	}
 	if shards < price {

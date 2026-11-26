@@ -1439,6 +1439,20 @@ func (h *wsHub) relayBotStates(client *wsClient, message wsIncoming) {
 		bot.z = state.Z
 		bot.rotation = state.Rotation
 		bot.animation = truncateText(state.Animation, 24)
+		// The host owns bot shop purchases. When a bot buys "+150 max HP",
+		// accept the new maximum (with a cap) and mirror the heal, otherwise
+		// the next server snapshot pulled the bot back to its old max HP.
+		if finite(state.MaxHP) && state.MaxHP > bot.maxHP {
+			class := clampClass(bot.class)
+			maxAllowed := classBaseHP[class] * 1.6
+			if state.MaxHP <= maxAllowed {
+				delta := state.MaxHP - bot.maxHP
+				bot.maxHP = state.MaxHP
+				if bot.alive {
+					bot.hp = math.Min(bot.maxHP, bot.hp+delta)
+				}
+			}
+		}
 		if bot.alive && !state.Alive {
 			// The host saw the bot die (a local DoT, an environment kill, or
 			// a hit the server did not confirm). Accept the death so a bot
