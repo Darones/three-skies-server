@@ -221,17 +221,14 @@ func _ready() -> void:
 	var crystals_delivered := int(match_stats.get("p_crystals", 0))
 	var character_key: String = str(CHARACTER_KEYS[selected_class])
 	if has_match and match_aborted:
-		# Server-side interruption: fixed consolation for every player, but the
-		# match is not counted as a win/loss.
-		final_shards = 20
-		final_xp = 1000
-		if not rewards_committed:
-			var level_before := int(MetaProgression.char_levels.get(character_key, 1))
-			MetaProgression.add_character_xp(character_key, final_xp)
-			MetaProgression.queue_compensation(final_shards)
-			entry_level = int(MetaProgression.char_levels.get(character_key, level_before))
-			entry_leveled_up = entry_level > level_before
-			rewards_committed = true
+		# An interrupted match gives no rewards: no shards, no XP and no level
+		# up. Otherwise leaving a losing match would be more profitable than
+		# finishing it. The match is not counted as a win/loss either.
+		final_shards = 0
+		final_xp = 0
+		entry_level = int(MetaProgression.char_levels.get(character_key, 1))
+		entry_leveled_up = false
+		rewards_committed = true
 	elif has_match:
 		final_shards = 5 if player_won and player_is_mvp else 3 if player_won or player_is_mvp else 1
 		final_xp = kills * 10 + shells_destroyed * 25 + crystals_delivered * 25 + (50 if player_won else 20)
@@ -442,7 +439,13 @@ func _build_content() -> void:
 	xp_reward_label.name = "XPReward"
 	xp_reward_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	reward_line.add_child(xp_reward_label)
-	panel_box.add_child(reward_line)
+	if match_aborted:
+		reward_line.visible = false
+		var no_rewards := _make_label("Награды не начислены", 18, Color(0.78, 0.8, 0.86))
+		no_rewards.name = "NoRewards"
+		panel_box.add_child(no_rewards)
+	else:
+		panel_box.add_child(reward_line)
 	var divider := ColorRect.new()
 	divider.custom_minimum_size = Vector2(0.0, 1.0)
 	divider.color = Color(GOLD.r, GOLD.g, GOLD.b, 0.35)

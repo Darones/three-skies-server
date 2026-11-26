@@ -1434,7 +1434,26 @@ func _on_purchase_updated(success: bool, purchase_type: String, item_id: int, _n
 	if success:
 		_show_purchase_success(purchase_type, item_id)
 	else:
-		_show_info("Сервер не подтвердил покупку. Проверь баланс и подключение.")
+		var reason := NetworkClient.last_purchase_error.strip_edges()
+		var display := reason
+		match reason:
+			"Not enough shards":
+				display = "Недостаточно осколков."
+			"Weapon already unlocked", "Wing already unlocked":
+				display = "Этот предмет уже куплен."
+			"Invalid purchase":
+				display = "Сервер не принял цену. Обнови профиль и попробуй ещё раз."
+			"Invalid JSON":
+				display = "Ошибка запроса покупки."
+			"Internal server error":
+				display = "Ошибка сервера. Попробуй позже."
+		if display.is_empty():
+			display = "Сервер не подтвердил покупку. Проверь баланс и подключение."
+		_show_info(display)
+		# A retry after a lost response can report "already unlocked"; refresh
+		# the profile so the UI shows the item as owned instead of stuck.
+		if reason.contains("already unlocked") or reason.contains("уже"):
+			MetaProgression.load_profile(MetaProgression.player_id)
 
 
 func _on_profile_updated() -> void:
@@ -1819,7 +1838,15 @@ func _build_player_menu() -> void:
 	inventory_scroll.name = "InventoryScroll"
 	inventory_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	inventory_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	inventory_scroll.add_child(inventory_grid)
+	# The last wardrobe row was clipped by the panel edge on 844x390; keep a
+	# small bottom gutter inside the scroll so the row is reachable.
+	var inventory_margin := MarginContainer.new()
+	inventory_margin.name = "InventoryMargin"
+	inventory_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inventory_margin.add_theme_constant_override("margin_top", 2)
+	inventory_margin.add_theme_constant_override("margin_bottom", 14)
+	inventory_margin.add_child(inventory_grid)
+	inventory_scroll.add_child(inventory_margin)
 	wardrobe_content.add_child(inventory_scroll)
 	default_weapon_card = PanelContainer.new()
 	default_weapon_card.name = "DefaultWeaponCard"

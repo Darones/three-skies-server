@@ -156,17 +156,21 @@ LEGAL_CSS = """
 			text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 1px 0 2px rgba(0, 0, 0, 0.9);
 			pointer-events: none;
 		}
+		/* Lift the loader bar and keep the small consent line below it. */
+		#status-progress {
+			bottom: 15%;
+		}
 		#legal-consent {
 			position: fixed;
 			left: 50%;
-			bottom: 6.2%;
+			bottom: 3.4%;
 			transform: translateX(-50%);
 			z-index: 6;
-			width: min(86%, 920px);
+			width: min(92%, 920px);
 			color: #ffffff;
 			font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
-			font-size: clamp(11px, 1.5vw, 14px);
-			line-height: 1.35;
+			font-size: clamp(9px, 1.1vw, 12px);
+			line-height: 1.25;
 			text-align: center;
 			text-shadow: 0 1px 2px #000000, 1px 0 2px #000000, -1px 0 2px #000000, 0 -1px 2px #000000;
 			pointer-events: none;

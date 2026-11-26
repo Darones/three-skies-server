@@ -22,6 +22,7 @@ const API_BASE_URL := "https://three-skies-server.relaxdev.ru"
 
 var api_base_url := API_BASE_URL
 var session_token := ""
+var last_purchase_error := ""
 var http_request: HTTPRequest
 var http_request_busy := false
 var current_http_request: Dictionary = {}
@@ -330,6 +331,9 @@ func _on_http_request_completed(result: int, response_code: int, _headers: Packe
 		ok_auth_completed.emit(success, profile, error_text)
 	elif request["request_type"] == "purchase":
 		var new_shards := int(response.get("new_shards", 0)) if response is Dictionary else 0
+		last_purchase_error = ""
+		if not success:
+			last_purchase_error = String(response.get("error", "")) if response is Dictionary else "Нет связи с сервером"
 		purchase_completed.emit(success, String(request["purchase_type"]), int(request["item_id"]), new_shards if success else 0)
 	elif request["request_type"] == "match_reward":
 		var awarded := int(request["payload"].get("amount", 0))
@@ -385,6 +389,7 @@ func _emit_http_failure(request: Dictionary) -> void:
 		_ok_auth_waiting = false
 		ok_auth_completed.emit(false, {}, "Нет связи с сервером")
 	elif request["request_type"] == "purchase":
+		last_purchase_error = "Нет связи с сервером"
 		purchase_completed.emit(false, String(request["purchase_type"]), int(request["item_id"]), 0)
 	elif request["request_type"] == "match_reward":
 		match_reward_completed.emit(false, int(request["payload"].get("amount", 0)), 0, {})

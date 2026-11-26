@@ -103,7 +103,9 @@ func _load_meta() -> void:
 	player_nickname = String(config.get_value("progression", "player_nickname", ""))
 	session_token = String(config.get_value("progression", "session_token", ""))
 	sky_shards = maxi(0, int(config.get_value("progression", "sky_shards", 0)))
-	pending_compensation = maxi(0, int(config.get_value("progression", "pending_compensation", 0)))
+	# Interrupted matches no longer pay compensation; drop any stale queue from
+	# an older build so it cannot be claimed after this update.
+	pending_compensation = 0
 	matches_played = maxi(0, int(config.get_value("progression", "matches_played", 0)))
 	novice = bool(config.get_value("progression", "novice", false))
 	welcome_seen = bool(config.get_value("progression", "welcome_seen", false))
@@ -249,6 +251,12 @@ func reset_all() -> void:
 	player_nickname = ""
 	profile_loaded = false
 	nickname_custom = false
+	session_token = ""
+	NetworkClient.session_token = ""
+	NetworkClient.last_purchase_error = ""
+	pending_compensation = 0
+	compensation_in_flight = false
+	compensation_retries = 0
 	matches_played = 0
 	novice = false
 	account_level = 1

@@ -419,7 +419,7 @@ func _confirm_delete_account() -> void:
 
 func _delete_account_data() -> void:
 	if MetaProgression.player_id <= 0:
-		_reset_progress()
+		_reset_progress_local()
 		return
 	if status_label != null:
 		status_label.text = "Удаляем данные..."
@@ -428,7 +428,7 @@ func _delete_account_data() -> void:
 
 func _on_account_deleted(success: bool, error: String) -> void:
 	if success:
-		_reset_progress()
+		_reset_progress_local()
 		return
 	if status_label != null:
 		status_label.text = "Не удалось удалить данные: %s" % error
@@ -446,6 +446,18 @@ func _clear_web_profile_storage() -> void:
 
 
 func _reset_progress() -> void:
+	# A reset must wipe the server profile too. Clearing only user:// made the
+	# next profile request restore levels, shards and purchases. Delete the
+	# server row first, then clear the local files and reload.
+	if MetaProgression.player_id > 0:
+		if status_label != null:
+			status_label.text = "Удаляем профиль..."
+		NetworkClient.delete_account(MetaProgression.player_id)
+		return
+	_reset_progress_local()
+
+
+func _reset_progress_local() -> void:
 	# The web mirror is separate from user://; without this the old player_id
 	# and nickname came back after a reset and the profile failed to load.
 	_clear_web_profile_storage()
