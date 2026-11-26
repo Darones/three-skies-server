@@ -67,6 +67,8 @@ const SkinCatalog = preload("res://scripts/skin_catalog.gd")
 const TOUCH_SCROLL := preload("res://scripts/touch_scroll.gd")
 const WARMUP_FLOW_SCRIPT := preload("res://scripts/warmup_flow.gd")
 const NICKNAME_CHANGE_COST := 100
+const NOVICE_MATCH_LIMIT := 10
+const NOVICE_STATUS_HINT := "Первые бои с новичками и лёгкими ботами"
 const SHOP_2H_SWORD_ICON: Texture2D = preload("res://ui/icons/legendary_greatsword.png")
 const SHOP_WAND_ICON: Texture2D = preload("res://ui/icons/gear_wand.png")
 const SHOP_STAFF_ICON: Texture2D = preload("res://ui/icons/legendary_staff.png")
@@ -209,11 +211,16 @@ var welcome_wait_token := 0
 var warmup_flow: Node = null
 var warmup_in_progress := false
 var warmup_watch_token := 0
+var novice_status: PanelContainer
+var novice_status_title: Label
+var novice_status_hint: Label
 
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED and lobby_logo != null:
 		_layout_lobby_logo()
+	if what == NOTIFICATION_RESIZED and novice_status != null:
+		_layout_novice_status()
 
 
 func _ready() -> void:
@@ -230,6 +237,7 @@ func _ready() -> void:
 	_build_background()
 	_build_header()
 	_build_player_profile()
+	_build_novice_status()
 	_build_shard_shop_button()
 	_build_hero_cards()
 	_build_actions()
@@ -321,6 +329,9 @@ func _ready() -> void:
 		get_tree().set_meta("open_rules_on_lobby", false)
 		call_deferred("_open_rules")
 	_register_ui_layout()
+	# UiLayout applies the mobile profile rect one frame after registration,
+	# so place the status plate against the real rect, not the default one.
+	call_deferred("_layout_novice_status_later")
 	if DeviceProfile.edit_mode and DeviceProfile.auto_battle:
 		_editor_start_battle()
 	elif DeviceProfile.edit_mode and DeviceProfile.edit_screen == "inventory":
@@ -624,6 +635,123 @@ func _build_player_profile() -> void:
 	profile_xp_label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	xp_row.add_child(profile_xp_label)
 	xp_row.add_child(_shard_icon(14))
+
+
+## A quiet status plate under the player card: it tells a new player that the
+## first matches are gentle and how many of them are left. It is never a
+## dialog, a button or a blocking overlay, and it disappears by itself once the
+## server profile leaves the novice pool.
+func _build_novice_status() -> void:
+	novice_status = PanelContainer.new()
+	novice_status.name = "NoviceStatus"
+	novice_status.z_index = 6
+	novice_status.visible = false
+	# A status plate, not a control: taps pass through to the lobby.
+	novice_status.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.035, 0.05, 0.08, 0.72)
+	style.border_color = Color(0.95, 0.76, 0.38, 0.55)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(9)
+	style.content_margin_left = 10.0
+	style.content_margin_right = 10.0
+	style.content_margin_top = 7.0
+	style.content_margin_bottom = 8.0
+	novice_status.add_theme_stylebox_override("panel", style)
+	add_child(novice_status)
+
+	var column := VBoxContainer.new()
+	column.name = "NoviceStatusColumn"
+	column.add_theme_constant_override("separation", 1)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	novice_status.add_child(column)
+
+	novice_status_title = _make_label("", 15, GOLD)
+	novice_status_title.name = "NoviceStatusTitle"
+	novice_status_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	novice_status_title.add_theme_font_size_override("font_size", _fs(15))
+	column.add_child(novice_status_title)
+
+	novice_status_hint = _make_label(NOVICE_STATUS_HINT, 13, Color(0.72, 0.78, 0.88))
+	novice_status_hint.name = "NoviceStatusHint"
+	novice_status_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	novice_status_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	novice_status_hint.add_theme_font_size_override("font_size", _fs(13))
+	column.add_child(novice_status_hint)
+
+
+func _refresh_novice_status() -> void:
+	if novice_status == null or not is_instance_valid(novice_status):
+		return
+	if novice_status_title == null or novice_status_hint == null:
+		return
+	# novice is server-owned; the count is a second guard so a stale profile
+	# can never keep the plate after ten matches.
+	var show_status := MetaProgression.novice and MetaProgression.matches_played < NOVICE_MATCH_LIMIT
+	novice_status.visible = show_status
+	if not show_status:
+		return
+	var played := clampi(MetaProgression.matches_played, 0, NOVICE_MATCH_LIMIT)
+	novice_status_title.text = "НОВИЧОК · %d из %d" % [played, NOVICE_MATCH_LIMIT]
+	_layout_novice_status()
+
+
+## Placed under the player card on desktop. The 844x390 mobile layout keeps
+## the logo in the whole left column under the player card, so there the plate
+## goes into the free strip between the player card and the shop button.
+## Measured from the real rects, so it stays clear of cards and buttons.
+func _layout_novice_status() -> void:
+	if novice_status == null or not is_instance_valid(novice_status) or profile_button == null:
+		return
+	if novice_status_title == null or novice_status_hint == null:
+		return
+	var viewport_size := get_viewport_rect().size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return
+	var lobby_origin := get_global_rect().position
+	var profile_rect := profile_button.get_global_rect()
+	profile_rect.position -= lobby_origin
+	var left := clampf(profile_rect.position.x, 8.0, viewport_size.x * 0.25)
+	var width := clampf(profile_rect.size.x + 110.0, 280.0, viewport_size.x * 0.32)
+	var top := profile_rect.end.y + 5.0
+	if DeviceProfile.mobile_ui and shard_shop_button != null:
+		var shop_rect := shard_shop_button.get_global_rect()
+		shop_rect.position -= lobby_origin
+		var strip_left := profile_rect.end.x + 8.0
+		var strip_width := shop_rect.position.x - strip_left - 8.0
+		if strip_width >= 240.0:
+			left = strip_left
+			width = strip_width
+			top = profile_rect.position.y
+	width = minf(width, viewport_size.x - left - 16.0)
+	var title_size := novice_status_title.get_theme_font_size("font_size")
+	var hint_size := novice_status_hint.get_theme_font_size("font_size")
+	var text_width := maxf(80.0, width - 20.0)
+	var title_height := font.get_multiline_string_size(
+		novice_status_title.text, HORIZONTAL_ALIGNMENT_LEFT, text_width, title_size
+	).y
+	var hint_height := font.get_multiline_string_size(
+		NOVICE_STATUS_HINT, HORIZONTAL_ALIGNMENT_LEFT, text_width, hint_size
+	).y
+	var height := 17.0 + title_height + hint_height
+	novice_status.anchor_left = 0.0
+	novice_status.anchor_top = 0.0
+	novice_status.anchor_right = 0.0
+	novice_status.anchor_bottom = 0.0
+	novice_status.offset_left = left
+	novice_status.offset_top = top
+	novice_status.offset_right = left + width
+	novice_status.offset_bottom = top + height
+	novice_status.custom_minimum_size = Vector2(width, height)
+
+
+func _layout_novice_status_later() -> void:
+	_layout_novice_status()
+	# UiLayout._capture applies the baked mobile rect on the next process frame;
+	# it connected earlier, so this one-shot runs right after it. A signal
+	# connection drops itself if the lobby is freed during a scene change.
+	if not get_tree().process_frame.is_connected(_layout_novice_status):
+		get_tree().process_frame.connect(_layout_novice_status, CONNECT_ONE_SHOT)
 
 
 func _build_shard_shop_button() -> void:
@@ -3398,6 +3526,9 @@ func _refresh_selection() -> void:
 func _refresh_player_profile() -> void:
 	if profile_name_label == null or profile_level_label == null:
 		return
+	# The novice plate depends on the server profile (novice, matches_played),
+	# so it is refreshed with the profile on every profile_updated signal.
+	_refresh_novice_status()
 	var character_key: String = ['warrior', 'mage', 'fairy'][selected_class]
 	var character_level := int(MetaProgression.char_levels.get(character_key, 1))
 	var character_xp := int(MetaProgression.char_xps.get(character_key, 0))

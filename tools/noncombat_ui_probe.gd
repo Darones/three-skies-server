@@ -5,6 +5,8 @@ extends Node3D
 ## Run with the real layouts:
 ##   godot_console --path . tools/NonCombatUiProbe.tscn -- --layout=844x390 --mobile
 ##   godot_console --path . tools/NonCombatUiProbe.tscn -- --layout=1440x734
+## Add --novice-status to seed a player still in the novice pool and capture
+## the novice status plate on top of the normal lobby screens.
 ##
 ## Mobile uses the real game canvas (DeviceProfile.MOBILE_CONTENT_SCALE =
 ## 960x540) with a 844x390 window, which gives the true 1168x540 logical
@@ -19,6 +21,7 @@ const LAYOUT_DIR := "user://ui_shots"
 var failures := 0
 var tag := "desktop"
 var mobile := false
+var novice_status := false
 var lobby: Control
 
 
@@ -31,6 +34,8 @@ func _ready() -> void:
 				target = Vector2i(int(parts[0]), int(parts[1]))
 		elif arg == "--mobile":
 			mobile = true
+		elif arg == "--novice-status":
+			novice_status = true
 	if mobile or target.x < 500:
 		mobile = true
 		DeviceProfile.mobile_ui = true
@@ -96,13 +101,24 @@ func _seed_returning_player() -> void:
 		"won": true, "place": 1, "kills": 12, "deaths": 4,
 		"damage": 45678, "shells": 2, "crystals": 1, "xp": 2310, "shards": 75,
 	}
+	if novice_status:
+		# Still in the novice pool: the lobby must show the status plate.
+		MetaProgression.novice = true
+		MetaProgression.matches_played = 3
 
 
 func _capture_lobby() -> void:
 	for i in 6:
 		await get_tree().process_frame
-	await _shot("lobby")
+	await _shot("lobby_novice" if novice_status else "lobby")
 	_check_visible_tree(lobby, "lobby")
+	if novice_status:
+		var plate := lobby.get("novice_status") as Control
+		if plate == null or not plate.is_visible_in_tree():
+			failures += 1
+			print("FAIL: novice status plate is not visible")
+		else:
+			print("NOVICE_STATUS_RECT=", plate.get_global_rect())
 
 
 func _capture_inventory() -> void:
