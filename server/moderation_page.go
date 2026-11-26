@@ -10,7 +10,7 @@ const moderationPageHTML = `<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>Модерация ников — Небесные осколки</title>
+<title>Админка — Небесные осколки</title>
 <style>
 :root{--bg:#0b1018;--panel:#131c28;--line:#243349;--text:#e8eef7;--muted:#93a2b8;--gold:#f2c76e;--ok:#63d68b;--warn:#f0b45c;--bad:#ff7070;--blue:#7cc0ff}
 *{box-sizing:border-box}
@@ -84,8 +84,8 @@ body.modal-open{overflow:hidden}
 <div class="wrap">
   <header>
     <div>
-      <h1>Модерация ников <span class="brand">Небесные осколки</span></h1>
-      <p class="sub">Личная страница владельца. Жалобы из игры и управление никами. Ссылка нигде в игре не публикуется.</p>
+      <h1>Админка <span class="brand">Небесные осколки</span></h1>
+      <p class="sub">Жалобы, игроки, осколки, опыт и инвентарь. Личная страница владельца; ссылка нигде в игре не публикуется.</p>
     </div>
     <div>
       <button class="primary" id="reload" type="button">Обновить</button>
