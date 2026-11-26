@@ -6,7 +6,12 @@ const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const GOLD := Color(0.95, 0.76, 0.38)
 const PALE := Color(0.94, 0.95, 0.99)
 const MUTED := Color(0.82, 0.85, 0.92)
-const SECTIONS := [
+# TODO: replace with the real community group links once VK/OK groups exist.
+# For now support opens the direct app link of the current platform, without
+# share/utm parameters (Platform.get_app_link).
+const SUPPORT_FALLBACK := "https://vk.com/app54906713"
+const TAB_TITLES := ["ПРАВИЛА БОЯ", "ПРАВИЛА ИГРЫ", "МОДЕРАЦИЯ"]
+const COMBAT_SECTIONS := [
 	["ЦЕЛЬ",
 		"Разбей Оболочку, забери Небесный осколок и донеси его на свою базу. Побеждает команда, которая первой доставит 3 осколка."],
 	["УПРАВЛЕНИЕ",
@@ -20,10 +25,41 @@ const SECTIONS := [
 	["БОТЫ",
 		"В первых матчах и при нехватке игроков могут быть боты. Они помечены на экране загрузки и в итогах боя. Мы не выдаём их за живых игроков и не пишем за них в чат."],
 ]
+const GAME_SECTIONS := [
+	["АККАУНТ",
+		"Играйте со своего аккаунта VK или OK. Один аккаунт — один игрок: передавать его другим нельзя. Ник и прогресс хранятся на сервере."],
+	["ПЛАТЕЖИ",
+		"Покупки проходят через платёжную систему платформы. Осколки начисляет сервер после подтверждения платежа, возвраты — по правилам платформы."],
+	["ПОВЕДЕНИЕ",
+		"Играйте честно: без читов, сговора и использования ошибок игры. Не оскорбляйте других игроков и не мешайте им играть."],
+	["БОТЫ И ЧЕСТНОСТЬ",
+		"Боты заменяют игроков, когда людей не хватает, и всегда помечены. Читы, сговор и намеренное использование ошибок ведут к блокировке."],
+	["ДАННЫЕ И АККАУНТ",
+		"Профиль и данные можно удалить в настройках. Политика конфиденциальности и соглашение открываются там же."],
+	["ИЗМЕНЕНИЯ",
+		"Правила могут обновляться. Актуальная версия всегда доступна на этом экране."],
+]
+const MODERATION_SECTIONS := [
+	["НИК",
+		"От 3 до 32 символов в VK и OK. Запрещены мат и оскорбления, выдача себя за других игроков, администрацию или разработчиков, реклама и ссылки."],
+	["ЖАЛОБЫ",
+		"Кнопка «!» в бою и форма жалобы в лобби. В жалобу попадают ник, время и краткое описание."],
+	["СРОК",
+		"Каждую жалобу модератор рассматривает в течение 48 часов."],
+	["МЕРЫ",
+		"Предупреждение → скрытие ника → блокировка аккаунта. Мера зависит от нарушения и повторов."],
+	["АПЕЛЛЯЦИЯ",
+		"Если вы не согласны с решением, напишите в сообщество игры: апелляцию рассмотрит модератор."],
+]
 
 var mobile_layout := false
 var scroll: ScrollContainer
 var scroll_fade: TextureRect
+var tab_buttons: Array[Button] = []
+var tab_pages: Array[VBoxContainer] = []
+var tab_scrolls: Array[int] = [0, 0, 0]
+var active_tab := 0
+var support_hint: Label
 
 
 func _ready() -> void:
@@ -36,6 +72,9 @@ func _ready() -> void:
 
 func open() -> void:
 	visible = true
+	for i in tab_scrolls.size():
+		tab_scrolls[i] = 0
+	_select_tab(0)
 	if scroll != null:
 		await get_tree().process_frame
 		scroll.scroll_vertical = 0
@@ -86,7 +125,7 @@ func _build() -> void:
 	var layout := VBoxContainer.new()
 	layout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	layout.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	layout.add_theme_constant_override("separation", 16 if mobile_layout else 14)
+	layout.add_theme_constant_override("separation", 14 if mobile_layout else 12)
 	outer.add_child(layout)
 
 	var title_size := 38 if mobile_layout else 34
@@ -94,10 +133,11 @@ func _build() -> void:
 	var body_size := 24 if mobile_layout else 20
 	var footer_size := 19 if mobile_layout else 17
 	var button_size := 22 if mobile_layout else 20
+	var tab_size := 21 if mobile_layout else 18
 
 	var header := HBoxContainer.new()
 	layout.add_child(header)
-	var title := _make_label("ПРАВИЛА БОЯ", title_size, GOLD)
+	var title := _make_label("ПРАВИЛА", title_size, GOLD)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	header.add_child(title)
@@ -106,6 +146,8 @@ func _build() -> void:
 	close_button.add_theme_font_size_override("font_size", _fs(title_size - 6))
 	close_button.pressed.connect(_on_back)
 	header.add_child(close_button)
+
+	_build_tabs(layout, tab_size)
 
 	scroll = ScrollContainer.new()
 	scroll.name = "RulesScroll"
@@ -124,14 +166,98 @@ func _build() -> void:
 
 	var content := VBoxContainer.new()
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content.add_theme_constant_override("separation", 16 if mobile_layout else 14)
+	content.add_theme_constant_override("separation", 0)
 	content_margin.add_child(content)
 
-	if _use_two_columns():
+	# One page per tab. Only the active page is visible, so the scrollbar
+	# height follows the open tab and every tab keeps its own scroll offset.
+	var pages: Array[VBoxContainer] = [
+		_page(content, 0), _page(content, 1), _page(content, 2),
+	]
+	var page_sections: Array[Array] = [COMBAT_SECTIONS, GAME_SECTIONS, MODERATION_SECTIONS]
+	for i in pages.size():
+		_fill_page(pages[i], page_sections[i], section_title_size, body_size, i == 0)
+	# The tutorial hint belongs to the combat tab; keeping it inside the page
+	# frees 37 px of scroll height on an 844x390 landscape phone.
+	var tutorial_hint := _make_label(
+		"Обучение можно пройти заново кнопкой «Обучение» в лобби.", footer_size - 1, MUTED)
+	tutorial_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	pages[0].add_child(tutorial_hint)
+
+	var footer := VBoxContainer.new()
+	footer.name = "RulesFooter"
+	footer.add_theme_constant_override("separation", 4)
+	layout.add_child(footer)
+	# Support and Back share one row: stacking them cost ~60 px of scroll
+	# height on an 844x390 landscape phone, where the panel is 475 px tall.
+	var actions := HBoxContainer.new()
+	actions.name = "RulesActions"
+	actions.add_theme_constant_override("separation", 10)
+	footer.add_child(actions)
+	var support_button := _make_button("Поддержка / Сообщество", false)
+	support_button.name = "RulesSupportButton"
+	support_button.custom_minimum_size = Vector2(0.0, 48.0)
+	support_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	support_button.size_flags_stretch_ratio = 1.35
+	support_button.add_theme_font_size_override("font_size", _fs(button_size - 3))
+	support_button.pressed.connect(_open_support)
+	actions.add_child(support_button)
+	support_hint = _make_label("", footer_size - 2, MUTED)
+	support_hint.name = "RulesSupportHint"
+	support_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	support_hint.visible = false
+	footer.add_child(support_hint)
+
+	var back_button := _make_button("Назад", true)
+	back_button.custom_minimum_size = Vector2(0.0, 48.0)
+	back_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	back_button.add_theme_font_size_override("font_size", _fs(button_size))
+	back_button.pressed.connect(_on_back)
+	actions.add_child(back_button)
+
+	_build_scroll_fade()
+	if scroll.get_v_scroll_bar() != null:
+		scroll.get_v_scroll_bar().value_changed.connect(func(_value: float) -> void: _update_scroll_fade())
+	scroll.resized.connect(_update_scroll_fade)
+	_select_tab(0)
+	call_deferred("_update_scroll_fade")
+
+
+func _build_tabs(parent: VBoxContainer, tab_size: int) -> void:
+	var tabs := HBoxContainer.new()
+	tabs.name = "RulesTabs"
+	tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tabs.add_theme_constant_override("separation", 8 if mobile_layout else 6)
+	parent.add_child(tabs)
+	for i in TAB_TITLES.size():
+		var button := _make_button(String(TAB_TITLES[i]), false)
+		button.name = "RulesTab%d" % i
+		button.toggle_mode = true
+		button.custom_minimum_size = Vector2(0.0, 46.0 if mobile_layout else 42.0)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.add_theme_font_size_override("font_size", _fs(tab_size))
+		button.pressed.connect(_on_tab_pressed.bind(i))
+		tabs.add_child(button)
+		tab_buttons.append(button)
+
+
+func _page(parent: VBoxContainer, index: int) -> VBoxContainer:
+	var page := VBoxContainer.new()
+	page.name = "RulesPage%d" % index
+	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page.add_theme_constant_override("separation", 16 if mobile_layout else 14)
+	page.visible = false
+	parent.add_child(page)
+	tab_pages.append(page)
+	return page
+
+
+func _fill_page(page: VBoxContainer, sections: Array, title_size: int, body_size: int, allow_columns: bool) -> void:
+	if allow_columns and _use_two_columns():
 		var columns := HBoxContainer.new()
 		columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		columns.add_theme_constant_override("separation", 30)
-		content.add_child(columns)
+		page.add_child(columns)
 		var left := VBoxContainer.new()
 		left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		left.add_theme_constant_override("separation", 16)
@@ -140,27 +266,65 @@ func _build() -> void:
 		right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		right.add_theme_constant_override("separation", 16)
 		columns.add_child(right)
-		for i in SECTIONS.size():
-			var column: VBoxContainer = left if i < SECTIONS.size() / 2 else right
-			column.add_child(_section(str(SECTIONS[i][0]), str(SECTIONS[i][1]), section_title_size, body_size))
-	else:
-		for entry in SECTIONS:
-			content.add_child(_section(str(entry[0]), str(entry[1]), section_title_size, body_size))
+		for i in sections.size():
+			var column: VBoxContainer = left if i < sections.size() / 2 else right
+			column.add_child(_section(str(sections[i][0]), str(sections[i][1]), title_size, body_size))
+		return
+	for entry in sections:
+		page.add_child(_section(str(entry[0]), str(entry[1]), title_size, body_size))
 
-	var footer := _make_label("Обучение можно пройти заново кнопкой «Обучение» в лобби.", footer_size, MUTED)
-	footer.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	layout.add_child(footer)
-	var back_button := _make_button("Назад", true)
-	back_button.custom_minimum_size = Vector2(0.0, 52.0)
-	back_button.add_theme_font_size_override("font_size", _fs(button_size))
-	back_button.pressed.connect(_on_back)
-	layout.add_child(back_button)
 
-	_build_scroll_fade()
-	if scroll.get_v_scroll_bar() != null:
-		scroll.get_v_scroll_bar().value_changed.connect(func(_value: float) -> void: _update_scroll_fade())
-	scroll.resized.connect(_update_scroll_fade)
-	call_deferred("_update_scroll_fade")
+func _on_tab_pressed(index: int) -> void:
+	_select_tab(index)
+
+
+func _select_tab(index: int) -> void:
+	if tab_pages.is_empty():
+		return
+	index = clampi(index, 0, tab_pages.size() - 1)
+	if scroll != null:
+		tab_scrolls[active_tab] = scroll.scroll_vertical
+	for i in tab_pages.size():
+		tab_pages[i].visible = i == index
+		if i < tab_buttons.size():
+			_apply_tab_state(tab_buttons[i], i == index)
+	active_tab = index
+	if scroll != null:
+		# The new page changes the scrollbar range, so restore the saved
+		# offset after the container has re-laid out.
+		_restore_scroll.call_deferred(index)
+
+
+func _restore_scroll(index: int) -> void:
+	if scroll == null or index != active_tab:
+		return
+	scroll.scroll_vertical = tab_scrolls[index]
+	_update_scroll_fade()
+
+
+func _apply_tab_state(button: Button, active: bool) -> void:
+	button.set_pressed_no_signal(active)
+	button.add_theme_color_override("font_color", GOLD if active else MUTED)
+	button.add_theme_color_override("font_hover_color", Color(1.0, 0.88, 0.59) if active else PALE)
+	button.add_theme_stylebox_override("normal", _tab_style(active, false))
+	button.add_theme_stylebox_override("hover", _tab_style(active, true))
+	button.add_theme_stylebox_override("pressed", _tab_style(active, true))
+
+
+func _tab_style(active: bool, hovered: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.19, 0.15, 0.08, 0.98) if active else Color(0.05, 0.06, 0.085, 0.98)
+	style.border_color = GOLD if active else Color(0.42, 0.46, 0.55)
+	if hovered:
+		style.bg_color = Color(0.26, 0.2, 0.11, 1.0) if active else Color(0.1, 0.12, 0.17, 1.0)
+		style.border_color = Color(1.0, 0.88, 0.59) if active else Color(0.74, 0.79, 0.89)
+	style.set_border_width_all(2 if active else 1)
+	style.set_corner_radius_all(9)
+	style.content_margin_left = 12.0
+	style.content_margin_right = 12.0
+	style.content_margin_top = 8.0
+	style.content_margin_bottom = 8.0
+	return style
 
 
 func _build_scroll_fade() -> void:
@@ -220,6 +384,33 @@ func _section(title_text: String, body_text: String, title_size: int, body_size:
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	section.add_child(body)
 	return section
+
+
+func _open_support() -> void:
+	# Direct platform app link only: no share dialogs and no utm parameters.
+	var url := _support_url()
+	if support_hint != null:
+		support_hint.text = "Если ссылка не открылась: %s" % url
+		support_hint.visible = true
+	_open_external(url)
+
+
+func _support_url() -> String:
+	if Platform.platform_id == "vk" or Platform.platform_id == "ok":
+		var link := Platform.get_app_link()
+		if not link.is_empty():
+			return link
+	return SUPPORT_FALLBACK
+
+
+func _open_external(url: String) -> void:
+	if url.is_empty():
+		return
+	if OS.has_feature("web") and Engine.has_singleton("JavaScriptBridge"):
+		var bridge := Engine.get_singleton("JavaScriptBridge")
+		bridge.call("eval", "window.open(%s,'_blank')" % JSON.stringify(url), true)
+		return
+	OS.shell_open(url)
 
 
 func _on_back() -> void:

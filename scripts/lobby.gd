@@ -65,7 +65,6 @@ const SETTINGS_GEAR_ICON: Texture2D = preload("res://ui/icons/settings_gear.png"
 const WeaponCatalog = preload("res://scripts/weapon_catalog.gd")
 const SkinCatalog = preload("res://scripts/skin_catalog.gd")
 const TOUCH_SCROLL := preload("res://scripts/touch_scroll.gd")
-const WARMUP_FLOW_SCRIPT := preload("res://scripts/warmup_flow.gd")
 const NICKNAME_CHANGE_COST := 100
 const NOVICE_MATCH_LIMIT := 10
 const NOVICE_STATUS_HINT := "Первые бои с новичками и лёгкими ботами"
@@ -91,6 +90,7 @@ var card_footers: Array[Panel] = []
 var card_portrait_materials: Array[ShaderMaterial] = []
 var cards: Array[Control] = []
 var avatar: TextureRect
+var avatar_legend_label: Label
 var profile_name_label: Label
 var profile_level_label: Label
 var profile_xp_label: Label
@@ -208,9 +208,6 @@ var stats_tab := "all"
 var stats_tab_buttons: Dictionary = {}
 var welcome_overlay: WELCOME_OVERLAY_SCRIPT
 var welcome_wait_token := 0
-var warmup_flow: Node = null
-var warmup_in_progress := false
-var warmup_watch_token := 0
 var novice_status: PanelContainer
 var novice_status_title: Label
 var novice_status_hint: Label
@@ -388,6 +385,7 @@ func _editor_start_battle() -> void:
 	_save_selection()
 	get_tree().set_meta("tutorial_mode", false)
 	get_tree().set_meta("network_play", false)
+	get_tree().set_meta("warmup_pending", false)
 	get_tree().set_meta("selected_class", selected_class)
 	get_tree().set_meta("selected_team", 0)
 	var error := get_tree().change_scene_to_file("res://scenes/Main.tscn")
@@ -569,9 +567,9 @@ func _build_player_profile() -> void:
 	profile_button.anchor_right = 0.265
 	profile_button.anchor_bottom = 0.16
 	profile_button.focus_mode = Control.FOCUS_NONE
-	profile_button.add_theme_stylebox_override("normal", _action_style(false, false))
-	profile_button.add_theme_stylebox_override("hover", _action_style(false, true))
-	profile_button.add_theme_stylebox_override("pressed", _action_style(false, true))
+	profile_button.add_theme_stylebox_override("normal", _action_style_borderless(false))
+	profile_button.add_theme_stylebox_override("hover", _action_style_borderless(true))
+	profile_button.add_theme_stylebox_override("pressed", _action_style_borderless(true))
 	profile_button.pressed.connect(_open_player_menu)
 	add_child(profile_button)
 
@@ -589,18 +587,45 @@ func _build_player_profile() -> void:
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.add_child(row)
 
+	# Portrait frame: the 2D skin card (SkinCatalog.card) is 384x512 portrait
+	# art, so the frame keeps the card ratio instead of cropping it into a
+	# square. The frame keeps the plate and rounded corners but no outline
+	# (26.11.2026 request).
 	var avatar_frame := PanelContainer.new()
 	avatar_frame.name = "AvatarFrame"
-	avatar_frame.custom_minimum_size = Vector2(66, 66)
-	avatar_frame.add_theme_stylebox_override("panel", _panel_style(GOLD, Color(0.08, 0.1, 0.15)))
+	avatar_frame.custom_minimum_size = Vector2(42, 56) if DeviceProfile.mobile_ui else Vector2(62, 82)
+	avatar_frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var avatar_frame_style := _panel_style_borderless(Color(0.08, 0.1, 0.15))
+	# A thin mat around the art, not a frame: 3 px keeps the plate visible
+	# behind the rounded corners without shrinking the portrait.
+	avatar_frame_style.content_margin_left = 3.0
+	avatar_frame_style.content_margin_right = 3.0
+	avatar_frame_style.content_margin_top = 3.0
+	avatar_frame_style.content_margin_bottom = 3.0
+	avatar_frame.add_theme_stylebox_override("panel", avatar_frame_style)
 	row.add_child(avatar_frame)
+	var avatar_stack := Control.new()
+	avatar_stack.name = "AvatarStack"
+	avatar_stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	avatar_frame.add_child(avatar_stack)
 	avatar = TextureRect.new()
 	avatar.name = "PlayerAvatar"
 	avatar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	avatar.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	avatar.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	avatar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	avatar_frame.add_child(avatar)
+	avatar_stack.add_child(avatar)
+	# A small gold caption for a legendary skin, pinned to the bottom of the
+	# portrait so it never takes height away from the name and XP bar.
+	avatar_legend_label = _make_label("ЛЕГЕНДА", 10, GOLD)
+	avatar_legend_label.name = "AvatarLegend"
+	avatar_legend_label.add_theme_font_size_override("font_size", 9 if DeviceProfile.mobile_ui else 10)
+	avatar_legend_label.add_theme_color_override("font_outline_color", Color(0.06, 0.04, 0.01, 0.95))
+	avatar_legend_label.add_theme_constant_override("outline_size", 4)
+	avatar_legend_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	avatar_legend_label.offset_top = -16.0
+	avatar_legend_label.visible = false
+	avatar_stack.add_child(avatar_legend_label)
 
 	var info := VBoxContainer.new()
 	info.add_theme_constant_override("separation", 1)
@@ -652,6 +677,26 @@ func _build_player_profile() -> void:
 ## first matches are gentle and how many of them are left. It is never a
 ## dialog, a button or a blocking overlay, and it disappears by itself once the
 ## server profile leaves the novice pool.
+## Same frame language as the selected hero card in the middle: the class
+## colour of that hero, 2 px, the card corner radius and a soft glow. The dark
+## plate and the inner padding stay, so the text size and position do not move.
+func _novice_status_style() -> StyleBoxFlat:
+	var frame_color: Color = CLASS_FRAME_COLORS.get(selected_class, GOLD)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.035, 0.05, 0.08, 0.78)
+	style.border_color = frame_color
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(16)
+	style.shadow_color = Color(frame_color.r, frame_color.g, frame_color.b, 0.32)
+	style.shadow_size = 8
+	style.shadow_offset = Vector2.ZERO
+	style.content_margin_left = 10.0
+	style.content_margin_right = 10.0
+	style.content_margin_top = 7.0
+	style.content_margin_bottom = 8.0
+	return style
+
+
 func _build_novice_status() -> void:
 	novice_status = PanelContainer.new()
 	novice_status.name = "NoviceStatus"
@@ -659,16 +704,9 @@ func _build_novice_status() -> void:
 	novice_status.visible = false
 	# A status plate, not a control: taps pass through to the lobby.
 	novice_status.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.035, 0.05, 0.08, 0.72)
-	style.border_color = Color(0.95, 0.76, 0.38, 0.55)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(9)
-	style.content_margin_left = 10.0
-	style.content_margin_right = 10.0
-	style.content_margin_top = 7.0
-	style.content_margin_bottom = 8.0
-	novice_status.add_theme_stylebox_override("panel", style)
+	# TODO: after moderation is live this plate may become a tap target; today
+	# it stays informational only, exactly as before (26.11.2026, user request).
+	novice_status.add_theme_stylebox_override("panel", _novice_status_style())
 	add_child(novice_status)
 
 	var column := VBoxContainer.new()
@@ -696,6 +734,9 @@ func _refresh_novice_status() -> void:
 		return
 	if novice_status_title == null or novice_status_hint == null:
 		return
+	# The plate wears the frame of the hero card selected in the middle, so it
+	# follows a class switch (gold warrior, blue mage, green huntress).
+	novice_status.add_theme_stylebox_override("panel", _novice_status_style())
 	# novice is server-owned; the count is a second guard so a stale profile
 	# can never keep the plate after ten matches.
 	var show_status := MetaProgression.novice and MetaProgression.matches_played < NOVICE_MATCH_LIMIT
@@ -819,7 +860,7 @@ func _build_shard_shop() -> void:
 		shop_panel.anchor_top = 0.09
 		shop_panel.anchor_right = 0.89
 		shop_panel.anchor_bottom = 0.91
-	shop_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.78, 0.62, 0.32), Color(0.035, 0.045, 0.07, 0.98)))
+	shop_panel.add_theme_stylebox_override("panel", _panel_style_borderless(Color(0.035, 0.045, 0.07, 0.98)))
 	shard_shop_overlay.add_child(shop_panel)
 
 	var margin := MarginContainer.new()
@@ -1033,24 +1074,27 @@ func _make_shop_card(item: Dictionary) -> Control:
 	var card := PanelContainer.new()
 	card.name = "ShopCard_%s%d" % [String(item["type"]), int(item["id"])]
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var card_border := Color(0.62, 0.26, 1.0, 0.95) if is_legend_skin else Color(0.34, 0.42, 0.56, 0.85)
-	card.add_theme_stylebox_override("panel", _panel_style(card_border, Color(0.055, 0.07, 0.105, 0.98)))
+	# No outline on the cards (26.11.2026): the art is the frame. The legendary
+	# skin still reads as legendary through its tier tag, purple type line and a
+	# slightly purple plate.
+	var card_fill := Color(0.075, 0.055, 0.12, 0.98) if is_legend_skin else Color(0.055, 0.07, 0.105, 0.98)
+	card.add_theme_stylebox_override("panel", _panel_style_borderless(card_fill))
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 4 if mobile else 6)
 	card.add_child(content)
 
+	# The image area takes every pixel the card has left after the name, price
+	# and button. A skin card (SkinCatalog.card) is COVERED so the character
+	# fills the whole width instead of sitting in a small letterboxed box; a
+	# weapon icon is CENTERED and keeps its full outline, so it matches the skin
+	# height without cropping or stretching.
 	var card_image := String(item.get("card", ""))
-	var preview_frame := AspectRatioContainer.new()
-	preview_frame.ratio = 0.75 if not card_image.is_empty() else 0.82
-	preview_frame.stretch_mode = AspectRatioContainer.STRETCH_FIT
-	preview_frame.custom_minimum_size = Vector2(110, 135) if mobile else Vector2(190, 230)
-	preview_frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	preview_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content.add_child(preview_frame)
 	var preview_stack := Control.new()
+	preview_stack.name = "ShopCardImage"
 	preview_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	preview_stack.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	preview_frame.add_child(preview_stack)
+	preview_stack.custom_minimum_size = Vector2(120, 96) if mobile else Vector2(190, 150)
+	content.add_child(preview_stack)
 	var preview := TextureRect.new()
 	if not card_image.is_empty():
 		preview.texture = load(card_image) as Texture2D
@@ -1060,7 +1104,11 @@ func _make_shop_card(item: Dictionary) -> Control:
 		preview.texture = load(String(item["preview"])) as Texture2D
 	preview.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	preview.stretch_mode = (
+		TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		if not card_image.is_empty()
+		else TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	)
 	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	preview_stack.add_child(preview)
 	if is_legend_skin:
@@ -1844,8 +1892,6 @@ func _on_profile_failed() -> void:
 	if _account_is_banned():
 		# The ban card owns the screen; the Welcome error card must not stack over it.
 		return
-	if welcome_overlay != null and welcome_overlay.is_warming():
-		return
 	if not _welcome_is_active() or not _welcome_is_candidate_pending():
 		return
 	if _is_platform_auth() and vk_auth_overlay != null and vk_auth_overlay.visible:
@@ -1892,14 +1938,10 @@ func _welcome_is_candidate_pending() -> bool:
 func _refresh_welcome_overlay() -> void:
 	if not _welcome_overlay_ready():
 		return
-	# A banned account never sees the Welcome card, not even mid-warmup.
+	# A banned account never sees the Welcome card.
 	if _account_is_banned():
 		welcome_wait_token += 1
 		welcome_overlay.hide_overlay()
-		return
-	# A profile response or any other refresh must never replace the warmup
-	# card while WarmupFlow is running.
-	if welcome_overlay.is_warming():
 		return
 	welcome_wait_token += 1
 	# Probes and --no-welcome must never end up with a dark card over the lobby.
@@ -1932,78 +1974,16 @@ func _watch_welcome_loading() -> void:
 
 
 func _on_welcome_play_pressed() -> void:
-	if warmup_in_progress or not MetaProgression.profile_loaded:
+	if not MetaProgression.profile_loaded:
 		return
 	welcome_wait_token += 1
+	# The Welcome card only introduces the game: Play closes it and the
+	# tutorial opens its own loading/warmup screen. No progress line here.
+	if _welcome_is_active():
+		welcome_overlay.hide_overlay()
 	if _tutorial_completed() or _tutorial_skipped():
-		if _welcome_is_active():
-			welcome_overlay.hide_overlay()
 		return
-	# Keep the same Welcome card (key art, logo, 12+) and turn its yellow
-	# button into a real warmup progress line. The tutorial scene only loads
-	# after WarmupFlow has compiled the arena, fighters, weapons, VFX and
-	# shaders; otherwise the first seconds of the tutorial hitch hard.
-	if _welcome_is_active():
-		welcome_overlay.show_warming()
-	warmup_in_progress = true
-	warmup_flow = WARMUP_FLOW_SCRIPT.new()
-	warmup_flow.name = "WarmupFlow"
-	add_child(warmup_flow)
-	warmup_flow.progress_changed.connect(_on_warmup_progress)
-	warmup_flow.finished.connect(_on_warmup_finished)
-	warmup_flow.start()
-	# Hard fallback: a driver hiccup must not leave the player on a frozen
-	# progress card forever. The normal flow finishes in ~10 s.
-	warmup_watch_token += 1
-	var token := warmup_watch_token
-	get_tree().create_timer(120.0).timeout.connect(func() -> void:
-		if not is_inside_tree() or not warmup_in_progress or token != warmup_watch_token:
-			return
-		warmup_in_progress = false
-		if warmup_flow != null and is_instance_valid(warmup_flow):
-			warmup_flow.queue_free()
-			warmup_flow = null
-		if _welcome_is_active():
-			welcome_overlay.hide_overlay()
-		_start_tutorial()
-	)
-
-
-func _on_warmup_progress(percent: float, elapsed: float, stage: String) -> void:
-	if _welcome_is_active() and welcome_overlay.is_warming():
-		welcome_overlay.set_warmup_progress(percent, elapsed, stage)
-
-
-func _on_warmup_finished() -> void:
-	if not warmup_in_progress:
-		return
-	warmup_in_progress = false
-	warmup_watch_token += 1
-	var report: Dictionary = {}
-	if warmup_flow != null and is_instance_valid(warmup_flow):
-		report = warmup_flow.get("report") as Dictionary
-		warmup_flow.queue_free()
-		warmup_flow = null
-	if bool(report.get("failed", false)):
-		# Do not soft-lock on a broken warmup: fall back to the normal Main
-		# scene warmup and hide the progress card.
-		if _welcome_is_active():
-			welcome_overlay.hide_overlay()
-		MetaProgression.mark_welcome_seen()
-		_start_tutorial()
-		return
-	# Marks the card as seen only after a successful warmup, so closing the
-	# app during the progress keeps Welcome available next launch.
 	MetaProgression.mark_welcome_seen()
-	if tutorial_button == null or tutorial_button.disabled:
-		if _welcome_is_active():
-			welcome_overlay.hide_overlay()
-		return
-	# The next Main scene skips its own expensive re-warm; these resources are
-	# already hot in the cache.
-	get_tree().set_meta("battle_prewarmed", true)
-	if _welcome_is_active():
-		welcome_overlay.finish_warming()
 	_start_tutorial()
 
 
@@ -2594,6 +2574,7 @@ func _on_default_weapon_pressed() -> void:
 func _on_default_skin_pressed() -> void:
 	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
 	MetaProgression.set_equipped_skin(character_key, 0)
+	_refresh_avatar()
 	_refresh_weapon_shop()
 	_refresh_player_menu()
 
@@ -2609,6 +2590,7 @@ func _on_inventory_skin_pressed(skin_id: int) -> void:
 	if character_key.is_empty():
 		return
 	MetaProgression.set_equipped_skin(character_key, skin_id)
+	_refresh_avatar()
 	_refresh_weapon_shop()
 	_refresh_player_menu()
 
@@ -3612,6 +3594,7 @@ func _build_actions() -> void:
 	tutorial_button.offset_bottom = -28.0
 	tutorial_button.custom_minimum_size = Vector2(300.0, 72.0)
 	tutorial_button.add_theme_font_size_override("font_size", _fs(22))
+	_apply_borderless_action_styles(tutorial_button)
 	tutorial_button.pressed.connect(_start_tutorial)
 	add_child(tutorial_button)
 	_refresh_tutorial_button()
@@ -3656,8 +3639,17 @@ func _build_actions() -> void:
 
 func _gear_button_style(hovered: bool) -> StyleBoxFlat:
 	var style := _action_style(false, hovered)
+	style.set_border_width_all(0)
 	style.set_corner_radius_all(32)
 	return style
+
+
+## Drops the outline of a secondary button while keeping its background and the
+## hover/pressed brightening, so the pressed state is still readable.
+func _apply_borderless_action_styles(button: Button) -> void:
+	button.add_theme_stylebox_override("normal", _action_style_borderless(false))
+	button.add_theme_stylebox_override("hover", _action_style_borderless(true))
+	button.add_theme_stylebox_override("pressed", _action_style_borderless(true))
 
 
 func _build_rules_button() -> void:
@@ -3683,6 +3675,7 @@ func _build_rules_button() -> void:
 		rules_button.offset_bottom = -46.0
 	rules_button.custom_minimum_size = Vector2(140.0, 54.0)
 	rules_button.add_theme_font_size_override("font_size", _fs(16))
+	_apply_borderless_action_styles(rules_button)
 	rules_button.pressed.connect(_open_rules)
 	add_child(rules_button)
 
@@ -3740,17 +3733,46 @@ func _refresh_selection() -> void:
 		else:
 			card_images[slot].modulate = Color(0.62, 0.65, 0.72, 1.0)
 			card_names[slot].add_theme_color_override("font_color", Color(0.72, 0.75, 0.82))
-	var avatar_source := load(HERO_FACE[selected_class]) as Texture2D
-	var equipped_skin := SkinCatalog.get_item(MetaProgression.get_equipped_skin(["warrior", "mage", "fairy"][selected_class]))
-	if not equipped_skin.is_empty():
-		var skin_icon := load(String(equipped_skin["icon"])) as Texture2D
-		if skin_icon != null:
-			avatar_source = skin_icon
-	if avatar_source != null:
-		avatar.texture = avatar_source
+	_refresh_avatar()
 	_refresh_player_profile()
 	_refresh_player_menu()
 	_refresh_weapon_shop()
+
+
+func _refresh_avatar() -> void:
+	# The lobby avatar shows the same 2D skin card the shop sells
+	# (SkinCatalog.card), not the small square icon and never the 3D model, so
+	# the chosen skin is visible everywhere outside the match. A legendary skin
+	# also gets the small gold caption over its portrait.
+	if avatar == null or not is_instance_valid(avatar):
+		return
+	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
+	var skin := SkinCatalog.get_item(MetaProgression.get_equipped_skin(character_key))
+	var source: Texture2D = null
+	var is_legend := false
+	var is_card_art := false
+	if not skin.is_empty():
+		var card_path := String(skin.get("card", ""))
+		if not card_path.is_empty():
+			source = load(card_path) as Texture2D
+			is_card_art = source != null
+		if source == null:
+			var icon_path := String(skin.get("icon", ""))
+			if not icon_path.is_empty():
+				source = load(icon_path) as Texture2D
+		is_legend = not String(skin.get("tier", "")).is_empty()
+	if source == null:
+		source = load(HERO_FACE[selected_class]) as Texture2D
+	if source != null:
+		avatar.texture = source
+	# The portrait card fills the frame; the square default face stays whole and
+	# is letterboxed instead of being cropped left and right.
+	avatar.stretch_mode = (
+		TextureRect.STRETCH_KEEP_ASPECT_COVERED if is_card_art
+		else TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	)
+	if avatar_legend_label != null and is_instance_valid(avatar_legend_label):
+		avatar_legend_label.visible = is_legend
 
 
 func _refresh_player_profile() -> void:
@@ -3759,6 +3781,7 @@ func _refresh_player_profile() -> void:
 	# The novice plate depends on the server profile (novice, matches_played),
 	# so it is refreshed with the profile on every profile_updated signal.
 	_refresh_novice_status()
+	_refresh_avatar()
 	var character_key: String = ['warrior', 'mage', 'fairy'][selected_class]
 	var character_level := int(MetaProgression.char_levels.get(character_key, 1))
 	var character_xp := int(MetaProgression.char_xps.get(character_key, 0))
@@ -3904,6 +3927,7 @@ func _start_network_battle() -> void:
 	_save_selection()
 	get_tree().set_meta("tutorial_mode", false)
 	get_tree().set_meta("network_play", true)
+	get_tree().set_meta("warmup_pending", false)
 	get_tree().set_meta("selected_class", selected_class)
 	get_tree().set_meta("selected_team", 0)
 	var error := get_tree().change_scene_to_file("res://scenes/LoadingScreen.tscn")
@@ -3967,6 +3991,7 @@ func _start_battle() -> void:
 	get_tree().set_meta("tutorial_mode", false)
 	get_tree().set_meta("network_play", false)
 	_record_normal_battle_started()
+	get_tree().set_meta("warmup_pending", false)
 	get_tree().set_meta("selected_class", selected_class)
 	var selected_team := randi_range(0, 1)
 	get_tree().set_meta("selected_team", selected_team)
@@ -3989,7 +4014,12 @@ func _start_tutorial() -> void:
 	get_tree().set_meta("selected_team", 0)
 	get_tree().set_meta("tutorial_mode", true)
 	get_tree().set_meta("network_play", false)
-	var error := get_tree().change_scene_to_file("res://scenes/Main.tscn")
+	# The tutorial now has its own loading screen: it runs WarmupFlow there and
+	# switches to Main.tscn only after the warmup, so the first seconds of the
+	# lesson never hitch.
+	get_tree().set_meta("warmup_pending", true)
+	get_tree().set_meta("battle_prewarmed", false)
+	var error := get_tree().change_scene_to_file("res://scenes/LoadingScreen.tscn")
 	if error != OK:
 		push_error("Не удалось запустить обучение: %s" % error_string(error))
 
@@ -4047,6 +4077,22 @@ func _action_style(primary: bool, hovered: bool) -> StyleBoxFlat:
 	style.content_margin_right = 12.0
 	style.content_margin_top = 8.0
 	style.content_margin_bottom = 8.0
+	return style
+
+
+## Borderless variant of the secondary button plate (26.11.2026): the dark
+## background and the hover brightening stay, the 1 px outline goes away.
+func _action_style_borderless(hovered: bool) -> StyleBoxFlat:
+	var style := _action_style(false, hovered)
+	style.set_border_width_all(0)
+	return style
+
+
+## Borderless plate for panels, cards and the avatar: keeps fill, radius and
+## content margins, drops the outline so the art is the only thing framed.
+func _panel_style_borderless(fill_color: Color) -> StyleBoxFlat:
+	var style := _panel_style(Color(0.0, 0.0, 0.0, 0.0), fill_color)
+	style.set_border_width_all(0)
 	return style
 
 

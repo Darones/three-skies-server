@@ -22,6 +22,11 @@ func _ready() -> void:
 	add_child(lobby)
 	for i in 10:
 		await get_tree().process_frame
+	# The tutorial warmup now lives on its own loading screen: a plain lobby
+	# start must never spin up WarmupFlow / a hidden arena.
+	var warmup_nodes := lobby.find_children("WarmupFlow*", "", true, false)
+	var warmup_views := lobby.find_children("*WarmupFlowViewport*", "", true, false)
+	_check(warmup_nodes.is_empty() and warmup_views.is_empty(), "no battle warmup starts at lobby launch")
 	_check(lobby.get("rules_button") != null, "lobby rules button exists")
 	_check(lobby.get("rules_panel") != null, "lobby rules panel exists")
 	if lobby.get("rules_panel") != null:
@@ -126,6 +131,12 @@ func _ready() -> void:
 
 	var old_matches_now: int = MetaProgression.matches_played
 	var old_stats: int = int(MetaProgression.stats_all.get("matches", 0))
+	# known_matches() trusts the server count once a profile is loaded; this
+	# check is about the local-stats fallback used while the profile request is
+	# still in flight. Pin that mode so a background profile load cannot flip
+	# the result mid-probe.
+	var old_loaded_now: bool = MetaProgression.profile_loaded
+	MetaProgression.profile_loaded = false
 	MetaProgression.matches_played = 0
 	MetaProgression.stats_all["matches"] = 0
 	_check(lobby.call("_should_force_tutorial"), "new player is sent to the tutorial")
@@ -133,6 +144,7 @@ func _ready() -> void:
 	_check(not lobby.call("_should_force_tutorial"), "existing player is not forced into the tutorial")
 	MetaProgression.matches_played = old_matches_now
 	MetaProgression.stats_all["matches"] = old_stats
+	MetaProgression.profile_loaded = old_loaded_now
 	MetaProgression.tutorial_completed = old_completed_now
 	MetaProgression.tutorial_skipped = old_skipped_now
 	_restore()

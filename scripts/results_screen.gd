@@ -46,6 +46,8 @@ var shards_reward_label: Label
 var xp_reward_label: Label
 var stats_scroll: ScrollContainer
 var players_scroll: ScrollContainer
+var left_column: VBoxContainer
+var portrait_panel: PanelContainer
 var stats_tab_button: Button
 var players_tab_button: Button
 var ad_button_pulse_tween: Tween
@@ -95,8 +97,10 @@ func _make_player_row(entry: Dictionary, best_damage: int) -> Control:
 	style.set_corner_radius_all(5)
 	style.content_margin_left = 6.0
 	style.content_margin_right = 6.0
-	style.content_margin_top = 3.0
-	style.content_margin_bottom = 3.0
+	# Desktop has the room: taller rows read better and fill the panel.
+	var row_pad := 5.0 if DeviceProfile.mobile_ui else 9.0
+	style.content_margin_top = row_pad
+	style.content_margin_bottom = row_pad
 	row_panel.add_theme_stylebox_override("panel", style)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
@@ -108,12 +112,12 @@ func _make_player_row(entry: Dictionary, best_damage: int) -> Control:
 		name_text = "БОТ · " + name_text
 	if damage > 0 and damage == best_damage:
 		name_text = "* " + name_text
-	var name_cell := _table_cell(name_text, 13, GOLD if is_self else PALE, 0.0, HORIZONTAL_ALIGNMENT_LEFT)
+	var name_cell := _table_cell(name_text, 14, GOLD if is_self else PALE, 0.0, HORIZONTAL_ALIGNMENT_LEFT)
 	name_cell.clip_text = true
 	row.add_child(name_cell)
-	row.add_child(_table_cell("%d/%d" % [int(entry.get("kills", 0)), int(entry.get("deaths", 0))], 13, Color(0.8, 0.85, 0.95), 58.0, HORIZONTAL_ALIGNMENT_CENTER))
-	row.add_child(_table_cell(str(damage), 13, Color(1.0, 0.8, 0.5), 74.0, HORIZONTAL_ALIGNMENT_RIGHT))
-	row.add_child(_table_cell(str(int(entry.get("crystals", 0))), 13, Color(0.43, 0.84, 1.0), 52.0, HORIZONTAL_ALIGNMENT_RIGHT))
+	row.add_child(_table_cell("%d/%d" % [int(entry.get("kills", 0)), int(entry.get("deaths", 0))], 14, Color(0.8, 0.85, 0.95), 58.0, HORIZONTAL_ALIGNMENT_CENTER))
+	row.add_child(_table_cell(str(damage), 14, Color(1.0, 0.8, 0.5), 74.0, HORIZONTAL_ALIGNMENT_RIGHT))
+	row.add_child(_table_cell(str(int(entry.get("crystals", 0))), 14, Color(0.43, 0.84, 1.0), 52.0, HORIZONTAL_ALIGNMENT_RIGHT))
 	return row_panel
 
 
@@ -169,6 +173,7 @@ func _switch_result_tab(show_players: bool) -> void:
 	stats_scroll.visible = not show_players
 	_apply_tab_state(stats_tab_button, not show_players)
 	_apply_tab_state(players_tab_button, show_players)
+	_schedule_players_fit()
 
 
 func _apply_tab_state(button: Button, active: bool) -> void:
@@ -250,6 +255,9 @@ func _ready() -> void:
 		final_xp = 0
 	_build_screen()
 	_build_reward_banner()
+	if not resized.is_connected(_on_results_resized):
+		resized.connect(_on_results_resized)
+	_schedule_players_fit()
 	_animate_rewards()
 	if match_aborted:
 		_play_defeat_stinger()
@@ -301,34 +309,34 @@ func _build_header() -> void:
 	var mobile := DeviceProfile.mobile_ui
 	var title_text := "МАТЧ ПРЕРВАН" if match_aborted else ("ПОБЕДА" if player_won else "ПОРАЖЕНИЕ")
 	var title_color := Color(0.92, 0.66, 0.3) if match_aborted else (GOLD if player_won else Color(0.9, 0.3, 0.29))
-	var title := _make_label(title_text, 44 if mobile else 68, title_color)
+	var title := _make_label(title_text, 34 if mobile else 68, title_color)
 	title.name = "ResultTitle"
 	title.anchor_left = 0.08
-	title.anchor_top = 0.015 if mobile else 0.035
+	title.anchor_top = 0.0 if mobile else 0.035
 	title.anchor_right = 0.92
-	title.anchor_bottom = 0.105 if mobile else 0.145
+	title.anchor_bottom = 0.112 if mobile else 0.145
 	add_child(title)
 
 	var subtitle_text := "ИТОГИ МАТЧА  ·  СВЕТ %d : %d ТЬМА" % [int(score[0]), int(score[1])]
 	var end_reason := String(get_tree().get_meta("last_match_reason", "")).strip_edges()
 	if not end_reason.is_empty():
 		subtitle_text += "  ·  " + end_reason
-	var subtitle := _make_label(subtitle_text, 18 if mobile else 17, Color(0.76, 0.78, 0.84))
+	var subtitle := _make_label(subtitle_text, 16 if mobile else 17, Color(0.76, 0.78, 0.84))
 	subtitle.name = "MatchSummary"
 	subtitle.anchor_left = 0.08
 	subtitle.anchor_top = 0.112 if mobile else 0.145
 	subtitle.anchor_right = 0.92
-	subtitle.anchor_bottom = 0.152 if mobile else 0.188
+	subtitle.anchor_bottom = 0.17 if mobile else 0.188
 	add_child(subtitle)
 
 	var placement_text := "МАТЧ НЕ ЗАСЧИТАН" if match_aborted else ("ВЫ ЛУЧШИЙ ИГРОК МАТЧА!" if player_is_mvp else "ВАШЕ МЕСТО: %d" % player_place)
 	var placement_color := Color(0.72, 0.78, 0.88) if match_aborted else (GOLD if player_is_mvp else PALE)
-	var placement := _make_label(placement_text, 26 if mobile else 29, placement_color)
+	var placement := _make_label(placement_text, 22 if mobile else 29, placement_color)
 	placement.name = "PlayerPlacement"
 	placement.anchor_left = 0.08
-	placement.anchor_top = 0.155 if mobile else 0.192
+	placement.anchor_top = 0.172 if mobile else 0.192
 	placement.anchor_right = 0.92
-	placement.anchor_bottom = 0.207 if mobile else 0.246
+	placement.anchor_bottom = 0.238 if mobile else 0.246
 	add_child(placement)
 
 
@@ -337,20 +345,30 @@ func _build_content() -> void:
 	var content := HBoxContainer.new()
 	content.name = "ResultsContent"
 	content.anchor_left = 0.05 if mobile else 0.12
-	content.anchor_top = 0.214 if mobile else 0.27
+	content.anchor_top = 0.242 if mobile else 0.27
 	content.anchor_right = 0.95 if mobile else 0.88
-	content.anchor_bottom = 0.74 if mobile else 0.755
+	# The lobby button now lives at the bottom of the left column, so the
+	# content can use the strip it used to reserve for the button. That extra
+	# height is what lets the players table show a full 3v3 without scrolling.
+	content.anchor_bottom = 0.945 if mobile else 0.94
 	content.add_theme_constant_override("separation", 16 if mobile else 30)
 	add_child(content)
 
-	var portrait_panel := _make_panel(Color(0.43, 0.39, 0.3, 0.9))
+	# Left column: portrait above, «В лобби» below it.
+	left_column = VBoxContainer.new()
+	left_column.name = "ResultsLeftColumn"
+	left_column.custom_minimum_size = Vector2(280.0 if mobile else 350.0, 0.0)
+	left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left_column.add_theme_constant_override("separation", 6 if mobile else 14)
+	content.add_child(left_column)
+
+	portrait_panel = _make_panel(Color(0.43, 0.39, 0.3, 0.9))
 	portrait_panel.name = "PortraitPanel"
-	portrait_panel.custom_minimum_size = Vector2(280.0 if DeviceProfile.mobile_ui else 350.0, 0.0)
 	portrait_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content.add_child(portrait_panel)
+	left_column.add_child(portrait_panel)
 	var portrait_content := VBoxContainer.new()
-	portrait_content.add_theme_constant_override("separation", 10)
-	portrait_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	portrait_content.name = "PortraitContent"
+	portrait_content.add_theme_constant_override("separation", 4 if mobile else 10)
 	portrait_panel.add_child(portrait_content)
 
 	var portrait_frame := PanelContainer.new()
@@ -360,25 +378,43 @@ func _build_content() -> void:
 	portrait_content.add_child(portrait_frame)
 	var portrait := TextureRect.new()
 	portrait.name = "HeroPortrait"
-	var portrait_source := load(CHARACTER_ART[selected_class]) as Texture2D
 	var results_skin := SkinCatalog.get_item(MetaProgression.get_equipped_skin(CHARACTER_KEYS[selected_class]))
+	var legendary_skin := _is_legendary_skin(results_skin)
+	var portrait_path := String(CHARACTER_ART[selected_class])
+	var showing_shop_card := false
 	if not results_skin.is_empty():
-		var skin_portrait := load(String(results_skin["icon"])) as Texture2D
-		if skin_portrait != null:
-			portrait_source = skin_portrait
+		# A legendary skin shows the same 2D card as the shop, not the tiny
+		# icon or the 3D render: the card is the art the player bought.
+		var skin_paths: Array[String] = []
+		if legendary_skin:
+			skin_paths.append(String(results_skin.get("card", "")))
+		skin_paths.append(String(results_skin.get("icon", "")))
+		for path in skin_paths:
+			if path.is_empty():
+				continue
+			if load(path) is Texture2D:
+				portrait_path = path
+				showing_shop_card = legendary_skin and path == String(results_skin.get("card", ""))
+				break
+	var portrait_source := load(portrait_path) as Texture2D
 	if portrait_source != null:
 		# Full 2D key art: the old atlas cropped only the top 70% and used
 		# a 3D-render portrait, which read as a model rather than game art.
 		portrait.texture = portrait_source
-	portrait.custom_minimum_size = Vector2(0.0, 130.0 if DeviceProfile.mobile_ui else 220.0)
+	portrait.custom_minimum_size = Vector2(0.0, 70.0 if mobile else 200.0)
 	portrait.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	# The shop card is a 3:4 poster: show all of it instead of cropping the
+	# hunter's hood / the barbarian's helmet off the top.
+	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED if showing_shop_card else TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	portrait.clip_contents = true
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	portrait_frame.add_child(portrait)
 
-	var hero_name := _make_label(_get_player_character_name(), 24, PALE)
+	if legendary_skin:
+		portrait_content.add_child(_make_legend_badge())
+
+	var hero_name := _make_label(_get_player_character_name(), 18 if mobile else 24, PALE)
 	hero_name.name = "HeroName"
 	portrait_content.add_child(hero_name)
 	var hero_level := int(MetaProgression.char_levels.get(CHARACTER_KEYS[selected_class], 1))
@@ -503,11 +539,75 @@ func _build_content() -> void:
 	var players_body := VBoxContainer.new()
 	players_body.name = "PlayersContent"
 	players_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	players_body.add_theme_constant_override("separation", 3)
+	players_body.add_theme_constant_override("separation", 4)
 	players_margin.add_child(players_body)
 	_build_players_table(players_body)
 	_refresh_reward_ui()
 	call_deferred("_start_ad_button_pulse")
+
+
+func _is_legendary_skin(item: Dictionary) -> bool:
+	if item.is_empty():
+		return false
+	if String(item.get("tier", "")).to_lower().contains("легенд"):
+		return true
+	# The shop card exists only for the legendary skins, so it is a safe
+	# fallback if the tier wording ever changes.
+	return not String(item.get("card", "")).is_empty()
+
+
+func _make_legend_badge() -> Control:
+	var row := HBoxContainer.new()
+	row.name = "LegendBadge"
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 8)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(_legend_rule())
+	var label := _make_bold_label("ЛЕГЕНДА", 12, Color(GOLD.r, GOLD.g, GOLD.b, 0.95))
+	label.name = "LegendLabel"
+	row.add_child(label)
+	row.add_child(_legend_rule())
+	return row
+
+
+func _legend_rule() -> ColorRect:
+	var rule := ColorRect.new()
+	rule.custom_minimum_size = Vector2(26.0, 1.0)
+	rule.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	rule.color = Color(GOLD.r, GOLD.g, GOLD.b, 0.45)
+	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return rule
+
+
+func _on_results_resized() -> void:
+	_schedule_players_fit()
+
+
+func _schedule_players_fit() -> void:
+	# Containers settle their sizes after this frame; wait for that before
+	# deciding whether the table still needs a scrollbar.
+	_refresh_players_fit()
+
+
+func _refresh_players_fit() -> void:
+	await get_tree().process_frame
+	_update_players_scroll_mode()
+
+
+func _update_players_scroll_mode() -> void:
+	if players_scroll == null or not is_instance_valid(players_scroll):
+		return
+	if not players_scroll.visible or players_scroll.size.y <= 0.0:
+		return
+	var body := players_scroll.get_node_or_null("PlayersMargin/PlayersContent") as Control
+	if body == null:
+		return
+	var content_height := body.get_combined_minimum_size().y
+	var fits := content_height <= players_scroll.size.y + 0.5
+	# On desktop a full 3v3 fits, so the table is simply a plain list with no
+	# scrollbar. A phone in landscape can still overflow; scrolling stays
+	# there only as the fallback.
+	players_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED if fits else ScrollContainer.SCROLL_MODE_AUTO
 
 
 func _get_player_character_name() -> String:
@@ -550,24 +650,26 @@ func _make_stat_row(label_text: String, value_text: String) -> Control:
 
 func _build_buttons() -> void:
 	var mobile := DeviceProfile.mobile_ui
-	var button_row := HBoxContainer.new()
-	button_row.name = "ActionButtons"
-	button_row.anchor_left = 0.18 if mobile else 0.235
-	button_row.anchor_top = 0.78 if mobile else 0.81
-	button_row.anchor_right = 0.82 if mobile else 0.765
-	button_row.anchor_bottom = 0.90 if mobile else 0.94
-	button_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	button_row.add_theme_constant_override("separation", 16 if mobile else 24)
-	add_child(button_row)
 	# Entering a new match is done from the lobby only; no "play again" shortcut
 	# here so a finished/aborted match cannot chain straight into another one.
 	var lobby_button := _make_button("В ЛОББИ", true)
 	lobby_button.name = "MenuButton"
-	lobby_button.custom_minimum_size = Vector2(220.0, 54.0)
+	lobby_button.custom_minimum_size = Vector2(0.0, 44.0 if mobile else 54.0)
+	lobby_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lobby_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	lobby_button.pressed.connect(_open_menu)
-	button_row.add_child(lobby_button)
 	menu_button = lobby_button
+	if left_column != null and is_instance_valid(left_column):
+		# Directly under the portrait, in the left column: no longer floating
+		# in the middle of the screen under the stats panel.
+		left_column.add_child(lobby_button)
+	else:
+		lobby_button.custom_minimum_size = Vector2(220.0, 48.0 if mobile else 54.0)
+		lobby_button.anchor_left = 0.05 if mobile else 0.12
+		lobby_button.anchor_top = 0.87
+		lobby_button.anchor_right = 0.12 if mobile else 0.35
+		lobby_button.anchor_bottom = 0.95
+		add_child(lobby_button)
 
 
 func _make_panel(border_color: Color) -> PanelContainer:

@@ -1,0 +1,126 @@
+{
+  "canvas": [
+    1440,
+    734
+  ],
+  "frames": {
+    "after_10s": {
+      "avg_ms": 16.7,
+      "fps_avg": 59.9,
+      "frames": 719,
+      "max_ms": 51.74,
+      "p50_ms": 16.7,
+      "p95_ms": 17.54,
+      "p99_ms": 18.04,
+      "spikes_33": 1,
+      "spikes_50": 1
+    },
+    "all": {
+      "avg_ms": 16.68,
+      "fps_avg": 60.0,
+      "frames": 1319,
+      "max_ms": 51.74,
+      "p50_ms": 16.7,
+      "p95_ms": 17.95,
+      "p99_ms": 20.73,
+      "spikes_33": 4,
+      "spikes_50": 1
+    },
+    "first_10s": {
+      "avg_ms": 16.65,
+      "fps_avg": 60.0,
+      "frames": 600,
+      "max_ms": 48.47,
+      "p50_ms": 16.69,
+      "p95_ms": 18.75,
+      "p99_ms": 23.05,
+      "spikes_33": 3,
+      "spikes_50": 0
+    },
+    "first_3s": {
+      "avg_ms": 16.56,
+      "fps_avg": 60.4,
+      "frames": 180,
+      "max_ms": 34.37,
+      "p50_ms": 16.79,
+      "p95_ms": 20.46,
+      "p99_ms": 26.35,
+      "spikes_33": 1,
+      "spikes_50": 0
+    }
+  },
+  "hitch_count": 1,
+  "hitches": [
+    {
+      "draws": 181,
+      "frame_ms": 51.74,
+      "ms": 11046.0,
+      "nodes": 1513
+    }
+  ],
+  "instantiate_ms": 974.6,
+  "load_ms": 2211.7,
+  "mobile": false,
+  "monitors": {
+    "draws": {
+      "avg": 176.74,
+      "max": 211.0
+    },
+    "nodes": {
+      "avg": 1429.49,
+      "max": 1536.0
+    },
+    "objects": {
+      "avg": 5268.75,
+      "max": 5418.0
+    },
+    "objects_drawn": {
+      "avg": 459.54,
+      "max": 652.0
+    },
+    "physics_ms": {
+      "avg": 3.8,
+      "max": 31.58
+    },
+    "primitives": {
+      "avg": 1218153.57,
+      "max": 3189698.0
+    },
+    "process_ms": {
+      "avg": 64.7,
+      "max": 3020.68
+    },
+    "resources": {
+      "avg": 1012.07,
+      "max": 1013.0
+    },
+    "static_mb": {
+      "avg": 125.72,
+      "max": 129.81
+    },
+    "video_mb": {
+      "avg": 455.74,
+      "max": 459.08
+    }
+  },
+  "os": "Windows",
+  "particles_peak": {
+    "cpu": 10,
+    "cpu_amount": 247,
+    "cpu_emitting": 8,
+    "gpu": 91,
+    "gpu_amount": 1030,
+    "gpu_emitting": 20,
+    "lights": 42
+  },
+  "quality": "high",
+  "render_scale": 1.0,
+  "renderer": "forward_plus",
+  "start_match_ms": 279.3,
+  "tag": "desktop-high",
+  "total_to_live_ms": 279.3,
+  "window": [
+    1440,
+    734
+  ]
+}

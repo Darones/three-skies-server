@@ -1,0 +1,60 @@
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:3 - ext_resource, invalid UID: uid://cmpof68vvmhk2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/script/VFXImpactBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:4 - ext_resource, invalid UID: uid://ddaykxb1ucbsl - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/glow.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:5 - ext_resource, invalid UID: uid://dkenjalb0a7f6 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/streaks.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:6 - ext_resource, invalid UID: uid://bwmucxp58uvvt - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/shared/script/VFXOmniLightBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:7 - ext_resource, invalid UID: uid://n0hv5j1ofiye - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/flare.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:8 - ext_resource, invalid UID: uid://bndvdknhjeps4 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/four_point_star.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn:3 - ext_resource, invalid UID: uid://ddaykxb1ucbsl - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/glow.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn:4 - ext_resource, invalid UID: uid://cmpof68vvmhk2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/script/VFXImpactBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn:5 - ext_resource, invalid UID: uid://dkenjalb0a7f6 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/streaks.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn:6 - ext_resource, invalid UID: uid://bwmucxp58uvvt - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/shared/script/VFXOmniLightBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn:7 - ext_resource, invalid UID: uid://bndvdknhjeps4 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/four_point_star.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_01.tscn:3 - ext_resource, invalid UID: uid://cmpof68vvmhk2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/script/VFXImpactBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_01.tscn:4 - ext_resource, invalid UID: uid://8mnb5nsi3n2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_sphere.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_01.tscn:5 - ext_resource, invalid UID: uid://c3vn75lshe3xo - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_slash.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_01.tscn:6 - ext_resource, invalid UID: uid://bssccbrmdo0rm - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_core.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_01.tscn:7 - ext_resource, invalid UID: uid://ddaykxb1ucbsl - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/glow.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_01.tscn:8 - ext_resource, invalid UID: uid://bwmucxp58uvvt - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/shared/script/VFXOmniLightBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_01.tscn:9 - ext_resource, invalid UID: uid://n0hv5j1ofiye - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/flare.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn:3 - ext_resource, invalid UID: uid://cmpof68vvmhk2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/script/VFXImpactBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn:4 - ext_resource, invalid UID: uid://8mnb5nsi3n2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_sphere.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn:5 - ext_resource, invalid UID: uid://c3vn75lshe3xo - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_slash.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn:6 - ext_resource, invalid UID: uid://bssccbrmdo0rm - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_core.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn:7 - ext_resource, invalid UID: uid://ddaykxb1ucbsl - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/glow.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn:8 - ext_resource, invalid UID: uid://bwmucxp58uvvt - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/shared/script/VFXOmniLightBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn:3 - ext_resource, invalid UID: uid://cmpof68vvmhk2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/script/VFXImpactBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn:4 - ext_resource, invalid UID: uid://8mnb5nsi3n2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_sphere.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn:5 - ext_resource, invalid UID: uid://c3vn75lshe3xo - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_slash.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn:6 - ext_resource, invalid UID: uid://bssccbrmdo0rm - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_core.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn:7 - ext_resource, invalid UID: uid://ddaykxb1ucbsl - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/glow.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn:8 - ext_resource, invalid UID: uid://bwmucxp58uvvt - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/shared/script/VFXOmniLightBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)

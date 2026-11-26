@@ -61,6 +61,33 @@ def set_method(text: str, method: str) -> str:
     return "".join(out)
 
 
+PACK_CACHE_BYPASS = "cache: 'no-store'"
+PACK_CACHE_REVALIDATE = "cache: 'no-cache'"
+
+
+def verify_pack_cache() -> None:
+    """Fail the export if the PCK loader bypasses the HTTP cache again.
+
+    The pack keeps the name index.pck across deploys, so `cache: 'no-store'`
+    made every launch download all ~49 MB again. `cache: 'no-cache'` lets the
+    browser revalidate each range: the server sends a strong ETag per file and
+    answers 304 while the pack is unchanged (no body), 200/206 after a
+    redeploy. See patch_chunk_loader.py and staticGameHandlerWithFallback.
+    """
+    for path in (OUT_DIR / "index.html", SERVER_WEB / "index.html"):
+        if not path.exists():
+            continue
+        html = path.read_text(encoding="utf-8")
+        if PACK_CACHE_BYPASS in html:
+            raise SystemExit(
+                f"{path}: PCK loader still bypasses the cache ({PACK_CACHE_BYPASS})"
+            )
+        if PACK_CACHE_REVALIDATE in html:
+            print("PACK_CACHE revalidate", path.relative_to(ROOT))
+        else:
+            print("PACK_CACHE skipped", path.relative_to(ROOT))
+
+
 def bust_pck() -> None:
     pck = OUT_DIR / "index.pck"
     if not pck.exists():
@@ -288,6 +315,7 @@ def prepare_server_web(pack: Path) -> None:
     html = html.replace(pack.name, "index.pck")
     (SERVER_WEB / "index.html").write_text(html, encoding="utf-8", newline="")
     patch_chunk_loader(SERVER_WEB / "index.html")
+    verify_pack_cache()
     print(f"SERVER_WEB {SERVER_WEB} files={len(list(SERVER_WEB.iterdir()))} bytes={total}")
     print(f"PCK {pack.name} -> index.pck")
 

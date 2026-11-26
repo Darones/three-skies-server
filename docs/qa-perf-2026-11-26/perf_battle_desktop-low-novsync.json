@@ -1,0 +1,120 @@
+{
+  "canvas": [
+    1440,
+    734
+  ],
+  "frames": {
+    "after_10s": {
+      "avg_ms": 3.38,
+      "fps_avg": 295.7,
+      "frames": 3549,
+      "max_ms": 36.1,
+      "p50_ms": 2.61,
+      "p95_ms": 6.73,
+      "p99_ms": 7.74,
+      "spikes_33": 1,
+      "spikes_50": 0
+    },
+    "all": {
+      "avg_ms": 3.2,
+      "fps_avg": 312.4,
+      "frames": 6874,
+      "max_ms": 47.37,
+      "p50_ms": 2.52,
+      "p95_ms": 6.42,
+      "p99_ms": 7.42,
+      "spikes_33": 2,
+      "spikes_50": 0
+    },
+    "first_10s": {
+      "avg_ms": 3.01,
+      "fps_avg": 332.5,
+      "frames": 3325,
+      "max_ms": 47.37,
+      "p50_ms": 2.35,
+      "p95_ms": 5.84,
+      "p99_ms": 6.85,
+      "spikes_33": 1,
+      "spikes_50": 0
+    },
+    "first_3s": {
+      "avg_ms": 2.82,
+      "fps_avg": 354.8,
+      "frames": 1064,
+      "max_ms": 25.12,
+      "p50_ms": 2.04,
+      "p95_ms": 5.76,
+      "p99_ms": 6.43,
+      "spikes_33": 0,
+      "spikes_50": 0
+    }
+  },
+  "hitch_count": 0,
+  "hitches": [],
+  "instantiate_ms": 843.7,
+  "load_ms": 2229.7,
+  "mobile": false,
+  "monitors": {
+    "draws": {
+      "avg": 118.8,
+      "max": 146.0
+    },
+    "nodes": {
+      "avg": 1436.99,
+      "max": 1558.0
+    },
+    "objects": {
+      "avg": 5282.46,
+      "max": 5458.0
+    },
+    "objects_drawn": {
+      "avg": 401.86,
+      "max": 616.0
+    },
+    "physics_ms": {
+      "avg": 5.0,
+      "max": 44.39
+    },
+    "primitives": {
+      "avg": 214853.5,
+      "max": 1472742.0
+    },
+    "process_ms": {
+      "avg": 52.98,
+      "max": 3025.69
+    },
+    "resources": {
+      "avg": 1012.27,
+      "max": 1013.0
+    },
+    "static_mb": {
+      "avg": 126.68,
+      "max": 131.31
+    },
+    "video_mb": {
+      "avg": 373.15,
+      "max": 375.33
+    }
+  },
+  "novsync": true,
+  "os": "Windows",
+  "particles_peak": {
+    "cpu": 10,
+    "cpu_amount": 247,
+    "cpu_emitting": 9,
+    "gpu": 105,
+    "gpu_amount": 1153,
+    "gpu_emitting": 19,
+    "lights": 42
+  },
+  "quality": "low",
+  "render_scale": 0.5,
+  "renderer": "forward_plus",
+  "start_match_ms": 279.3,
+  "tag": "desktop-low-novsync",
+  "total_to_live_ms": 279.3,
+  "window": [
+    1440,
+    734
+  ]
+}

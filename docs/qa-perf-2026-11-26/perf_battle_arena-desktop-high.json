@@ -1,0 +1,110 @@
+{
+  "canvas": [
+    1440,
+    734
+  ],
+  "frames": {
+    "after_10s": {},
+    "all": {
+      "avg_ms": 16.55,
+      "fps_avg": 60.4,
+      "frames": 302,
+      "max_ms": 25.22,
+      "p50_ms": 16.63,
+      "p95_ms": 18.53,
+      "p99_ms": 20.6,
+      "spikes_33": 0,
+      "spikes_50": 0
+    },
+    "first_10s": {
+      "avg_ms": 16.55,
+      "fps_avg": 60.4,
+      "frames": 302,
+      "max_ms": 25.22,
+      "p50_ms": 16.63,
+      "p95_ms": 18.53,
+      "p99_ms": 20.6,
+      "spikes_33": 0,
+      "spikes_50": 0
+    },
+    "first_3s": {
+      "avg_ms": 16.46,
+      "fps_avg": 60.8,
+      "frames": 182,
+      "max_ms": 25.22,
+      "p50_ms": 16.61,
+      "p95_ms": 18.47,
+      "p99_ms": 23.05,
+      "spikes_33": 0,
+      "spikes_50": 0
+    }
+  },
+  "hitch_count": 0,
+  "hitches": [],
+  "instantiate_ms": 916.6,
+  "load_ms": 2133.7,
+  "mobile": false,
+  "monitors": {
+    "draws": {
+      "avg": 164.35,
+      "max": 167.0
+    },
+    "nodes": {
+      "avg": 1310.08,
+      "max": 1313.0
+    },
+    "objects": {
+      "avg": 5108.17,
+      "max": 5112.0
+    },
+    "objects_drawn": {
+      "avg": 454.18,
+      "max": 651.0
+    },
+    "physics_ms": {
+      "avg": 1.7,
+      "max": 2.36
+    },
+    "primitives": {
+      "avg": 69397.59,
+      "max": 71770.0
+    },
+    "process_ms": {
+      "avg": 329.8,
+      "max": 2902.19
+    },
+    "resources": {
+      "avg": 1012.0,
+      "max": 1012.0
+    },
+    "static_mb": {
+      "avg": 120.88,
+      "max": 121.2
+    },
+    "video_mb": {
+      "avg": 450.74,
+      "max": 450.85
+    }
+  },
+  "novsync": false,
+  "os": "Windows",
+  "particles_peak": {
+    "cpu": 10,
+    "cpu_amount": 247,
+    "cpu_emitting": 0,
+    "gpu": 6,
+    "gpu_amount": 120,
+    "gpu_emitting": 6,
+    "lights": 21
+  },
+  "quality": "high",
+  "render_scale": 1.0,
+  "renderer": "forward_plus",
+  "start_match_ms": 264.2,
+  "tag": "arena-desktop-high",
+  "total_to_live_ms": 264.2,
+  "window": [
+    1440,
+    734
+  ]
+}

@@ -4,7 +4,10 @@ extends Node
 ## small muted hint (no reason, no [object Object], no big banner), repeats no
 ## more than once per 30 s, and a completed ad still doubles the rewards.
 
+const PROFILE_PATHS := ["user://meta_save.cfg", "user://stats.cfg", "user://loadout.cfg"]
+
 var failures := 0
+var _profile_backup: Dictionary = {}
 
 
 func _ready() -> void:
@@ -21,6 +24,7 @@ func _ready() -> void:
 	DisplayServer.window_set_size(target)
 	for i in 3:
 		await get_tree().process_frame
+	_snapshot_profile()
 
 	var original_adapter: Variant = Platform.adapter
 	var original_id := Platform.platform_id
@@ -82,7 +86,28 @@ func _ready() -> void:
 	Platform.adapter = original_adapter
 	Platform.platform_id = original_id
 	print("RESULTS_AD_FAILURES=%d" % failures)
+	_restore_profile()
 	get_tree().quit(1 if failures > 0 else 0)
+
+
+## The x2 case really grants shards/XP, so put the player's save files back.
+func _snapshot_profile() -> void:
+	_profile_backup.clear()
+	for path in PROFILE_PATHS:
+		if FileAccess.file_exists(path):
+			_profile_backup[path] = FileAccess.get_file_as_bytes(path)
+
+
+func _restore_profile() -> void:
+	for path in PROFILE_PATHS:
+		if not _profile_backup.has(path):
+			if FileAccess.file_exists(path):
+				DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+			continue
+		var file := FileAccess.open(path, FileAccess.WRITE)
+		if file != null:
+			file.store_buffer(_profile_backup[path])
+			file.close()
 
 
 func _check(condition: bool, label: String) -> void:

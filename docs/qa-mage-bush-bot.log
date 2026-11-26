@@ -1,0 +1,22 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[Platform] id=standalone adapter=Standalone
+[NET] REST URL: https://three-skies-server.relaxdev.ru
+[NET] WebSocket URL: wss://three-skies-server.relaxdev.ru/ws
+[MCPRuntimeServer] port: scanning 6570-6585 (default)
+[MCPRuntimeServer] listening on 127.0.0.1:6570
+[MCPRegistry] runtime port 6570 registered for c:/mygames3d/three-skies
+PROBE: match started, heroes=6
+[AFK] Игрок неактивен 60 секунд — управление передано ИИ.
+=== BOT REPORT ===
+state=live score=[0, 0] time_left=479
+score_events=[]
+Игрок 6414       travelled=215.1 m  stuck_now= 0.0 s  deaths=1
+Искра            travelled=462.0 m  stuck_now= 0.0 s  deaths=3
+Холодный Рассвет travelled=372.1 m  stuck_now= 0.0 s  deaths=3
+Ветер Перемен    travelled=368.2 m  stuck_now= 0.0 s  deaths=2
+Звёздный След    travelled=479.6 m  stuck_now= 0.0 s  deaths=2
+Огненный Лис     travelled=352.5 m  stuck_now= 0.0 s  deaths=1
+STUCK_EVENTS=1
+  stuck Игрок 6414 19.5s at (-1.02, 0.130839, 25.78099)
+=== END ===

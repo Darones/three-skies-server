@@ -1,0 +1,120 @@
+{
+  "canvas": [
+    1168,
+    540
+  ],
+  "frames": {
+    "after_10s": {
+      "avg_ms": 3.38,
+      "fps_avg": 295.7,
+      "frames": 3549,
+      "max_ms": 23.91,
+      "p50_ms": 2.61,
+      "p95_ms": 6.59,
+      "p99_ms": 8.49,
+      "spikes_33": 0,
+      "spikes_50": 0
+    },
+    "all": {
+      "avg_ms": 3.21,
+      "fps_avg": 311.7,
+      "frames": 6858,
+      "max_ms": 23.91,
+      "p50_ms": 2.47,
+      "p95_ms": 6.37,
+      "p99_ms": 8.04,
+      "spikes_33": 0,
+      "spikes_50": 0
+    },
+    "first_10s": {
+      "avg_ms": 3.02,
+      "fps_avg": 330.9,
+      "frames": 3309,
+      "max_ms": 9.98,
+      "p50_ms": 2.29,
+      "p95_ms": 5.93,
+      "p99_ms": 7.17,
+      "spikes_33": 0,
+      "spikes_50": 0
+    },
+    "first_3s": {
+      "avg_ms": 2.91,
+      "fps_avg": 343.1,
+      "frames": 1029,
+      "max_ms": 9.84,
+      "p50_ms": 2.14,
+      "p95_ms": 5.75,
+      "p99_ms": 7.78,
+      "spikes_33": 0,
+      "spikes_50": 0
+    }
+  },
+  "hitch_count": 0,
+  "hitches": [],
+  "instantiate_ms": 849.4,
+  "load_ms": 2211.6,
+  "mobile": true,
+  "monitors": {
+    "draws": {
+      "avg": 103.43,
+      "max": 134.0
+    },
+    "nodes": {
+      "avg": 1380.26,
+      "max": 1474.0
+    },
+    "objects": {
+      "avg": 5154.53,
+      "max": 5297.0
+    },
+    "objects_drawn": {
+      "avg": 367.78,
+      "max": 778.0
+    },
+    "physics_ms": {
+      "avg": 2.0,
+      "max": 3.82
+    },
+    "primitives": {
+      "avg": 49673.6,
+      "max": 154650.0
+    },
+    "process_ms": {
+      "avg": 14.17,
+      "max": 101.5
+    },
+    "resources": {
+      "avg": 1012.31,
+      "max": 1013.0
+    },
+    "static_mb": {
+      "avg": 125.43,
+      "max": 129.67
+    },
+    "video_mb": {
+      "avg": 364.78,
+      "max": 366.16
+    }
+  },
+  "novsync": true,
+  "os": "Windows",
+  "particles_peak": {
+    "cpu": 10,
+    "cpu_amount": 247,
+    "cpu_emitting": 10,
+    "gpu": 75,
+    "gpu_amount": 446,
+    "gpu_emitting": 15,
+    "lights": 11
+  },
+  "quality": "low",
+  "render_scale": 0.5,
+  "renderer": "forward_plus",
+  "start_match_ms": 532.1,
+  "tag": "mobile-low-novsync",
+  "total_to_live_ms": 532.1,
+  "window": [
+    844,
+    390
+  ]
+}

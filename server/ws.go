@@ -40,7 +40,7 @@ const (
 
 var classNames = []string{"warrior", "mage", "fairy"}
 var classBaseHP = []float64{1050.0, 1000.0, 950.0}
-var classBaseDamage = []float64{44.0, 26.0, 60.0}
+var classBaseDamage = []float64{44.0, 39.0, 60.0}
 var classAttackRange = []float64{3.5, 9.0, 11.0}
 
 // Bot difficulty profiles mirror HeroUnit.BOT_PROFILES on the client. The
@@ -2996,7 +2996,12 @@ func calculateDamageFor(attackDamage float64, class int, skill string) float64 {
 	case "root":
 		multiplier = 0.8
 	case "ult_lightning_storm":
-		multiplier = 0.4
+		// The storm ticks at MAGE_STORM_DAMAGE (100) x 0.75-1.25 x 2 outgoing
+		// on the client, i.e. 150-250 per tick (300-500 on an ultimate crit).
+		// A 0.4 multiplier here computed 10.4 and the 2.6x cap clamped every
+		// network tick to ~54. 2.0 makes the server base 78 and the cap ~406,
+		// so a normal tick arrives in full and only the strongest crits clip.
+		multiplier = 2.0
 	}
 	damage := math.Round(base*multiplier*100) / 100
 	if damage < 1 {

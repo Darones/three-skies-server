@@ -15,6 +15,9 @@ const DIRECT_DAMAGE_MIN_MULTIPLIER := 0.75
 const DIRECT_DAMAGE_MAX_MULTIPLIER := 1.25
 const CRITICAL_CHANCE := 0.05
 const CRITICAL_DAMAGE_MULTIPLIER := 2.0
+# The storm ultimate rolls its own crit: one tick in ten hits for double.
+# Auto attacks keep the 5% CRITICAL_CHANCE above.
+const ULTIMATE_CRIT_CHANCE := 0.10
 const HEALTH_BAR_FILL_WIDTH := 1.7
 const GROUND_Y_OFFSET := -0.7
 const HEALTH_REGEN_PER_SECOND := 10.0
@@ -27,7 +30,9 @@ const BASE_SHIELD_RADIUS := 4.9
 const BASE_RESPAWN_PLAYER_CLEARANCE := 2.6
 const BASE_RESPAWN_RADIUS := 4.4
 const BUSH_REVEAL_DURATION := 3.0
-const BUSH_PROXIMITY_REVEAL := 5.0
+# Only a body brushing the leaves reveals a hidden hero: an enemy 2 m away
+# (about one character width) sees through the bush, 2.1 m does not.
+const BUSH_PROXIMITY_REVEAL := 2.0
 const BOT_MOVE_ACCELERATION := 14.0
 const BOT_RETREAT_START_RATIO := 0.22
 const BOT_RETREAT_END_RATIO := 0.4
@@ -150,7 +155,7 @@ const CLASS_DATA := {
 		"hp": 1000.0,
 		"speed": 5.9,
 		"range": 9.0,
-		"damage": 26.0,
+		"damage": 39.0,
 		"interval": 1.0,
 		"ranged": true,
 		"color": Color(0.6, 0.95, 1.0),
@@ -269,10 +274,16 @@ var crit_buff_multiplier := 2.0
 var crit_buff_ring: MeshInstance3D = null
 var crit_cast_timer := 0.0
 var crit_cast_target: Node3D = null
+# Prebuilt once per weapon: the tinted materials, the spark burst and the
+# channel light are reused for every cast. Duplicating materials and building
+# particles at cast time compiled shaders and cost 20-400 ms on the first
+# casts (hundreds of ms on the Compatibility renderer).
 var crit_cast_material_restores: Array = []
 var crit_cast_particle_restores: Array = []
 var crit_cast_particles: CPUParticles3D = null
 var crit_cast_light: OmniLight3D = null
+var crit_cast_visuals_ready := false
+var crit_cast_visuals_warmed := false
 var blessing_timer := 0.0
 var blessing_ring: Node3D = null
 var blessing_rune: MeshInstance3D = null
@@ -325,6 +336,9 @@ var in_bush := false
 var name_label_timer := 0.0
 var bush_reveal_timer := 0.0
 var bush_visual_hidden := false
+# Set by roll_ultimate_damage: the caller (game.mage_storm_tick) forwards it
+# to take_damage so the crit number and the network intent agree.
+var last_ultimate_crit := false
 var in_shop_zone := false
 var shop_manual_dismissed := false
 
@@ -1257,6 +1271,12 @@ func _clear_external_weapon() -> void:
 	weapon_anim_player = null
 	weapon_roll = 0.0
 	weapon_lean = 0.0
+	# The crit cast visuals live on the weapon, so a new weapon needs new ones.
+	crit_cast_visuals_ready = false
+	crit_cast_material_restores.clear()
+	crit_cast_particle_restores.clear()
+	crit_cast_particles = null
+	crit_cast_light = null
 
 
 func _find_skeleton_node(node: Node) -> Skeleton3D:
@@ -1460,14 +1480,20 @@ func _weapon_spark_fade() -> Gradient:
 	return gradient
 
 
+static var _weapon_glow_tex: Texture2D = null
+
+
 func _weapon_glow_texture() -> Texture2D:
+	if _weapon_glow_tex != null:
+		return _weapon_glow_tex
 	var image := Image.create(32, 32, false, Image.FORMAT_RGBA8)
 	for y in 32:
 		for x in 32:
 			var uv := Vector2(float(x), float(y)) / 31.0 * 2.0 - Vector2.ONE
 			var alpha := pow(maxf(1.0 - uv.length_squared(), 0.0), 2.0)
 			image.set_pixel(x, y, Color(1.0, 1.0, 1.0, alpha))
-	return ImageTexture.create_from_image(image)
+	_weapon_glow_tex = ImageTexture.create_from_image(image)
+	return _weapon_glow_tex
 
 
 func _disable_weapon_collisions(node: Node) -> void:
@@ -2664,9 +2690,9 @@ func _update_name_visibility() -> void:
 	if game.player != null and is_instance_valid(game.player):
 		player_team = int(game.player.team)
 	if team == player_team:
-		# Everyone's nickname is part of the online experience; keep all
-		# ally nameplates visible and compact.
-		var show_ally_name := true
+		# Ник союзника тоже прячется в кустах, как точка на миникарте:
+		# свой ник игрока виден всегда (ветка is_player выше).
+		var show_ally_name := not _is_bush_stealthed()
 		name_label.visible = show_ally_name
 		if name_plate != null:
 			name_plate.visible = show_ally_name
@@ -3286,8 +3312,29 @@ func _aim_crit_cast(delta: float) -> void:
 
 func _begin_crit_cast_visuals() -> void:
 	_stop_crit_cast_visuals()
-	if weapon_instance == null or not is_instance_valid(weapon_instance):
+	if not _prepare_crit_cast_visuals():
 		return
+	# The bow's own sparkle pauses for the channel: the red crit sparks
+	# replace it, and both would otherwise double the particle load.
+	crit_cast_particle_restores.clear()
+	for child in weapon_instance.find_children("*", "CPUParticles3D", true, false):
+		var existing := child as CPUParticles3D
+		if existing == null or existing == crit_cast_particles:
+			continue
+		crit_cast_particle_restores.append({"node": existing, "emitting": existing.emitting})
+		existing.emitting = false
+	_set_crit_cast_visuals_active(true)
+
+
+func _prepare_crit_cast_visuals() -> bool:
+	# Builds the tinted materials and the spark/light nodes once. The tinted
+	# copies live for the whole weapon lifetime, so a cast only swaps them in.
+	if weapon_instance == null or not is_instance_valid(weapon_instance):
+		return false
+	if crit_cast_visuals_ready and is_instance_valid(crit_cast_particles):
+		return true
+	crit_cast_visuals_ready = false
+	crit_cast_material_restores.clear()
 	for child in weapon_instance.find_children("*", "MeshInstance3D", true, false):
 		var mesh_node := child as MeshInstance3D
 		if mesh_node == null or mesh_node.mesh == null:
@@ -3295,23 +3342,32 @@ func _begin_crit_cast_visuals() -> void:
 		if mesh_node.material_override is StandardMaterial3D:
 			var original := mesh_node.material_override as StandardMaterial3D
 			var override_tint := original.duplicate() as StandardMaterial3D
+			if override_tint == null:
+				continue
 			_apply_crit_cast_material(override_tint)
-			mesh_node.material_override = override_tint
-			crit_cast_material_restores.append({"node": mesh_node, "surface": -1, "original": original})
+			crit_cast_material_restores.append({
+				"node": mesh_node,
+				"surface": -1,
+				"original": original,
+				"tinted": override_tint,
+			})
 			continue
 		for surface in range(mesh_node.mesh.get_surface_count()):
 			var active := mesh_node.get_active_material(surface)
 			if active is StandardMaterial3D:
 				var tinted := (active as StandardMaterial3D).duplicate() as StandardMaterial3D
+				if tinted == null:
+					continue
 				_apply_crit_cast_material(tinted)
-				mesh_node.set_surface_override_material(surface, tinted)
-				crit_cast_material_restores.append({"node": mesh_node, "surface": surface, "original": null})
-	for child in weapon_instance.find_children("*", "CPUParticles3D", true, false):
-		var existing := child as CPUParticles3D
-		if existing == null:
-			continue
-		crit_cast_particle_restores.append({"node": existing, "emitting": existing.emitting})
-		existing.emitting = false
+				crit_cast_material_restores.append({
+					"node": mesh_node,
+					"surface": surface,
+					# Keep the surface override the model already had: the
+					# legendary bow ships its own shader per surface and the
+					# old restore wiped it after the first cast.
+					"original": mesh_node.get_surface_override_material(surface),
+					"tinted": tinted,
+				})
 	_build_crit_cast_particles()
 	crit_cast_light = null
 	if not DeviceProfile.mobile_ui:
@@ -3322,8 +3378,11 @@ func _begin_crit_cast_visuals() -> void:
 		light.light_energy = 1.7
 		light.omni_range = 3.2
 		light.shadow_enabled = false
+		light.visible = false
 		weapon_instance.add_child(light)
 		crit_cast_light = light
+	crit_cast_visuals_ready = true
+	return true
 
 
 func _apply_crit_cast_material(material: StandardMaterial3D) -> void:
@@ -3333,6 +3392,8 @@ func _apply_crit_cast_material(material: StandardMaterial3D) -> void:
 
 
 func _build_crit_cast_particles() -> void:
+	if crit_cast_particles != null and is_instance_valid(crit_cast_particles):
+		return
 	var particles := CPUParticles3D.new()
 	particles.name = "CritCastSparks"
 	particles.position = Vector3(0.0, 0.0, 0.38)
@@ -3371,23 +3432,37 @@ func _build_crit_cast_particles() -> void:
 	material.vertex_color_use_as_albedo = true
 	material.disable_receive_shadows = true
 	particles.material_override = material
-	particles.emitting = true
+	particles.emitting = false
+	particles.visible = false
 	weapon_instance.add_child(particles)
 	crit_cast_particles = particles
 
 
-func _update_crit_cast_visuals() -> void:
-	var energy := 2.0 + sin(float(Time.get_ticks_msec()) * 0.02) * 0.8
+func _set_crit_cast_visuals_active(active: bool) -> void:
 	for entry in crit_cast_material_restores:
 		var mesh_node := entry["node"] as MeshInstance3D
 		if mesh_node == null or not is_instance_valid(mesh_node):
 			continue
 		var surface := int(entry["surface"])
-		var material: StandardMaterial3D = null
 		if surface < 0:
-			material = mesh_node.material_override as StandardMaterial3D
+			mesh_node.material_override = entry["tinted"] if active else entry["original"]
 		else:
-			material = mesh_node.get_surface_override_material(surface) as StandardMaterial3D
+			mesh_node.set_surface_override_material(surface, entry["tinted"] if active else entry["original"])
+	if crit_cast_particles != null and is_instance_valid(crit_cast_particles):
+		crit_cast_particles.visible = active
+		if active:
+			crit_cast_particles.restart()
+			crit_cast_particles.emitting = true
+		else:
+			crit_cast_particles.emitting = false
+	if crit_cast_light != null and is_instance_valid(crit_cast_light):
+		crit_cast_light.visible = active
+
+
+func _update_crit_cast_visuals() -> void:
+	var energy := 2.0 + sin(float(Time.get_ticks_msec()) * 0.02) * 0.8
+	for entry in crit_cast_material_restores:
+		var material := entry["tinted"] as StandardMaterial3D
 		if material != null:
 			material.emission_energy_multiplier = energy
 	if crit_cast_light != null and is_instance_valid(crit_cast_light):
@@ -3395,27 +3470,31 @@ func _update_crit_cast_visuals() -> void:
 
 
 func _stop_crit_cast_visuals() -> void:
-	for entry in crit_cast_material_restores:
-		var mesh_node := entry["node"] as MeshInstance3D
-		if mesh_node == null or not is_instance_valid(mesh_node):
-			continue
-		var surface := int(entry["surface"])
-		if surface < 0:
-			mesh_node.material_override = entry["original"]
-		else:
-			mesh_node.set_surface_override_material(surface, null)
-	crit_cast_material_restores.clear()
+	_set_crit_cast_visuals_active(false)
 	for entry in crit_cast_particle_restores:
 		var existing := entry["node"] as CPUParticles3D
 		if existing != null and is_instance_valid(existing):
 			existing.emitting = bool(entry["emitting"])
 	crit_cast_particle_restores.clear()
-	if crit_cast_particles != null and is_instance_valid(crit_cast_particles):
-		crit_cast_particles.queue_free()
-		crit_cast_particles = null
-	if crit_cast_light != null and is_instance_valid(crit_cast_light):
-		crit_cast_light.queue_free()
-		crit_cast_light = null
+
+
+func warm_crit_cast_visuals() -> void:
+	# Draw the tinted bow and the additive sparks once while the class-select
+	# panel still covers the arena. Without this the first Huntress crit cast
+	# compiles those pipelines mid-fight: ~20-60 ms on Forward+, 300-400 ms on
+	# the Compatibility renderer used by the web build.
+	if crit_cast_visuals_warmed or not is_player:
+		return
+	if weapon_instance == null or not is_instance_valid(weapon_instance):
+		return
+	if not _prepare_crit_cast_visuals():
+		return
+	_begin_crit_cast_visuals()
+	_update_crit_cast_visuals()
+	for _frame in 2:
+		await get_tree().process_frame
+	_stop_crit_cast_visuals()
+	crit_cast_visuals_warmed = true
 
 
 func _release_crit_shot() -> void:
@@ -3461,7 +3540,13 @@ func roll_direct_damage(amount: float, guaranteed_crit_multiplier: float = 1.0) 
 
 
 func roll_ultimate_damage(amount: float) -> float:
-	return maxf(amount, 0.0) * randf_range(DIRECT_DAMAGE_MIN_MULTIPLIER, DIRECT_DAMAGE_MAX_MULTIPLIER)
+	# Used by the mage storm only. 10% crit on top of the usual 0.75-1.25
+	# spread; last_ultimate_crit tells the caller to pass is_crit on.
+	var rolled := maxf(amount, 0.0) * randf_range(DIRECT_DAMAGE_MIN_MULTIPLIER, DIRECT_DAMAGE_MAX_MULTIPLIER)
+	last_ultimate_crit = randf() < ULTIMATE_CRIT_CHANCE
+	if last_ultimate_crit:
+		rolled *= CRITICAL_DAMAGE_MULTIPLIER
+	return rolled
 
 
 func _outgoing_damage(amount: float) -> float:

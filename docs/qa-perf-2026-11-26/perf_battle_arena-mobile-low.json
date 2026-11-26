@@ -1,0 +1,110 @@
+{
+  "canvas": [
+    1168,
+    540
+  ],
+  "frames": {
+    "after_10s": {},
+    "all": {
+      "avg_ms": 16.63,
+      "fps_avg": 60.1,
+      "frames": 300,
+      "max_ms": 20.93,
+      "p50_ms": 16.38,
+      "p95_ms": 18.73,
+      "p99_ms": 20.88,
+      "spikes_33": 0,
+      "spikes_50": 0
+    },
+    "first_10s": {
+      "avg_ms": 16.63,
+      "fps_avg": 60.1,
+      "frames": 300,
+      "max_ms": 20.93,
+      "p50_ms": 16.38,
+      "p95_ms": 18.73,
+      "p99_ms": 20.88,
+      "spikes_33": 0,
+      "spikes_50": 0
+    },
+    "first_3s": {
+      "avg_ms": 16.59,
+      "fps_avg": 60.3,
+      "frames": 180,
+      "max_ms": 20.93,
+      "p50_ms": 16.38,
+      "p95_ms": 20.21,
+      "p99_ms": 20.91,
+      "spikes_33": 0,
+      "spikes_50": 0
+    }
+  },
+  "hitch_count": 0,
+  "hitches": [],
+  "instantiate_ms": 970.7,
+  "load_ms": 2277.9,
+  "mobile": true,
+  "monitors": {
+    "draws": {
+      "avg": 109.0,
+      "max": 113.0
+    },
+    "nodes": {
+      "avg": 1284.0,
+      "max": 1286.0
+    },
+    "objects": {
+      "avg": 5019.25,
+      "max": 5021.0
+    },
+    "objects_drawn": {
+      "avg": 374.97,
+      "max": 782.0
+    },
+    "physics_ms": {
+      "avg": 1.43,
+      "max": 1.62
+    },
+    "primitives": {
+      "avg": 36245.46,
+      "max": 38282.0
+    },
+    "process_ms": {
+      "avg": 29.54,
+      "max": 95.46
+    },
+    "resources": {
+      "avg": 1012.0,
+      "max": 1012.0
+    },
+    "static_mb": {
+      "avg": 121.36,
+      "max": 121.42
+    },
+    "video_mb": {
+      "avg": 363.38,
+      "max": 364.1
+    }
+  },
+  "novsync": false,
+  "os": "Windows",
+  "particles_peak": {
+    "cpu": 10,
+    "cpu_amount": 247,
+    "cpu_emitting": 0,
+    "gpu": 6,
+    "gpu_amount": 120,
+    "gpu_emitting": 6,
+    "lights": 11
+  },
+  "quality": "low",
+  "render_scale": 0.5,
+  "renderer": "forward_plus",
+  "start_match_ms": 706.4,
+  "tag": "arena-mobile-low",
+  "total_to_live_ms": 706.4,
+  "window": [
+    844,
+    390
+  ]
+}

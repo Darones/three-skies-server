@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"math"
 	"testing"
 	"time"
 )
@@ -802,6 +803,49 @@ func TestAoESkillAllowsMultipleTargetsInOneCast(t *testing.T) {
 	}
 	if auto.cooldownReady("auto") {
 		t.Fatal("auto attack spam was accepted")
+	}
+}
+
+func TestMageStormDamageMatchesClientFormula(t *testing.T) {
+	// client CLASS_DATA Mage damage (39) and the storm tick contract:
+	// 100 x 0.75-1.25 x 2 outgoing = 150-250 per tick; an ultimate crit
+	// (10%) doubles it to 300-500.
+	if classBaseDamage[1] != 39.0 {
+		t.Fatalf("mage base damage must be 39 (+50%% of 26), got %v", classBaseDamage[1])
+	}
+	base := calculateDamageFor(0, 1, "ult_lightning_storm")
+	if base != 78.0 {
+		t.Fatalf("mage ult server base = %v, want 78 (39 x 2.0)", base)
+	}
+	cap := base * 2.0 * 2.6
+	if cap < 250.0 {
+		t.Fatalf("storm cap %.1f is below the client's largest normal tick (250)", cap)
+	}
+	if cap < 300.0 {
+		t.Fatalf("storm cap %.1f is below the client's lowest ultimate crit (300)", cap)
+	}
+
+	hub := newWebSocketHub(nil)
+	first := newTestClient(1, 0, 0, 0)
+	second := newTestClient(2, 1, 0, 3)
+	room := newTestRoom(first, second)
+	hub.rooms[room.id] = room
+	first.class = 1
+	first.maxHP, first.attackDamage = statsForClient(first)
+
+	// A normal tick arrives at full strength instead of being clamped to ~54.
+	before := second.hp
+	hub.handleAttackIntent(first, wsIncoming{TargetID: second.id, Skill: "ult_lightning_storm", Amount: 220})
+	if applied := before - second.hp; applied != 220.0 {
+		t.Fatalf("normal storm tick applied %v, want 220", applied)
+	}
+
+	// A crit tick above the cap is clamped to the cap, not to 54.
+	first.lastAttacks["ult_lightning_storm"] = time.Time{}
+	before = second.hp
+	hub.handleAttackIntent(first, wsIncoming{TargetID: second.id, Skill: "ult_lightning_storm", Amount: 500})
+	if applied := before - second.hp; math.Abs(applied-cap) > 0.01 {
+		t.Fatalf("crit storm tick applied %v, want the cap %v", applied, cap)
 	}
 }
 

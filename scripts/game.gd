@@ -154,6 +154,9 @@ var network_shutting_down := false
 var network_bots: Dictionary = {}
 var remote_players: Dictionary = {}
 var remote_root: Node3D = null
+# Arena/Bushes/BushZone_* Areas. HeroUnit uses their body_entered signal;
+# RemotePlayer has no body, so game.gd tests the synced position instead.
+var bush_zones: Array[Area3D] = []
 var shell_phase := "idle"
 var shell_cycle_timer := SHELL_SPAWN_INTERVAL
 var shell_timer := SHELL_SPAWN_INTERVAL
@@ -260,6 +263,7 @@ func _ready() -> void:
 		for bush_node in bushes_root.get_children():
 			if bush_node is Area3D:
 				var bush := bush_node as Area3D
+				bush_zones.append(bush)
 				bush.body_entered.connect(_on_bush_body_entered.bind(bush))
 				bush.body_exited.connect(_on_bush_body_exited.bind(bush))
 	battle_prewarmed = bool(get_tree().get_meta("battle_prewarmed", false))
@@ -1672,6 +1676,14 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 		# card is already on screen.
 		await _warm_combat_world()
 		await _warm_first_clash_vfx()
+	if player_class == HeroUnit.Cls.FAIRY and not tutorial_mode:
+		# The Huntress crit channel tints the equipped bow and spawns additive
+		# sparks. Those pipelines would compile on the player's first skill
+		# press (20-60 ms on Forward+, 300-400 ms on Compatibility), so draw
+		# them once now, while the class-select panel is still up.
+		var crit_warmer: Node = player
+		if crit_warmer != null and is_instance_valid(crit_warmer) and crit_warmer.has_method("warm_crit_cast_visuals"):
+			await crit_warmer.call("warm_crit_cast_visuals")
 	state = "live"
 	if network_play:
 		_setup_network_play()
@@ -1981,6 +1993,8 @@ func _process(delta: float) -> void:
 			if visibility_refresh_timer <= 0.0:
 				_update_enemy_visibility()
 				visibility_refresh_timer = VISIBILITY_REFRESH_INTERVAL
+			if not remote_players.is_empty():
+				_update_remote_bush_visibility()
 
 	_update_projectiles(delta)
 	if earthquake_timer > 0.0:
@@ -3146,6 +3160,47 @@ func _on_bush_body_exited(body: Node3D, bush: Area3D) -> void:
 		(body as HeroUnit).set_bush_presence(bush, false)
 
 
+func bush_zone_at(pos: Vector3) -> Area3D:
+	# XZ test against each StealthRange sphere. The vertical component is
+	# ignored on purpose: a hero at y=0.76 and a bush centre at y=1.5 are the
+	# same spot on the ground; only the arena footprint matters.
+	for zone in bush_zones:
+		if zone == null or not is_instance_valid(zone):
+			continue
+		var shape_node := zone.get_node_or_null("StealthRange") as CollisionShape3D
+		if shape_node != null and shape_node.shape is SphereShape3D:
+			var radius := (shape_node.shape as SphereShape3D).radius
+			var center := shape_node.global_position
+			var offset := Vector2(pos.x - center.x, pos.z - center.z)
+			if offset.length_squared() <= radius * radius:
+				return zone
+		else:
+			var flat := Vector2(pos.x - zone.global_position.x, pos.z - zone.global_position.z)
+			if flat.length_squared() <= 16.0:
+				return zone
+	return null
+
+
+func _update_remote_bush_visibility() -> void:
+	# Remote players (human guests and host bots on a guest) never enter the
+	# bush Areas: they are Node3D puppets without a body. Their synced position
+	# is tested every frame, then RemotePlayer hides the name, the HP bar and
+	# half-fades the model exactly like HeroUnit does.
+	if state != "live":
+		return
+	for remote in remote_players.values():
+		if remote == null or not is_instance_valid(remote):
+			continue
+		if bool(remote.get("dead")):
+			remote.call("set_bush_presence", null, false)
+			remote.call("set_bush_hidden", false)
+			continue
+		var remote_position := (remote as Node3D).global_position
+		var zone := bush_zone_at(remote_position)
+		remote.call("set_bush_presence", zone, zone != null)
+		remote.call("set_bush_hidden", bool(remote.call("is_bush_concealed")))
+
+
 func set_tutorial_target(world_position: Vector3, color: Color) -> void:
 	tutorial_target_position = world_position
 	tutorial_target_color = color
@@ -3468,7 +3523,8 @@ func mage_storm_tick(mage: HeroUnit, radius: float, damage: float) -> void:
 		_activate_shell_beam(enemy.global_position, Color(0.38, 0.82, 1.0, 0.95))
 		mage.spawn_ability_vfx(2, enemy.global_position + Vector3(0.0, 0.1, 0.0))
 		var rolled_damage := mage.roll_ultimate_damage(damage)
-		enemy.take_damage(mage._outgoing_damage(rolled_damage) * mage.get_blessing_damage_multiplier(), mage, "magic", "ult_lightning_storm")
+		var rolled_crit := mage.last_ultimate_crit
+		enemy.take_damage(mage._outgoing_damage(rolled_damage) * mage.get_blessing_damage_multiplier(), mage, "magic", "ult_lightning_storm", rolled_crit)
 	if mage.is_player:
 		for remote_enemy in network_enemies_in_radius(mage.global_position, radius, mage.team):
 			lightning_strike_fx(remote_enemy.global_position)
@@ -3476,12 +3532,15 @@ func mage_storm_tick(mage: HeroUnit, radius: float, damage: float) -> void:
 			_activate_shell_beam(remote_enemy.global_position, Color(0.38, 0.82, 1.0, 0.95))
 			mage.spawn_ability_vfx(2, remote_enemy.global_position + Vector3(0.0, 0.1, 0.0))
 			var network_damage := mage.roll_ultimate_damage(damage)
-			remote_enemy.take_damage(mage._outgoing_damage(network_damage) * mage.get_blessing_damage_multiplier(), mage, "magic", "ult_lightning_storm")
+			var network_crit := mage.last_ultimate_crit
+			remote_enemy.take_damage(mage._outgoing_damage(network_damage) * mage.get_blessing_damage_multiplier(), mage, "magic", "ult_lightning_storm", network_crit)
 	if shell != null and is_instance_valid(shell) and shell.alive:
 		if shell.global_position.distance_to(mage.global_position) <= radius:
 			lightning_strike_fx(shell.global_position)
 			_activate_shell_beam(shell.global_position, Color(0.38, 0.82, 1.0, 0.95))
-			shell.take_damage(mage.roll_ultimate_damage(damage) * mage.get_blessing_damage_multiplier() * 0.8, mage, "magic", "ult_lightning_storm")
+			var shell_damage := mage.roll_ultimate_damage(damage)
+			var shell_crit := mage.last_ultimate_crit
+			shell.take_damage(shell_damage * mage.get_blessing_damage_multiplier() * 0.8, mage, "magic", "ult_lightning_storm", shell_crit)
 			struck = true
 	if not struck:
 		var angle := randf() * TAU

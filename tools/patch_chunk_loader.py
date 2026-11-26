@@ -18,6 +18,11 @@ truncate or overrun the pack either.
 
 On failure a readable DOM overlay shows the exact reason and a retry button
 instead of only the engine's "Load failed" dialog.
+
+Ranges are fetched with cache: 'no-cache', not 'no-store'. The server sends a
+strong ETag for the pack, so re-launching an unchanged build revalidates each
+range to a bodyless 304 instead of downloading 49 MB again, while a redeployed
+pack gets a new ETag and is downloaded fresh.
 """
 
 import sys
@@ -103,10 +108,16 @@ SCRIPT = """
 					function fetchChunk(attempt) {
 						return fetch(mainPack, {
 							credentials: 'same-origin',
-							// A redeploy swaps index.pck in place. Without no-store
-							// the browser can merge a cached old PCK with fresh
-							// ranges ("Game data is incomplete").
-							cache: 'no-store',
+							// A redeploy swaps index.pck in place, so no stored
+							// range may be trusted blindly: no-cache makes the
+							// browser revalidate every chunk. The server answers
+							// 304 while the pack is unchanged (no body, the
+							// cached 49 MB stays on disk) and 200/206 with new
+							// bytes after a deploy, so an old pack can never be
+							// merged with fresh ranges ("Game data is
+							// incomplete"). no-store would re-download all of it
+							// on every launch.
+							cache: 'no-cache',
 							headers: { 'Range': 'bytes=' + start + '-' + end },
 						}).then(function (response) {
 							if (response.status === 200) {

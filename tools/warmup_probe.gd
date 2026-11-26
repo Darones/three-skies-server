@@ -250,10 +250,8 @@ func _run_overlay() -> void:
 	print("WARMUP_WINDOW=%dx%d CANVAS=%s" % [target_size.x, target_size.y, tag])
 
 	var play: Button = overlay.get("play_button")
-	var legal: Label = overlay.get("legal_label")
 	var keyart: TextureRect = overlay.get("_keyart")
 	var logo: TextureRect = overlay.get("welcome_logo")
-	var age: Label = overlay.get("age_label")
 	var box: VBoxContainer = overlay.get("warmup_box")
 	var bar: ProgressBar = overlay.get("warmup_bar")
 	var stage_label: Label = overlay.get("warmup_stage")
@@ -262,27 +260,21 @@ func _run_overlay() -> void:
 		" viewport=", viewport_rect.size, " overlay=", overlay.get_global_rect())
 	print("WARMUP_BAR rect=", bar.get_global_rect(), " value=", bar.value,
 		" stage=", stage_label.text, " elapsed=", elapsed_label.text)
-	print("WARMUP_LEGAL rect=", legal.get_global_rect())
 
 	_check(overlay.call("state_name") == "warming", "состояние WARMING")
-	_check(keyart.visible and logo.visible and age.visible,
-		"key art, логотип и 12+ видны в WARMING")
+	_check(keyart.visible and logo.visible, "key art и логотип видны в WARMING")
+	_check(overlay.find_child("WelcomeAgeRating", true, false) == null, "бейджа 12+ нет на карточке")
+	_check(overlay.find_child("WelcomeLegal", true, false) == null, "правовой строки нет на карточке")
 	_check(not play.visible and play.disabled, "Play скрыт и неактивен")
 	_check(box.visible and bar.visible and stage_label.visible and elapsed_label.visible,
 		"полоска прогресса и текст этапа видны")
 	_check(absf(bar.value - 47.0) < 0.01, "полоска показывает процент (%.1f)" % bar.value)
 	_check("3.8" in elapsed_label.text, "время прогрева показано (%s)" % elapsed_label.text)
 	_check("Бойцы" in stage_label.text, "этап показан (%s)" % stage_label.text)
-	_check(legal.visible, "юридическая строка видна внизу")
 
 	var bar_rect := bar.get_global_rect()
-	var legal_rect := legal.get_global_rect()
 	var title_rect: Rect2 = (overlay.get("warmup_title") as Label).get_global_rect()
 	_check(viewport_rect.encloses(bar_rect), "полоска внутри экрана %s" % bar_rect)
-	_check(viewport_rect.encloses(legal_rect), "legal внутри экрана %s" % legal_rect)
-	_check(bar_rect.end.y <= legal_rect.position.y + 1.0,
-		"полоска не перекрывает legal (bar_bottom=%.1f legal_top=%.1f)"
-		% [bar_rect.end.y, legal_rect.position.y])
 	_check(title_rect.end.y <= bar_rect.position.y + 1.0,
 		"заголовок не перекрывает полоску")
 	_check(bar_rect.size.x >= 140.0, "полоска достаточно широкая (%.0f)" % bar_rect.size.x)

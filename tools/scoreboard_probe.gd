@@ -10,7 +10,9 @@ extends Node3D
 ## The online branch cannot be exercised without a server, so the probe proves
 ## the offline shape: the local player and bots are listed, bots get no report
 ## button, and the report dialog works with player_id = 0 without sending.
-## Frames go to user://ui_shots/scoreboard_*.png.
+## The tutorial case asserts the opposite of a table: no Tab panel, no touch
+## button and no gold counter, because the stage hint owns that space.
+## Frames go to user://ui_shots/hud_avatar_* and scoreboard_*.png.
 
 const OUT_DIR := "user://ui_shots"
 const REPORT_NICK := "ТестовыйНик"
@@ -79,6 +81,8 @@ func _spawn_game(as_tutorial: bool) -> bool:
 
 
 func _run_match() -> void:
+	# Prove the HUD avatar follows the equipped skin, not just the class face.
+	MetaProgression.equipped_skins["warrior"] = 1
 	var spawned := await _spawn_game(false)
 	if not spawned:
 		return
@@ -89,10 +93,67 @@ func _run_match() -> void:
 	await _wait_ticks(3)
 	_check((game.get("heroes") as Array).size() >= 6, "offline match spawned player + bots")
 
+	var avatar := hud.get("player_avatar") as TextureRect
+	_check(avatar != null, "player card has an avatar")
+	if avatar != null:
+		_check(avatar.texture != null, "avatar has a texture")
+		_check(
+			avatar.stretch_mode == TextureRect.STRETCH_KEEP_ASPECT_COVERED,
+			"avatar keeps the aspect (KEEP_ASPECT_COVERED)"
+		)
+		_check(
+			avatar.texture != null
+			and String(avatar.texture.resource_path).contains("barbarian_legend"),
+			"avatar shows the equipped legendary skin card (%s)" % (
+				String(avatar.texture.resource_path) if avatar.texture != null else "none"
+			)
+		)
+	await _shot("hud_avatar_%s_%dx%d" % [tag, target.x, target.y])
+
+	# The whole card is the pause control, portrait included. Send a real
+	# click at the card centre through the viewport, not just the signal.
+	var card := hud.get("player_panel") as Control
+	var pause_overlay := hud.get("pause_overlay") as Control
+	var point := card.get_global_rect().get_center()
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	press.position = point
+	press.global_position = point
+	get_viewport().push_input(press)
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	release.pressed = false
+	release.position = point
+	release.global_position = point
+	get_viewport().push_input(release)
+	await _wait_ticks(1)
+	_check(pause_overlay != null and pause_overlay.visible, "click on the player card opens the pause menu")
+	hud.call("_resume_game")
+	await _wait_ticks(1)
+	_check(pause_overlay != null and not pause_overlay.visible, "pause menu closes again")
+
 	var panel := hud.get("scoreboard_panel") as Control
 	var button := hud.get("scoreboard_button") as Button
 	_check(panel != null and not panel.visible, "table starts hidden")
 	_check(not get_tree().paused, "table does not pause the tree")
+	if mobile:
+		# Every battle message uses this one label. Re-show a match announce
+		# and prove its rect clears the touch button, then capture the frame.
+		hud.call("show_announcement", "Бой за осколки!", Color(1.0, 0.86, 0.55), 6.0)
+		await _wait_ticks(3)
+		var announce := hud.get("announce_label") as Control
+		_check(announce != null and announce.visible, "announce label is visible")
+		if announce != null and button != null:
+			var announce_rect := announce.get_global_rect()
+			var button_rect := button.get_global_rect()
+			_check(
+				not announce_rect.intersects(button_rect),
+				"announce clears the СЧЁТ button (announce=%s button=%s)" % [announce_rect, button_rect]
+			)
+		# QA frames of the new mobile caption before the table covers it.
+		await _shot("hud_score_button_%dx%d" % [target.x, target.y])
+		await _shot_button_closeup(button)
 
 	hud.call("_open_scoreboard")
 	await _wait_ticks(2)
@@ -152,32 +213,37 @@ func _run_tutorial() -> void:
 	if not spawned:
 		return
 	_check(bool(game.get("tutorial_mode")), "game is in tutorial mode")
-	# The real tutorial spawns its bots stage by stage. Spawn two through the
-	# same public API now so the table has its tutorial rows to draw.
+	# The real tutorial spawns its bots stage by stage; spawn two through the
+	# same public API so the match is populated even though the table is off.
 	game.call("spawn_tutorial_bot", HeroUnit.Cls.FAIRY, int(game.player.team), Vector3(2.0, 0.76, 0.0), "easy", "Союзник")
 	game.call("spawn_tutorial_bot", HeroUnit.Cls.MAGE, 1 - int(game.player.team), Vector3(-2.0, 0.76, -2.0), "easy", "Тренировочный бот")
 	await _wait_ticks(3)
 
 	var panel := hud.get("scoreboard_panel") as Control
 	var button := hud.get("scoreboard_button") as Button
-	# Keep the tutorial rules (bots, no report buttons) but clear the welcome
-	# card so the QA frame shows the table itself.
+	var gold := hud.get("gold_label") as Control
+	# Clear the welcome card so the QA frame shows the tutorial HUD itself.
 	hud.call("hide_tutorial_card")
 	hud.call("hide_ui_highlight")
 	hud.call("show_tutorial_hint", "")
+	await _wait_ticks(2)
+
+	# Owner: the tutorial has no gold counter and no player table. The gold
+	# number sat under the skip button; the table covered the stage hints.
+	_check(gold != null and not gold.visible, "tutorial hides the gold counter")
+	_check(panel != null and not bool(panel.visible), "tutorial table starts hidden")
+	_check(button != null and not bool(button.visible), "tutorial hides the table button")
 	hud.call("_open_scoreboard")
 	await _wait_ticks(2)
-	await _check_table("tutorial")
-	await _check_columns()
-	_check(_report_buttons().is_empty(), "tutorial bots have no report buttons")
-	await _check_touch_button(button)
+	_check(panel != null and not bool(panel.visible), "tutorial table does not open")
+	await _send_tab()
+	_check(panel != null and not bool(panel.visible), "tutorial Tab keeps the table closed")
 	await _shot("scoreboard_tutorial_%dx%d" % [target.x, target.y])
+	await _shot("hud_avatar_tutorial_%dx%d" % [target.x, target.y])
 
-	await _check_tab()
-	_check(bool(panel.visible), "tutorial table opens with Tab")
 	game.state = "ended"
 	await _wait_ticks(6)
-	_check(not bool(panel.visible), "tutorial table closes when the match ends")
+	_check(panel != null and not bool(panel.visible), "tutorial table stays closed when the match ends")
 	get_tree().set_meta("tutorial_mode", false)
 
 
@@ -267,11 +333,50 @@ func _check_touch_button(button: Button) -> void:
 	if button == null:
 		return
 	_check(bool(button.visible) == mobile, "touch button visible only with mobile UI (visible=%s mobile=%s)" % [button.visible, mobile])
+	var caption := hud.get("scoreboard_button_label") as Label
+	_check(
+		caption != null and caption.text == "СЧЁТ",
+		"score button caption is СЧЁТ (%s)" % (caption.text if caption != null else "none")
+	)
+	_check(
+		button.tooltip_text == "Счёт и игроки",
+		"score button tooltip is Счёт и игроки (%s)" % button.tooltip_text
+	)
 	if not mobile:
 		return
 	_check(button.size.is_equal_approx(Vector2(64.0, 64.0)), "touch button is 64x64 (%s)" % button.size)
-	_check(absf(button.position.x - 436.0) <= 2.0, "touch button sits in the old pause spot x=436 (%.1f)" % button.position.x)
-	_check(absf(button.position.y - 20.0) <= 2.0, "touch button sits at the old pause spot y=20 (%.1f)" % button.position.y)
+	var card := hud.get("player_panel") as Control
+	if card != null:
+		var gap := button.position.x - (card.position.x + card.size.x)
+		_check(
+			gap >= 8.0 and gap <= 12.0,
+			"score button sits 8-12 px right of the card (gap=%.1f)" % gap
+		)
+		_check(
+			absf(button.position.y - card.position.y) <= 1.0,
+			"score button top matches the card (button=%.1f card=%.1f)" % [button.position.y, card.position.y]
+		)
+		_check(
+			not button.get_global_rect().intersects(card.get_global_rect()),
+			"score button does not overlap the player card"
+		)
+	var announce := hud.get("announce_label") as Control
+	if announce != null:
+		_check(
+			not button.get_global_rect().intersects(announce.get_global_rect()),
+			"score button does not overlap the announce label"
+		)
+	var match_info := hud.get("match_info_box") as Control
+	if match_info != null:
+		_check(
+			not button.get_global_rect().intersects(match_info.get_global_rect()),
+			"score button clears the match info"
+		)
+	var viewport_size := get_viewport().get_visible_rect().size
+	_check(
+		button.get_global_rect().end.x <= viewport_size.x,
+		"score button stays on screen (end=%.1f width=%.1f)" % [button.get_global_rect().end.x, viewport_size.x]
+	)
 	var panel := hud.get("scoreboard_panel") as Control
 	button.pressed.emit()
 	await _wait_ticks(1)
@@ -279,6 +384,11 @@ func _check_touch_button(button: Button) -> void:
 	button.pressed.emit()
 	await _wait_ticks(1)
 	_check(bool(panel.visible), "touch button opens the table")
+	var hint := hud.get("scoreboard_hint_label") as Label
+	_check(
+		hint != null and hint.text.contains("СЧЁТ"),
+		"mobile table hint mentions СЧЁТ (%s)" % (hint.text if hint != null else "none")
+	)
 
 
 func _row_count() -> int:
@@ -368,6 +478,27 @@ func _shot(name: String) -> void:
 	else:
 		print("SHOT ", name, " ", image.get_size(), " ", path)
 	_check(image.get_size() == target, "screenshot %s is %dx%d (%s)" % [name, target.x, target.y, image.get_size()])
+
+
+func _shot_button_closeup(button: Button) -> void:
+	await RenderingServer.frame_post_draw
+	DirAccess.make_dir_recursive_absolute(OUT_DIR)
+	var image := get_viewport().get_texture().get_image()
+	var view := image.get_size()
+	var rect := button.get_global_rect().grow(10.0)
+	var x := clampi(int(rect.position.x), 0, maxi(0, view.x - 1))
+	var y := clampi(int(rect.position.y), 0, maxi(0, view.y - 1))
+	var w := mini(int(rect.size.x), view.x - x)
+	var h := mini(int(rect.size.y), view.y - y)
+	if w <= 0 or h <= 0:
+		_check(false, "button close-up rect is inside the viewport")
+		return
+	var crop := image.get_region(Rect2i(x, y, w, h))
+	crop.resize(w * 4, h * 4, Image.INTERPOLATE_NEAREST)
+	var path := "%s/score_button_closeup.png" % OUT_DIR
+	var error := crop.save_png(path)
+	_check(error == OK, "button close-up saved")
+	print("SHOT score_button_closeup ", crop.get_size(), " ", path)
 
 
 func _check(condition: bool, label: String) -> void:

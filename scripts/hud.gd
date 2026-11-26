@@ -17,6 +17,24 @@ class AbilityCooldownWipe extends Control:
 	func _draw() -> void:
 		draw_rect(Rect2(Vector2.ZERO, size), Color.WHITE)
 
+## Tiny table glyph above the mobile "СЧЁТ" caption: three rows, each a name
+## cell and a score bar, drawn in gold so the button reads as a player table.
+class ScoreboardGlyph extends Control:
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		custom_minimum_size = Vector2(26.0, 17.0)
+		size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		size_flags_vertical = Control.SIZE_SHRINK_CENTER
+
+	func _draw() -> void:
+		var width := maxf(22.0, size.x)
+		var cell := Color(0.97, 0.84, 0.55, 0.98)
+		var row := Color(0.88, 0.71, 0.36, 0.82)
+		for index in 3:
+			var y := 1.0 + float(index) * 5.5
+			draw_rect(Rect2(1.0, y, 3.5, 3.5), cell)
+			draw_rect(Rect2(7.0, y, width - 8.0, 3.5), row)
+
 var game: Node
 var kill_feed_box: VBoxContainer = null
 var team_icons: Dictionary = {}
@@ -26,6 +44,12 @@ var carrier_bar: ProgressBar = null
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const SETTINGS_PANEL_SCRIPT := preload("res://scripts/settings_panel.gd")
 const RULES_PANEL_SCRIPT := preload("res://scripts/rules_panel.gd")
+const SkinCatalog = preload("res://scripts/skin_catalog.gd")
+const HERO_PORTRAITS := {
+	HeroUnit.Cls.WARRIOR: preload("res://assets/ui/heroes/warrior_face.webp"),
+	HeroUnit.Cls.MAGE: preload("res://assets/ui/heroes/mage_face.webp"),
+	HeroUnit.Cls.FAIRY: preload("res://assets/ui/heroes/archer_face.webp"),
+}
 const ABILITY_SHORT_LABELS := {
 	HeroUnit.Cls.WARRIOR: ["СТАН", "КРИТ", "УЛЬТА"],
 	HeroUnit.Cls.MAGE: ["СТАН", "ХИЛ", "УЛЬТА"],
@@ -44,11 +68,14 @@ var timer_label: Label
 var shell_timer_label: Label
 var gold_label: Label
 var player_panel: PanelContainer
+var player_avatar: TextureRect
 var player_team_label: Label
 var player_name_label: Label
 var player_team_icon: TextureRect
 var player_hp_bar: ProgressBar
 var player_hp_label: Label
+var player_panel_class := -1
+var player_panel_skin := -1
 var player_panel_team := -1
 var player_name_font_size := -1
 var announce_label: Label
@@ -89,8 +116,9 @@ var pause_overlay: Control
 var pause_menu_panel: Control
 var pause_settings_panel: Control
 var pause_rules_panel: Control
-# Battle scoreboard: Tab on desktop, a button in the old pause spot on touch.
+# Battle scoreboard: Tab on desktop, a tile right of the player card on touch.
 var scoreboard_button: Button
+var scoreboard_button_label: Label
 var scoreboard_panel: PanelContainer
 var scoreboard_scroll: ScrollContainer
 var scoreboard_rows: VBoxContainer
@@ -777,6 +805,23 @@ func _panel_style(border: Color, fill := DARK_BG) -> StyleBoxFlat:
 	return style
 
 
+## The player card keeps its dark plate but no border: the team is already
+## shown by the icon and the word on the name row, and the extra frame read
+## as a second box around the portrait. Tight vertical padding lets the 52px
+## portrait fit the 61px phone card authored in ui_layout.json.
+func _player_card_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.035, 0.035, 0.05, 0.3)
+	style.border_color = Color(0.0, 0.0, 0.0, 0.0)
+	style.set_border_width_all(0)
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 12.0
+	style.content_margin_right = 12.0
+	style.content_margin_top = 4.0
+	style.content_margin_bottom = 4.0
+	return style
+
+
 func _make_label(text: String, size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
@@ -967,6 +1012,9 @@ func _build_top(root: Control) -> void:
 
 	gold_label = _make_label("Золото: 0", 18, GOLD)
 	gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	# The tutorial has no gold counter: it sat right under the skip button and
+	# made the escape hatch harder to hit.
+	gold_label.visible = game == null or not bool(game.get("tutorial_mode"))
 	box.add_child(gold_label)
 
 	timer_label = _make_label("10:00", 20, Color.WHITE)
@@ -1077,25 +1125,86 @@ func _update_focus_panel() -> void:
 	focus_panel.modulate.a = 0.45 + 0.55 * (0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.006))
 
 
+func _score_button_style(border: Color, fill: Color, glow: Color, glow_size: int) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = fill
+	style.border_color = border
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(12)
+	# A soft outer glow instead of a flat plate: gold at rest, brighter on
+	# hover/press, drawn outside the 64x64 rect without moving it.
+	style.shadow_color = glow
+	style.shadow_size = glow_size
+	style.shadow_offset = Vector2(0.0, 2.0)
+	style.content_margin_left = 2.0
+	style.content_margin_right = 2.0
+	style.content_margin_top = 2.0
+	style.content_margin_bottom = 2.0
+	return style
+
+
 func _build_scoreboard_button(root: Control) -> void:
 	scoreboard_button = Button.new()
 	scoreboard_button.name = "ScoreboardButton"
-	scoreboard_button.text = "ТАБ"
-	scoreboard_button.tooltip_text = "Список игроков (Tab)"
+	# The visible caption is a child Label so the table glyph can sit above
+	# it; the Button itself stays a plain click target in the same spot.
+	scoreboard_button.text = ""
+	scoreboard_button.tooltip_text = "Счёт и игроки"
 	scoreboard_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	# Above the tutorial cards (100) but below the skip button (110), so the
 	# table never steals the tutorial's escape hatch.
 	scoreboard_button.z_index = 105
 	scoreboard_button.visible = false
 	scoreboard_button.focus_mode = Control.FOCUS_NONE
-	scoreboard_button.add_theme_font_override("font", font)
-	scoreboard_button.add_theme_font_size_override("font_size", _fs(18))
-	scoreboard_button.add_theme_color_override("font_color", GOLD)
-	scoreboard_button.add_theme_stylebox_override("normal", _panel_style(Color(0.76, 0.63, 0.36, 0.72), Color(0.035, 0.035, 0.05, 0.72)))
-	scoreboard_button.add_theme_stylebox_override("hover", _panel_style(Color(0.95, 0.76, 0.38), Color(0.07, 0.09, 0.13, 0.95)))
-	scoreboard_button.add_theme_stylebox_override("pressed", _panel_style(Color(1.0, 0.88, 0.58), Color(0.18, 0.14, 0.08, 0.95)))
+	scoreboard_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	scoreboard_button.add_theme_stylebox_override(
+		"normal",
+		_score_button_style(
+			Color(0.80, 0.64, 0.33, 0.92),
+			Color(0.045, 0.065, 0.105, 0.96),
+			Color(0.86, 0.68, 0.29, 0.26),
+			5
+		)
+	)
+	scoreboard_button.add_theme_stylebox_override(
+		"hover",
+		_score_button_style(
+			Color(1.0, 0.86, 0.52, 1.0),
+			Color(0.075, 0.105, 0.165, 0.98),
+			Color(0.98, 0.80, 0.40, 0.48),
+			7
+		)
+	)
+	scoreboard_button.add_theme_stylebox_override(
+		"pressed",
+		_score_button_style(
+			Color(1.0, 0.90, 0.62, 1.0),
+			Color(0.19, 0.145, 0.065, 0.98),
+			Color(1.0, 0.82, 0.42, 0.40),
+			4
+		)
+	)
 	scoreboard_button.pressed.connect(_toggle_scoreboard)
 	root.add_child(scoreboard_button)
+
+	var content := VBoxContainer.new()
+	content.name = "ScoreboardButtonContent"
+	content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	content.alignment = BoxContainer.ALIGNMENT_CENTER
+	content.add_theme_constant_override("separation", -1)
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	scoreboard_button.add_child(content)
+
+	var glyph := ScoreboardGlyph.new()
+	glyph.name = "ScoreboardGlyph"
+	content.add_child(glyph)
+
+	scoreboard_button_label = _make_label("СЧЁТ", 16, GOLD)
+	scoreboard_button_label.name = "ScoreboardButtonLabel"
+	scoreboard_button_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	scoreboard_button_label.add_theme_font_size_override("font_size", _fs(16))
+	scoreboard_button_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(scoreboard_button_label)
 
 
 ## The in-battle table mirrors the results screen, but stays a compact card
@@ -1244,6 +1353,10 @@ func _build_scoreboard_report(root: Control) -> void:
 func _toggle_scoreboard() -> void:
 	if scoreboard_panel == null or game == null or game.state != "live":
 		return
+	# The tutorial has no table: the top strip already names the training
+	# bots, and the panel covered the hint the stage needed.
+	if bool(game.get("tutorial_mode")):
+		return
 	if scoreboard_panel.visible:
 		_close_scoreboard()
 	else:
@@ -1253,11 +1366,11 @@ func _toggle_scoreboard() -> void:
 func _open_scoreboard() -> void:
 	if scoreboard_panel == null or game == null or game.state != "live":
 		return
-	# The tutorial has a scoreboard too: its bots are normal heroes, they just
-	# never get a report button.
+	if bool(game.get("tutorial_mode")):
+		return
 	scoreboard_refresh_tick = 0.0
 	scoreboard_panel.visible = true
-	scoreboard_hint_label.text = "Кнопка ТАБ — закрыть" if _mobile_ui() else "Tab — закрыть"
+	scoreboard_hint_label.text = "Нажмите «СЧЁТ» ещё раз" if _mobile_ui() else "Tab — закрыть"
 	_update_scoreboard_layout()
 	_refresh_scoreboard()
 
@@ -1286,12 +1399,26 @@ func _update_scoreboard_layout() -> void:
 		scoreboard_scroll.custom_minimum_size.y = minf(content_height, max_height)
 	scoreboard_panel.reset_size()
 	if scoreboard_button != null and is_instance_valid(scoreboard_button):
-		# Exact spot of the removed 64x64 pause button. The baked phone layout
-		# moves the card, but the button stays where players already look for it;
-		# on anything narrower than 510 px it slides in to stay on screen.
-		var button_x := minf(436.0, maxf(0.0, viewport_size.x - 74.0))
-		scoreboard_button.position = Vector2(button_x, 20.0)
+		# The touch table button lives in the slot right after the player card:
+		# x follows the card so it survives the baked phone layout and any
+		# viewport change, y matches the card top. The 64px tile only slides in
+		# when the screen is too narrow to keep it on screen.
+		var gap := 8.0
+		var button_x := player_panel.position.x + player_panel.size.x + gap
+		button_x = minf(button_x, maxf(0.0, viewport_size.x - 64.0 - 6.0))
+		scoreboard_button.position = Vector2(button_x, player_panel.position.y)
 		scoreboard_button.size = Vector2(64.0, 64.0)
+		if _mobile_ui() and announce_label != null and is_instance_valid(announce_label):
+			# Keep every combat announcement clear of the card/button band even
+			# when the baked layout moves the card down the screen. The 96px
+			# floor preserves the approved top-centre position on 844x390.
+			var announce_top := maxf(
+				96.0,
+				scoreboard_button.position.y + scoreboard_button.size.y + 12.0
+			)
+			if not is_equal_approx(announce_label.offset_top, announce_top):
+				announce_label.offset_top = announce_top
+				announce_label.offset_bottom = announce_top + 60.0
 
 
 func _refresh_scoreboard() -> void:
@@ -1710,6 +1837,10 @@ func _input(event: InputEvent) -> void:
 		return
 	if game == null or game.state != "live":
 		return
+	# No player table in the tutorial: Tab must not cover the stage hint.
+	if bool(game.get("tutorial_mode")):
+		get_viewport().set_input_as_handled()
+		return
 	if pause_overlay != null and pause_overlay.visible:
 		return
 	_toggle_scoreboard()
@@ -1744,17 +1875,43 @@ func _build_player_panel(root: Control) -> void:
 	# Owner: the whole player card opens the pause menu.
 	player_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	player_panel.gui_input.connect(_on_avatar_input)
-	player_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.76, 0.63, 0.36, 0.62), Color(0.035, 0.035, 0.05, 0.3)))
+	player_panel.add_theme_stylebox_override("panel", _player_card_style())
 	root.add_child(player_panel)
 
 	var content := HBoxContainer.new()
-	content.add_theme_constant_override("separation", 7)
+	content.add_theme_constant_override("separation", 6)
 	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	player_panel.add_child(content)
 
-	# The card carries only the nickname, the side (icon + word) and HP: the
-	# portrait took 60px of a 370px card and pushed the name into an ellipsis
-	# on a phone, so it is gone.
+	# Compact 2D portrait on the left: the lobby avatar image (hero face or
+	# the equipped skin) instead of the old 3D viewport, so every phone shows
+	# the same picture without a second render target.
+	var portrait_frame := PanelContainer.new()
+	portrait_frame.name = "PlayerAvatarFrame"
+	portrait_frame.custom_minimum_size = Vector2(52.0, 52.0)
+	portrait_frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	portrait_frame.mouse_filter = Control.MOUSE_FILTER_STOP
+	portrait_frame.clip_contents = true
+	var portrait_style := StyleBoxFlat.new()
+	portrait_style.bg_color = Color(0.02, 0.025, 0.04, 0.95)
+	portrait_style.set_border_width_all(0)
+	portrait_style.set_corner_radius_all(6)
+	portrait_frame.add_theme_stylebox_override("panel", portrait_style)
+	portrait_frame.gui_input.connect(_on_avatar_input)
+	content.add_child(portrait_frame)
+
+	player_avatar = TextureRect.new()
+	player_avatar.name = "PlayerAvatar"
+	player_avatar.custom_minimum_size = Vector2(52.0, 52.0)
+	player_avatar.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	# Cover, never stretch: a wide key-art card is cropped to the square
+	# instead of squashing the face.
+	player_avatar.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	player_avatar.clip_contents = true
+	player_avatar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait_frame.add_child(player_avatar)
+
+	# The card carries the nickname, the side (icon + word) and HP.
 	var details := VBoxContainer.new()
 	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	details.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -2038,6 +2195,12 @@ func _build_announcement(root: Control) -> void:
 	announce_label.offset_right = 0.0
 	announce_label.offset_top = 4.0
 	announce_label.offset_bottom = 64.0
+	if _mobile_ui():
+		# The touch "СЧЁТ" button sits right after the player card, so combat
+		# announcements start below the card/button band. The slow tick
+		# re-anchors this offset when the card moves.
+		announce_label.offset_top = 96.0
+		announce_label.offset_bottom = 156.0
 	announce_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	announce_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	announce_label.modulate.a = 0.0
@@ -2293,9 +2456,8 @@ func _update_player_panel() -> void:
 		nickname = "Игрок"
 	var team_short := "Свет" if player.team == 0 else "Тьма"
 	# The card shows the nickname and the side only: the class word was cut to
-	# an ellipsis on a 960-wide phone card, and the portrait that used to fill
-	# that space is gone. The name row keeps a slot for the side both on
-	# phones and on desktop, so no branch has to hide it.
+	# an ellipsis on a 960-wide phone card. The portrait carries the class and
+	# the equipped skin instead of a caption.
 	player_name_label.text = nickname
 	var name_font_size := 16 if _mobile_ui() else 15
 	if player_name_font_size != name_font_size:
@@ -2304,10 +2466,17 @@ func _update_player_panel() -> void:
 	if player_team_label != null:
 		player_team_label.visible = true
 		player_team_label.text = team_short
+	# Reload the avatar only when the hero or the equipped skin changes.
+	var skin_id := MetaProgression.get_equipped_skin(["warrior", "mage", "fairy"][player.hero_class])
+	if player_panel_class != player.hero_class or player_panel_skin != skin_id:
+		player_panel_class = player.hero_class
+		player_panel_skin = skin_id
+		if player_avatar != null:
+			var portrait_source := _player_portrait_texture(player.hero_class)
+			if portrait_source != null:
+				player_avatar.texture = portrait_source
 	if player_panel_team != player.team:
 		player_panel_team = player.team
-		var border_color := Color(0.84, 0.68, 0.39, 0.95) if player.team == 0 else Color(0.58, 0.46, 0.78, 0.95)
-		player_panel.add_theme_stylebox_override("panel", _panel_style(border_color, Color(0.035, 0.035, 0.05, 0.3)))
 		if player_team_icon != null:
 			player_team_icon.texture = _team_icon(player.team)
 		if player_team_label != null:
@@ -2320,6 +2489,26 @@ func _update_player_panel() -> void:
 			var feed_height := kill_feed_box.size.y
 			kill_feed_box.offset_top = feed_top
 			kill_feed_box.offset_bottom = feed_top + feed_height
+
+
+func _player_portrait_texture(hero_class: int) -> Texture2D:
+	var skin_id := MetaProgression.get_equipped_skin(["warrior", "mage", "fairy"][hero_class])
+	var skin := SkinCatalog.get_item(skin_id)
+	if not skin.is_empty():
+		# Legendary skins have full key art on `card`; the plain skins only
+		# carry a square `icon`, the same picture the lobby avatar uses.
+		var path := String(skin.get("icon", ""))
+		if not String(skin.get("tier", "")).is_empty():
+			var card_path := String(skin.get("card", ""))
+			if not card_path.is_empty():
+				path = card_path
+		if not path.is_empty() and ResourceLoader.exists(path):
+			var texture := load(path) as Texture2D
+			if texture != null:
+				return texture
+	if HERO_PORTRAITS.has(hero_class):
+		return HERO_PORTRAITS[hero_class] as Texture2D
+	return null
 
 
 func _update_player_health() -> void:
@@ -2407,6 +2596,7 @@ func _layout_shop_panel() -> void:
 func update_gold() -> void:
 	if gold_label != null and game != null:
 		gold_label.text = "Золото: %d" % game.gold
+		gold_label.visible = not bool(game.get("tutorial_mode"))
 
 
 func update_shop() -> void:
@@ -2589,7 +2779,13 @@ func _process(_delta: float) -> void:
 		update_gold()
 		_update_player_panel()
 		if scoreboard_button != null:
-			scoreboard_button.visible = _mobile_ui() and game.state == "live"
+			scoreboard_button.visible = (
+				_mobile_ui()
+				and game.state == "live"
+				and not bool(game.get("tutorial_mode"))
+			)
+		if bool(game.get("tutorial_mode")) and scoreboard_panel != null and scoreboard_panel.visible:
+			_close_scoreboard()
 		_update_scoreboard_layout()
 		scoreboard_refresh_tick += 0.1
 		if scoreboard_panel != null and scoreboard_panel.visible:
@@ -2617,6 +2813,7 @@ func _process(_delta: float) -> void:
 		score_label.visible = not game.tutorial_mode
 		timer_label.visible = not game.tutorial_mode
 		shell_timer_label.visible = not game.tutorial_mode
+		gold_label.visible = not game.tutorial_mode
 		var shell_time_left: float = game.shell_window if game.shell_phase == "active" else game.shell_timer
 		shell_time_left = maxf(0.0, shell_time_left)
 		var shell_minutes := floori(shell_time_left / 60.0)

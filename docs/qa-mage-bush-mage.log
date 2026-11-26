@@ -1,0 +1,27 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[Platform] id=standalone adapter=Standalone
+[NET] REST URL: https://three-skies-server.relaxdev.ru
+[NET] WebSocket URL: wss://three-skies-server.relaxdev.ru/ws
+[MCPRuntimeServer] port: scanning 6570-6585 (default)
+[MCPRuntimeServer] listening on 127.0.0.1:6570
+[MCPRegistry] runtime port 6570 registered for c:/mygames3d/three-skies
+--- base damage ---
+PASS: Mage CLASS_DATA damage 39.0 == 39.0 (+50% of 26)
+PASS: Mage damage 26 -> 39.0 is a +50% raise
+--- ultimate rolls (10000) ---
+crits=1027 rate=0.1027 mean=110.10 non_crit=[75.0..125.0] crit=[150.0..249.9]
+PASS: storm crit rate 10.27% == 10% (+-1.5pp)
+PASS: storm mean 110.1 == 110 (100 old mean + 10% crit)
+PASS: non-crit storm tick >= 75 (got 75.0)
+PASS: non-crit storm tick <= 125 (got 125.0)
+PASS: every crit tick is at least x2 (1027 crits checked)
+PASS: crit storm tick <= 250 (got 249.9)
+PASS: server storm cap 405.6 covers the client normal tick (<=250)
+--- auto attack crits (10000) ---
+auto crits=522 rate=0.0522
+PASS: auto attack crit rate 5.22% == 5% (+-1pp)
+--- server contract ---
+PASS: server classBaseDamage = {44, 39, 60}
+PASS: server calculateDamageFor: ult_lightning_storm multiplier = 2.0
+MAGE_BALANCE_CHECKS=12 FAILURES=0

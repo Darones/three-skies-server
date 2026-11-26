@@ -1,10 +1,10 @@
 class_name WelcomeOverlay
 extends Control
 
-## Full-screen first-launch card: key art, logo, age rating, one yellow Play
-## button and the legal line. It is a view only: lobby.gd decides when it is
-## shown (loading / welcome / error) and what Play does, so the game flow after
-## the card never changes.
+## Full-screen first-launch card: key art, logo and one yellow Play button.
+## The age badge and the consent line belong to the initial HTML loader only.
+## It is a view only: lobby.gd decides when it is shown (loading / welcome /
+## error) and what Play does, so the game flow after the card never changes.
 
 signal play_pressed
 signal retry_pressed
@@ -19,13 +19,8 @@ const LOGO_ASPECT := 1024.0 / 576.0
 
 const LOADING_TEXT := "Загрузка профиля…"
 const ERROR_TEXT := "Профиль не загрузился\nПроверьте соединение и попробуйте ещё раз."
-const AGE_TEXT := "12+"
 const WARMUP_TITLE := "Прогрев боя…"
 const WARMUP_STAGE_TEXT := "Подготовка…"
-const LEGAL_TEXT := (
-	"Продолжая игру, вы подтверждаете, что вам уже есть 12 лет, "
-	+ "и соглашаетесь с политикой конфиденциальности."
-)
 
 const PALE := Color(0.9, 0.92, 0.98)
 const BACKDROP := Color(0.016, 0.024, 0.043)
@@ -34,9 +29,7 @@ const BACKDROP := Color(0.016, 0.024, 0.043)
 var state: State = State.HIDDEN
 var welcome_logo: TextureRect
 var loading_logo: TextureRect
-var age_label: Label
 var play_button: Button
-var legal_label: Label
 var loading_layer: CenterContainer
 var loading_label: Label
 var retry_button: Button
@@ -47,6 +40,10 @@ var warmup_row: HBoxContainer
 var warmup_stage: Label
 var warmup_elapsed: Label
 var warmup_done := false
+## Tutorial loading reuses this card with a larger logo. Defaults keep the
+## newcomer Welcome card exactly as it was.
+var logo_scale := 1.0
+var logo_max_height_ratio := 0.26
 
 var _safe: Control
 var _keyart: TextureRect
@@ -97,8 +94,8 @@ func show_error(message := ERROR_TEXT) -> void:
 	_apply_state()
 
 
-## Play was pressed: keep the same card (key art, logo, 12+) and swap the
-## yellow button for a progress line while WarmupFlow prepares the match.
+## Play was pressed: keep the same card (key art, logo) and swap the yellow
+## button for a progress line while WarmupFlow prepares the match.
 func show_warming() -> void:
 	warmup_done = false
 	if warmup_bar != null:
@@ -219,19 +216,6 @@ func _build() -> void:
 	welcome_logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_safe.add_child(welcome_logo)
 
-	age_label = Label.new()
-	age_label.name = "WelcomeAgeRating"
-	age_label.text = AGE_TEXT
-	age_label.add_theme_font_override("font", FONT_BOLD)
-	age_label.add_theme_color_override("font_color", Color.WHITE)
-	age_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.6))
-	age_label.add_theme_constant_override("shadow_offset_x", 1)
-	age_label.add_theme_constant_override("shadow_offset_y", 1)
-	age_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	age_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	age_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_safe.add_child(age_label)
-
 	_bottom = VBoxContainer.new()
 	_bottom.name = "WelcomeBottom"
 	_bottom.alignment = BoxContainer.ALIGNMENT_END
@@ -319,20 +303,6 @@ func _build() -> void:
 	warmup_elapsed.size_flags_horizontal = Control.SIZE_SHRINK_END
 	warmup_elapsed.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	warmup_row.add_child(warmup_elapsed)
-
-	legal_label = Label.new()
-	legal_label.name = "WelcomeLegal"
-	legal_label.text = LEGAL_TEXT
-	legal_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	legal_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	legal_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	legal_label.add_theme_font_override("font", FONT)
-	legal_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.94))
-	legal_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.92))
-	legal_label.add_theme_constant_override("outline_size", 4)
-	legal_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	legal_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_bottom.add_child(legal_label)
 
 	loading_layer = CenterContainer.new()
 	loading_layer.name = "WelcomeLoadingLayer"
@@ -453,7 +423,6 @@ func _apply_state() -> void:
 	_top_shade.visible = card
 	_bottom_shade.visible = card
 	welcome_logo.visible = card
-	age_label.visible = card
 	_bottom.visible = card
 	warmup_box.visible = warming
 	loading_layer.visible = state == State.LOADING or state == State.ERROR
@@ -503,12 +472,10 @@ func _layout() -> void:
 		warmup_elapsed.add_theme_font_size_override("font_size", warmup_info_font)
 		warmup_box.add_theme_constant_override("separation", clampi(int(round(8.0 * k)), 5, 13))
 
-	legal_label.add_theme_font_size_override("font_size", clampi(int(round(15.0 * k)), 11, 20))
-
 	var logo_top := clampf(height * 0.018, 6.0, 22.0)
-	var logo_width := clampf(width * 0.22, 150.0, 300.0)
+	var logo_width := clampf(width * 0.22, 150.0, 300.0) * logo_scale
 	var logo_height := logo_width / LOGO_ASPECT
-	var logo_max_height := height * 0.26
+	var logo_max_height := height * logo_max_height_ratio
 	if logo_height > logo_max_height:
 		logo_height = logo_max_height
 		logo_width = logo_height * LOGO_ASPECT
@@ -520,19 +487,6 @@ func _layout() -> void:
 	welcome_logo.offset_right = logo_width * 0.5
 	welcome_logo.offset_top = logo_top
 	welcome_logo.offset_bottom = logo_top + logo_height
-
-	var age_font := clampi(int(round(26.0 * k)), 16, 34)
-	var age_width := clampf(120.0 * k, 72.0, 150.0)
-	var age_right := -clampf(width * 0.02, 10.0, 30.0)
-	age_label.add_theme_font_size_override("font_size", age_font)
-	age_label.anchor_left = 1.0
-	age_label.anchor_right = 1.0
-	age_label.anchor_top = 0.0
-	age_label.anchor_bottom = 0.0
-	age_label.offset_left = age_right - age_width
-	age_label.offset_right = age_right
-	age_label.offset_top = logo_top - 2.0
-	age_label.offset_bottom = logo_top - 2.0 + age_font * 1.7
 
 	var loading_height := clampf(height * 0.16, 44.0, 130.0)
 	var loading_width := loading_height * LOGO_ASPECT

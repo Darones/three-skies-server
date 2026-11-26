@@ -1,0 +1,44 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[Platform] id=standalone adapter=Standalone
+[NET] REST URL: https://three-skies-server.relaxdev.ru
+[NET] WebSocket URL: wss://three-skies-server.relaxdev.ru/ws
+[MCPRuntimeServer] port: scanning 6570-6585 (default)
+[MCPRuntimeServer] listening on 127.0.0.1:6571
+[MCPRegistry] runtime port 6571 registered for c:/mygames3d/three-skies
+PASS: BUSH_PROXIMITY_REVEAL == 2.0
+--- hero in bush: 1.9 m vs 2.1 m ---
+PASS: enemy bot registered inside BushZone via body_entered
+PASS: enemy concealed at 6.5 m
+PASS: enemy name hidden while concealed in bush
+PASS: enemy model half-faded while concealed (0.50)
+PASS: enemy at 1.9 m sees through the bush
+PASS: enemy name visible at 1.9 m
+PASS: enemy at 2.1 m does not see the hero
+PASS: enemy name hidden again at 2.1 m
+PASS: taking damage starts the 3 s reveal timer
+PASS: damaged hero is revealed in the bush
+PASS: damaged hero name is visible
+--- ally name in bush ---
+PASS: ally bot registered inside the bush
+PASS: ally name hidden in bush (minimap behaviour)
+PASS: local player's own name stays visible in a bush
+--- RemotePlayer in bush ---
+PASS: remote model meshes tracked for bush fading
+PASS: remote player tracked inside the bush by position
+PASS: remote player flagged as hidden while far
+PASS: remote name hidden while far
+PASS: remote HP bar hidden while far
+PASS: remote model half-faded while hidden (0.50)
+PASS: remote revealed when the local player is 1.9 m away
+PASS: remote name visible at 1.9 m
+PASS: remote HP bar visible at 1.9 m
+PASS: remote model opaque at 1.9 m
+PASS: remote hidden again when the player walks away
+PASS: remote attack starts the 3 s reveal timer
+PASS: remote attack reveals the name
+PASS: remote hides again after the reveal timer
+PASS: remote damage starts the 3 s reveal timer
+PASS: remote damage reveals the name
+PASS: remote interpolation still moves towards the new state
+BUSH_STEALTH_CHECKS=32 FAILURES=0

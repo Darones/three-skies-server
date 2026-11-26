@@ -14,6 +14,9 @@ const CLASS_COLORS := [
 const CLASS_MAX_HP := [1050.0, 1000.0, 950.0]
 const HEALTH_BAR_WIDTH := 1.7
 const HEALTH_BAR_3D := preload("res://scripts/health_bar_3d.gd")
+# Mirrors HeroUnit.BUSH_REVEAL_DURATION: attacking or taking a hit reveals
+# the player for three seconds.
+const BUSH_REVEAL_DURATION := 3.0
 
 var peer_id := 0
 var display_name := ""
@@ -44,6 +47,14 @@ var _health_back: MeshInstance3D = null
 var _health_fill: MeshInstance3D = null
 var _model_root: Node3D = null
 var _animation_player: AnimationPlayer = null
+# Bush stealth. Remote players have no physics body, so game.gd decides
+# membership from the synced position and calls set_bush_presence().
+var in_bush := false
+var bush_zones: Array[Area3D] = []
+var bush_reveal_timer := 0.0
+var bush_hidden := false
+var _bush_visual_hidden := false
+var _bush_meshes: Array[MeshInstance3D] = []
 
 
 func setup(player_id: int, info: Dictionary) -> void:
@@ -69,6 +80,7 @@ func setup(player_id: int, info: Dictionary) -> void:
 	_has_target = true
 
 	_build_visual()
+	_bush_meshes = _collect_bush_meshes(self)
 	_build_name_label()
 	_build_health_bar()
 	if not bool(info.get("alive", true)):
@@ -188,11 +200,86 @@ func _play_bot_animation(anim_name: String) -> void:
 
 
 func _process(delta: float) -> void:
+	if bush_reveal_timer > 0.0:
+		bush_reveal_timer = maxf(0.0, bush_reveal_timer - delta)
+		if bush_reveal_timer <= 0.0:
+			_refresh_bush_visuals()
 	if dead or not _has_target:
 		return
 	var weight := 1.0 - exp(-14.0 * delta)
 	global_position = global_position.lerp(target_position, weight)
 	rotation.y = lerp_angle(rotation.y, target_rotation, weight)
+
+
+func set_bush_presence(zone: Area3D, inside: bool) -> void:
+	if zone == null:
+		if bush_zones.is_empty():
+			return
+		bush_zones.clear()
+	elif inside:
+		if bush_zones.has(zone):
+			return
+		bush_zones.append(zone)
+	else:
+		if not bush_zones.has(zone):
+			return
+		bush_zones.erase(zone)
+	in_bush = not bush_zones.is_empty()
+	_refresh_bush_visuals()
+
+
+func set_bush_hidden(hidden: bool) -> void:
+	if bush_hidden == hidden:
+		return
+	bush_hidden = hidden
+	_refresh_bush_visuals()
+
+
+func is_bush_concealed() -> bool:
+	# Same rules as HeroUnit._is_bush_stealthed(): a hit or a cast reveals for
+	# three seconds, the shard carrier is always visible, and an enemy within
+	# 2 m sees through the leaves.
+	if dead or not in_bush or bush_reveal_timer > 0.0 or carrying:
+		return false
+	if game != null and game.has_method("enemy_within"):
+		if bool(game.call("enemy_within", global_position, team, HeroUnit.BUSH_PROXIMITY_REVEAL)):
+			return false
+	return true
+
+
+func _break_bush_stealth() -> void:
+	if not in_bush:
+		return
+	bush_reveal_timer = BUSH_REVEAL_DURATION
+	_refresh_bush_visuals()
+
+
+func _refresh_bush_visuals() -> void:
+	var hidden_now := bush_hidden and in_bush and bush_reveal_timer <= 0.0 and not dead
+	if hidden_now == _bush_visual_hidden:
+		return
+	_bush_visual_hidden = hidden_now
+	if _name_label != null and is_instance_valid(_name_label):
+		_name_label.visible = not hidden_now
+	for mesh_instance in _bush_meshes:
+		if mesh_instance != null and is_instance_valid(mesh_instance):
+			mesh_instance.transparency = 0.5 if hidden_now else 0.0
+	if _health_back != null and is_instance_valid(_health_back):
+		_health_back.visible = not dead and not hidden_now
+	if _health_fill != null and is_instance_valid(_health_fill) and _health_fill != _health_back:
+		_health_fill.visible = not dead and not hidden_now
+
+
+func _collect_bush_meshes(root: Node) -> Array[MeshInstance3D]:
+	var found: Array[MeshInstance3D] = []
+	var stack: Array[Node] = [root]
+	while not stack.is_empty():
+		var current: Node = stack.pop_back()
+		if current is MeshInstance3D and current != _health_back and current != _health_fill:
+			found.append(current as MeshInstance3D)
+		for child in current.get_children():
+			stack.append(child)
+	return found
 
 
 func _build_visual() -> void:
@@ -359,14 +446,16 @@ func _update_health_bar() -> void:
 		return
 	var ratio := clampf(health / max_health, 0.0, 1.0) if max_health > 0.0 else 0.0
 	HEALTH_BAR_3D.set_fill(_health_back, ratio)
-	_health_back.visible = not dead
+	_health_back.visible = not dead and not _bush_visual_hidden
 	if _health_fill != null and _health_fill != _health_back:
-		_health_fill.visible = not dead
+		_health_fill.visible = not dead and not _bush_visual_hidden
 
 
 func take_damage(amount: float, source: Node = null, _damage_type := "physical", skill := "auto", is_crit := false) -> void:
 	if dead:
 		return
+	if amount > 0.0:
+		_break_bush_stealth()
 	if source is HeroUnit and game != null and bool(game.get("network_play")):
 		var source_id := int(source.get("network_id"))
 		if source_id == 0 and bool(source.get("is_player")):
@@ -388,6 +477,8 @@ func take_damage(amount: float, source: Node = null, _damage_type := "physical",
 func apply_network_damage(amount: float, show_number := true, is_crit := false) -> bool:
 	if dead:
 		return false
+	if amount > 0.0:
+		_break_bush_stealth()
 	last_damage_msec = Time.get_ticks_msec()
 	health = maxf(0.0, health - maxf(amount, 0.0))
 	_update_health_bar()
@@ -454,6 +545,7 @@ func apply_network_respawn(position: Vector3, rotation_y: float) -> void:
 func play_attack(_attack_type: String) -> void:
 	if dead:
 		return
+	_break_bush_stealth()
 	_attack_lock_msec = Time.get_ticks_msec() + 450
 	if _animation_player != null:
 		var preferred: Array[String] = []

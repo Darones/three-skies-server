@@ -1,0 +1,234 @@
+﻿Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+godot_console : WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:3 - ext_resource,
+ invalid UID: uid://cmpof68vvmhk2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/script/VF
+XImpactBB.gd
+строка:1 знак:275
++ ... e.Trim() }; godot_console --headless --path . tools/HpDesyncProbe.tsc ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (WARNING: res://.../VFXImpactBB.gd:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:4 - ext_resource, invalid UID: ui
+d://ddaykxb1ucbsl - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/glow.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:5 - ext_resource, invalid UID: ui
+d://dkenjalb0a7f6 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/streaks.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:6 - ext_resource, invalid UID: ui
+d://bwmucxp58uvvt - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/shared/script/VFXOmniLightBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:7 - ext_resource, invalid UID: ui
+d://n0hv5j1ofiye - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/flare.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:8 - ext_resource, invalid UID: ui
+d://bndvdknhjeps4 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/four_point_star.gd
+shader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn:3 - ext_resource, invalid UID: ui
+d://ddaykxb1ucbsl - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/glow.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn:4 - ext_resource, invalid UID: ui
+d://cmpof68vvmhk2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/script/VFXImpactBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn:5 - ext_resource, invalid UID: ui
+d://dkenjalb0a7f6 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/streaks.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn:6 - ext_resource, invalid UID: ui
+d://bwmucxp58uvvt - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/shared/script/VFXOmniLightBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn:7 - ext_resource, invalid UID: ui
+d://bndvdknhjeps4 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/four_point_star.gd
+shader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_01.tscn:3 - ext_resource, i
+nvalid UID: uid://cmpof68vvmhk2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/script/VFXI
+mpactBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_01.tscn:4 - ext_resource, i
+nvalid UID: uid://8mnb5nsi3n2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact
+_sphere.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_01.tscn:5 - ext_resource, i
+nvalid UID: uid://c3vn75lshe3xo - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impa
+ct_slash.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_01.tscn:6 - ext_resource, i
+nvalid UID: uid://bssccbrmdo0rm - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impa
+ct_core.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_01.tscn:7 - ext_resource, i
+nvalid UID: uid://ddaykxb1ucbsl - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/glow
+.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_01.tscn:8 - ext_resource, i
+nvalid UID: uid://bwmucxp58uvvt - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/shared/script/VFXOmniLigh
+tBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_01.tscn:9 - ext_resource, i
+nvalid UID: uid://n0hv5j1ofiye - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/flare
+.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn:3 - ext_resource, i
+nvalid UID: uid://cmpof68vvmhk2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/script/VFXI
+mpactBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn:4 - ext_resource, i
+nvalid UID: uid://8mnb5nsi3n2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact
+_sphere.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn:5 - ext_resource, i
+nvalid UID: uid://c3vn75lshe3xo - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impa
+ct_slash.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn:6 - ext_resource, i
+nvalid UID: uid://bssccbrmdo0rm - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impa
+ct_core.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn:7 - ext_resource, i
+nvalid UID: uid://ddaykxb1ucbsl - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/glow
+.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn:8 - ext_resource, i
+nvalid UID: uid://bwmucxp58uvvt - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/shared/script/VFXOmniLigh
+tBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn:3 - ext_resource, invalid U
+ID: uid://cmpof68vvmhk2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/script/VFXImpactBB.
+gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn:4 - ext_resource, invalid U
+ID: uid://8mnb5nsi3n2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_sphere.
+gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn:5 - ext_resource, invalid U
+ID: uid://c3vn75lshe3xo - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_slash
+.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn:6 - ext_resource, invalid U
+ID: uid://bssccbrmdo0rm - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_core.
+gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn:7 - ext_resource, invalid U
+ID: uid://ddaykxb1ucbsl - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/glow.gdshade
+r
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn:8 - ext_resource, invalid U
+ID: uid://bwmucxp58uvvt - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/shared/script/VFXOmniLightBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+[Platform] id=standalone adapter=Standalone
+[NET] REST URL: https://three-skies-server.relaxdev.ru
+[NET] WebSocket URL: wss://three-skies-server.relaxdev.ru/ws
+[MCPRuntimeServer] port: scanning 6570-6585 (default)
+[MCPRuntimeServer] listening on 127.0.0.1:6570
+[MCPRegistry] runtime port 6570 registered for c:/mygames3d/three-skies
+--- initial ---
+PASS: initial: HUD bar max 1050.0 == max_health 1050.0
+PASS: initial: HUD bar value 1050.0 == health 1050.0
+PASS: initial: HUD bar ratio 1.000 == health/max 1.000
+PASS: initial: HUD text has hp/max (1050 / 1050)
+PASS: initial: HUD text hp 1050 == health 1050
+PASS: initial: HUD text max 1050 == max_health 1050
+PASS: initial: 3D bar 1.000 == health/max 1.000 (hp 1050.0/1050.0)
+--- damage / heal ---
+PASS: after 260 damage: HUD bar max 1050.0 == max_health 1050.0
+PASS: after 260 damage: HUD bar value 790.0 == health 790.0
+PASS: after 260 damage: HUD bar ratio 0.752 == health/max 0.752
+PASS: after 260 damage: HUD text has hp/max (790 / 1050)
+PASS: after 260 damage: HUD text hp 790 == health 790
+PASS: after 260 damage: HUD text max 1050 == max_health 1050
+PASS: after 260 damage: 3D bar 0.752 == health/max 0.752 (hp 790.0/1050.0)
+PASS: after 75 heal: HUD bar max 1050.0 == max_health 1050.0
+PASS: after 75 heal: HUD bar value 865.0 == health 865.0
+PASS: after 75 heal: HUD bar ratio 0.824 == health/max 0.824
+PASS: after 75 heal: HUD text has hp/max (865 / 1050)
+PASS: after 75 heal: HUD text hp 865 == health 865
+PASS: after 75 heal: HUD text max 1050 == max_health 1050
+PASS: after 75 heal: 3D bar 0.824 == health/max 0.824 (hp 865.0/1050.0)
+--- +max HP item ---
+PASS: after life_amulet: HUD bar max 1200.0 == max_health 1200.0
+PASS: after life_amulet: HUD bar value 1015.0 == health 1015.0
+PASS: after life_amulet: HUD bar ratio 0.846 == health/max 0.846
+PASS: after life_amulet: HUD text has hp/max (1015 / 1200)
+PASS: after life_amulet: HUD text hp 1015 == health 1015
+PASS: after life_amulet: HUD text max 1200 == max_health 1200
+PASS: after life_amulet: 3D bar 0.846 == health/max 0.846 (hp 1015.0/1200.0)
+--- authoritative max-HP-only sync ---
+PASS: max-only sync updated max_health to 1100
+PASS: after max-only sync: 3D bar 0.923 == health/max 0.923 (hp 1015.0/1100.0)
+PASS: after max-only sync: HUD bar max 1100.0 == max_health 1100.0
+PASS: after max-only sync: HUD bar value 1015.0 == health 1015.0
+PASS: after max-only sync: HUD bar ratio 0.923 == health/max 0.923
+PASS: after max-only sync: HUD text has hp/max (1015 / 1100)
+PASS: after max-only sync: HUD text hp 1015 == health 1015
+PASS: after max-only sync: HUD text max 1100 == max_health 1100
+--- death / respawn ---
+PASS: player is dead after lethal hit
+PASS: player health is 0 after lethal hit
+PASS: player 3D bar hidden while dead
+PASS: dead: HUD bar max 1200.0 == max_health 1200.0
+PASS: dead: HUD bar value 0.0 == health 0.0
+PASS: dead: HUD bar ratio 0.000 == health/max 0.000
+PASS: dead: HUD text has hp/max (0 / 1200)
+PASS: dead: HUD text hp 0 == health 0
+PASS: dead: HUD text max 1200 == max_health 1200
+PASS: player respawned
+PASS: player respawned at full HP
+PASS: player 3D bar visible after respawn
+PASS: after respawn: 3D bar 1.000 == health/max 1.000 (hp 1200.0/1200.0)
+PASS: after respawn: HUD bar max 1200.0 == max_health 1200.0
+PASS: after respawn: HUD bar value 1200.0 == health 1200.0
+PASS: after respawn: HUD bar ratio 1.000 == health/max 1.000
+PASS: after respawn: HUD text has hp/max (1200 / 1200)
+PASS: after respawn: HUD text hp 1200 == health 1200
+PASS: after respawn: HUD text max 1200 == max_health 1200
+--- base heal ---
+PASS: base heal raised health 300 -> 350
+PASS: after base heal: 3D bar 0.292 == health/max 0.292 (hp 350.0/1200.0)
+PASS: after base heal: HUD bar max 1200.0 == max_health 1200.0
+PASS: after base heal: HUD bar value 350.0 == health 350.0
+PASS: after base heal: HUD bar ratio 0.292 == health/max 0.292
+PASS: after base heal: HUD text has hp/max (350 / 1200)
+PASS: after base heal: HUD text hp 350 == health 350
+PASS: after base heal: HUD text max 1200 == max_health 1200
+--- field regen ---
+PASS: field regen raised health 480 -> 490
+PASS: field regen 3D bar 0.408 == health/max 0.408 (was 0.400)
+PASS: after field regen: HUD bar max 1200.0 == max_health 1200.0
+PASS: after field regen: HUD bar value 490.0 == health 490.0
+PASS: after field regen: HUD bar ratio 0.408 == health/max 0.408
+PASS: after field regen: HUD text has hp/max (490 / 1200)
+PASS: after field regen: HUD text hp 490 == health 490
+PASS: after field regen: HUD text max 1200 == max_health 1200
+--- bot damage ---
+PASS: bot after 200 damage: 3D bar 0.810 == health/max 0.810 (hp 850.0/1050.0)
+--- bot field regen ---
+PASS: bot field regen raised health 420 -> 430
+PASS: bot field regen 3D bar 0.410 == health/max 0.410
+--- bot death / respawn ---
+PASS: bot is dead after lethal hit
+PASS: bot 3D bar hidden while dead
+PASS: bot respawned
+PASS: bot respawned at full HP
+PASS: bot 3D bar visible after respawn
+PASS: bot after respawn: 3D bar 1.000 == health/max 1.000 (hp 1050.0/1050.0)
+--- remote bot snapshots ---
+PASS: remote bot starts at 1050 HP
+PASS: remote initial: remote 3D bar 1.000 == health/max 1.000 (hp 1050.0/1050.0)
+PASS: remote 900/1050: remote 3D bar 0.857 == health/max 0.857 (hp 900.0/1050.0)
+PASS: remote 700/1050: remote 3D bar 0.667 == health/max 0.667 (hp 700.0/1050.0)
+PASS: remote 351/1050: remote 3D bar 0.334 == health/max 0.334 (hp 351.0/1050.0)
+PASS: remote 1050/1050: remote 3D bar 1.000 == health/max 1.000 (hp 1050.0/1050.0)
+PASS: remote 800/1200: remote 3D bar 0.667 == health/max 0.667 (hp 800.0/1200.0)
+PASS: remote 1200/1200: remote 3D bar 1.000 == health/max 1.000 (hp 1200.0/1200.0)
+PASS: remote 420/840: remote 3D bar 0.500 == health/max 0.500 (hp 420.0/840.0)
+PASS: remote bot dead from alive=false snapshot
+PASS: remote bot bar hidden while dead
+PASS: remote bot respawned from alive=true snapshot
+PASS: remote after respawn: remote 3D bar 1.000 == health/max 1.000 (hp 840.0/840.0)
+HP_DESYNC_CHECKS=93 FAILURES=0
+WARNING: 19 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)
+ERROR: 9 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:822)

@@ -1,0 +1,258 @@
+﻿Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+Vulkan 1.3.260 - Forward+ - Using Device #0: AMD - Radeon RX 570 Series
+
+[Platform] id=standalone adapter=Standalone
+[NET] REST URL: https://three-skies-server.relaxdev.ru
+[NET] WebSocket URL: wss://three-skies-server.relaxdev.ru/ws
+[MCPRuntimeServer] port: scanning 6570-6585 (default)
+[MCPRuntimeServer] listening on 127.0.0.1:6570
+[MCPRegistry] runtime port 6570 registered for c:/mygames3d/three-skies
+godot_console : WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:3 - ext_resource,
+ invalid UID: uid://cmpof68vvmhk2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/script/VF
+XImpactBB.gd
+строка:1 знак:30
++ ... hree-skies; godot_console --path . tools/LoadingUiProbe.tscn -- --lay ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (WARNING: res://.../VFXImpactBB.gd:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+   at: load (scene/resources/resource_format_text.cpp:501)
+   GDScript backtrace (most recent call first):
+       [0] _run (res://scripts/vfx_preloader.gd:115)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:4 - ext_resource, invalid UID: ui
+d://ddaykxb1ucbsl - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/glow.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+   GDScript backtrace (most recent call first):
+       [0] _run (res://scripts/vfx_preloader.gd:115)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:5 - ext_resource, invalid UID: ui
+d://dkenjalb0a7f6 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/streaks.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+   GDScript backtrace (most recent call first):
+       [0] _run (res://scripts/vfx_preloader.gd:115)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:6 - ext_resource, invalid UID: ui
+d://bwmucxp58uvvt - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/shared/script/VFXOmniLightBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+   GDScript backtrace (most recent call first):
+       [0] _run (res://scripts/vfx_preloader.gd:115)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:7 - ext_resource, invalid UID: ui
+d://n0hv5j1ofiye - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/flare.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+   GDScript backtrace (most recent call first):
+       [0] _run (res://scripts/vfx_preloader.gd:115)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:8 - ext_resource, invalid UID: ui
+d://bndvdknhjeps4 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/four_point_star.gd
+shader
+   at: load (scene/resources/resource_format_text.cpp:501)
+   GDScript backtrace (most recent call first):
+       [0] _run (res://scripts/vfx_preloader.gd:115)
+PASS: 12+ badge is not in the match search
+PASS: legal consent label is removed from the match search
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn:3 - ext_resource, i
+nvalid UID: uid://cmpof68vvmhk2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/script/VFXI
+mpactBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn:4 - ext_resource, i
+nvalid UID: uid://8mnb5nsi3n2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact
+_sphere.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn:5 - ext_resource, i
+nvalid UID: uid://c3vn75lshe3xo - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impa
+ct_slash.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn:6 - ext_resource, i
+nvalid UID: uid://bssccbrmdo0rm - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impa
+ct_core.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn:7 - ext_resource, i
+nvalid UID: uid://ddaykxb1ucbsl - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/glow
+.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn:8 - ext_resource, i
+nvalid UID: uid://bwmucxp58uvvt - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/shared/script/VFXOmniLigh
+tBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn:3 - ext_resource, invalid UID: ui
+d://ddaykxb1ucbsl - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/glow.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+   GDScript backtrace (most recent call first):
+       [0] _run (res://scripts/vfx_preloader.gd:115)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn:4 - ext_resource, invalid UID: ui
+d://cmpof68vvmhk2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/script/VFXImpactBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+   GDScript backtrace (most recent call first):
+       [0] _run (res://scripts/vfx_preloader.gd:115)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn:5 - ext_resource, invalid UID: ui
+d://dkenjalb0a7f6 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/streaks.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+   GDScript backtrace (most recent call first):
+       [0] _run (res://scripts/vfx_preloader.gd:115)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn:6 - ext_resource, invalid UID: ui
+d://bwmucxp58uvvt - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/shared/script/VFXOmniLightBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+   GDScript backtrace (most recent call first):
+       [0] _run (res://scripts/vfx_preloader.gd:115)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn:7 - ext_resource, invalid UID: ui
+d://bndvdknhjeps4 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/four_point_star.gd
+shader
+   at: load (scene/resources/resource_format_text.cpp:501)
+   GDScript backtrace (most recent call first):
+       [0] _run (res://scripts/vfx_preloader.gd:115)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn:3 - ext_resource, invalid U
+ID: uid://cmpof68vvmhk2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/script/VFXImpactBB.
+gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn:4 - ext_resource, invalid U
+ID: uid://8mnb5nsi3n2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_sphere.
+gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn:5 - ext_resource, invalid U
+ID: uid://c3vn75lshe3xo - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_slash
+.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn:6 - ext_resource, invalid U
+ID: uid://bssccbrmdo0rm - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/impact_core.
+gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn:7 - ext_resource, invalid U
+ID: uid://ddaykxb1ucbsl - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/glow.gdshade
+r
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn:8 - ext_resource, invalid U
+ID: uid://bwmucxp58uvvt - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/shared/script/VFXOmniLightBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+LOADING_UI_DIR=C:/Users/Professional/AppData/Roaming/Godot/app_userdata/╨Э╨╡╨▒╨╡╤Б╨╜╤Л╨╡ ╨╛╤Б╨║╨╛╨╗╨║╨╕/ui_shots
+LOADING_UI_FAILURES=0
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:3 - ext_resource, invalid UID: ui
+d://cmpof68vvmhk2 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/script/VFXImpactBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:4 - ext_resource, invalid UID: ui
+d://ddaykxb1ucbsl - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/glow.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:5 - ext_resource, invalid UID: ui
+d://dkenjalb0a7f6 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/streaks.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:6 - ext_resource, invalid UID: ui
+d://bwmucxp58uvvt - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/shared/script/VFXOmniLightBB.gd
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:7 - ext_resource, invalid UID: ui
+d://n0hv5j1ofiye - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/flare.gdshader
+   at: load (scene/resources/resource_format_text.cpp:501)
+WARNING: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:8 - ext_resource, invalid UID: ui
+d://bndvdknhjeps4 - using text path instead: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/shader/four_point_star.gd
+shader
+   at: load (scene/resources/resource_format_text.cpp:501)
+ERROR: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn:236 - Parse Error: .
+   at: _printerr (scene/resources/resource_format_text.cpp:41)
+ERROR: Failed loading resource: res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn.
+   at: _load (core/io/resource_loader.cpp:317)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hi
+t/vfx_hit_01.tscn".
+   at: GDScript::reload (res://scripts/hero.gd:88)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hi
+t/vfx_hit_02.tscn".
+   at: GDScript::reload (res://scripts/hero.gd:89)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/bi
+g_impact/vfx_big_impact_01.tscn".
+   at: GDScript::reload (res://scripts/hero.gd:90)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/bi
+g_impact/vfx_big_impact_02.tscn".
+   at: GDScript::reload (res://scripts/hero.gd:91)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/im
+pact/vfx_impact_01.tscn".
+   at: GDScript::reload (res://scripts/hero.gd:92)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/im
+pact/vfx_impact_02.tscn".
+   at: GDScript::reload (res://scripts/hero.gd:93)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/audio/Soundza_Game_SFX_Pack/hits_impacts/deep_
+punch_impact.mp3".
+   at: GDScript::reload (res://scripts/hero.gd:94)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/audio/kenney_rpg/footstep_0.ogg".
+   at: GDScript::reload (res://scripts/hero.gd:96)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/audio/kenney_rpg/footstep_1.ogg".
+   at: GDScript::reload (res://scripts/hero.gd:97)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/audio/kenney_rpg/footstep_2.ogg".
+   at: GDScript::reload (res://scripts/hero.gd:98)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/audio/kenney_rpg/footstep_3.ogg".
+   at: GDScript::reload (res://scripts/hero.gd:99)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/audio/kenney_rpg/footstep_4.ogg".
+   at: GDScript::reload (res://scripts/hero.gd:100)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://audio/sfx/warrior_dash_shadow.mp3".
+   at: GDScript::reload (res://scripts/hero.gd:104)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://audio/sfx/warrior_bloodthirst.mp3".
+   at: GDScript::reload (res://scripts/hero.gd:105)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://audio/sfx/mage_root_vines_short.mp3".
+   at: GDScript::reload (res://scripts/hero.gd:109)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://audio/sfx/mage_heal_chime.mp3".
+   at: GDScript::reload (res://scripts/hero.gd:110)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://audio/sfx/mage_storm_ult.mp3".
+   at: GDScript::reload (res://scripts/hero.gd:111)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://audio/sfx/fairy_stun_shot.mp3".
+   at: GDScript::reload (res://scripts/hero.gd:114)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://audio/sfx/fairy_crit_draw_release.mp3".
+   at: GDScript::reload (res://scripts/hero.gd:115)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://audio/sfx/fairy_blessing.mp3".
+   at: GDScript::reload (res://scripts/hero.gd:116)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/audio/Soundza_Game_SFX_Pack/explosions/firebal
+l_explosion.mp3".
+   at: GDScript::reload (res://scripts/hero.gd:119)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/audio/Soundza_Game_SFX_Pack/magic/spell_2.mp3"
+.
+   at: GDScript::reload (res://scripts/hero.gd:120)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/audio/Soundza_Game_SFX_Pack/pickups_powerups/s
+ynth_power_up_ascending.mp3".
+   at: GDScript::reload (res://scripts/hero.gd:121)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://ui/fx/blessing_rune.png".
+   at: GDScript::reload (res://scripts/hero.gd:3595)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/tutorial_controller.gd:0)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/fonts/Philosopher-Regular.ttf".
+   at: GDScript::reload (res://scripts/remote_player.gd:3)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://art/generated/shell/3d_1793744338028.glb".
+   at: GDScript::reload (res://scripts/shell.gd:4)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/fonts/Philosopher-Regular.ttf".
+   at: GDScript::reload (res://scripts/hud.gd:44)
+SCRIPT ERROR: Parse Error: Cannot infer the type of "UI_FONT" constant because the value doesn't have a set type.
+   at: GDScript::reload (res://scripts/hud.gd:44)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/ui/heroes/warrior_face.webp".
+   at: GDScript::reload (res://scripts/hud.gd:49)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/ui/heroes/mage_face.webp".
+   at: GDScript::reload (res://scripts/hud.gd:50)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/ui/heroes/archer_face.webp".
+   at: GDScript::reload (res://scripts/hud.gd:51)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/audio/Soundza_Game_SFX_Pack/hits_impacts/deep_
+sub_impact.mp3".
+   at: GDScript::reload (res://scripts/hud.gd:164)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/ui/icon/128/004.png".
+   at: GDScript::reload (res://scripts/hud.gd:167)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/ui/icon/128/002.png".
+   at: GDScript::reload (res://scripts/hud.gd:168)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/ui/icon/128/009.png".
+   at: GDScript::reload (res://scripts/hud.gd:169)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/ui/icon/128/011.png".
+   at: GDScript::reload (res://scripts/hud.gd:172)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/ui/icon/128/008.png".
+   at: GDScript::reload (res://scripts/hud.gd:173)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/ui/icon/128/001.png".
+   at: GDScript::reload (res://scripts/hud.gd:174)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/ui/icon/128/003.png".
+   at: GDScript::reload (res://scripts/hud.gd:177)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/ui/icon/128/014.png".
+   at: GDScript::reload (res://scripts/hud.gd:178)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://assets/ui/icon/128/005.png".
+   at: GDScript::reload (res://scripts/hud.gd:179)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://shaders/low_health_vignette.gdshader".
+   at: GDScript::reload (res://scripts/hud.gd:294)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://shaders/ability_icon_mask.gdshader".
+   at: GDScript::reload (res://scripts/hud.gd:2051)
+SCRIPT ERROR: Parse Error: Could not preload resource file "res://shaders/ability_cooldown_mask.gdshader".
+   at: GDScript::reload (res://scripts/hud.gd:10)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/game.gd:0)
+ERROR: Failed to load script "res://scripts/game.gd" with error "Compilation failed".
+   at: load (modules/gdscript/gdscript_resource_format.cpp:46)
+ERROR: res://scenes/Main.tscn:45 - Parse Error: .
+   at: _printerr (scene/resources/resource_format_text.cpp:41)
+ERROR: Failed loading resource: res://scenes/Main.tscn.
+   at: _load (core/io/resource_loader.cpp:317)
+WARNING: 62 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)

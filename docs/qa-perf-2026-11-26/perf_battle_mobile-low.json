@@ -1,0 +1,119 @@
+{
+  "canvas": [
+    1168,
+    540
+  ],
+  "frames": {
+    "after_10s": {
+      "avg_ms": 16.7,
+      "fps_avg": 59.9,
+      "frames": 719,
+      "max_ms": 38.15,
+      "p50_ms": 16.53,
+      "p95_ms": 19.25,
+      "p99_ms": 19.77,
+      "spikes_33": 1,
+      "spikes_50": 0
+    },
+    "all": {
+      "avg_ms": 16.69,
+      "fps_avg": 59.9,
+      "frames": 1318,
+      "max_ms": 38.15,
+      "p50_ms": 16.42,
+      "p95_ms": 19.19,
+      "p99_ms": 19.77,
+      "spikes_33": 1,
+      "spikes_50": 0
+    },
+    "first_10s": {
+      "avg_ms": 16.67,
+      "fps_avg": 60.0,
+      "frames": 599,
+      "max_ms": 24.87,
+      "p50_ms": 16.29,
+      "p95_ms": 19.05,
+      "p99_ms": 20.01,
+      "spikes_33": 0,
+      "spikes_50": 0
+    },
+    "first_3s": {
+      "avg_ms": 16.61,
+      "fps_avg": 60.2,
+      "frames": 180,
+      "max_ms": 21.29,
+      "p50_ms": 16.53,
+      "p95_ms": 18.98,
+      "p99_ms": 19.36,
+      "spikes_33": 0,
+      "spikes_50": 0
+    }
+  },
+  "hitch_count": 0,
+  "hitches": [],
+  "instantiate_ms": 950.2,
+  "load_ms": 2209.2,
+  "mobile": true,
+  "monitors": {
+    "draws": {
+      "avg": 104.81,
+      "max": 121.0
+    },
+    "nodes": {
+      "avg": 1394.54,
+      "max": 1504.0
+    },
+    "objects": {
+      "avg": 5173.7,
+      "max": 5340.0
+    },
+    "objects_drawn": {
+      "avg": 360.04,
+      "max": 782.0
+    },
+    "physics_ms": {
+      "avg": 2.39,
+      "max": 7.81
+    },
+    "primitives": {
+      "avg": 44578.27,
+      "max": 173602.0
+    },
+    "process_ms": {
+      "avg": 22.67,
+      "max": 106.52
+    },
+    "resources": {
+      "avg": 1012.19,
+      "max": 1013.0
+    },
+    "static_mb": {
+      "avg": 124.8,
+      "max": 128.08
+    },
+    "video_mb": {
+      "avg": 364.81,
+      "max": 366.12
+    }
+  },
+  "os": "Windows",
+  "particles_peak": {
+    "cpu": 10,
+    "cpu_amount": 247,
+    "cpu_emitting": 9,
+    "gpu": 89,
+    "gpu_amount": 514,
+    "gpu_emitting": 16,
+    "lights": 11
+  },
+  "quality": "low",
+  "render_scale": 0.5,
+  "renderer": "forward_plus",
+  "start_match_ms": 721.0,
+  "tag": "mobile-low",
+  "total_to_live_ms": 721.0,
+  "window": [
+    844,
+    390
+  ]
+}

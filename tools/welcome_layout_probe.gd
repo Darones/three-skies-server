@@ -42,13 +42,11 @@ func _ready() -> void:
 	var image := get_viewport().get_texture().get_image()
 	image.save_png("user://ui_shots/welcome_%s.png" % tag)
 	var play: Button = overlay.get("play_button")
-	var legal: Label = overlay.get("legal_label")
+	var legal := overlay.find_child("WelcomeLegal", true, false) as Label
 	var logo: TextureRect = overlay.get("welcome_logo")
-	var age: Label = overlay.get("age_label")
+	var age := overlay.find_child("WelcomeAgeRating", true, false) as Label
 	print("WELCOME viewport=", size, " overlay=", overlay.get_global_rect())
 	print("WELCOME play=", play.get_global_rect(), " font=", play.get_theme_font_size("font_size"))
-	print("WELCOME legal=", legal.get_global_rect(), " font=", legal.get_theme_font_size("font_size"))
-	print("WELCOME logo=", logo.get_global_rect(), " age=", age.get_global_rect(),
-		" age_font=", age.get_theme_font_size("font_size"))
+	print("WELCOME logo=", logo.get_global_rect(), " age_badge=", age != null, " legal=", legal != null)
 	print("WELCOME_DIR=", ProjectSettings.globalize_path("user://ui_shots"))
 	get_tree().quit()

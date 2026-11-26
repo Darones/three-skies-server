@@ -6,6 +6,14 @@ const WARRIOR: Texture2D = preload('res://assets/ui/heroes/warrior_face.webp')
 const MAGE: Texture2D = preload('res://assets/ui/heroes/mage_face.webp')
 const FAIRY: Texture2D = preload('res://assets/ui/heroes/archer_face.webp')
 const MATCH_PATH := 'res://scenes/Main.tscn'
+const WARMUP_FLOW_SCRIPT := preload('res://scripts/warmup_flow.gd')
+## The battle warmup runs inside the match-search window. If the match is
+## found earlier the transition waits for it, but never longer than this:
+## after the budget the match starts without the warmup (game.gd falls back
+## to its own first-frame warmup).
+const WARMUP_BUDGET_SECONDS := 30.0
+## Tutorial loading screen: a broken warmup must never leave the player here.
+const TUTORIAL_WARMUP_TIMEOUT_SECONDS := 45.0
 const SEARCH_SECONDS := 15.0
 # Клиент ждёт сервер; сервер стартует комнату через 30 секунд после
 # последнего вошедшего игрока, поэтому обратный отсчёт тоже 30.
@@ -52,22 +60,284 @@ var network_player_slots: Dictionary = {}
 var back_button: Button
 var wait_seconds_left := NETWORK_WAIT_SECONDS
 var wait_countdown_active := false
+# Battle warmup (WarmupFlow) state. The full arena/fighters/weapons/VFX pass
+# runs while the search screen is visible, instead of at the start of Main.
+var warmup_flow: Node = null
+var warmup_active := false
+var warmup_failed := false
+var warmup_started_ms := 0
+var warmup_budget_seconds := WARMUP_BUDGET_SECONDS
+var warmup_panel: PanelContainer
+var warmup_percent_label: Label
+var warmup_stage_label: Label
+var match_load_requested := false
+# Tutorial loading mode: owned by the tutorial (lobby sets tutorial_mode +
+# warmup_pending), no match search, no network — warmup then Main.
+var tutorial_mode := false
+var tutorial_warmup_token := 0
+var welcome_card: WelcomeOverlay
+var title_label: Label
+var versus_label: Label
 
 func _ready() -> void:
 	randomize()
 	network_flow = bool(get_tree().get_meta('network_play', false))
+	tutorial_mode = bool(get_tree().get_meta('tutorial_mode', true))
 	_build_screen()
-	_start_match_scene_loading()
+	if tutorial_mode:
+		if bool(get_tree().get_meta('warmup_pending', false)):
+			_start_tutorial_warmup()
+		else:
+			# Direct tutorial entry without the tutorial loading flow (probes,
+			# editor previews): keep the plain prefetch, never the search.
+			_start_match_scene_loading()
+			_add_vfx_preloader()
+		return
+	# WarmupFlow loads Main.tscn itself; a parallel threaded preload would be
+	# a second full load of the same scene. Main is taken from the cache after
+	# the warmup ends (see _start_match_scene_loading).
+	_start_battle_warmup()
 	if network_flow:
 		_start_network_flow()
 	else:
 		_use_bot_fallback()
-	# Warm up battle VFX while the search screen is visible.
+	search_label.text = 'Поиск игроков...'
+	tip_label.text = TIPS[0]
+
+
+func _add_vfx_preloader() -> void:
 	var preloader := preload('res://scripts/vfx_preloader.gd').new()
 	preloader.name = 'VfxPreloader'
 	add_child(preloader)
-	search_label.text = 'Поиск игроков...'
-	tip_label.text = TIPS[0]
+
+
+func _start_battle_warmup() -> void:
+	warmup_active = true
+	warmup_started_ms = Time.get_ticks_msec()
+	_build_warmup_status()
+	warmup_flow = WARMUP_FLOW_SCRIPT.new()
+	if warmup_flow == null or not warmup_flow.has_method('start'):
+		warmup_active = false
+		warmup_failed = true
+		_start_match_scene_loading()
+		return
+	warmup_flow.name = 'WarmupFlow'
+	add_child(warmup_flow)
+	warmup_flow.progress_changed.connect(_on_battle_warmup_progress)
+	warmup_flow.finished.connect(_on_battle_warmup_finished)
+	warmup_flow.start()
+
+
+func _build_warmup_status() -> void:
+	warmup_panel = PanelContainer.new()
+	warmup_panel.name = 'BattleWarmupStatus'
+	# Hug the content in the free top-right corner: no overlap with the logo
+	# (ends at 0.64) or the team panels; compact on a phone.
+	warmup_panel.anchor_left = 0.975
+	warmup_panel.anchor_right = 0.975
+	warmup_panel.anchor_top = 0.02
+	warmup_panel.anchor_bottom = 0.02
+	warmup_panel.offset_left = 0.0
+	warmup_panel.offset_right = 0.0
+	warmup_panel.offset_top = 0.0
+	warmup_panel.offset_bottom = 0.0
+	warmup_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	warmup_panel.grow_vertical = Control.GROW_DIRECTION_END
+	warmup_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	warmup_panel.add_theme_stylebox_override('panel', _warmup_style())
+	add_child(warmup_panel)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override('separation', 0)
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	warmup_panel.add_child(column)
+	warmup_percent_label = _make_label('Прогрев боя: 0%', 13, Color(1.0, 0.88, 0.6))
+	warmup_percent_label.name = 'WarmupPercent'
+	warmup_percent_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	column.add_child(warmup_percent_label)
+	warmup_stage_label = _make_label('Подготовка', 11, Color(0.8, 0.85, 0.95))
+	warmup_stage_label.name = 'WarmupStage'
+	warmup_stage_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	column.add_child(warmup_stage_label)
+
+
+func _on_battle_warmup_progress(percent: float, _elapsed: float, stage: String) -> void:
+	if not is_instance_valid(warmup_percent_label):
+		return
+	warmup_percent_label.text = 'Прогрев боя: %d%%' % int(round(percent))
+	warmup_stage_label.text = stage
+
+
+func _on_battle_warmup_finished() -> void:
+	if not warmup_active:
+		return
+	warmup_active = false
+	var report: Dictionary = {}
+	if warmup_flow != null and is_instance_valid(warmup_flow):
+		report = warmup_flow.get('report') as Dictionary
+		warmup_flow.queue_free()
+		warmup_flow = null
+	warmup_failed = bool(report.get('failed', false))
+	if warmup_failed:
+		_mark_warmup_status('Прогрев боя: пропущен', 'Загружаем бой')
+	else:
+		# Main.tscn will skip its own expensive re-warm: everything the first
+		# frame needs is hot in the resource/shader cache.
+		get_tree().set_meta('battle_prewarmed', true)
+		_mark_warmup_status('Прогрев боя: 100%', 'Готово')
+	_start_match_scene_loading()
+
+
+func _mark_warmup_status(percent_text: String, stage_text: String) -> void:
+	if not is_instance_valid(warmup_percent_label):
+		return
+	warmup_percent_label.text = percent_text
+	warmup_stage_label.text = stage_text
+
+
+func _cancel_battle_warmup() -> void:
+	warmup_active = false
+	if warmup_flow != null and is_instance_valid(warmup_flow):
+		warmup_flow.queue_free()
+		warmup_flow = null
+	if is_instance_valid(warmup_panel):
+		warmup_panel.visible = false
+
+
+## Tutorial: the lesson has its own loading screen, opened by lobby.gd right
+## after "Играть". No network search and no bot fallback here — only the real
+## battle warmup, then Main.tscn (game.gd starts the lesson from the meta).
+func _start_tutorial_warmup() -> void:
+	_show_tutorial_card()
+	warmup_active = true
+	warmup_started_ms = Time.get_ticks_msec()
+	warmup_flow = WARMUP_FLOW_SCRIPT.new()
+	if warmup_flow == null or not warmup_flow.has_method('start'):
+		warmup_active = false
+		_open_tutorial_main()
+		return
+	warmup_flow.name = 'WarmupFlow'
+	add_child(warmup_flow)
+	warmup_flow.progress_changed.connect(_on_tutorial_warmup_progress)
+	warmup_flow.finished.connect(_on_tutorial_warmup_finished)
+	warmup_flow.start()
+	# Hard watchdog: a driver hiccup must never leave the player on a frozen
+	# loading screen. The normal flow finishes in ~10 s.
+	tutorial_warmup_token += 1
+	var token := tutorial_warmup_token
+	get_tree().create_timer(TUTORIAL_WARMUP_TIMEOUT_SECONDS).timeout.connect(func() -> void:
+		if not is_inside_tree() or not warmup_active or token != tutorial_warmup_token:
+			return
+		_cancel_battle_warmup()
+		_open_tutorial_main()
+	)
+
+
+## The lesson loads on the newcomer Welcome card: same key art, logo and legal
+## line. Only the Play button is replaced by the warmup progress, which keeps
+## the exact match-search bar position (same anchors as progress_bar).
+func _show_tutorial_card() -> void:
+	welcome_card = WelcomeOverlay.new()
+	welcome_card.name = 'TutorialWelcomeCard'
+	# Bigger logo for the lesson only: the Welcome card keeps its own size.
+	# The height cap keeps it above the title on short phone canvases.
+	welcome_card.logo_scale = 2.4 if DeviceProfile.mobile_ui else 2.0
+	welcome_card.logo_max_height_ratio = 0.60
+	add_child(welcome_card)
+	welcome_card.show_warming()
+	# The search-screen bar is the progress line; the card's own block would
+	# duplicate it in the Play button slot.
+	welcome_card.warmup_box.visible = false
+	welcome_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var background := get_node_or_null('LoadingBackground') as Control
+	if background != null:
+		background.visible = false
+	var logo := get_node_or_null('GameLogo') as Control
+	if logo != null:
+		logo.visible = false
+	if title_label != null:
+		title_label.visible = false
+	for panel_name in ['LightTeamPanel', 'DarkTeamPanel']:
+		var panel := find_child(panel_name, true, false) as Control
+		if panel != null:
+			panel.visible = false
+	if versus_label != null:
+		versus_label.visible = false
+	if tip_caption_label != null:
+		tip_caption_label.visible = false
+	if tip_label != null:
+		tip_label.visible = false
+	# The Welcome card sets z_index 200; keep the progress block above it.
+	for node in [search_label, found_count_label, progress_bar, connection_hint]:
+		node.z_index = 201
+	search_label.text = 'ЗАГРУЗКА ОБУЧЕНИЯ'
+	search_label.add_theme_color_override('font_color', Color(1.0, 0.84, 0.53))
+	# The percentage, stage and time share one line under the bar.
+	found_count_label.text = ''
+	found_count_label.visible = false
+	connection_hint.text = '0% · Загрузка арены · 0.0 с'
+	progress_bar.value = 0.0
+
+
+func _on_tutorial_warmup_progress(percent: float, elapsed: float, stage: String) -> void:
+	progress_bar.value = clampf(percent, 0.0, 100.0)
+	var stage_text := stage.strip_edges()
+	if stage_text.is_empty():
+		stage_text = 'Подготовка'
+	connection_hint.text = '%d%% · %s · %.1f с' % [
+		int(round(percent)), stage_text, maxf(0.0, elapsed)
+	]
+
+
+func _on_tutorial_warmup_finished() -> void:
+	if not warmup_active:
+		return
+	warmup_active = false
+	tutorial_warmup_token += 1
+	var report: Dictionary = {}
+	if warmup_flow != null and is_instance_valid(warmup_flow):
+		report = warmup_flow.get('report') as Dictionary
+		warmup_flow.queue_free()
+		warmup_flow = null
+	warmup_failed = bool(report.get('failed', false))
+	if warmup_failed:
+		# A broken warmup must not trap the player here: Main opens without it
+		# and game.gd runs its own tutorial warmup.
+		connection_hint.text = 'Открываем обучение'
+	else:
+		# game.gd skips its own expensive tutorial warmup.
+		get_tree().set_meta('battle_prewarmed', true)
+		progress_bar.value = 100.0
+		connection_hint.text = '100% · Готово'
+	_open_tutorial_main()
+
+
+func _open_tutorial_main() -> void:
+	warmup_active = false
+	get_tree().set_meta('warmup_pending', false)
+	# No parallel preload was started: WarmupFlow already loaded Main.tscn,
+	# so this opens from the warm resource cache.
+	var error := get_tree().change_scene_to_file(MATCH_PATH)
+	if error != OK:
+		push_error('Could not open the tutorial scene: %s' % error_string(error))
+
+
+## Waits for the warmup before switching to Main, but only up to the budget.
+## Called after the match is found; the search screen keeps showing progress.
+func _wait_for_battle_warmup() -> void:
+	if not warmup_active:
+		return
+	if is_instance_valid(warmup_stage_label):
+		warmup_stage_label.text = 'Матч найден · догреваем бой'
+	while warmup_active:
+		if not is_inside_tree():
+			return
+		if Time.get_ticks_msec() - warmup_started_ms > int(warmup_budget_seconds * 1000.0):
+			# Do not hang the player on a warmup that is too slow: start the
+			# match now and let game.gd do its own first-frame warmup.
+			_cancel_battle_warmup()
+			_start_match_scene_loading()
+			return
+		await get_tree().process_frame
 
 
 func _start_network_flow() -> void:
@@ -207,6 +477,9 @@ func _on_network_failed(reason: String) -> void:
 		return
 	transition_started = true
 	wait_countdown_active = false
+	# The player stays on the error screen; do not keep the hidden arena and
+	# viewport alive behind it.
+	_cancel_battle_warmup()
 	search_label.text = '\u0421\u0435\u0440\u0432\u0435\u0440 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d'
 	connection_hint.text = '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u044c\u0441\u044f: %s' % reason
 	for spinner in searching_spinners:
@@ -244,6 +517,11 @@ func _add_back_button() -> void:
 func _process(delta: float) -> void:
 	if transition_started:
 		return
+	if tutorial_mode:
+		# Tutorial loading: only WarmupFlow drives this screen — no search,
+		# no countdown, no bot slots.
+		_poll_match_scene_load()
+		return
 	if network_flow and wait_countdown_active:
 		wait_seconds_left = maxf(0.0, wait_seconds_left - delta)
 		var seconds_left := int(ceil(wait_seconds_left))
@@ -270,13 +548,29 @@ func _process(delta: float) -> void:
 	_poll_match_scene_load()
 
 func _start_match_scene_loading() -> void:
+	if match_load_requested or match_scene != null or load_failed:
+		return
+	match_load_requested = true
+	# WarmupFlow has already loaded Main.tscn once. If it is still in the
+	# resource cache, take that PackedScene instead of reading the scene a
+	# second time; otherwise load it now, sequentially — never in parallel
+	# with the warmup. Only a warmup that failed before its first step leaves
+	# the cache cold.
+	if ResourceLoader.has_cached(MATCH_PATH):
+		match_scene = load(MATCH_PATH) as PackedScene
+		if match_scene == null:
+			load_failed = true
+		return
 	var request_error := ResourceLoader.load_threaded_request(MATCH_PATH)
 	if request_error != OK and request_error != ERR_BUSY:
 		load_failed = true
 	_poll_match_scene_load()
 
 func _poll_match_scene_load() -> void:
-	if match_scene != null or load_failed:
+	# Nothing to poll until a threaded request exists: asking for the status
+	# of a path that was never requested returns THREAD_LOAD_INVALID_RESOURCE
+	# and would mark the load as failed.
+	if not match_load_requested or match_scene != null or load_failed:
 		return
 	var status := ResourceLoader.load_threaded_get_status(MATCH_PATH)
 	if status == ResourceLoader.THREAD_LOAD_LOADED:
@@ -391,6 +685,12 @@ func _transition_when_ready() -> void:
 	await get_tree().create_timer(1.1).timeout
 	if not is_inside_tree():
 		return
+	# The match is already found; do not start it on a cold renderer. The
+	# wait is bounded by warmup_budget_seconds so a slow device never hangs.
+	await _wait_for_battle_warmup()
+	if not is_inside_tree():
+		return
+	_start_match_scene_loading()
 	while not load_failed and match_scene == null:
 		_poll_match_scene_load()
 		if match_scene == null and not load_failed:
@@ -443,14 +743,17 @@ func _build_screen() -> void:
 	title.anchor_top = 0.205
 	title.anchor_bottom = 0.26
 	add_child(title)
+	title_label = title
 	_build_team_panel(0)
 	_build_team_panel(1)
 	var versus := _make_label('VS', 34, Color(1.0, 0.82, 0.42))
+	versus.name = 'VersusLabel'
 	versus.anchor_left = 0.43
 	versus.anchor_right = 0.57
 	versus.anchor_top = 0.43
 	versus.anchor_bottom = 0.53
 	add_child(versus)
+	versus_label = versus
 	search_label = _make_label('\u041f\u043e\u0438\u0441\u043a \u0438\u0433\u0440\u043e\u043a\u043e\u0432...', 22 if mobile else 26, Color(1.0, 0.9, 0.7))
 	search_label.anchor_left = 0.12
 	search_label.anchor_right = 0.88
@@ -573,6 +876,18 @@ func _progress_style(fill_color: Color, border_color: Color) -> StyleBoxFlat:
 	style.border_color = border_color
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(8)
+	return style
+
+func _warmup_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.02, 0.03, 0.06, 0.72)
+	style.border_color = Color(0.9, 0.7, 0.34, 0.5)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(10)
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
 	return style
 
 func _make_label(text: String, font_size: int, color: Color) -> Label:

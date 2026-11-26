@@ -1,0 +1,110 @@
+{
+  "canvas": [
+    1440,
+    734
+  ],
+  "frames": {
+    "after_10s": {},
+    "all": {
+      "avg_ms": 16.54,
+      "fps_avg": 60.5,
+      "frames": 302,
+      "max_ms": 27.32,
+      "p50_ms": 16.65,
+      "p95_ms": 18.68,
+      "p99_ms": 19.96,
+      "spikes_33": 0,
+      "spikes_50": 0
+    },
+    "first_10s": {
+      "avg_ms": 16.54,
+      "fps_avg": 60.5,
+      "frames": 302,
+      "max_ms": 27.32,
+      "p50_ms": 16.65,
+      "p95_ms": 18.68,
+      "p99_ms": 19.96,
+      "spikes_33": 0,
+      "spikes_50": 0
+    },
+    "first_3s": {
+      "avg_ms": 16.44,
+      "fps_avg": 60.8,
+      "frames": 182,
+      "max_ms": 27.32,
+      "p50_ms": 16.64,
+      "p95_ms": 17.59,
+      "p99_ms": 19.22,
+      "spikes_33": 0,
+      "spikes_50": 0
+    }
+  },
+  "hitch_count": 0,
+  "hitches": [],
+  "instantiate_ms": 945.1,
+  "load_ms": 2224.1,
+  "mobile": false,
+  "monitors": {
+    "draws": {
+      "avg": 119.86,
+      "max": 132.0
+    },
+    "nodes": {
+      "avg": 1310.08,
+      "max": 1313.0
+    },
+    "objects": {
+      "avg": 5109.26,
+      "max": 5112.0
+    },
+    "objects_drawn": {
+      "avg": 393.66,
+      "max": 620.0
+    },
+    "physics_ms": {
+      "avg": 1.67,
+      "max": 2.25
+    },
+    "primitives": {
+      "avg": 40016.26,
+      "max": 47942.0
+    },
+    "process_ms": {
+      "avg": 108.67,
+      "max": 3020.06
+    },
+    "resources": {
+      "avg": 1012.0,
+      "max": 1012.0
+    },
+    "static_mb": {
+      "avg": 121.01,
+      "max": 121.09
+    },
+    "video_mb": {
+      "avg": 370.31,
+      "max": 370.42
+    }
+  },
+  "novsync": false,
+  "os": "Windows",
+  "particles_peak": {
+    "cpu": 10,
+    "cpu_amount": 247,
+    "cpu_emitting": 0,
+    "gpu": 6,
+    "gpu_amount": 120,
+    "gpu_emitting": 6,
+    "lights": 17
+  },
+  "quality": "low",
+  "render_scale": 0.5,
+  "renderer": "forward_plus",
+  "start_match_ms": 283.2,
+  "tag": "arena-det-2",
+  "total_to_live_ms": 283.2,
+  "window": [
+    1440,
+    734
+  ]
+}
