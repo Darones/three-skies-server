@@ -26,13 +26,6 @@ var carrier_bar: ProgressBar = null
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const SETTINGS_PANEL_SCRIPT := preload("res://scripts/settings_panel.gd")
 const RULES_PANEL_SCRIPT := preload("res://scripts/rules_panel.gd")
-const SkinCatalog = preload("res://scripts/skin_catalog.gd")
-const HERO_PORTRAITS := {
-	HeroUnit.Cls.WARRIOR: preload("res://assets/ui/heroes/warrior_face.webp"),
-	HeroUnit.Cls.MAGE: preload("res://assets/ui/heroes/mage_face.webp"),
-	HeroUnit.Cls.FAIRY: preload("res://assets/ui/heroes/archer_face.webp"),
-}
-
 const ABILITY_SHORT_LABELS := {
 	HeroUnit.Cls.WARRIOR: ["СТАН", "КРИТ", "УЛЬТА"],
 	HeroUnit.Cls.MAGE: ["СТАН", "ХИЛ", "УЛЬТА"],
@@ -51,15 +44,13 @@ var timer_label: Label
 var shell_timer_label: Label
 var gold_label: Label
 var player_panel: PanelContainer
-var player_portrait: TextureRect
 var player_team_label: Label
 var player_name_label: Label
 var player_team_icon: TextureRect
 var player_hp_bar: ProgressBar
 var player_hp_label: Label
-var player_panel_class := -1
-var player_panel_skin := -1
 var player_panel_team := -1
+var player_name_font_size := -1
 var announce_label: Label
 var center_respawn_label: Label
 var stun_badge: PanelContainer
@@ -1270,7 +1261,7 @@ func _build_player_panel(root: Control) -> void:
 	player_panel.offset_top = 20.0
 	player_panel.offset_right = 390.0
 	player_panel.offset_bottom = 94.0
-	# Owner: the whole player card opens the pause menu, not just the portrait.
+	# Owner: the whole player card opens the pause menu.
 	player_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	player_panel.gui_input.connect(_on_avatar_input)
 	player_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.76, 0.63, 0.36, 0.62), Color(0.035, 0.035, 0.05, 0.3)))
@@ -1281,23 +1272,9 @@ func _build_player_panel(root: Control) -> void:
 	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	player_panel.add_child(content)
 
-	var portrait_frame := PanelContainer.new()
-	portrait_frame.custom_minimum_size = Vector2(60.0, 60.0)
-	portrait_frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	portrait_frame.mouse_filter = Control.MOUSE_FILTER_STOP
-	portrait_frame.add_theme_stylebox_override("panel", _panel_style(Color(0.92, 0.76, 0.42, 0.75), Color(0.06, 0.05, 0.05, 0.55)))
-	portrait_frame.gui_input.connect(_on_avatar_input)
-	content.add_child(portrait_frame)
-
-	player_portrait = TextureRect.new()
-	player_portrait.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	player_portrait.custom_minimum_size = Vector2(52.0, 52.0)
-	player_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	player_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	player_portrait.clip_contents = true
-	player_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	portrait_frame.add_child(player_portrait)
-
+	# The card carries only the nickname, the side (icon + word) and HP: the
+	# portrait took 60px of a 370px card and pushed the name into an ellipsis
+	# on a phone, so it is gone.
 	var details := VBoxContainer.new()
 	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	details.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -1309,7 +1286,7 @@ func _build_player_panel(root: Control) -> void:
 	name_row.add_theme_constant_override("separation", 6)
 	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	details.add_child(name_row)
-	player_name_label = _make_label("Игрок · Воин Света", 15, Color(0.97, 0.91, 0.79))
+	player_name_label = _make_label("Игрок", 15, Color(0.97, 0.91, 0.79))
 	player_name_label.clip_text = true
 	player_name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	player_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -1834,46 +1811,29 @@ func _update_player_panel() -> void:
 	var nickname := String(MetaProgression.player_nickname).strip_edges()
 	if nickname.is_empty():
 		nickname = "Игрок"
-	var faction := "Света" if player.team == 0 else "Тьмы"
 	var team_short := "Свет" if player.team == 0 else "Тьма"
-	var class_text := String(HeroUnit.CLASS_DATA[player.hero_class]["name"])
-	var skin_id := MetaProgression.get_equipped_skin(["warrior", "mage", "fairy"][player.hero_class])
-	var skin := SkinCatalog.get_item(skin_id)
-	if _mobile_ui():
-		player_name_label.text = "%s · %s" % [nickname, class_text]
-		var compact_card := player_panel.size.x < 365.0
-		player_name_label.add_theme_font_size_override("font_size", 16 if compact_card else 18)
-		if player_team_label != null:
-			# Wide phones (the 1168-wide canvas) have room for the faction
-			# word; a 960-wide canvas does not, and the class name was cut to
-			# "Игрок 6414 · ...". The team icon and the card border still show
-			# the side, so drop only the redundant word on narrow cards.
-			player_team_label.visible = not compact_card
-			player_team_label.text = team_short
-			player_team_label.add_theme_color_override("font_color", Color(0.55, 0.85, 1.0) if player.team == 0 else Color(0.78, 0.62, 1.0))
-	else:
-		player_name_label.text = "%s · %s %s" % [nickname, class_text, faction]
-		if player_team_label != null:
-			player_team_label.visible = false
-	if player_panel_class != player.hero_class or player_panel_skin != skin_id:
-		player_panel_class = player.hero_class
-		player_panel_skin = skin_id
-		var portrait_source: Texture2D = HERO_PORTRAITS[player.hero_class]
-		if not skin.is_empty():
-			var skin_portrait := load(String(skin["icon"])) as Texture2D
-			if skin_portrait != null:
-				portrait_source = skin_portrait
-		if portrait_source != null:
-			player_portrait.texture = portrait_source
+	# The card shows the nickname and the side only: the class word was cut to
+	# an ellipsis on a 960-wide phone card, and the portrait that used to fill
+	# that space is gone. The name row keeps a slot for the side both on
+	# phones and on desktop, so no branch has to hide it.
+	player_name_label.text = nickname
+	var name_font_size := 16 if _mobile_ui() else 15
+	if player_name_font_size != name_font_size:
+		player_name_font_size = name_font_size
+		player_name_label.add_theme_font_size_override("font_size", name_font_size)
+	if player_team_label != null:
+		player_team_label.visible = true
+		player_team_label.text = team_short
 	if player_panel_team != player.team:
 		player_panel_team = player.team
 		var border_color := Color(0.84, 0.68, 0.39, 0.95) if player.team == 0 else Color(0.58, 0.46, 0.78, 0.95)
 		player_panel.add_theme_stylebox_override("panel", _panel_style(border_color, Color(0.035, 0.035, 0.05, 0.3)))
 		if player_team_icon != null:
 			player_team_icon.texture = _team_icon(player.team)
-	# The kill feed is authored just below the 60px player card, but the
-	# portrait frame forces the card to ~84px. On a 960-wide canvas the
-	# scaled feed top (75px) lands under the card; keep an 8px gap.
+		if player_team_label != null:
+			player_team_label.add_theme_color_override("font_color", Color(0.55, 0.85, 1.0) if player.team == 0 else Color(0.78, 0.62, 1.0))
+	# The kill feed is authored just below the player card. A scaled feed top
+	# (75px on a 960-wide canvas) lands under a taller card; keep an 8px gap.
 	if _mobile_ui() and kill_feed_box != null and is_instance_valid(kill_feed_box) and kill_feed_box.size.y > 0.0:
 		var feed_top := player_panel.position.y + player_panel.size.y + 8.0
 		if kill_feed_box.position.y < feed_top:

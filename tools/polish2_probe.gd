@@ -375,6 +375,10 @@ func _measure_player(hud: Node) -> void:
 	var portrait := hud.get("player_portrait") as Control
 	if panel == null or name_label == null:
 		return
+	# The battle card is nickname + side + HP only.
+	_check(portrait == null, "player card has no portrait")
+	_check(not name_label.text.contains("·"),
+		"player name has no class suffix (%s)" % name_label.text)
 	var name_row := name_label.get_parent() as Control
 	print("PLAYER_CARD panel=", panel.get_global_rect(),
 		" portrait=", portrait.get_global_rect() if portrait != null else Rect2(),

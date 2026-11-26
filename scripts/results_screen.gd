@@ -18,6 +18,7 @@ const UI_FONT_BOLD := preload("res://assets/fonts/Philosopher-Bold.ttf")
 const SHARD_ICON: Texture2D = preload("res://ui/icons/sky_shard.png")
 const VICTORY_SOUND: AudioStream = preload("res://audio/sfx/misc_start_kenney_hit_11.ogg")
 const DEFEAT_SOUND: AudioStream = preload("res://audio/sfx/fairy_death_scream.mp3")
+const TOUCH_SCROLL := preload("res://scripts/touch_scroll.gd")
 
 var font: FontFile
 var selected_class := 0
@@ -406,7 +407,7 @@ func _build_content() -> void:
 	players_tab_button.pressed.connect(_switch_result_tab.bind(true))
 	tab_row.add_child(players_tab_button)
 
-	stats_scroll = ScrollContainer.new()
+	stats_scroll = TOUCH_SCROLL.new()
 	stats_scroll.name = "StatsScroll"
 	stats_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stats_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -487,7 +488,7 @@ func _build_content() -> void:
 	if ad_error_label.get_parent() == panel_box:
 		panel_box.move_child(ad_error_label, 4)
 
-	players_scroll = ScrollContainer.new()
+	players_scroll = TOUCH_SCROLL.new()
 	players_scroll.name = "PlayersScroll"
 	players_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	players_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
