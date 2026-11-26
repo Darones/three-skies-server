@@ -23,6 +23,9 @@ const HEALTH_REGEN_PER_SECOND := 10.0
 const STATIONARY_FACE_RANGE := 40.0
 const BASE_REGEN_RADIUS := 6.5
 const BASE_SHIELD_RADIUS := 4.9
+# Респавн бота не должен совпадать с точкой, где стоит игрок на базе.
+const BASE_RESPAWN_PLAYER_CLEARANCE := 2.6
+const BASE_RESPAWN_RADIUS := 4.4
 const BUSH_REVEAL_DURATION := 3.0
 const BUSH_PROXIMITY_REVEAL := 5.0
 const BOT_MOVE_ACCELERATION := 14.0
@@ -2237,8 +2240,83 @@ func _base_spawn_position() -> Vector3:
 	# pile of bodies and let one enemy cleave the whole team.
 	var safe_x := clampf(ai_offset.x, -3.0, 3.0)
 	var safe_z := base_z + clampf(ai_offset.z, -1.5, 1.5)
-	var spawn_position := Vector3(safe_x, 0.0, safe_z)
-	return game.clamp_to_arena(spawn_position) if game != null and game.has_method("clamp_to_arena") else spawn_position
+	var spawn_position := _clamp_spawn_position(Vector3(safe_x, 0.0, safe_z))
+	if not is_player:
+		# Bots keep their own base, but never materialise inside a hero already
+		# standing there (usually the player). The player's own respawn point is
+		# deliberately untouched.
+		spawn_position = _avoid_heroes_at_base(spawn_position, Vector3(0.0, 0.0, base_z))
+	return spawn_position
+
+
+func _clamp_spawn_position(position: Vector3) -> Vector3:
+	return game.clamp_to_arena(position) if game != null and game.has_method("clamp_to_arena") else position
+
+
+func _avoid_heroes_at_base(spawn_position: Vector3, base_center: Vector3) -> Vector3:
+	var blockers := _base_hero_points()
+	if blockers.is_empty():
+		return spawn_position
+	var spawn_point := Vector2(spawn_position.x, spawn_position.z)
+	if _nearest_point_distance(spawn_point, blockers) >= BASE_RESPAWN_PLAYER_CLEARANCE:
+		return spawn_position
+	var base_point := Vector2(base_center.x, base_center.z)
+	var best := spawn_position
+	var best_score := INF
+	var fallback := spawn_position
+	var fallback_clearance := _nearest_point_distance(spawn_point, blockers)
+	# Deterministic "step aside" search: stay on our base, keep the full
+	# clearance from every hero on it, and land as close as possible to the
+	# original spread point.
+	for step in 24:
+		var angle := TAU * float(step) / 24.0
+		var direction := Vector2(cos(angle), sin(angle))
+		for radius in [BASE_RESPAWN_PLAYER_CLEARANCE, BASE_RESPAWN_PLAYER_CLEARANCE + 0.6, BASE_RESPAWN_RADIUS]:
+			for blocker in blockers:
+				var candidate_point: Vector2 = blocker + direction * float(radius)
+				if candidate_point.distance_to(base_point) > BASE_RESPAWN_RADIUS:
+					continue
+				var candidate := _clamp_spawn_position(Vector3(candidate_point.x, spawn_position.y, candidate_point.y))
+				var candidate_point_clamped := Vector2(candidate.x, candidate.z)
+				var clearance := _nearest_point_distance(candidate_point_clamped, blockers)
+				if clearance < BASE_RESPAWN_PLAYER_CLEARANCE - 0.05:
+					if clearance > fallback_clearance:
+						fallback_clearance = clearance
+						fallback = candidate
+					continue
+				var score := candidate_point_clamped.distance_to(spawn_point)
+				if score < best_score:
+					best_score = score
+					best = candidate
+	if best_score < INF:
+		return best
+	return fallback
+
+
+func _base_hero_points() -> Array[Vector2]:
+	var points: Array[Vector2] = []
+	if game == null:
+		return points
+	var local_player: HeroUnit = game.player
+	if local_player != null and is_instance_valid(local_player) and local_player != self and not local_player.dead:
+		points.append(Vector2(local_player.global_position.x, local_player.global_position.z))
+	var remotes = game.get("remote_players")
+	if remotes is Dictionary:
+		for remote in remotes.values():
+			if remote == null or not is_instance_valid(remote):
+				continue
+			if bool(remote.get("dead")):
+				continue
+			var remote_position: Vector3 = remote.global_position
+			points.append(Vector2(remote_position.x, remote_position.z))
+	return points
+
+
+func _nearest_point_distance(point: Vector2, points: Array[Vector2]) -> float:
+	var nearest := INF
+	for other in points:
+		nearest = minf(nearest, point.distance_to(other))
+	return nearest
 
 
 func _push_out_of_enemy_base() -> void:

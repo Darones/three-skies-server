@@ -2452,7 +2452,8 @@ func _is_crystal_drop_position_clear(candidate: Vector3) -> bool:
 		for bush in bushes.get_children():
 			if bush is Area3D:
 				var bush_position := Vector2(bush.global_position.x, bush.global_position.z)
-				if point.distance_to(bush_position) < 3.4:
+				# 3.4 * 1.5: кусты выросли, их зона укрытия тоже.
+				if point.distance_to(bush_position) < 5.1:
 					return false
 	for root_path in ["Arena/Altar", "Arena/Ruins", "Arena/Bases", "Arena/Decor"]:
 		var obstacle_root := get_node_or_null(root_path) as Node3D

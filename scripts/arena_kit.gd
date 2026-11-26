@@ -6,7 +6,12 @@ const FLOOR_DARK_TEX := "res://art/textures/obsidian_rock/img-6adcd384-a1c6-4d03
 const SLATE_DIR := "res://art/textures/slate_floor"
 const GLOWING_TREE_SCENE := preload("res://scenes/GlowingFantasyTree.tscn")
 const BUSH_SCENE: PackedScene = preload("res://assets/kaykit_arena/forest/Bush_4_B_Color1.gltf")
-const BUSH_TARGET_HEIGHT := 2.3
+# Кусты в 1.5 раза крупнее: визуал, зона укрытия и радиус занятости растут
+# вместе, чтобы спрятаться можно было ровно там, где стоит куст.
+const BUSH_SCALE := 1.5
+const BUSH_TARGET_HEIGHT := 2.3 * BUSH_SCALE
+const BUSH_SHELTER_RADIUS := 3.9 * BUSH_SCALE
+const BUSH_CLUSTER_SPREAD := BUSH_SCALE
 const BUSH_PAIR_HALF_SPACING := 1.5
 const NAVIGATION_SOURCE_GROUP := "navigation_mesh_source_group"
 
@@ -51,7 +56,6 @@ const KAYKIT_CRATES_SCENE: PackedScene = preload("res://assets/kaykit_arena/dung
 const KAYKIT_PILLAR_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/pillar.glb")
 const KAYKIT_PILLAR_DECORATED_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/pillar_decorated.glb")
 const KAYKIT_TORCH_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/torch_lit.glb")
-const KAYKIT_CANDLE_SCENE: PackedScene = preload("res://assets/kaykit_arena/dungeon/candle_triple.glb")
 const KAYKIT_WELL_SCENE: PackedScene = preload("res://assets/kaykit_arena/medieval/building_well_green.gltf")
 const KAYKIT_GOLD_BARS_SCENE: PackedScene = preload("res://assets/kaykit_arena/resource/Gold_Bars.gltf")
 const KAYKIT_GOLD_NUGGETS_SCENE: PackedScene = preload("res://assets/kaykit_arena/resource/Gold_Nuggets.gltf")
@@ -1358,17 +1362,13 @@ static func _perimeter_point(ang: float, margin_x: float, margin_z: float) -> Ve
 static func _add_kaykit_structures(decor: Node3D) -> void:
 	if decor == null:
 		return
-	# Алтарь: кольцо резных колонн, знамёна и свечи на площадке.
+	# Алтарь: только кольцо резных колонн. Свечи убраны с площадки совсем —
+	# и в бою, и в обучении они мешали читать центр арены.
 	for i in 8:
 		var ang := TAU * float(i) / 8.0 + PI / 8.0
 		var pos := Vector3(cos(ang) * 7.4, 0.0, sin(ang) * 7.4)
 		var pillar := _kaykit_scene(decor, KAYKIT_PILLAR_DECORATED_SCENE, pos, rad_to_deg(-ang) + 90.0, 0.95, "AltarPillar_%02d" % i)
 		_add_pillar_collision(pillar, 1.0, 4.0)
-	for i in 4:
-		var ang := TAU * float(i) / 4.0
-		var pos := Vector3(cos(ang) * 4.4, 0.16, sin(ang) * 4.4)
-		var candle := _kaykit_scene(decor, KAYKIT_CANDLE_SCENE, pos, 0.0, 1.4, "AltarCandle_%02d" % i)
-		_disable_shadows(candle)
 	# Базы: колонны в цветах команды. Факелы и знамёна убраны: огонь и
 	# висящие полотнища читались как баги, а не как декор.
 	for team in [0, 1]:
@@ -1596,7 +1596,7 @@ static func add_bushes(arena: Node3D) -> void:
 		var zone := Area3D.new()
 		zone.name = "BushZone_%02d" % (index + 1)
 		zone.position = spots[index]
-		_occupy(zone.position, 3.9)
+		_occupy(zone.position, BUSH_SHELTER_RADIUS)
 		zone.collision_layer = 0
 		zone.collision_mask = 1
 		bushes.add_child(zone)
@@ -1604,7 +1604,7 @@ static func add_bushes(arena: Node3D) -> void:
 		detection.name = "StealthRange"
 		detection.position = Vector3(0.0, 1.5, 0.0)
 		var shape := SphereShape3D.new()
-		shape.radius = 3.9
+		shape.radius = BUSH_SHELTER_RADIUS
 		detection.shape = shape
 		zone.add_child(detection)
 	rebuild_bush_visuals(bushes)
@@ -1662,6 +1662,8 @@ static func rebuild_bush_visuals(bushes_root: Node3D) -> void:
 		Vector2(-1.15, 0.85),
 		Vector2(0.35, -1.35),
 	]
+	for offset_index in cluster_offsets.size():
+		cluster_offsets[offset_index] *= BUSH_CLUSTER_SPREAD
 	var cluster_scales: Array[float] = [1.0, 0.86, 0.92, 0.78]
 	var instance_count := zones.size() * cluster_offsets.size()
 	for mesh_spec in mesh_specs:
