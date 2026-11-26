@@ -22,9 +22,30 @@ func _ready() -> void:
 	if tutorial == null:
 		_finish()
 		return
-	_check(String(tutorial.get("stage")) == "welcome", "starts at welcome")
+	# Welcome plate: no splash timer, no "Продолжить". The tour starts at once
+	# and the plate stays until the duel is won.
+	var welcome_msec := Time.get_ticks_msec()
+	var card_overlay: Control = game.hud.get("tutorial_overlay")
+	var card_panel: Control = game.hud.get("tutorial_card_panel")
+	var card_title: Label = game.hud.get("tutorial_title")
+	var card_button: Control = game.hud.get("tutorial_primary_button")
+	_check(String(tutorial.get("stage")) == "ui_tour", "welcome starts the UI tour immediately")
+	_check(card_overlay.visible, "welcome plate is visible")
+	_check(card_title.text == "Добро пожаловать!", "welcome plate keeps its title")
+	_check(not card_button.visible, "welcome plate has no continue button")
+	_check(
+		card_overlay.mouse_filter == Control.MOUSE_FILTER_IGNORE
+		and card_panel.mouse_filter == Control.MOUSE_FILTER_IGNORE,
+		"welcome plate does not block input"
+	)
 	_check(game.hud.get("tutorial_skip_button") != null and game.hud.get("tutorial_skip_button").visible, "skip button visible")
 	_check(game.hud.find_child("MobilePauseButton", true, false) == null, "old HUD pause button is gone")
+
+	# Longer than the old 2.2 s auto-hide: the plate and the tour both survive.
+	await get_tree().create_timer(2.6).timeout
+	_check(String(tutorial.get("stage")) == "ui_tour", "tour does not auto-advance the welcome plate")
+	_check(card_overlay.visible and card_title.text == "Добро пожаловать!", "welcome plate is still there after 2.6s")
+	_check(game.hud.get("focus_panel").visible, "minimap highlight runs under the welcome plate")
 
 	tutorial.set("stage", "reach_center")
 	game.player.global_position = Vector3(0.0, 0.76, 0.0)
@@ -32,6 +53,10 @@ func _ready() -> void:
 	await get_tree().process_frame
 	_check(String(tutorial.get("stage")) == "duel", "1v1 stage starts")
 	_check(game.tutorial_bots.size() == 1, "duel has one enemy")
+	_check(
+		card_overlay.visible and card_title.text == "Добро пожаловать!",
+		"welcome plate stays during the duel"
+	)
 	if game.tutorial_bots.size() == 1:
 		var duel_bot: HeroUnit = game.tutorial_bots[0]
 		_check(duel_bot.bot_difficulty == "easy", "duel bot is easy")
@@ -39,6 +64,15 @@ func _ready() -> void:
 		await get_tree().process_frame
 		_check(String(tutorial.get("stage")) == "duel_done", "duel completes on enemy death")
 	_check(game.tutorial_bots.is_empty(), "duel bots are cleared")
+	print("WELCOME_VISIBLE_MS=", Time.get_ticks_msec() - welcome_msec)
+	_check(
+		card_overlay.visible and card_title.text == "Этап 1/3 пройден",
+		"stage 1 card replaces the welcome plate"
+	)
+	_check(not game.hud.get("tutorial_hint").visible, "duel hint is cleared under the stage 1 card")
+	await get_tree().create_timer(2.5).timeout
+	_check(String(tutorial.get("stage")) == "go_fountain", "fountain stage follows the stage 1 card")
+	_check(not card_overlay.visible, "stage 1 card closes by itself")
 
 	# Fountain: coins must spawn in a ring around the fountain, not at the feet.
 	game.player.global_position = Vector3(37.0, 0.76, 0.0)

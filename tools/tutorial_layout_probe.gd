@@ -45,24 +45,56 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute("user://ui_shots")
 	await get_tree().create_timer(0.4).timeout
 	_save("tutorial_layout_%s_welcome.png" % tag)
+	var welcome_card: Control = game.hud.get("tutorial_card_panel")
+	var welcome_rect: Rect2 = welcome_card.get_global_rect()
+	var screen := Rect2(Vector2.ZERO, size)
 	print("LAYOUT_WELCOME card=", game.hud.get("tutorial_overlay").visible,
 		" avatar=", game.hud.get("player_panel").visible,
 		" skip=", game.hud.get("tutorial_skip_button").visible)
+	print("LAYOUT_WELCOME_RECT rect=", welcome_rect,
+		" inside_screen=", screen.encloses(welcome_rect),
+		" title=", game.hud.get("tutorial_title").text,
+		" stage=", tutorial.get("stage"),
+		" pass_input=", welcome_card.mouse_filter == Control.MOUSE_FILTER_IGNORE
+			and game.hud.get("tutorial_overlay").mouse_filter == Control.MOUSE_FILTER_IGNORE)
 
 	# The always-visible strip: top edge, between the avatar card and the
-	# skip button, never covering either corner.
-	game.hud.call("hide_tutorial_card")
+	# skip button, never covering either corner. The welcome plate is still
+	# on screen here, exactly as during the duel.
 	game.hud.call("show_tutorial_hint", "Этап 1/3 · Дуэль: победи тренировочного бота")
-	await get_tree().create_timer(0.4).timeout
-	_save("tutorial_layout_%s_strip.png" % tag)
+	await get_tree().create_timer(0.5).timeout
+	_save("tutorial_layout_%s_duel.png" % tag)
 	var hint_rect: Rect2 = game.hud.get("tutorial_hint").get_global_rect()
 	var card_rect: Rect2 = game.hud.get("player_panel").get_global_rect()
 	var skip_rect: Rect2 = game.hud.get("tutorial_skip_button").get_global_rect()
+	var plate_rect: Rect2 = game.hud.get("tutorial_card_panel").get_global_rect()
+	var joystick: Control = game.hud.get("touch_joystick")
+	var joystick_rect: Rect2 = joystick.get_global_rect() if joystick != null and joystick.visible else Rect2()
 	print("LAYOUT_STRIP hint=", hint_rect, " card=", card_rect, " skip=", skip_rect,
 		" no_card_overlap=", hint_rect.position.x >= card_rect.end.x,
 		" no_skip_overlap=", hint_rect.end.x <= skip_rect.position.x,
 		" same_top=", absf(hint_rect.position.y - skip_rect.position.y) <= 2.0,
 		" above_dialog=", hint_rect.end.y <= 102.0)
+	print("LAYOUT_PLATE_VS_HINT overlap=", plate_rect.intersects(hint_rect),
+		" plate=", plate_rect, " hint=", hint_rect,
+		" plate_vs_joystick=", plate_rect.intersects(joystick_rect))
+
+	# The same slot after the duel: "Этап 1/3 пройден" replaces the plate and
+	# the duel hint is cleared, so the two texts never argue.
+	game.hud.call("show_tutorial_hint", "")
+	game.hud.call(
+		"show_tutorial_card",
+		"Этап 1/3 пройден",
+		"Дуэль пройдена. Дальше — фонтан и лавка: собери золото и купи улучшение.",
+		"",
+		Callable()
+	)
+	await get_tree().create_timer(0.4).timeout
+	_save("tutorial_layout_%s_stage1.png" % tag)
+	print("LAYOUT_STAGE1 title=", game.hud.get("tutorial_title").text,
+		" card=", game.hud.get("tutorial_overlay").visible,
+		" hint=", game.hud.get("tutorial_hint").visible,
+		" rect=", game.hud.get("tutorial_card_panel").get_global_rect())
 	print("LAYOUT_PAUSED=", get_tree().paused,
 		" hint_buttons=", game.hud.get("tutorial_hint").get_child_count(),
 		" side_buttons=", game.hud.get("tutorial_side_hint").get_child_count())

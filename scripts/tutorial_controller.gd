@@ -14,6 +14,9 @@ const FINAL_WAVE_RELEASE := 1.5
 # Stage cards are notifications, not dialogs: the match keeps running and the
 # next stage starts on its own after this delay (owner: no "К фонтану"/"В бой").
 const CARD_ADVANCE_DELAY := 2.2
+# The welcome plate is not a timed splash: it stays until stage 1/3 is done,
+# while the UI tour and the duel run behind it. No "Продолжить" button.
+const WELCOME_CARD_TITLE := "Добро пожаловать!"
 const SHELL_TELEGRAPH_TIME := 2.0
 const SHELL_SOFT_CAP_TIME := 25.0
 
@@ -52,16 +55,17 @@ func begin() -> void:
 	Stats.track("tutorial_start", {"class": int(game.player.hero_class) if game.player != null else 0})
 	_point_to(Vector3.ZERO, OBJECTIVE_GOLD)
 	var controls_hint := "Двигайся джойстиком слева, навыки — кнопки справа." if _uses_touch_controls() else "Двигайся клавишами WASD, навыки — 1, 2 и 3."
-	# The welcome plate is a notice, not a dialog: no button, the intro starts
-	# by itself so a new player never has to press "Продолжить".
+	# The welcome plate is a notice, not a dialog: no button and no timed
+	# splash. It stays on screen while the UI tour and the duel run, and the
+	# "Этап 1/3 пройден" card replaces it when the duel ends.
 	game.hud.call(
 		"show_tutorial_card",
-		"Добро пожаловать!",
+		WELCOME_CARD_TITLE,
 		"Разбей Оболочку, забери Осколок и донеси его на базу. В обучении три боя и финал, погибнуть нельзя.\n\n%s" % controls_hint,
 		"",
 		Callable()
 	)
-	_auto_advance("welcome", Callable(self, "_continue_intro"), CARD_ADVANCE_DELAY)
+	_continue_intro()
 
 
 func process(delta: float) -> void:
@@ -235,7 +239,8 @@ func _continue_intro() -> void:
 	if stage != "welcome":
 		return
 	stage = "ui_tour"
-	game.hud.call("hide_tutorial_card")
+	# The welcome plate stays visible on purpose: the tour highlights move
+	# around it and the duel starts under it. _finish_duel replaces it.
 	_clear_target()
 	_run_ui_tour()
 
@@ -371,6 +376,9 @@ func _finish_duel(_timed_out := false) -> void:
 	game.player.reset_for_tutorial_stage()
 	game.hud.call("set_tutorial_ability", -1)
 	_clear_target()
+	# The "Этап 1/3 пройден" card replaces the welcome plate; the duel hint on
+	# the top strip must go with it, or both messages contradict each other.
+	game.hud.call("show_tutorial_hint", "")
 	var body := "Дуэль пройдена. Дальше — фонтан и лавка: собери золото и купи улучшение."
 	game.hud.call("show_tutorial_card", "Этап 1/3 пройден", body, "", Callable())
 	_auto_advance("duel_done", Callable(self, "_begin_fountain"))
