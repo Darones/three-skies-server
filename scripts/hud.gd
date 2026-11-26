@@ -89,6 +89,20 @@ var pause_overlay: Control
 var pause_menu_panel: Control
 var pause_settings_panel: Control
 var pause_rules_panel: Control
+# Battle scoreboard: Tab on desktop, a button in the old pause spot on touch.
+var scoreboard_button: Button
+var scoreboard_panel: PanelContainer
+var scoreboard_scroll: ScrollContainer
+var scoreboard_rows: VBoxContainer
+var scoreboard_score_label: Label
+var scoreboard_hint_label: Label
+var scoreboard_report_overlay: ColorRect
+var scoreboard_report_target_label: Label
+var scoreboard_report_reason: OptionButton
+var scoreboard_report_status: Label
+var scoreboard_report_submit: Button
+var scoreboard_report_target := ""
+var scoreboard_refresh_tick := 0.0
 var tutorial_overlay: ColorRect
 var tutorial_title: Label
 var tutorial_body: Label
@@ -167,7 +181,10 @@ func _ready() -> void:
 	_build_end(root)
 	_build_shop(root)
 	_build_pause_menu(root)
+	_build_scoreboard(root)
 	_build_focus_panel(root)
+	if not NetworkClient.report_completed.is_connected(_on_scoreboard_report_completed):
+		NetworkClient.report_completed.connect(_on_scoreboard_report_completed)
 	var navigator := preload("res://scripts/tutorial_navigator.gd").new() as Control
 	navigator.name = "TutorialNavigator"
 	navigator.z_index = 50
@@ -962,6 +979,7 @@ func _build_top(root: Control) -> void:
 	shell_timer_label.visible = false
 
 	_build_player_panel(root)
+	_build_scoreboard_button(root)
 
 
 func _build_focus_panel(root: Control) -> void:
@@ -1057,6 +1075,446 @@ func _update_focus_panel() -> void:
 	focus_panel.size = rect.size + Vector2(10.0, 10.0)
 	focus_panel.visible = true
 	focus_panel.modulate.a = 0.45 + 0.55 * (0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.006))
+
+
+func _build_scoreboard_button(root: Control) -> void:
+	scoreboard_button = Button.new()
+	scoreboard_button.name = "ScoreboardButton"
+	scoreboard_button.text = "ТАБ"
+	scoreboard_button.tooltip_text = "Список игроков (Tab)"
+	scoreboard_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	# Above the tutorial cards (100) but below the skip button (110), so the
+	# table never steals the tutorial's escape hatch.
+	scoreboard_button.z_index = 105
+	scoreboard_button.visible = false
+	scoreboard_button.focus_mode = Control.FOCUS_NONE
+	scoreboard_button.add_theme_font_override("font", font)
+	scoreboard_button.add_theme_font_size_override("font_size", _fs(18))
+	scoreboard_button.add_theme_color_override("font_color", GOLD)
+	scoreboard_button.add_theme_stylebox_override("normal", _panel_style(Color(0.76, 0.63, 0.36, 0.72), Color(0.035, 0.035, 0.05, 0.72)))
+	scoreboard_button.add_theme_stylebox_override("hover", _panel_style(Color(0.95, 0.76, 0.38), Color(0.07, 0.09, 0.13, 0.95)))
+	scoreboard_button.add_theme_stylebox_override("pressed", _panel_style(Color(1.0, 0.88, 0.58), Color(0.18, 0.14, 0.08, 0.95)))
+	scoreboard_button.pressed.connect(_toggle_scoreboard)
+	root.add_child(scoreboard_button)
+
+
+## The in-battle table mirrors the results screen, but stays a compact card
+## under the player card so the fight remains visible behind it.
+func _build_scoreboard(root: Control) -> void:
+	scoreboard_panel = PanelContainer.new()
+	scoreboard_panel.name = "BattleScoreboard"
+	# Below the tutorial cards (100): a stage card must stay readable and
+	# clickable while the table is open. Above the regular HUD.
+	scoreboard_panel.z_index = 99
+	scoreboard_panel.visible = false
+	scoreboard_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	scoreboard_panel.add_theme_stylebox_override("panel", _panel_style(GOLD, Color(0.02, 0.03, 0.05, 0.97)))
+	root.add_child(scoreboard_panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	scoreboard_panel.add_child(margin)
+
+	var layout := VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 6)
+	margin.add_child(layout)
+
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 8)
+	layout.add_child(header)
+	var title := _make_label("СПИСОК ИГРОКОВ", 17, GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+	scoreboard_score_label = _make_label("Свет 0 : 0 Тьма", 14, PALE)
+	scoreboard_score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	scoreboard_score_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	header.add_child(scoreboard_score_label)
+	var close_button := _pause_action_button("×", false)
+	close_button.name = "ScoreboardClose"
+	close_button.custom_minimum_size = Vector2(42, 34)
+	close_button.add_theme_font_size_override("font_size", _fs(20))
+	close_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	close_button.pressed.connect(_close_scoreboard)
+	header.add_child(close_button)
+
+	var divider := ColorRect.new()
+	divider.color = Color(0.78, 0.65, 0.4, 0.35)
+	divider.custom_minimum_size = Vector2(0, 1)
+	divider.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layout.add_child(divider)
+
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 4)
+	columns.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layout.add_child(columns)
+	columns.add_child(_make_scoreboard_cell("ИГРОК", 12, Color(0.55, 0.58, 0.66), 0.0, HORIZONTAL_ALIGNMENT_LEFT, true))
+	columns.add_child(_make_scoreboard_cell("", 12, Color(0.55, 0.58, 0.66), 34.0, HORIZONTAL_ALIGNMENT_CENTER))
+	columns.add_child(_make_scoreboard_cell("У/С", 12, Color(0.55, 0.58, 0.66), 58.0, HORIZONTAL_ALIGNMENT_CENTER))
+	columns.add_child(_make_scoreboard_cell("ОСК.", 12, Color(0.55, 0.58, 0.66), 48.0, HORIZONTAL_ALIGNMENT_RIGHT))
+	columns.add_child(_make_scoreboard_cell("СЧЁТ", 12, Color(0.55, 0.58, 0.66), 54.0, HORIZONTAL_ALIGNMENT_RIGHT))
+
+	scoreboard_scroll = ScrollContainer.new()
+	scoreboard_scroll.name = "ScoreboardScroll"
+	scoreboard_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scoreboard_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scoreboard_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	layout.add_child(scoreboard_scroll)
+
+	scoreboard_rows = VBoxContainer.new()
+	scoreboard_rows.name = "ScoreboardRows"
+	scoreboard_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scoreboard_rows.add_theme_constant_override("separation", 2)
+	scoreboard_scroll.add_child(scoreboard_rows)
+
+	scoreboard_hint_label = _make_label("", 12, Color(0.56, 0.62, 0.74))
+	scoreboard_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	layout.add_child(scoreboard_hint_label)
+
+	_build_scoreboard_report(root)
+
+
+func _build_scoreboard_report(root: Control) -> void:
+	scoreboard_report_overlay = ColorRect.new()
+	scoreboard_report_overlay.name = "ScoreboardReportOverlay"
+	scoreboard_report_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scoreboard_report_overlay.color = Color(0.005, 0.008, 0.018, 0.82)
+	scoreboard_report_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	scoreboard_report_overlay.visible = false
+	scoreboard_report_overlay.z_index = 180
+	root.add_child(scoreboard_report_overlay)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	scoreboard_report_overlay.add_child(center)
+	var panel := PanelContainer.new()
+	panel.name = "ScoreboardReportPanel"
+	panel.custom_minimum_size = Vector2(340 if _mobile_ui() else 430, 0)
+	panel.add_theme_stylebox_override("panel", _panel_style(GOLD, Color(0.035, 0.045, 0.07, 0.99)))
+	center.add_child(panel)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 18)
+	margin.add_theme_constant_override("margin_right", 18)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_bottom", 14)
+	panel.add_child(margin)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 10)
+	margin.add_child(content)
+	var title := _make_label("ПОЖАЛОВАТЬСЯ", 20, GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	content.add_child(title)
+	scoreboard_report_target_label = _make_label("", 15, PALE)
+	scoreboard_report_target_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	content.add_child(scoreboard_report_target_label)
+	scoreboard_report_reason = OptionButton.new()
+	scoreboard_report_reason.name = "ScoreboardReportReason"
+	scoreboard_report_reason.custom_minimum_size = Vector2(0, 42)
+	scoreboard_report_reason.add_theme_font_override("font", font)
+	scoreboard_report_reason.add_theme_font_size_override("font_size", _fs(15))
+	scoreboard_report_reason.add_item("Оскорбительный ник")
+	scoreboard_report_reason.add_item("Читы / нечестная игра")
+	scoreboard_report_reason.add_item("Другое")
+	content.add_child(scoreboard_report_reason)
+	scoreboard_report_status = _make_label("", 13, PALE)
+	scoreboard_report_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	scoreboard_report_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	scoreboard_report_status.custom_minimum_size = Vector2(300 if _mobile_ui() else 390, 0)
+	content.add_child(scoreboard_report_status)
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 10)
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	content.add_child(buttons)
+	scoreboard_report_submit = _pause_action_button("Отправить", true)
+	scoreboard_report_submit.name = "ScoreboardReportSubmit"
+	scoreboard_report_submit.custom_minimum_size = Vector2(170, 44)
+	scoreboard_report_submit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scoreboard_report_submit.pressed.connect(_submit_scoreboard_report)
+	buttons.add_child(scoreboard_report_submit)
+	var cancel := _pause_action_button("Отмена", false)
+	cancel.custom_minimum_size = Vector2(150, 44)
+	cancel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cancel.pressed.connect(_close_scoreboard_report)
+	buttons.add_child(cancel)
+
+
+func _toggle_scoreboard() -> void:
+	if scoreboard_panel == null or game == null or game.state != "live":
+		return
+	if scoreboard_panel.visible:
+		_close_scoreboard()
+	else:
+		_open_scoreboard()
+
+
+func _open_scoreboard() -> void:
+	if scoreboard_panel == null or game == null or game.state != "live":
+		return
+	# The tutorial has a scoreboard too: its bots are normal heroes, they just
+	# never get a report button.
+	scoreboard_refresh_tick = 0.0
+	scoreboard_panel.visible = true
+	scoreboard_hint_label.text = "Кнопка ТАБ — закрыть" if _mobile_ui() else "Tab — закрыть"
+	_update_scoreboard_layout()
+	_refresh_scoreboard()
+
+
+func _close_scoreboard() -> void:
+	if scoreboard_panel != null:
+		scoreboard_panel.visible = false
+	_close_scoreboard_report()
+
+
+func _update_scoreboard_layout() -> void:
+	if scoreboard_panel == null or player_panel == null:
+		return
+	var viewport_size := _hud_viewport_size()
+	var width := minf(620.0, maxf(340.0, viewport_size.x - player_panel.position.x - 20.0))
+	scoreboard_panel.custom_minimum_size.x = width
+	scoreboard_panel.position = Vector2(
+		player_panel.position.x,
+		player_panel.position.y + player_panel.size.y + 8.0
+	)
+	if scoreboard_scroll != null and scoreboard_rows != null:
+		# On a phone six rows do not fit under the card: the rows scroll and
+		# the panel stays above the ability bar instead of running off screen.
+		var content_height := scoreboard_rows.get_combined_minimum_size().y
+		var max_height := maxf(96.0, viewport_size.y - scoreboard_panel.position.y - 150.0)
+		scoreboard_scroll.custom_minimum_size.y = minf(content_height, max_height)
+	scoreboard_panel.reset_size()
+	if scoreboard_button != null and is_instance_valid(scoreboard_button):
+		# Exact spot of the removed 64x64 pause button. The baked phone layout
+		# moves the card, but the button stays where players already look for it;
+		# on anything narrower than 510 px it slides in to stay on screen.
+		var button_x := minf(436.0, maxf(0.0, viewport_size.x - 74.0))
+		scoreboard_button.position = Vector2(button_x, 20.0)
+		scoreboard_button.size = Vector2(64.0, 64.0)
+
+
+func _refresh_scoreboard() -> void:
+	if scoreboard_panel == null or scoreboard_rows == null or game == null:
+		return
+	var keep_scroll := 0
+	if scoreboard_scroll != null:
+		keep_scroll = scoreboard_scroll.scroll_vertical
+	for child in scoreboard_rows.get_children():
+		scoreboard_rows.remove_child(child)
+		child.queue_free()
+	if scoreboard_score_label != null:
+		scoreboard_score_label.text = "Свет %d : %d Тьма" % [int(game.score[0]), int(game.score[1])]
+	var entries := _scoreboard_entries()
+	entries.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if int(a.get("team", 0)) != int(b.get("team", 0)):
+			return int(a.get("team", 0)) < int(b.get("team", 0))
+		return int(a.get("score", 0)) > int(b.get("score", 0))
+	)
+	var current_team := -1
+	for entry in entries:
+		var team := int(entry.get("team", 0))
+		if team != current_team:
+			current_team = team
+			var team_label := _make_label("СВЕТ" if team == 0 else "ТЬМА", 12, Color(0.55, 0.85, 1.0) if team == 0 else Color(0.8, 0.58, 0.96))
+			team_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			scoreboard_rows.add_child(team_label)
+		scoreboard_rows.add_child(_make_scoreboard_row(entry))
+	scoreboard_panel.reset_size()
+	_update_scoreboard_layout()
+	if scoreboard_scroll != null:
+		scoreboard_scroll.set_deferred("scroll_vertical", keep_scroll)
+
+
+func _scoreboard_entries() -> Array:
+	var entries: Array = []
+	var heroes: Array = game.get("heroes") if game.get("heroes") is Array else []
+	for hero in heroes:
+		if hero == null or not is_instance_valid(hero):
+			continue
+		var is_self := bool(hero.is_player)
+		var hero_name := String(hero.display_name).strip_edges()
+		if hero_name.is_empty():
+			hero_name = "Игрок"
+		entries.append({
+			"name": hero_name,
+			"team": int(hero.team),
+			"kills": int(hero.match_kills),
+			"deaths": int(hero.match_deaths),
+			"damage": int(hero.match_damage_dealt),
+			"crystals": int(hero.match_crystals),
+			"shells": int(hero.match_shells),
+			"coins": int(hero.match_coins_collected),
+			"gold": int(hero.match_gold_spent),
+			"score": _scoreboard_points(
+				int(hero.match_kills), float(hero.match_damage_dealt), int(hero.match_shells),
+				int(hero.match_crystals), int(hero.match_coins_collected), int(hero.match_gold_spent)
+			),
+			"is_self": is_self,
+			"is_bot": not is_self,
+			"reportable": false,
+		})
+	var remotes: Dictionary = game.get("remote_players") if game.get("remote_players") is Dictionary else {}
+	for remote in remotes.values():
+		if remote == null or not is_instance_valid(remote):
+			continue
+		var remote_name := String(remote.display_name).strip_edges()
+		if remote_name.is_empty():
+			remote_name = "Игрок"
+		var remote_bot := bool(remote.is_bot)
+		entries.append({
+			"name": remote_name,
+			"team": int(remote.team),
+			"kills": int(remote.match_kills),
+			"deaths": int(remote.match_deaths),
+			"damage": int(remote.match_damage_dealt),
+			"crystals": int(remote.match_crystals),
+			"shells": int(remote.match_shells),
+			"coins": 0,
+			"gold": 0,
+			"score": _scoreboard_points(
+				int(remote.match_kills), float(remote.match_damage_dealt), int(remote.match_shells),
+				int(remote.match_crystals), 0, 0
+			),
+			"is_self": false,
+			"is_bot": remote_bot,
+			"reportable": not remote_bot and _scoreboard_name_reportable(remote_name),
+		})
+	return entries
+
+
+func _scoreboard_points(kills: int, damage: float, shells: int, crystals: int, coins: int, gold: int) -> int:
+	var points := float(kills) * 3.0 + damage / 100.0 + float(shells) * 2.0
+	points += float(crystals) * 3.0 + float(coins) * 0.1 + float(gold) * 0.02
+	return int(round(points))
+
+
+func _scoreboard_name_reportable(nickname: String) -> bool:
+	var clean := nickname.strip_edges()
+	if clean.length() < 3 or clean.length() > 12:
+		return false
+	if clean == "Игрок":
+		return false
+	return clean != String(MetaProgression.player_nickname).strip_edges()
+
+
+func _make_scoreboard_cell(text: String, font_size: int, color: Color, width: float, align: int, expand := false) -> Label:
+	var label := _make_label(text, font_size, color)
+	label.horizontal_alignment = align
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	if expand:
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.clip_text = true
+		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	else:
+		label.custom_minimum_size = Vector2(width, 0)
+	return label
+
+
+func _make_scoreboard_row(entry: Dictionary) -> Control:
+	var is_self := bool(entry.get("is_self", false))
+	var row_panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.94, 0.78, 0.43, 0.14) if is_self else Color(0.0, 0.0, 0.0, 0.0)
+	style.set_corner_radius_all(5)
+	style.content_margin_left = 4.0
+	style.content_margin_right = 4.0
+	style.content_margin_top = 2.0
+	style.content_margin_bottom = 2.0
+	row_panel.add_theme_stylebox_override("panel", style)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	row_panel.add_child(row)
+
+	var name_text := String(entry.get("name", "Игрок"))
+	if bool(entry.get("is_bot", false)):
+		name_text = "БОТ · " + name_text
+	if is_self:
+		name_text = "* " + name_text
+	row.add_child(_make_scoreboard_cell(name_text, 13, GOLD if is_self else PALE, 0.0, HORIZONTAL_ALIGNMENT_LEFT, true))
+
+	if bool(entry.get("reportable", false)):
+		var report_button := Button.new()
+		report_button.name = "Report"
+		report_button.text = "!"
+		report_button.tooltip_text = "Пожаловаться на " + String(entry.get("name", ""))
+		report_button.custom_minimum_size = Vector2(34, 26)
+		report_button.focus_mode = Control.FOCUS_NONE
+		report_button.add_theme_font_override("font", font)
+		report_button.add_theme_font_size_override("font_size", _fs(14))
+		report_button.add_theme_color_override("font_color", Color(1.0, 0.72, 0.55))
+		report_button.add_theme_stylebox_override("normal", _panel_style(Color(0.62, 0.3, 0.24, 0.55), Color(0.12, 0.05, 0.05, 0.75)))
+		report_button.add_theme_stylebox_override("hover", _panel_style(Color(1.0, 0.55, 0.4), Color(0.22, 0.08, 0.06, 0.95)))
+		report_button.add_theme_stylebox_override("pressed", _panel_style(Color(1.0, 0.7, 0.5), Color(0.28, 0.1, 0.07, 1.0)))
+		report_button.pressed.connect(_open_scoreboard_report.bind(String(entry.get("name", ""))))
+		row.add_child(report_button)
+	else:
+		var spacer := Control.new()
+		spacer.custom_minimum_size = Vector2(34, 26)
+		spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(spacer)
+
+	row.add_child(_make_scoreboard_cell("%d/%d" % [int(entry.get("kills", 0)), int(entry.get("deaths", 0))], 13, Color(0.8, 0.85, 0.95), 58.0, HORIZONTAL_ALIGNMENT_CENTER))
+	row.add_child(_make_scoreboard_cell(str(int(entry.get("crystals", 0))), 13, Color(0.43, 0.84, 1.0), 48.0, HORIZONTAL_ALIGNMENT_RIGHT))
+	row.add_child(_make_scoreboard_cell(str(int(entry.get("score", 0))), 13, Color(1.0, 0.82, 0.5), 54.0, HORIZONTAL_ALIGNMENT_RIGHT))
+	return row_panel
+
+
+func _open_scoreboard_report(nickname: String) -> void:
+	if scoreboard_report_overlay == null or not _scoreboard_name_reportable(nickname):
+		return
+	scoreboard_report_target = nickname.strip_edges()
+	scoreboard_report_target_label.text = "Игрок: " + scoreboard_report_target
+	scoreboard_report_status.text = ""
+	scoreboard_report_status.add_theme_color_override("font_color", PALE)
+	scoreboard_report_submit.disabled = false
+	scoreboard_report_reason.select(0)
+	scoreboard_report_overlay.visible = true
+
+
+func _close_scoreboard_report() -> void:
+	if scoreboard_report_overlay != null:
+		scoreboard_report_overlay.visible = false
+	scoreboard_report_target = ""
+
+
+func _submit_scoreboard_report() -> void:
+	if scoreboard_report_target.is_empty() or scoreboard_report_submit == null:
+		return
+	if MetaProgression.player_id <= 0:
+		scoreboard_report_status.text = "Нужен вход в аккаунт."
+		scoreboard_report_status.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
+		return
+	var reason := scoreboard_report_reason.get_item_text(scoreboard_report_reason.selected)
+	scoreboard_report_submit.disabled = true
+	scoreboard_report_status.text = "Отправляем жалобу..."
+	scoreboard_report_status.add_theme_color_override("font_color", Color(0.76, 0.8, 0.89))
+	NetworkClient.report_player(MetaProgression.player_id, scoreboard_report_target, reason)
+
+
+func _on_scoreboard_report_completed(success: bool, error: String) -> void:
+	if scoreboard_report_submit != null:
+		scoreboard_report_submit.disabled = false
+	if scoreboard_report_status == null:
+		return
+	if success:
+		scoreboard_report_status.text = "Жалоба отправлена. Спасибо!"
+		scoreboard_report_status.add_theme_color_override("font_color", Color(0.58, 0.9, 0.64))
+	else:
+		scoreboard_report_status.text = "Не удалось: %s" % _localize_scoreboard_report_error(error)
+		scoreboard_report_status.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
+
+
+func _localize_scoreboard_report_error(error: String) -> String:
+	match error:
+		"Too many reports":
+			return "слишком много жалоб, попробуй позже."
+		"Player not found":
+			return "профиль не найден."
+		"Нет связи с сервером":
+			return "сервер недоступен, попробуй позже."
+		_:
+			return error
 
 
 func _build_pause_menu(root: Control) -> void:
@@ -1182,6 +1640,7 @@ func _on_pause_overlay_input(event: InputEvent) -> void:
 
 
 func _open_pause_menu() -> void:
+	_close_scoreboard()
 	if game == null or game.state != "live":
 		return
 	var online := bool(game.get("network_play"))
@@ -1234,6 +1693,27 @@ func _on_pause_rules_back() -> void:
 func _exit_game() -> void:
 	get_tree().paused = false
 	get_tree().change_scene_to_file("res://scenes/Lobby.tscn")
+
+
+func _input(event: InputEvent) -> void:
+	if not (event is InputEventKey):
+		return
+	var key_event := event as InputEventKey
+	if not key_event.pressed or key_event.echo:
+		return
+	if key_event.keycode != KEY_TAB and key_event.physical_keycode != KEY_TAB:
+		return
+	# Tab closes the report dialog first: it sits on top of the table.
+	if scoreboard_report_overlay != null and scoreboard_report_overlay.visible:
+		_close_scoreboard_report()
+		get_viewport().set_input_as_handled()
+		return
+	if game == null or game.state != "live":
+		return
+	if pause_overlay != null and pause_overlay.visible:
+		return
+	_toggle_scoreboard()
+	get_viewport().set_input_as_handled()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -2108,6 +2588,18 @@ func _process(_delta: float) -> void:
 		hud_tick = 0.0
 		update_gold()
 		_update_player_panel()
+		if scoreboard_button != null:
+			scoreboard_button.visible = _mobile_ui() and game.state == "live"
+		_update_scoreboard_layout()
+		scoreboard_refresh_tick += 0.1
+		if scoreboard_panel != null and scoreboard_panel.visible:
+			if game.state != "live":
+				_close_scoreboard()
+			elif scoreboard_refresh_tick >= 0.4:
+				# Do not rebuild rows under a click or under the report dialog.
+				if scoreboard_report_overlay == null or not scoreboard_report_overlay.visible:
+					scoreboard_refresh_tick = 0.0
+					_refresh_scoreboard()
 		if center_respawn_label != null:
 			var is_respawning: bool = game.state == "live" and game.player != null and is_instance_valid(game.player) and game.player.dead
 			center_respawn_label.visible = is_respawning
