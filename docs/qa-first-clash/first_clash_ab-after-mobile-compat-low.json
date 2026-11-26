@@ -1,0 +1,792 @@
+{
+  "action": "clash",
+  "adapter": "Radeon RX 570 Series",
+  "canvas": [
+    1168,
+    540
+  ],
+  "events": [
+    {
+      "detail": "Лунная Тень team=0",
+      "frame": 0,
+      "kind": "bot_spawn",
+      "t_ms": 0.0
+    },
+    {
+      "detail": "Каменный Путь team=0",
+      "frame": 0,
+      "kind": "bot_spawn",
+      "t_ms": 0.0
+    },
+    {
+      "detail": "Тёмный Лис team=1",
+      "frame": 0,
+      "kind": "bot_spawn",
+      "t_ms": 0.0
+    },
+    {
+      "detail": "Стальной Волк team=1",
+      "frame": 0,
+      "kind": "bot_spawn",
+      "t_ms": 0.0
+    },
+    {
+      "detail": "Тихий Шторм team=1",
+      "frame": 0,
+      "kind": "bot_spawn",
+      "t_ms": 0.0
+    },
+    {
+      "detail": "match_start 0.9ms",
+      "frame": 1,
+      "kind": "mark_sfx",
+      "t_ms": -1.0
+    },
+    {
+      "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+      "frame": 1,
+      "kind": "sound",
+      "t_ms": 1.0
+    },
+    {
+      "detail": "forced_clash",
+      "frame": 182,
+      "kind": "probe",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "Даронес 39",
+      "frame": 183,
+      "kind": "mark_attack",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "Даронес 39",
+      "frame": 183,
+      "kind": "attack",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "Player -> Тёмный Лис 39",
+      "frame": 183,
+      "kind": "mark_hit",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "Player -> Тёмный Лис 39",
+      "frame": 183,
+      "kind": "hit",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "77 crit=false 0.1ms",
+      "frame": 183,
+      "kind": "mark_number",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "77 crit=false 0.1ms",
+      "frame": 183,
+      "kind": "damage_number",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 183,
+      "kind": "mark_vfx",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 183,
+      "kind": "vfx",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+      "frame": 183,
+      "kind": "sound",
+      "t_ms": 304.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 183,
+      "kind": "sound",
+      "t_ms": 304.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 183,
+      "kind": "sound_hit",
+      "t_ms": 304.0
+    },
+    {
+      "detail": "Тёмный Лис 1050->973",
+      "frame": 183,
+      "kind": "damage",
+      "t_ms": 304.0
+    },
+    {
+      "detail": "Тёмный Лис 31",
+      "frame": 262,
+      "kind": "mark_attack",
+      "t_ms": 461.0
+    },
+    {
+      "detail": "Тёмный Лис 31",
+      "frame": 262,
+      "kind": "attack",
+      "t_ms": 461.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 31",
+      "frame": 262,
+      "kind": "mark_hit",
+      "t_ms": 461.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 31",
+      "frame": 262,
+      "kind": "hit",
+      "t_ms": 461.0
+    },
+    {
+      "detail": "62 crit=false 0.1ms",
+      "frame": 262,
+      "kind": "mark_number",
+      "t_ms": 462.0
+    },
+    {
+      "detail": "62 crit=false 0.1ms",
+      "frame": 262,
+      "kind": "damage_number",
+      "t_ms": 462.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 262,
+      "kind": "mark_vfx",
+      "t_ms": 462.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 262,
+      "kind": "vfx",
+      "t_ms": 462.0
+    },
+    {
+      "detail": "Даронес 1050->988",
+      "frame": 262,
+      "kind": "damage",
+      "t_ms": 468.0
+    },
+    {
+      "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+      "frame": 262,
+      "kind": "sound",
+      "t_ms": 468.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 262,
+      "kind": "sound",
+      "t_ms": 468.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 262,
+      "kind": "sound_hit",
+      "t_ms": 468.0
+    },
+    {
+      "detail": "Footsteps footstep_3.ogg",
+      "frame": 292,
+      "kind": "sound",
+      "t_ms": 533.0
+    },
+    {
+      "detail": "Тёмный Лис 1",
+      "frame": 453,
+      "kind": "mark_ability",
+      "t_ms": 862.0
+    },
+    {
+      "detail": "Тёмный Лис 1",
+      "frame": 453,
+      "kind": "cast",
+      "t_ms": 862.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.5ms",
+      "frame": 453,
+      "kind": "mark_vfx",
+      "t_ms": 863.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.5ms",
+      "frame": 453,
+      "kind": "vfx",
+      "t_ms": 863.0
+    },
+    {
+      "detail": "Даронес 49",
+      "frame": 468,
+      "kind": "mark_attack",
+      "t_ms": 896.0
+    },
+    {
+      "detail": "Даронес 49",
+      "frame": 468,
+      "kind": "attack",
+      "t_ms": 896.0
+    },
+    {
+      "detail": "Player -> Тёмный Лис 49",
+      "frame": 468,
+      "kind": "mark_hit",
+      "t_ms": 896.0
+    },
+    {
+      "detail": "Player -> Тёмный Лис 49",
+      "frame": 468,
+      "kind": "hit",
+      "t_ms": 896.0
+    },
+    {
+      "detail": "98 crit=false 0.1ms",
+      "frame": 468,
+      "kind": "mark_number",
+      "t_ms": 896.0
+    },
+    {
+      "detail": "98 crit=false 0.1ms",
+      "frame": 468,
+      "kind": "damage_number",
+      "t_ms": 896.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 468,
+      "kind": "mark_vfx",
+      "t_ms": 897.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 468,
+      "kind": "vfx",
+      "t_ms": 897.0
+    },
+    {
+      "detail": "Тёмный Лис 973->875",
+      "frame": 468,
+      "kind": "damage",
+      "t_ms": 901.0
+    },
+    {
+      "detail": "Footsteps footstep_0.ogg",
+      "frame": 475,
+      "kind": "sound",
+      "t_ms": 917.0
+    },
+    {
+      "detail": "Тёмный Лис 81",
+      "frame": 586,
+      "kind": "mark_attack",
+      "t_ms": 1147.0
+    },
+    {
+      "detail": "Тёмный Лис 81",
+      "frame": 586,
+      "kind": "attack",
+      "t_ms": 1147.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 81",
+      "frame": 586,
+      "kind": "mark_hit",
+      "t_ms": 1147.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 81",
+      "frame": 586,
+      "kind": "hit",
+      "t_ms": 1147.0
+    },
+    {
+      "detail": "163 crit=true 0.0ms",
+      "frame": 586,
+      "kind": "mark_number",
+      "t_ms": 1147.0
+    },
+    {
+      "detail": "163 crit=true 0.0ms",
+      "frame": 586,
+      "kind": "damage_number",
+      "t_ms": 1147.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.7ms",
+      "frame": 586,
+      "kind": "mark_vfx",
+      "t_ms": 1147.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.7ms",
+      "frame": 586,
+      "kind": "vfx",
+      "t_ms": 1147.0
+    },
+    {
+      "detail": "Даронес 988->825",
+      "frame": 586,
+      "kind": "damage",
+      "t_ms": 1151.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 586,
+      "kind": "sound",
+      "t_ms": 1151.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 586,
+      "kind": "sound_hit",
+      "t_ms": 1151.0
+    },
+    {
+      "detail": "Footsteps footstep_2.ogg",
+      "frame": 655,
+      "kind": "sound",
+      "t_ms": 1299.0
+    },
+    {
+      "detail": "Даронес 40",
+      "frame": 749,
+      "kind": "mark_attack",
+      "t_ms": 1497.0
+    },
+    {
+      "detail": "Даронес 40",
+      "frame": 749,
+      "kind": "attack",
+      "t_ms": 1497.0
+    },
+    {
+      "detail": "Player -> Тёмный Лис 40",
+      "frame": 749,
+      "kind": "mark_hit",
+      "t_ms": 1497.0
+    },
+    {
+      "detail": "Player -> Тёмный Лис 40",
+      "frame": 749,
+      "kind": "hit",
+      "t_ms": 1497.0
+    },
+    {
+      "detail": "81 crit=false 0.0ms",
+      "frame": 749,
+      "kind": "mark_number",
+      "t_ms": 1497.0
+    },
+    {
+      "detail": "81 crit=false 0.0ms",
+      "frame": 749,
+      "kind": "damage_number",
+      "t_ms": 1497.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 749,
+      "kind": "mark_vfx",
+      "t_ms": 1498.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 749,
+      "kind": "vfx",
+      "t_ms": 1498.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 749,
+      "kind": "sound",
+      "t_ms": 1502.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 749,
+      "kind": "sound_hit",
+      "t_ms": 1502.0
+    },
+    {
+      "detail": "Тёмный Лис 875->794",
+      "frame": 749,
+      "kind": "damage",
+      "t_ms": 1502.0
+    },
+    {
+      "detail": "Тёмный Лис 0",
+      "frame": 809,
+      "kind": "mark_ability",
+      "t_ms": 1631.0
+    },
+    {
+      "detail": "Тёмный Лис 0",
+      "frame": 809,
+      "kind": "cast",
+      "t_ms": 1631.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 39",
+      "frame": 809,
+      "kind": "mark_hit",
+      "t_ms": 1631.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 39",
+      "frame": 809,
+      "kind": "hit",
+      "t_ms": 1631.0
+    },
+    {
+      "detail": "78 crit=false 0.0ms",
+      "frame": 809,
+      "kind": "mark_number",
+      "t_ms": 1631.0
+    },
+    {
+      "detail": "78 crit=false 0.0ms",
+      "frame": 809,
+      "kind": "damage_number",
+      "t_ms": 1631.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.7ms",
+      "frame": 809,
+      "kind": "mark_vfx",
+      "t_ms": 1632.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.7ms",
+      "frame": 809,
+      "kind": "vfx",
+      "t_ms": 1632.0
+    },
+    {
+      "detail": "Даронес 825->748",
+      "frame": 809,
+      "kind": "damage",
+      "t_ms": 1636.0
+    },
+    {
+      "detail": "Footsteps footstep_1.ogg",
+      "frame": 828,
+      "kind": "sound",
+      "t_ms": 1683.0
+    },
+    {
+      "detail": "Footsteps footstep_3.ogg",
+      "frame": 998,
+      "kind": "sound",
+      "t_ms": 2067.0
+    }
+  ],
+  "first": {
+    "attack": {
+      "detail": "Даронес 39",
+      "frame": 183,
+      "t_ms": 301.0
+    },
+    "bot_spawn": {
+      "detail": "Лунная Тень team=0",
+      "frame": 0,
+      "t_ms": 0.0
+    },
+    "cast": {
+      "detail": "Тёмный Лис 1",
+      "frame": 453,
+      "t_ms": 862.0
+    },
+    "damage": {
+      "detail": "Тёмный Лис 1050->973",
+      "frame": 183,
+      "t_ms": 304.0
+    },
+    "damage_number": {
+      "detail": "77 crit=false 0.1ms",
+      "frame": 183,
+      "t_ms": 301.0
+    },
+    "hit": {
+      "detail": "Player -> Тёмный Лис 39",
+      "frame": 183,
+      "t_ms": 301.0
+    },
+    "mark_ability": {
+      "detail": "Тёмный Лис 1",
+      "frame": 453,
+      "t_ms": 862.0
+    },
+    "mark_attack": {
+      "detail": "Даронес 39",
+      "frame": 183,
+      "t_ms": 301.0
+    },
+    "mark_hit": {
+      "detail": "Player -> Тёмный Лис 39",
+      "frame": 183,
+      "t_ms": 301.0
+    },
+    "mark_number": {
+      "detail": "77 crit=false 0.1ms",
+      "frame": 183,
+      "t_ms": 301.0
+    },
+    "mark_sfx": {
+      "detail": "match_start 0.9ms",
+      "frame": 1,
+      "t_ms": -1.0
+    },
+    "mark_vfx": {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 183,
+      "t_ms": 301.0
+    },
+    "probe": {
+      "detail": "forced_clash",
+      "frame": 182,
+      "t_ms": 301.0
+    },
+    "sound": {
+      "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+      "frame": 1,
+      "t_ms": 1.0
+    },
+    "sound_hit": {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 183,
+      "t_ms": 304.0
+    },
+    "vfx": {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 183,
+      "t_ms": 301.0
+    }
+  },
+  "first_clash_max_ms": 6.58,
+  "first_clash_warm_done": true,
+  "first_clash_warm_ms": 662,
+  "first_clash_window": {
+    "avg_ms": 2.15,
+    "fps_avg": 464.3,
+    "frames": 696,
+    "max_ms": 6.58,
+    "over_16": 0,
+    "over_33": 0,
+    "over_50": 0,
+    "p50_ms": 1.9,
+    "p95_ms": 3.35,
+    "p99_ms": 5.35,
+    "process_max_ms": 3.57,
+    "render_max_ms": 4.44
+  },
+  "forced_cpu_ms": 1.04,
+  "forced_steps": [
+    {
+      "cpu_ms": 1.04,
+      "step": "clash"
+    },
+    {
+      "cpu_ms": 1.03,
+      "step": "enemy_attack"
+    }
+  ],
+  "forced_t_ms": 301.0,
+  "frames": {
+    "all": {
+      "avg_ms": 2.08,
+      "fps_avg": 481.7,
+      "frames": 1109,
+      "max_ms": 6.58,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 1.9,
+      "p95_ms": 3.29,
+      "p99_ms": 4.83,
+      "process_max_ms": 3.57,
+      "render_max_ms": 4.44
+    },
+    "clash_0_1500ms": {
+      "avg_ms": 2.15,
+      "fps_avg": 464.3,
+      "frames": 696,
+      "max_ms": 6.58,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 1.9,
+      "p95_ms": 3.35,
+      "p99_ms": 5.35,
+      "process_max_ms": 3.57,
+      "render_max_ms": 4.44
+    },
+    "clash_0_200ms": {
+      "avg_ms": 2.09,
+      "fps_avg": 479.2,
+      "frames": 95,
+      "max_ms": 5.78,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 1.82,
+      "p95_ms": 3.29,
+      "p99_ms": 5.78,
+      "process_max_ms": 2.68,
+      "render_max_ms": 4.21
+    },
+    "post_1500ms": {
+      "avg_ms": 2.17,
+      "fps_avg": 460.9,
+      "frames": 230,
+      "max_ms": 5.45,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 1.96,
+      "p95_ms": 3.31,
+      "p99_ms": 4.44,
+      "process_max_ms": 1.52,
+      "render_max_ms": 3.95
+    },
+    "start_0_to_clash": {
+      "avg_ms": 1.66,
+      "fps_avg": 602.0,
+      "frames": 183,
+      "max_ms": 3.75,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 1.5,
+      "p95_ms": 2.73,
+      "p99_ms": 3.41,
+      "process_max_ms": 2.2,
+      "render_max_ms": 3.06
+    }
+  },
+  "hero_spawns": [
+    {
+      "name": "Лунная Тень",
+      "player": false,
+      "t_ms": 0.0,
+      "team": 0
+    },
+    {
+      "name": "Каменный Путь",
+      "player": false,
+      "t_ms": 0.0,
+      "team": 0
+    },
+    {
+      "name": "Тёмный Лис",
+      "player": false,
+      "t_ms": 0.0,
+      "team": 1
+    },
+    {
+      "name": "Стальной Волк",
+      "player": false,
+      "t_ms": 0.0,
+      "team": 1
+    },
+    {
+      "name": "Тихий Шторм",
+      "player": false,
+      "t_ms": 0.0,
+      "team": 1
+    }
+  ],
+  "load_main_ms": 87.8,
+  "mobile": true,
+  "novsync": true,
+  "pipeline_monitors": [
+    "canvas",
+    "mesh",
+    "surface",
+    "draw",
+    "specialization"
+  ],
+  "quality": "low",
+  "ready_ms": 548.5,
+  "renderer": "gl_compatibility",
+  "screenshot": "C:/myGames3D/three-skies/docs/qa-first-clash/first_clash_ab-after-mobile-compat-low.png",
+  "spikes_16": [],
+  "spikes_33": [],
+  "start_match_to_live_ms": 435.4,
+  "tag": "ab-after-mobile-compat-low",
+  "warmup": true,
+  "warmup_report": {
+    "arena_children": 12,
+    "deadline_hit": false,
+    "elapsed": 21.621,
+    "error": "",
+    "failed": false,
+    "first2s_max_at_s": 0.0,
+    "first2s_max_frame_ms": 134.6,
+    "first2s_settled_max_frame_ms": 1.3,
+    "frame_ms_avg": 0.3,
+    "frame_ms_max": 134.6,
+    "frame_ms_p95": 0.3,
+    "frames_rendered": 101,
+    "frames_sampled": 8192,
+    "heroes_warmed": 5,
+    "main_cached": true,
+    "main_freed": true,
+    "main_load_ms": 1394,
+    "main_scene_loaded": true,
+    "main_script_stripped": true,
+    "mobile": true,
+    "paced": true,
+    "pacing_target_s": 23.0,
+    "pass1_video_mb": 138.6,
+    "pass2_video_mb": 0.0,
+    "pauses_s": 16.73,
+    "peak_static_mb": 63.8,
+    "peak_video_mb": 138.6,
+    "props_warmed": 18,
+    "quality": "low",
+    "reload_ms": 0,
+    "shaders_warmed": 9,
+    "sounds_warmed": 38,
+    "stage_times": {
+      "Бойцы и скины": 6.406,
+      "Готово": 0.007,
+      "Загрузка арены": 4.161,
+      "Инстанс арены": 0.333,
+      "Материалы арены": 1.523,
+      "Оружие и предметы": 2.043,
+      "Финальный рендер": 0.004,
+      "Шейдеры": 1.381,
+      "Эффекты и шейдеры": 5.772
+    },
+    "stats_tracked": true,
+    "truncated": false,
+    "two_pass": false,
+    "two_pass_policy": "auto",
+    "two_pass_reason": "arena_peak_107_mb",
+    "two_pass_switch_ms": 0,
+    "two_pass_switch_s": 0.0,
+    "vfx_scenes_warmed": 10,
+    "video_after_arena_free_mb": 0.0,
+    "video_after_arena_mb": 106.5,
+    "video_after_vfx_mb": 111.7,
+    "video_mem_available": true,
+    "work_s": 4.89
+  },
+  "window": [
+    844,
+    390
+  ]
+}

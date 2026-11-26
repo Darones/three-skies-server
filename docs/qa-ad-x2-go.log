@@ -1,0 +1,5 @@
+﻿go vet output:
+
+go test output:
+ok  	three-skies-server	5.350s
+

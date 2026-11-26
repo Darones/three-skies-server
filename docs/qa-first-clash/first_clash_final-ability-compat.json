@@ -1,0 +1,720 @@
+{
+  "action": "ability",
+  "adapter": "Radeon RX 570 Series",
+  "canvas": [
+    1440,
+    734
+  ],
+  "events": [
+    {
+      "detail": "match_start 0.9ms",
+      "frame": 1,
+      "kind": "mark_sfx",
+      "t_ms": 0.0
+    },
+    {
+      "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+      "frame": 1,
+      "kind": "sound",
+      "t_ms": 2.0
+    },
+    {
+      "detail": "forced_ability",
+      "frame": 143,
+      "kind": "probe",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "Даронес 2",
+      "frame": 144,
+      "kind": "mark_ability",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "Даронес 2",
+      "frame": 144,
+      "kind": "cast",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "vfx_big_impact_01.tscn 0.7ms",
+      "frame": 144,
+      "kind": "mark_vfx",
+      "t_ms": 302.0
+    },
+    {
+      "detail": "vfx_big_impact_01.tscn 0.7ms",
+      "frame": 144,
+      "kind": "vfx",
+      "t_ms": 302.0
+    },
+    {
+      "detail": "Player -> Ночная Птица 48",
+      "frame": 144,
+      "kind": "mark_hit",
+      "t_ms": 302.0
+    },
+    {
+      "detail": "Player -> Ночная Птица 48",
+      "frame": 144,
+      "kind": "hit",
+      "t_ms": 302.0
+    },
+    {
+      "detail": "95 crit=false 0.1ms",
+      "frame": 144,
+      "kind": "mark_number",
+      "t_ms": 302.0
+    },
+    {
+      "detail": "95 crit=false 0.1ms",
+      "frame": 144,
+      "kind": "damage_number",
+      "t_ms": 302.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 144,
+      "kind": "sound",
+      "t_ms": 306.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 144,
+      "kind": "sound_hit",
+      "t_ms": 306.0
+    },
+    {
+      "detail": "CombatAudio_Ultimate warrior_quake_ult.mp3",
+      "frame": 144,
+      "kind": "sound",
+      "t_ms": 306.0
+    },
+    {
+      "detail": "Ночная Птица 1050->955",
+      "frame": 144,
+      "kind": "damage",
+      "t_ms": 306.0
+    },
+    {
+      "detail": "Даронес 35",
+      "frame": 145,
+      "kind": "mark_attack",
+      "t_ms": 317.0
+    },
+    {
+      "detail": "Даронес 35",
+      "frame": 145,
+      "kind": "attack",
+      "t_ms": 317.0
+    },
+    {
+      "detail": "Player -> Ночная Птица 35",
+      "frame": 145,
+      "kind": "mark_hit",
+      "t_ms": 317.0
+    },
+    {
+      "detail": "Player -> Ночная Птица 35",
+      "frame": 145,
+      "kind": "hit",
+      "t_ms": 317.0
+    },
+    {
+      "detail": "70 crit=false 0.1ms",
+      "frame": 145,
+      "kind": "mark_number",
+      "t_ms": 317.0
+    },
+    {
+      "detail": "70 crit=false 0.1ms",
+      "frame": 145,
+      "kind": "damage_number",
+      "t_ms": 317.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 145,
+      "kind": "mark_vfx",
+      "t_ms": 318.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 145,
+      "kind": "vfx",
+      "t_ms": 318.0
+    },
+    {
+      "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+      "frame": 145,
+      "kind": "sound",
+      "t_ms": 321.0
+    },
+    {
+      "detail": "Ночная Птица 955->885",
+      "frame": 145,
+      "kind": "damage",
+      "t_ms": 321.0
+    },
+    {
+      "detail": "Даронес 46",
+      "frame": 383,
+      "kind": "mark_attack",
+      "t_ms": 910.0
+    },
+    {
+      "detail": "Даронес 46",
+      "frame": 383,
+      "kind": "attack",
+      "t_ms": 910.0
+    },
+    {
+      "detail": "Player -> Ночная Птица 46",
+      "frame": 383,
+      "kind": "mark_hit",
+      "t_ms": 910.0
+    },
+    {
+      "detail": "Player -> Ночная Птица 46",
+      "frame": 383,
+      "kind": "hit",
+      "t_ms": 910.0
+    },
+    {
+      "detail": "92 crit=false 0.1ms",
+      "frame": 383,
+      "kind": "mark_number",
+      "t_ms": 910.0
+    },
+    {
+      "detail": "92 crit=false 0.1ms",
+      "frame": 383,
+      "kind": "damage_number",
+      "t_ms": 910.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.5ms",
+      "frame": 383,
+      "kind": "mark_vfx",
+      "t_ms": 911.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.5ms",
+      "frame": 383,
+      "kind": "vfx",
+      "t_ms": 911.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 383,
+      "kind": "sound",
+      "t_ms": 914.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 383,
+      "kind": "sound_hit",
+      "t_ms": 914.0
+    },
+    {
+      "detail": "Ночная Птица 885->792",
+      "frame": 383,
+      "kind": "damage",
+      "t_ms": 914.0
+    },
+    {
+      "detail": "Даронес 51",
+      "frame": 644,
+      "kind": "mark_attack",
+      "t_ms": 1510.0
+    },
+    {
+      "detail": "Даронес 51",
+      "frame": 644,
+      "kind": "attack",
+      "t_ms": 1510.0
+    },
+    {
+      "detail": "Player -> Ночная Птица 51",
+      "frame": 644,
+      "kind": "mark_hit",
+      "t_ms": 1510.0
+    },
+    {
+      "detail": "Player -> Ночная Птица 51",
+      "frame": 644,
+      "kind": "hit",
+      "t_ms": 1510.0
+    },
+    {
+      "detail": "102 crit=false 0.0ms",
+      "frame": 644,
+      "kind": "mark_number",
+      "t_ms": 1510.0
+    },
+    {
+      "detail": "102 crit=false 0.0ms",
+      "frame": 644,
+      "kind": "damage_number",
+      "t_ms": 1510.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 644,
+      "kind": "mark_vfx",
+      "t_ms": 1510.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 644,
+      "kind": "vfx",
+      "t_ms": 1510.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 644,
+      "kind": "sound",
+      "t_ms": 1514.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 644,
+      "kind": "sound_hit",
+      "t_ms": 1514.0
+    },
+    {
+      "detail": "Ночная Птица 792->691",
+      "frame": 644,
+      "kind": "damage",
+      "t_ms": 1514.0
+    },
+    {
+      "detail": "Footsteps footstep_4.ogg",
+      "frame": 776,
+      "kind": "sound",
+      "t_ms": 1812.0
+    },
+    {
+      "detail": "Ночная Птица 1",
+      "frame": 798,
+      "kind": "mark_ability",
+      "t_ms": 1860.0
+    },
+    {
+      "detail": "Ночная Птица 1",
+      "frame": 798,
+      "kind": "cast",
+      "t_ms": 1860.0
+    },
+    {
+      "detail": "vfx_impact_01.tscn 0.6ms",
+      "frame": 798,
+      "kind": "mark_vfx",
+      "t_ms": 1861.0
+    },
+    {
+      "detail": "vfx_impact_01.tscn 0.6ms",
+      "frame": 798,
+      "kind": "vfx",
+      "t_ms": 1861.0
+    },
+    {
+      "detail": "Даронес 41",
+      "frame": 905,
+      "kind": "mark_attack",
+      "t_ms": 2109.0
+    },
+    {
+      "detail": "Даронес 41",
+      "frame": 905,
+      "kind": "attack",
+      "t_ms": 2109.0
+    },
+    {
+      "detail": "Player -> Ночная Птица 41",
+      "frame": 905,
+      "kind": "mark_hit",
+      "t_ms": 2109.0
+    },
+    {
+      "detail": "Player -> Ночная Птица 41",
+      "frame": 905,
+      "kind": "hit",
+      "t_ms": 2109.0
+    },
+    {
+      "detail": "82 crit=false 0.0ms",
+      "frame": 905,
+      "kind": "mark_number",
+      "t_ms": 2109.0
+    },
+    {
+      "detail": "82 crit=false 0.0ms",
+      "frame": 905,
+      "kind": "damage_number",
+      "t_ms": 2109.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 905,
+      "kind": "mark_vfx",
+      "t_ms": 2110.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 905,
+      "kind": "vfx",
+      "t_ms": 2110.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 905,
+      "kind": "sound",
+      "t_ms": 2113.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 905,
+      "kind": "sound_hit",
+      "t_ms": 2113.0
+    },
+    {
+      "detail": "Ночная Птица 691->609",
+      "frame": 905,
+      "kind": "damage",
+      "t_ms": 2113.0
+    },
+    {
+      "detail": "Footsteps footstep_2.ogg",
+      "frame": 938,
+      "kind": "sound",
+      "t_ms": 2197.0
+    },
+    {
+      "detail": "Ночная Птица 70",
+      "frame": 951,
+      "kind": "mark_attack",
+      "t_ms": 2227.0
+    },
+    {
+      "detail": "Ночная Птица 70",
+      "frame": 951,
+      "kind": "attack",
+      "t_ms": 2227.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 70",
+      "frame": 951,
+      "kind": "mark_hit",
+      "t_ms": 2227.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 70",
+      "frame": 951,
+      "kind": "hit",
+      "t_ms": 2227.0
+    },
+    {
+      "detail": "140 crit=true 0.0ms",
+      "frame": 951,
+      "kind": "mark_number",
+      "t_ms": 2227.0
+    },
+    {
+      "detail": "140 crit=true 0.0ms",
+      "frame": 951,
+      "kind": "damage_number",
+      "t_ms": 2227.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.3ms",
+      "frame": 951,
+      "kind": "mark_vfx",
+      "t_ms": 2228.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.3ms",
+      "frame": 951,
+      "kind": "vfx",
+      "t_ms": 2228.0
+    },
+    {
+      "detail": "Даронес 1050->910",
+      "frame": 951,
+      "kind": "damage",
+      "t_ms": 2231.0
+    },
+    {
+      "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+      "frame": 951,
+      "kind": "sound",
+      "t_ms": 2231.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 951,
+      "kind": "sound",
+      "t_ms": 2231.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 951,
+      "kind": "sound_hit",
+      "t_ms": 2231.0
+    }
+  ],
+  "first": {
+    "attack": {
+      "detail": "Даронес 35",
+      "frame": 145,
+      "t_ms": 317.0
+    },
+    "cast": {
+      "detail": "Даронес 2",
+      "frame": 144,
+      "t_ms": 301.0
+    },
+    "damage": {
+      "detail": "Ночная Птица 1050->955",
+      "frame": 144,
+      "t_ms": 306.0
+    },
+    "damage_number": {
+      "detail": "95 crit=false 0.1ms",
+      "frame": 144,
+      "t_ms": 302.0
+    },
+    "hit": {
+      "detail": "Player -> Ночная Птица 48",
+      "frame": 144,
+      "t_ms": 302.0
+    },
+    "mark_ability": {
+      "detail": "Даронес 2",
+      "frame": 144,
+      "t_ms": 301.0
+    },
+    "mark_attack": {
+      "detail": "Даронес 35",
+      "frame": 145,
+      "t_ms": 317.0
+    },
+    "mark_hit": {
+      "detail": "Player -> Ночная Птица 48",
+      "frame": 144,
+      "t_ms": 302.0
+    },
+    "mark_number": {
+      "detail": "95 crit=false 0.1ms",
+      "frame": 144,
+      "t_ms": 302.0
+    },
+    "mark_sfx": {
+      "detail": "match_start 0.9ms",
+      "frame": 1,
+      "t_ms": 0.0
+    },
+    "mark_vfx": {
+      "detail": "vfx_big_impact_01.tscn 0.7ms",
+      "frame": 144,
+      "t_ms": 302.0
+    },
+    "probe": {
+      "detail": "forced_ability",
+      "frame": 143,
+      "t_ms": 301.0
+    },
+    "sound": {
+      "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+      "frame": 1,
+      "t_ms": 2.0
+    },
+    "sound_hit": {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 144,
+      "t_ms": 306.0
+    },
+    "vfx": {
+      "detail": "vfx_big_impact_01.tscn 0.7ms",
+      "frame": 144,
+      "t_ms": 302.0
+    }
+  },
+  "first_clash_max_ms": 15.35,
+  "first_clash_window": {
+    "avg_ms": 2.38,
+    "fps_avg": 420.1,
+    "frames": 629,
+    "max_ms": 15.35,
+    "over_16": 0,
+    "over_33": 0,
+    "over_50": 0,
+    "p50_ms": 2.13,
+    "p95_ms": 3.53,
+    "p99_ms": 4.6,
+    "process_max_ms": 4.57,
+    "render_max_ms": 13.76
+  },
+  "forced_cpu_ms": 2.66,
+  "forced_steps": [
+    {
+      "cpu_ms": 2.66,
+      "step": "ability"
+    }
+  ],
+  "forced_t_ms": 301.0,
+  "frames": {
+    "all": {
+      "avg_ms": 2.35,
+      "fps_avg": 425.2,
+      "frames": 979,
+      "max_ms": 15.83,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 2.11,
+      "p95_ms": 3.58,
+      "p99_ms": 5.62,
+      "process_max_ms": 4.57,
+      "render_max_ms": 15.31
+    },
+    "clash_0_1500ms": {
+      "avg_ms": 2.38,
+      "fps_avg": 420.1,
+      "frames": 629,
+      "max_ms": 15.35,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 2.13,
+      "p95_ms": 3.53,
+      "p99_ms": 4.6,
+      "process_max_ms": 4.57,
+      "render_max_ms": 13.76
+    },
+    "clash_0_200ms": {
+      "avg_ms": 2.97,
+      "fps_avg": 337.2,
+      "frames": 66,
+      "max_ms": 15.35,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 2.27,
+      "p95_ms": 6.48,
+      "p99_ms": 15.35,
+      "process_max_ms": 4.57,
+      "render_max_ms": 13.76
+    },
+    "post_1500ms": {
+      "avg_ms": 2.42,
+      "fps_avg": 412.6,
+      "frames": 206,
+      "max_ms": 5.85,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 2.18,
+      "p95_ms": 3.72,
+      "p99_ms": 5.54,
+      "process_max_ms": 1.6,
+      "render_max_ms": 4.25
+    },
+    "start_0_to_clash": {
+      "avg_ms": 2.12,
+      "fps_avg": 470.9,
+      "frames": 144,
+      "max_ms": 15.83,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 1.74,
+      "p95_ms": 3.48,
+      "p99_ms": 6.06,
+      "process_max_ms": 2.84,
+      "render_max_ms": 15.31
+    }
+  },
+  "hero_spawns": [],
+  "load_main_ms": 79.5,
+  "mobile": false,
+  "novsync": true,
+  "pipeline_monitors": [
+    "canvas",
+    "mesh",
+    "surface",
+    "draw",
+    "specialization"
+  ],
+  "quality": "high",
+  "ready_ms": 550.8,
+  "renderer": "gl_compatibility",
+  "screenshot": "C:/myGames3D/three-skies/docs/qa-first-clash/first_clash_final-ability-compat.png",
+  "spikes_16": [],
+  "spikes_33": [],
+  "start_match_to_live_ms": 491.0,
+  "tag": "final-ability-compat",
+  "warmup": true,
+  "warmup_report": {
+    "arena_children": 12,
+    "deadline_hit": false,
+    "elapsed": 19.727,
+    "error": "",
+    "failed": false,
+    "first2s_max_at_s": 0.0,
+    "first2s_max_frame_ms": 128.4,
+    "first2s_settled_max_frame_ms": 1.4,
+    "frame_ms_avg": 0.3,
+    "frame_ms_max": 128.4,
+    "frame_ms_p95": 0.4,
+    "frames_rendered": 101,
+    "frames_sampled": 8192,
+    "heroes_warmed": 5,
+    "main_cached": true,
+    "main_freed": true,
+    "main_load_ms": 1415,
+    "main_scene_loaded": true,
+    "main_script_stripped": true,
+    "mobile": false,
+    "paced": true,
+    "pacing_target_s": 21.0,
+    "pass1_video_mb": 140.1,
+    "pass2_video_mb": 0.0,
+    "pauses_s": 14.81,
+    "peak_static_mb": 63.9,
+    "peak_video_mb": 140.1,
+    "props_warmed": 18,
+    "quality": "high",
+    "reload_ms": 0,
+    "shaders_warmed": 9,
+    "sounds_warmed": 38,
+    "stage_times": {
+      "Бойцы и скины": 5.853,
+      "Готово": 0.006,
+      "Загрузка арены": 4.189,
+      "Инстанс арены": 0.35,
+      "Материалы арены": 0.951,
+      "Оружие и предметы": 1.866,
+      "Финальный рендер": 0.76,
+      "Шейдеры": 0.475,
+      "Эффекты и шейдеры": 5.285
+    },
+    "stats_tracked": true,
+    "truncated": false,
+    "two_pass": false,
+    "two_pass_policy": "auto",
+    "two_pass_reason": "desktop",
+    "two_pass_switch_ms": 0,
+    "two_pass_switch_s": 0.0,
+    "vfx_scenes_warmed": 10,
+    "video_after_arena_free_mb": 0.0,
+    "video_after_arena_mb": 108.0,
+    "video_after_vfx_mb": 113.2,
+    "video_mem_available": true,
+    "work_s": 4.92
+  },
+  "window": [
+    1440,
+    734
+  ]
+}

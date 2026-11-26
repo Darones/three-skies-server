@@ -1,0 +1,995 @@
+{
+  "tag": "ch-tutorial-profile",
+  "url": "https://three-skies-server.relaxdev.ru/game/?mobile=1&tutorial=1&profile=1",
+  "viewport": {
+    "W": 844,
+    "H": 390,
+    "DPR": 1,
+    "mobile": true
+  },
+  "cpuThrottle": 1,
+  "chrome": "Chrome/158.0.8127.88",
+  "bootMs": 24885,
+  "bootCanvas": [
+    844,
+    390,
+    844,
+    390
+  ],
+  "probe": {
+    "href": "https://three-skies-server.relaxdev.ru/game/?mobile=1&profile=1&tutorial=1&v=20261126_192357",
+    "ua": "Mozilla/5.0 (Linux; Android 14; SM-A566B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
+    "platform": "Linux armv8l",
+    "dpr": 1,
+    "inner": [
+      844,
+      390
+    ],
+    "outer": [
+      844,
+      390
+    ],
+    "screen": [
+      844,
+      390,
+      844,
+      390
+    ],
+    "orientation": "landscape-primary",
+    "hardwareConcurrency": 28,
+    "deviceMemory": 32,
+    "webgl2": true,
+    "glVendor": "Google Inc. (AMD)",
+    "glRenderer": "ANGLE (AMD, Radeon RX 570 Series (0x000067DF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "glVersion": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+    "maxTexture": 16384,
+    "glExtensions": [
+      "EXT_clip_control",
+      "EXT_color_buffer_float",
+      "EXT_color_buffer_half_float",
+      "EXT_conservative_depth",
+      "EXT_depth_clamp",
+      "EXT_disjoint_timer_query_webgl2",
+      "EXT_float_blend",
+      "EXT_polygon_offset_clamp",
+      "EXT_render_snorm",
+      "EXT_texture_compression_bptc",
+      "EXT_texture_compression_rgtc",
+      "EXT_texture_filter_anisotropic",
+      "EXT_texture_mirror_clamp_to_edge",
+      "EXT_texture_norm16",
+      "KHR_parallel_shader_compile",
+      "NV_shader_noperspective_interpolation",
+      "OES_draw_buffers_indexed",
+      "OES_sample_variables",
+      "OES_shader_multisample_interpolation",
+      "OES_texture_float_linear",
+      "OVR_multiview2",
+      "WEBGL_blend_func_extended",
+      "WEBGL_clip_cull_distance",
+      "WEBGL_compressed_texture_s3tc",
+      "WEBGL_compressed_texture_s3tc_srgb",
+      "WEBGL_debug_renderer_info",
+      "WEBGL_debug_shaders",
+      "WEBGL_lose_context",
+      "WEBGL_multi_draw",
+      "WEBGL_polygon_mode",
+      "WEBGL_provoking_vertex",
+      "WEBGL_shader_pixel_local_storage",
+      "WEBGL_stencil_texturing"
+    ],
+    "canvas": {
+      "w": 844,
+      "h": 390,
+      "cssW": 844,
+      "cssH": 390,
+      "rectW": 844,
+      "rectH": 390
+    },
+    "canvasStyle": {
+      "width": "844px",
+      "height": "390px"
+    },
+    "visualViewport": {
+      "w": 844,
+      "h": 390,
+      "scale": 1
+    },
+    "vkBridge": "object",
+    "vkInit": "object",
+    "mem": {
+      "usedMB": 96.9,
+      "totalMB": 98.3,
+      "limitMB": 4192
+    },
+    "crossOriginIsolated": false,
+    "sharedArrayBuffer": "undefined",
+    "wasm": "object",
+    "fpsCounterInstalled": true,
+    "canvases": [
+      {
+        "id": "canvas",
+        "w": 844,
+        "h": 390
+      }
+    ],
+    "loadState": "complete",
+    "loaderHidden": true,
+    "statusText": "",
+    "frameCount": 1092
+  },
+  "fpsSeries": [
+    30,
+    1,
+    4,
+    19,
+    8,
+    17,
+    47,
+    47,
+    14,
+    48,
+    3,
+    4,
+    7,
+    17,
+    61,
+    61,
+    61,
+    60,
+    60,
+    61,
+    61,
+    61,
+    61,
+    61
+  ],
+  "frameStats": {
+    "n": 1082,
+    "meanMs": 24.32,
+    "fpsMean": 41.1,
+    "p50": 16.7,
+    "p95": 16.8,
+    "p99": 367.4,
+    "max": 918.4,
+    "over50msPct": 3.2,
+    "over100msPct": 1.9
+  },
+  "cpuTop": [
+    {
+      "fn": "getProgramParameter @ :-1",
+      "ms": 72844,
+      "pct": 76.3
+    },
+    {
+      "fn": "(idle) @ :-1",
+      "ms": 5827,
+      "pct": 6.1
+    },
+    {
+      "fn": "getParameter @ :-1",
+      "ms": 5652,
+      "pct": 5.9
+    },
+    {
+      "fn": "getShaderParameter @ :-1",
+      "ms": 3085,
+      "pct": 3.2
+    },
+    {
+      "fn": "(program) @ :-1",
+      "ms": 610,
+      "pct": 0.6
+    },
+    {
+      "fn": "wasm-function[2238] @ 096bca0a:0",
+      "ms": 295,
+      "pct": 0.3
+    },
+    {
+      "fn": "lookup @ index.js:0",
+      "ms": 282,
+      "pct": 0.3
+    },
+    {
+      "fn": "lookupPath @ index.js:0",
+      "ms": 250,
+      "pct": 0.3
+    },
+    {
+      "fn": "wasm-function[14930] @ 096bca0a:0",
+      "ms": 155,
+      "pct": 0.2
+    },
+    {
+      "fn": "texImage2D @ :-1",
+      "ms": 151,
+      "pct": 0.2
+    },
+    {
+      "fn": "wasm-function[70690] @ 096bca0a:0",
+      "ms": 150,
+      "pct": 0.2
+    },
+    {
+      "fn": "wasm-function[67969] @ 096bca0a:0",
+      "ms": 149,
+      "pct": 0.2
+    },
+    {
+      "fn": "findStringEnd @ index.js:0",
+      "ms": 144,
+      "pct": 0.2
+    },
+    {
+      "fn": "shaderSource @ :-1",
+      "ms": 144,
+      "pct": 0.2
+    },
+    {
+      "fn": "wasm-function[25475] @ 096bca0a:0",
+      "ms": 142,
+      "pct": 0.1
+    },
+    {
+      "fn": "wasm-function[430] @ 096bca0a:0",
+      "ms": 122,
+      "pct": 0.1
+    },
+    {
+      "fn": "wasm-function[337] @ 096bca0a:0",
+      "ms": 99,
+      "pct": 0.1
+    },
+    {
+      "fn": "(garbage collector) @ :-1",
+      "ms": 96,
+      "pct": 0.1
+    },
+    {
+      "fn": "wasm-function[547] @ 096bca0a:0",
+      "ms": 93,
+      "pct": 0.1
+    },
+    {
+      "fn": "wasm-function[6878] @ 096bca0a:0",
+      "ms": 84,
+      "pct": 0.1
+    },
+    {
+      "fn": "_duplicateAudioBuffer @ index.js:0",
+      "ms": 82,
+      "pct": 0.1
+    },
+    {
+      "fn": "wasm-function[593] @ 096bca0a:0",
+      "ms": 80,
+      "pct": 0.1
+    },
+    {
+      "fn": "wasm-function[6877] @ 096bca0a:0",
+      "ms": 79,
+      "pct": 0.1
+    },
+    {
+      "fn": "getActiveUniform @ :-1",
+      "ms": 78,
+      "pct": 0.1
+    },
+    {
+      "fn": "wasm-to-js @ :0",
+      "ms": 73,
+      "pct": 0.1
+    },
+    {
+      "fn": "wasm-function[19376] @ 096bca0a:0",
+      "ms": 69,
+      "pct": 0.1
+    },
+    {
+      "fn": "wasm-function[67276] @ 096bca0a:0",
+      "ms": 66,
+      "pct": 0.1
+    },
+    {
+      "fn": "wasm-function[24963] @ 096bca0a:0",
+      "ms": 64,
+      "pct": 0.1
+    },
+    {
+      "fn": "send @ index.js:0",
+      "ms": 61,
+      "pct": 0.1
+    },
+    {
+      "fn": "getUniformBlockIndex @ :-1",
+      "ms": 59,
+      "pct": 0.1
+    }
+  ],
+  "longtasks": [
+    {
+      "start": 276.6,
+      "dur": 542
+    },
+    {
+      "start": 6785.6,
+      "dur": 18084
+    },
+    {
+      "start": 25212.9,
+      "dur": 67
+    },
+    {
+      "start": 25597,
+      "dur": 684
+    },
+    {
+      "start": 26282.5,
+      "dur": 926
+    },
+    {
+      "start": 27212.1,
+      "dur": 35215
+    },
+    {
+      "start": 62467.6,
+      "dur": 468
+    },
+    {
+      "start": 62955.6,
+      "dur": 6222
+    },
+    {
+      "start": 69279.7,
+      "dur": 620
+    },
+    {
+      "start": 69947.6,
+      "dur": 80
+    },
+    {
+      "start": 70064.7,
+      "dur": 77
+    },
+    {
+      "start": 70181.5,
+      "dur": 80
+    },
+    {
+      "start": 70298.4,
+      "dur": 92
+    },
+    {
+      "start": 70448.6,
+      "dur": 5836
+    },
+    {
+      "start": 76560.2,
+      "dur": 5720
+    },
+    {
+      "start": 82354.5,
+      "dur": 129
+    },
+    {
+      "start": 83156,
+      "dur": 604
+    },
+    {
+      "start": 84241.4,
+      "dur": 98
+    },
+    {
+      "start": 84408.4,
+      "dur": 77
+    },
+    {
+      "start": 84558.7,
+      "dur": 77
+    },
+    {
+      "start": 84709.1,
+      "dur": 387
+    },
+    {
+      "start": 85209.9,
+      "dur": 377
+    },
+    {
+      "start": 85610.7,
+      "dur": 368
+    },
+    {
+      "start": 86028.2,
+      "dur": 529
+    },
+    {
+      "start": 86563.3,
+      "dur": 107
+    },
+    {
+      "start": 86671.1,
+      "dur": 144
+    },
+    {
+      "start": 87564.5,
+      "dur": 229
+    },
+    {
+      "start": 87795.1,
+      "dur": 5031
+    },
+    {
+      "start": 92857.8,
+      "dur": 5901
+    },
+    {
+      "start": 98785.7,
+      "dur": 344
+    },
+    {
+      "start": 99136.3,
+      "dur": 5495
+    },
+    {
+      "start": 104649.4,
+      "dur": 423
+    },
+    {
+      "start": 105080.9,
+      "dur": 103
+    },
+    {
+      "start": 105197.8,
+      "dur": 426
+    },
+    {
+      "start": 105632,
+      "dur": 65
+    },
+    {
+      "start": 105706,
+      "dur": 67
+    },
+    {
+      "start": 105784.6,
+      "dur": 62
+    },
+    {
+      "start": 106049.4,
+      "dur": 3818
+    },
+    {
+      "start": 109870.9,
+      "dur": 444
+    }
+  ],
+  "longTaskTotalMs": 100018,
+  "resources": [
+    {
+      "name": "vk-bridge.min.js",
+      "start": 174,
+      "dur": 28,
+      "transfer": 4728,
+      "encoded": 4428,
+      "decoded": 4428,
+      "type": "script"
+    },
+    {
+      "name": "index.js",
+      "start": 174,
+      "dur": 97,
+      "transfer": 68691,
+      "encoded": 68391,
+      "decoded": 279815,
+      "type": "script"
+    },
+    {
+      "name": "index.icon.png",
+      "start": 824,
+      "dur": 183,
+      "transfer": 1494,
+      "encoded": 1194,
+      "decoded": 1194,
+      "type": "other"
+    },
+    {
+      "name": "index.wasm",
+      "start": 819,
+      "dur": 3069,
+      "transfer": 10164141,
+      "encoded": 10163841,
+      "decoded": 39514754,
+      "type": "fetch"
+    },
+    {
+      "name": "index.pck",
+      "start": 820,
+      "dur": 3220,
+      "transfer": 10486060,
+      "encoded": 10485760,
+      "decoded": 10485760,
+      "type": "fetch"
+    },
+    {
+      "name": "index.pck",
+      "start": 4074,
+      "dur": 1586,
+      "transfer": 10486060,
+      "encoded": 10485760,
+      "decoded": 10485760,
+      "type": "fetch"
+    },
+    {
+      "name": "index.pck",
+      "start": 5695,
+      "dur": 1074,
+      "transfer": 6868264,
+      "encoded": 6867964,
+      "decoded": 6867964,
+      "type": "fetch"
+    },
+    {
+      "name": "register",
+      "start": 24914,
+      "dur": 64,
+      "transfer": 408,
+      "encoded": 108,
+      "decoded": 108,
+      "type": "fetch"
+    },
+    {
+      "name": "profile",
+      "start": 25130,
+      "dur": 22,
+      "transfer": 797,
+      "encoded": 497,
+      "decoded": 497,
+      "type": "fetch"
+    },
+    {
+      "name": "progress",
+      "start": 25314,
+      "dur": 23,
+      "transfer": 514,
+      "encoded": 214,
+      "decoded": 214,
+      "type": "fetch"
+    },
+    {
+      "name": "event",
+      "start": 86904,
+      "dur": 28,
+      "transfer": 317,
+      "encoded": 17,
+      "decoded": 17,
+      "type": "fetch"
+    },
+    {
+      "name": "event",
+      "start": 113849,
+      "dur": 24,
+      "transfer": 317,
+      "encoded": 17,
+      "decoded": 17,
+      "type": "fetch"
+    }
+  ],
+  "net": [
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 10491822,
+      "ms": 1586,
+      "ce": null
+    },
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 10491806,
+      "ms": 3221,
+      "ce": null
+    },
+    {
+      "url": "index.wasm",
+      "status": 200,
+      "mime": "application/wasm",
+      "bytes": 10169709,
+      "ms": 3069,
+      "ce": "gzip"
+    },
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 6872027,
+      "ms": 1074,
+      "ce": null
+    },
+    {
+      "url": "index_splash.jpg",
+      "status": 200,
+      "mime": "image/jpeg",
+      "bytes": 220512,
+      "ms": 80,
+      "ce": null
+    },
+    {
+      "url": "main.js",
+      "status": 200,
+      "mime": "application/x-javascript",
+      "bytes": 139781,
+      "ms": 19,
+      "ce": null
+    },
+    {
+      "url": "index.js",
+      "status": 200,
+      "mime": "text/javascript",
+      "bytes": 68707,
+      "ms": 97,
+      "ce": "gzip"
+    },
+    {
+      "url": "",
+      "status": 200,
+      "mime": "text/html",
+      "bytes": 14150,
+      "ms": 79,
+      "ce": null
+    },
+    {
+      "url": "vk-bridge.min.js",
+      "status": 200,
+      "mime": "text/javascript",
+      "bytes": 4680,
+      "ms": 28,
+      "ce": null
+    },
+    {
+      "url": "index.icon.png",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 1415,
+      "ms": 183,
+      "ce": null
+    },
+    {
+      "url": "init",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 765,
+      "ms": 16,
+      "ce": null
+    },
+    {
+      "url": "profile",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 618,
+      "ms": 22,
+      "ce": null
+    },
+    {
+      "url": "progress",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 556,
+      "ms": 23,
+      "ce": null
+    },
+    {
+      "url": "register",
+      "status": 201,
+      "mime": "application/json",
+      "bytes": 454,
+      "ms": 64,
+      "ce": null
+    },
+    {
+      "url": "event",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 358,
+      "ms": 28,
+      "ce": null
+    },
+    {
+      "url": "event",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 358,
+      "ms": 24,
+      "ce": null
+    },
+    {
+      "url": "wsm.sessionActivated",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 199,
+      "ms": 2,
+      "ce": null
+    },
+    {
+      "url": "a3a53753-ec3b-4f71-a6ba-fa7b7156c20f",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 0,
+      "ms": 1,
+      "ce": null
+    },
+    {
+      "url": "a3a53753-ec3b-4f71-a6ba-fa7b7156c20f",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 0,
+      "ms": 1,
+      "ce": null
+    }
+  ],
+  "console": [
+    {
+      "t": 1795723561562,
+      "type": "log",
+      "text": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "t": 1795723566760,
+      "type": "log",
+      "text": "OpenGL API OpenGL ES 3.0 (WebGL 2.0 (OpenGL ES 3.0 Chromium)) - Compatibility - Using Device: WebKit - WebKit WebGL"
+    },
+    {
+      "t": 1795723567165,
+      "type": "log",
+      "text": "Build configuration: Emscripten 4.0.20, single-threaded, no GDExtension support."
+    },
+    {
+      "t": 1795723567173,
+      "type": "error",
+      "text": "WARNING: Screen-space AA is only available when using the Forward+ or Mobile renderer."
+    },
+    {
+      "t": 1795723567173,
+      "type": "error",
+      "text": "   at: viewport_set_screen_space_aa (servers/rendering/renderer_viewport.cpp:1435)"
+    },
+    {
+      "t": 1795723568067,
+      "type": "log",
+      "text": "[Platform] id=standalone adapter=Standalone"
+    },
+    {
+      "t": 1795723568067,
+      "type": "log",
+      "text": "[PROFILE] Combat profiler enabled"
+    },
+    {
+      "t": 1795723568069,
+      "type": "log",
+      "text": "[NET] REST URL: https://three-skies-server.relaxdev.ru"
+    },
+    {
+      "t": 1795723568070,
+      "type": "log",
+      "text": "[NET] WebSocket URL: wss://three-skies-server.relaxdev.ru/ws"
+    },
+    {
+      "t": 1795723579497,
+      "type": "log",
+      "text": "[HITCH] 10134.1ms nodes=593 draws=48  | events=[]"
+    },
+    {
+      "t": 1795723579497,
+      "type": "error",
+      "text": "ERROR: Parse JSON failed. Error at line 0: Unknown error getting token"
+    },
+    {
+      "t": 1795723579497,
+      "type": "error",
+      "text": "   at: parse_string (core/io/json.cpp:629)"
+    },
+    {
+      "t": 1795723579699,
+      "type": "log",
+      "text": "[HITCH] 93.2ms nodes=593 draws=39  | events=[]"
+    },
+    {
+      "t": 1795723580909,
+      "type": "log",
+      "text": "[HITCH] 686.8ms nodes=18 draws=0  | events=[]"
+    },
+    {
+      "t": 1795723581855,
+      "type": "log",
+      "text": "[HITCH] 946.2ms nodes=243 draws=9  | events=[]"
+    },
+    {
+      "t": 1795723617070,
+      "type": "log",
+      "text": "[HITCH] 35214.3ms nodes=243 draws=125  | events=[]"
+    },
+    {
+      "t": 1795723617564,
+      "type": "log",
+      "text": "[HITCH] 454.2ms nodes=342 draws=126  | events=[]"
+    },
+    {
+      "t": 1795723617922,
+      "type": "log",
+      "text": "[HITCH] 359.7ms nodes=632 draws=126  | events=[]"
+    },
+    {
+      "t": 1795723623808,
+      "type": "log",
+      "text": "[HITCH] 5885.7ms nodes=628 draws=75  | events=[]"
+    },
+    {
+      "t": 1795723623996,
+      "type": "log",
+      "text": "[HITCH] 107.3ms nodes=653 draws=53  | events=[]"
+    },
+    {
+      "t": 1795723624526,
+      "type": "log",
+      "text": "[HITCH] 530.3ms nodes=653 draws=98  | events=[]"
+    },
+    {
+      "t": 1795723624645,
+      "type": "log",
+      "text": "[HITCH] 88.4ms nodes=650 draws=53  | events=[]"
+    },
+    {
+      "t": 1795723624759,
+      "type": "log",
+      "text": "[HITCH] 85.6ms nodes=649 draws=53  | events=[]"
+    },
+    {
+      "t": 1795723624877,
+      "type": "log",
+      "text": "[HITCH] 87.0ms nodes=651 draws=53  | events=[]"
+    },
+    {
+      "t": 1795723625007,
+      "type": "log",
+      "text": "[HITCH] 99.6ms nodes=649 draws=53  | events=[]"
+    },
+    {
+      "t": 1795723625305,
+      "type": "log",
+      "text": "[HITCH] 244.1ms nodes=631 draws=53  | events=[]"
+    },
+    {
+      "t": 1795723630911,
+      "type": "log",
+      "text": "[HITCH] 5606.5ms nodes=631 draws=55  | events=[]"
+    },
+    {
+      "t": 1795723636907,
+      "type": "log",
+      "text": "[HITCH] 5713.9ms nodes=632 draws=59  | events=[]"
+    },
+    {
+      "t": 1795723637110,
+      "type": "log",
+      "text": "[HITCH] 129.5ms nodes=630 draws=55  | events=[]"
+    },
+    {
+      "t": 1795723638386,
+      "type": "log",
+      "text": "[HITCH] 587.9ms nodes=643 draws=54  | events=[]"
+    },
+    {
+      "t": 1795723638954,
+      "type": "log",
+      "text": "[HITCH] 103.7ms nodes=657 draws=53  | events=[]"
+    },
+    {
+      "t": 1795723639100,
+      "type": "log",
+      "text": "[HITCH] 83.3ms nodes=654 draws=53  | events=[]"
+    },
+    {
+      "t": 1795723639251,
+      "type": "log",
+      "text": "[HITCH] 83.7ms nodes=653 draws=53  | events=[]"
+    },
+    {
+      "t": 1795723639723,
+      "type": "log",
+      "text": "[HITCH] 384.0ms nodes=633 draws=54  | events=[]"
+    },
+    {
+      "t": 1795723640213,
+      "type": "log",
+      "text": "[HITCH] 377.4ms nodes=633 draws=54  | events=[]"
+    },
+    {
+      "t": 1795723640605,
+      "type": "log",
+      "text": "[HITCH] 365.2ms nodes=633 draws=55  | events=[]"
+    },
+    {
+      "t": 1795723641184,
+      "type": "log",
+      "text": "[HITCH] 526.9ms nodes=634 draws=56  | events=[]"
+    },
+    {
+      "t": 1795723641340,
+      "type": "log",
+      "text": "[HITCH] 103.7ms nodes=634 draws=54  | events=[]"
+    },
+    {
+      "t": 1795723641442,
+      "type": "log",
+      "text": "[HITCH] 145.0ms nodes=634 draws=55  | events=[]"
+    },
+    {
+      "t": 1795723642420,
+      "type": "log",
+      "text": "[HITCH] 222.5ms nodes=629 draws=56  | events=[]"
+    },
+    {
+      "t": 1795723647453,
+      "type": "log",
+      "text": "[HITCH] 5032.4ms nodes=629 draws=56  | events=[]"
+    },
+    {
+      "t": 1795723653385,
+      "type": "log",
+      "text": "[HITCH] 5900.4ms nodes=629 draws=54  | events=[]"
+    },
+    {
+      "t": 1795723653756,
+      "type": "log",
+      "text": "[HITCH] 343.4ms nodes=629 draws=78  | events=[]"
+    },
+    {
+      "t": 1795723659257,
+      "type": "log",
+      "text": "[HITCH] 5493.9ms nodes=629 draws=79  | events=[]"
+    },
+    {
+      "t": 1795723659698,
+      "type": "log",
+      "text": "[HITCH] 422.5ms nodes=629 draws=77  | events=[]"
+    },
+    {
+      "t": 1795723659810,
+      "type": "log",
+      "text": "[HITCH] 102.5ms nodes=629 draws=77  | events=[]"
+    },
+    {
+      "t": 1795723660252,
+      "type": "log",
+      "text": "[HITCH] 426.4ms nodes=629 draws=77  | events=[]"
+    },
+    {
+      "t": 1795723664554,
+      "type": "log",
+      "text": "[HITCH] 3875.8ms nodes=1082 draws=90 { \"state\": \"live\", \"time\": 600, \"score\": [0, 0], \"shell_phase\": \"idle\", \"shell_timer\": 120, \"shell_window\": 45, \"crystal\": \"none\", \"sudden_death\": false, \"heroes\": [\"Игрок 7116 t0 hp1050\"] } | events=[]"
+    },
+    {
+      "t": 1795723664953,
+      "type": "log",
+      "text": "[HITCH] 399.7ms nodes=1082 draws=109 { \"state\": \"live\", \"time\": 600, \"score\": [0, 0], \"shell_phase\": \"idle\", \"shell_timer\": 120, \"shell_window\": 45, \"crystal\": \"none\", \"sudden_death\": false, \"heroes\": [\"Игрок 7116 t0 hp1050\"] } | events=[]"
+    },
+    {
+      "t": 1795723675606,
+      "type": "log",
+      "text": "[HITCH] 118.2ms nodes=1082 draws=90 { \"state\": \"live\", \"time\": 600, \"score\": [0, 0], \"shell_phase\": \"idle\", \"shell_timer\": 120, \"shell_window\": 45, \"crystal\": \"none\", \"sudden_death\": false, \"heroes\": [\"Игрок 7116 t0 hp1050\"] } | events=[]"
+    }
+  ],
+  "pageErrors": [],
+  "metrics": {
+    "TaskDuration": 109.344706,
+    "ScriptDuration": 89.983742,
+    "LayoutDuration": 0.014118,
+    "RecalcStyleDuration": 0.001344,
+    "JSHeapUsedMB": 18.1,
+    "Nodes": 65,
+    "Documents": 1
+  }
+}

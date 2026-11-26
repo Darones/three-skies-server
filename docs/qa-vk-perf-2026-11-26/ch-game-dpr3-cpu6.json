@@ -1,0 +1,520 @@
+{
+  "tag": "ch-game-dpr3-cpu6",
+  "url": "https://three-skies-server.relaxdev.ru/game/",
+  "viewport": {
+    "W": 844,
+    "H": 390,
+    "DPR": 3,
+    "mobile": true
+  },
+  "cpuThrottle": 6,
+  "chrome": "Chrome/158.0.8127.88",
+  "bootMs": 47046,
+  "bootCanvas": [
+    2532,
+    1170,
+    844,
+    390
+  ],
+  "probe": {
+    "href": "https://three-skies-server.relaxdev.ru/game/?v=20261126_192357",
+    "ua": "Mozilla/5.0 (Linux; Android 14; SM-A566B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
+    "platform": "Linux armv8l",
+    "dpr": 3,
+    "inner": [
+      844,
+      390
+    ],
+    "outer": [
+      844,
+      390
+    ],
+    "screen": [
+      844,
+      390,
+      844,
+      390
+    ],
+    "orientation": "landscape-primary",
+    "hardwareConcurrency": 28,
+    "deviceMemory": 32,
+    "webgl2": true,
+    "glVendor": "Google Inc. (AMD)",
+    "glRenderer": "ANGLE (AMD, Radeon RX 570 Series (0x000067DF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "glVersion": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+    "maxTexture": 16384,
+    "glExtensions": [
+      "EXT_clip_control",
+      "EXT_color_buffer_float",
+      "EXT_color_buffer_half_float",
+      "EXT_conservative_depth",
+      "EXT_depth_clamp",
+      "EXT_disjoint_timer_query_webgl2",
+      "EXT_float_blend",
+      "EXT_polygon_offset_clamp",
+      "EXT_render_snorm",
+      "EXT_texture_compression_bptc",
+      "EXT_texture_compression_rgtc",
+      "EXT_texture_filter_anisotropic",
+      "EXT_texture_mirror_clamp_to_edge",
+      "EXT_texture_norm16",
+      "KHR_parallel_shader_compile",
+      "NV_shader_noperspective_interpolation",
+      "OES_draw_buffers_indexed",
+      "OES_sample_variables",
+      "OES_shader_multisample_interpolation",
+      "OES_texture_float_linear",
+      "OVR_multiview2",
+      "WEBGL_blend_func_extended",
+      "WEBGL_clip_cull_distance",
+      "WEBGL_compressed_texture_s3tc",
+      "WEBGL_compressed_texture_s3tc_srgb",
+      "WEBGL_debug_renderer_info",
+      "WEBGL_debug_shaders",
+      "WEBGL_lose_context",
+      "WEBGL_multi_draw",
+      "WEBGL_polygon_mode",
+      "WEBGL_provoking_vertex",
+      "WEBGL_shader_pixel_local_storage",
+      "WEBGL_stencil_texturing"
+    ],
+    "canvas": {
+      "w": 2532,
+      "h": 1170,
+      "cssW": 844,
+      "cssH": 390,
+      "rectW": 844,
+      "rectH": 390
+    },
+    "canvasStyle": {
+      "width": "844px",
+      "height": "390px"
+    },
+    "visualViewport": {
+      "w": 844,
+      "h": 390,
+      "scale": 1
+    },
+    "vkBridge": "object",
+    "vkInit": "object",
+    "mem": {
+      "usedMB": 71.6,
+      "totalMB": 73.7,
+      "limitMB": 4192
+    },
+    "crossOriginIsolated": false,
+    "sharedArrayBuffer": "undefined",
+    "wasm": "object",
+    "fpsCounterInstalled": true,
+    "canvases": [
+      {
+        "id": "canvas",
+        "w": 2532,
+        "h": 1170
+      }
+    ],
+    "loadState": "complete",
+    "loaderHidden": true,
+    "statusText": "",
+    "frameCount": 588
+  },
+  "fpsSeries": [
+    34,
+    60,
+    61,
+    61,
+    60,
+    61,
+    61,
+    61
+  ],
+  "frameStats": {
+    "n": 586,
+    "meanMs": 19.6,
+    "fpsMean": 51,
+    "p50": 16.7,
+    "p95": 16.9,
+    "p99": 133.6,
+    "max": 317.3,
+    "over50msPct": 2,
+    "over100msPct": 1.7
+  },
+  "longtasks": [
+    {
+      "start": 259.3,
+      "dur": 103
+    },
+    {
+      "start": 570.1,
+      "dur": 303
+    },
+    {
+      "start": 961,
+      "dur": 100
+    },
+    {
+      "start": 1064,
+      "dur": 135
+    },
+    {
+      "start": 1200.6,
+      "dur": 135
+    },
+    {
+      "start": 1346,
+      "dur": 60
+    },
+    {
+      "start": 1555.9,
+      "dur": 73
+    },
+    {
+      "start": 1710.2,
+      "dur": 63
+    },
+    {
+      "start": 3707.8,
+      "dur": 299
+    },
+    {
+      "start": 4115.3,
+      "dur": 188
+    },
+    {
+      "start": 6111.9,
+      "dur": 173
+    },
+    {
+      "start": 7406.5,
+      "dur": 120
+    },
+    {
+      "start": 7527.2,
+      "dur": 39464
+    },
+    {
+      "start": 47313,
+      "dur": 91
+    },
+    {
+      "start": 47553,
+      "dur": 292
+    },
+    {
+      "start": 47979.7,
+      "dur": 149
+    }
+  ],
+  "longTaskTotalMs": 41748,
+  "resources": [
+    {
+      "name": "vk-bridge.min.js",
+      "start": 239,
+      "dur": 90,
+      "transfer": 4728,
+      "encoded": 4428,
+      "decoded": 4428,
+      "type": "script"
+    },
+    {
+      "name": "index.js",
+      "start": 240,
+      "dur": 151,
+      "transfer": 68691,
+      "encoded": 68391,
+      "decoded": 279815,
+      "type": "script"
+    },
+    {
+      "name": "index.icon.png",
+      "start": 923,
+      "dur": 30,
+      "transfer": 1494,
+      "encoded": 1194,
+      "decoded": 1194,
+      "type": "other"
+    },
+    {
+      "name": "index.wasm",
+      "start": 865,
+      "dur": 2838,
+      "transfer": 10164141,
+      "encoded": 10163841,
+      "decoded": 39514754,
+      "type": "fetch"
+    },
+    {
+      "name": "index.pck",
+      "start": 872,
+      "dur": 3241,
+      "transfer": 10486060,
+      "encoded": 10485760,
+      "decoded": 10485760,
+      "type": "fetch"
+    },
+    {
+      "name": "index.pck",
+      "start": 4344,
+      "dur": 1766,
+      "transfer": 10486060,
+      "encoded": 10485760,
+      "decoded": 10485760,
+      "type": "fetch"
+    },
+    {
+      "name": "index.pck",
+      "start": 6323,
+      "dur": 1082,
+      "transfer": 6868264,
+      "encoded": 6867964,
+      "decoded": 6867964,
+      "type": "fetch"
+    },
+    {
+      "name": "register",
+      "start": 47209,
+      "dur": 24,
+      "transfer": 408,
+      "encoded": 108,
+      "decoded": 108,
+      "type": "fetch"
+    },
+    {
+      "name": "profile",
+      "start": 47471,
+      "dur": 22,
+      "transfer": 797,
+      "encoded": 497,
+      "decoded": 497,
+      "type": "fetch"
+    },
+    {
+      "name": "progress",
+      "start": 47899,
+      "dur": 23,
+      "transfer": 514,
+      "encoded": 214,
+      "decoded": 214,
+      "type": "fetch"
+    },
+    {
+      "name": "event",
+      "start": 52989,
+      "dur": 22,
+      "transfer": 317,
+      "encoded": 17,
+      "decoded": 17,
+      "type": "fetch"
+    }
+  ],
+  "net": [
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 10491813,
+      "ms": 1766,
+      "ce": null
+    },
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 10491797,
+      "ms": 3241,
+      "ce": null
+    },
+    {
+      "url": "index.wasm",
+      "status": 200,
+      "mime": "application/wasm",
+      "bytes": 10169688,
+      "ms": 2839,
+      "ce": "gzip"
+    },
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 6872018,
+      "ms": 1082,
+      "ce": null
+    },
+    {
+      "url": "index_splash.jpg",
+      "status": 200,
+      "mime": "image/jpeg",
+      "bytes": 220512,
+      "ms": 91,
+      "ce": null
+    },
+    {
+      "url": "main.js",
+      "status": 200,
+      "mime": "application/x-javascript",
+      "bytes": 139781,
+      "ms": 16,
+      "ce": null
+    },
+    {
+      "url": "index.js",
+      "status": 200,
+      "mime": "text/javascript",
+      "bytes": 68707,
+      "ms": 151,
+      "ce": "gzip"
+    },
+    {
+      "url": "",
+      "status": 200,
+      "mime": "text/html",
+      "bytes": 14104,
+      "ms": 30,
+      "ce": null
+    },
+    {
+      "url": "vk-bridge.min.js",
+      "status": 200,
+      "mime": "text/javascript",
+      "bytes": 4680,
+      "ms": 90,
+      "ce": null
+    },
+    {
+      "url": "index.icon.png",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 1418,
+      "ms": 30,
+      "ce": null
+    },
+    {
+      "url": "init",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 765,
+      "ms": 65,
+      "ce": null
+    },
+    {
+      "url": "profile",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 618,
+      "ms": 23,
+      "ce": null
+    },
+    {
+      "url": "progress",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 556,
+      "ms": 24,
+      "ce": null
+    },
+    {
+      "url": "register",
+      "status": 201,
+      "mime": "application/json",
+      "bytes": 454,
+      "ms": 24,
+      "ce": null
+    },
+    {
+      "url": "event",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 358,
+      "ms": 23,
+      "ce": null
+    },
+    {
+      "url": "wsm.sessionActivated",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 199,
+      "ms": 19,
+      "ce": null
+    },
+    {
+      "url": "a7faf96e-3294-428a-917c-e9b77fd7a49f",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 0,
+      "ms": 1,
+      "ce": null
+    }
+  ],
+  "console": [
+    {
+      "t": 1795723199396,
+      "type": "log",
+      "text": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "t": 1795723206156,
+      "type": "log",
+      "text": "OpenGL API OpenGL ES 3.0 (WebGL 2.0 (OpenGL ES 3.0 Chromium)) - Compatibility - Using Device: WebKit - WebKit WebGL"
+    },
+    {
+      "t": 1795723209105,
+      "type": "log",
+      "text": "Build configuration: Emscripten 4.0.20, single-threaded, no GDExtension support."
+    },
+    {
+      "t": 1795723209180,
+      "type": "error",
+      "text": "WARNING: Screen-space AA is only available when using the Forward+ or Mobile renderer."
+    },
+    {
+      "t": 1795723209182,
+      "type": "error",
+      "text": "   at: viewport_set_screen_space_aa (servers/rendering/renderer_viewport.cpp:1435)"
+    },
+    {
+      "t": 1795723216597,
+      "type": "log",
+      "text": "[Platform] id=standalone adapter=Standalone"
+    },
+    {
+      "t": 1795723216619,
+      "type": "log",
+      "text": "[NET] REST URL: https://three-skies-server.relaxdev.ru"
+    },
+    {
+      "t": 1795723216626,
+      "type": "log",
+      "text": "[NET] WebSocket URL: wss://three-skies-server.relaxdev.ru/ws"
+    },
+    {
+      "t": 1795723226421,
+      "type": "error",
+      "text": "ERROR: Parse JSON failed. Error at line 0: Unknown error getting token"
+    },
+    {
+      "t": 1795723226422,
+      "type": "error",
+      "text": "   at: parse_string (core/io/json.cpp:629)"
+    },
+    {
+      "t": 1795723237604,
+      "type": "error",
+      "text": "ERROR: Parse JSON failed. Error at line 0: Unknown error getting token"
+    },
+    {
+      "t": 1795723237606,
+      "type": "error",
+      "text": "   at: parse_string (core/io/json.cpp:629)"
+    }
+  ],
+  "pageErrors": [],
+  "metrics": {
+    "TaskDuration": 50.024067,
+    "ScriptDuration": 5.863919,
+    "LayoutDuration": 0.115806,
+    "RecalcStyleDuration": 0.011185,
+    "JSHeapUsedMB": 9.9,
+    "Nodes": 67,
+    "Documents": 1
+  }
+}

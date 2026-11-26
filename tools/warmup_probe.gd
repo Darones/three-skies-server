@@ -18,6 +18,7 @@ var finished_count := 0
 var warmup_checks_done := false
 var target_size := Vector2i(1440, 734)
 var two_pass_policy := ""
+var budget_override := 0.0
 
 const WARMUP_FLOW_SCRIPT := preload("res://scripts/warmup_flow.gd")
 
@@ -36,6 +37,8 @@ func _ready() -> void:
 			two_pass_policy = "on"
 		elif arg == "--warmup-single-pass":
 			two_pass_policy = "off"
+		elif arg.begins_with("--budget="):
+			budget_override = float(arg.trim_prefix("--budget="))
 	if force_mobile or target.x < 500:
 		DeviceProfile.mobile_ui = true
 		DeviceProfile.touch_controls = true
@@ -66,6 +69,8 @@ func _run_warmup() -> void:
 	flow.name = "WarmupFlow"
 	if not two_pass_policy.is_empty() and flow.get("two_pass_policy") != null:
 		flow.set("two_pass_policy", two_pass_policy)
+	if budget_override > 0.0 and flow.get("budget_seconds") != null:
+		flow.set("budget_seconds", budget_override)
 	add_child(flow)
 	flow.progress_changed.connect(_on_progress)
 	flow.finished.connect(_on_finished)
@@ -76,6 +81,30 @@ func _run_warmup() -> void:
 		await get_tree().process_frame
 	var total := float(Time.get_ticks_msec() - started) / 1000.0
 	print("WARMUP_TOTAL t=%.2f s" % total)
+
+	if budget_override > 0.0:
+		# Truncation suite (--budget=N): the flow must stop itself at the
+		# budget, report it and still finish the progress/finished contract.
+		_check(finished_count == 1, "finished сработал ровно один раз (%d)" % finished_count)
+		_check(percents.size() >= 2, "есть сигналы прогресса (%d)" % percents.size())
+		_check(is_equal_approx(percents[percents.size() - 1], 100.0),
+			"после обреза прогресс всё равно 100 (%.1f)" % percents[percents.size() - 1])
+		var report: Dictionary = flow.report
+		_check(bool(report.get("truncated", false)), "прогрев помечен как обрезанный")
+		_check(bool(report.get("failed", false)), "обрезанный прогрев не считается готовым")
+		_check(bool(report.get("deadline_hit", false)), "жёсткий бюджет зафиксирован")
+		_check(total <= budget_override + 3.0,
+			"остановился почти сразу после бюджета (%.2f при %.1f с)" % [total, budget_override])
+		_check(
+			not bool(report.get("main_script_stripped", false))
+				or bool(report.get("main_freed", false)),
+			"скрытая арена освобождена после обреза"
+		)
+		var leftovers: Array = flow.find_children("*WarmupFlowViewport*", "", true, false)
+		_check(leftovers.is_empty(), "скрытый viewport освобождён после обреза")
+		flow.queue_free()
+		warmup_checks_done = true
+		return
 
 	_check(finished_count == 1, "finished сработал ровно один раз (%d)" % finished_count)
 	_check(not percents.is_empty(), "есть сигналы progress_changed")
@@ -134,6 +163,24 @@ func _run_warmup() -> void:
 			str(report.get("stats_tracked", false)),
 			float(report.get("elapsed", 0.0)),
 		])
+	print("WARMUP_PACING total=%.2f work=%.2f pauses=%.2f target=%.1f max_fps_free=%s"
+		% [
+			total,
+			float(report.get("work_s", 0.0)),
+			float(report.get("pauses_s", 0.0)),
+			float(report.get("pacing_target_s", 0.0)),
+			str(Engine.max_fps),
+		])
+	print("WARMUP_FRAMES avg=%.1f p95=%.1f max=%.1f first2s_max=%.1f settled=%.1f sampled=%d viewport=%d"
+		% [
+			float(report.get("frame_ms_avg", 0.0)),
+			float(report.get("frame_ms_p95", 0.0)),
+			float(report.get("frame_ms_max", 0.0)),
+			float(report.get("first2s_max_frame_ms", 0.0)),
+			float(report.get("first2s_settled_max_frame_ms", 0.0)),
+			int(report.get("frames_sampled", 0)),
+			int(report.get("frames_rendered", 0)),
+		])
 	_check(bool(report.get("main_scene_loaded", false)), "Main.tscn загружен")
 	_check(bool(report.get("main_script_stripped", false)),
 		"game.gd снят с инстанса (без матча/HUD)")
@@ -190,6 +237,30 @@ func _run_warmup() -> void:
 		"report.elapsed сходится с прогоном (%.2f / %.2f)" % [float(report.get("elapsed", 0.0)), total])
 	if get_node_or_null("/root/Stats") != null:
 		_check(bool(report.get("stats_tracked", false)), "событие warmup_done отправлено в Stats")
+
+	# --- pacing / load profile ---------------------------------------------
+	var pauses := float(report.get("pauses_s", 0.0))
+	var frame_p95 := float(report.get("frame_ms_p95", 0.0))
+	var frame_max := float(report.get("frame_ms_max", 0.0))
+	var first2s := float(report.get("first2s_max_frame_ms", 0.0))
+	var settled := float(report.get("first2s_settled_max_frame_ms", 0.0))
+	_check(float(report.get("pacing_target_s", 0.0)) >= 18.0,
+		"цель прогрева задана (%.1f с)" % float(report.get("pacing_target_s", 0.0)))
+	_check(bool(report.get("paced", false)), "прогрев идёт с паузами (paced)")
+	_check(total <= 30.0, "уложились в 30 с (%.2f с)" % total)
+	_check(total >= 15.0, "прогрев растянут, а не галопом (%.2f с)" % total)
+	_check(pauses >= 3.0, "суммарные паузы между шагами (%.2f с)" % pauses)
+	_check(not bool(report.get("deadline_hit", false)),
+		"жёсткий бюджет 28 с не понадобился")
+	_check(not bool(report.get("truncated", false)), "прогрев не обрезан по бюджету")
+	_check(frame_p95 <= 250.0, "p95 кадра в норме (%.1f мс)" % frame_p95)
+	_check(frame_max <= 1000.0, "нет многокадрового зависания (max %.1f мс)" % frame_max)
+	_check(settled <= 100.0,
+		"в первые 2 с прогрев не даёт пика-фриза (%.1f мс; всего %.1f)"
+		% [settled, first2s])
+	_check(int(report.get("frames_rendered", 0)) <= 130,
+		"скрытый viewport рисует только нужные кадры (%d)" % int(report.get("frames_rendered", 0)))
+	print("WARMUP_STAGE_TIMES=%s" % str(report.get("stage_times", {})))
 
 	_check(get_tree().root.find_child("HUD", true, false) == null,
 		"скрытый прогрев не создал HUD")

@@ -61,6 +61,16 @@ var _pending_player_id := 0
 var _connect_deadline_msec := 0
 var _send_accumulator := 0.0
 var _bot_send_accumulator := 0.0
+# HP/alive revisions. Every HP-bearing server message carries a per-entity
+# revision; state packets and damage/heal/death come from different server
+# goroutines, so without this a stale packet could undo a confirmed hit or
+# resurrect a corpse for a few frames.
+var local_hp_tick := 0
+var _bot_hp_ticks: Dictionary = {}
+# Last score announced to the game; the 1 Hz sync re-sends the server score so
+# a dropped match_score packet cannot leave the table wrong until the end.
+var _last_score := Vector2i(-1, -1)
+var _last_sudden_death := false
 
 
 func _ready() -> void:
@@ -113,6 +123,10 @@ func connect_to_server(hero_class: int = 0, team: int = 0, player_name := "", pl
 	assigned_team = 0
 	local_class = clampi(hero_class, 0, 2)
 	is_host = false
+	local_hp_tick = 0
+	_bot_hp_ticks.clear()
+	_last_score = Vector2i(-1, -1)
+	_last_sudden_death = false
 
 	socket = WebSocketPeer.new()
 	if "handshake_timeout" in socket:
@@ -151,6 +165,10 @@ func disconnect_from_server(notify := true) -> void:
 	local_class = 0
 	is_host = false
 	server_protocol = 0
+	local_hp_tick = 0
+	_bot_hp_ticks.clear()
+	_last_score = Vector2i(-1, -1)
+	_last_sudden_death = false
 	if was_active:
 		connection_state_changed.emit(state)
 		if notify:
@@ -384,6 +402,10 @@ func _process(delta: float) -> void:
 		local_peer_id = 0
 		local_bots.clear()
 		remote_players.clear()
+		local_hp_tick = 0
+		_bot_hp_ticks.clear()
+		_last_score = Vector2i(-1, -1)
+		_last_sudden_death = false
 		connection_state_changed.emit(state)
 		if was_connected:
 			disconnected.emit()
@@ -528,7 +550,7 @@ func _handle_message(text: String) -> void:
 				int(message.get("starts_in_ms", 0))
 			)
 		"match_score":
-			match_score_updated.emit(
+			_emit_match_score(
 				int(message.get("score_0", 0)),
 				int(message.get("score_1", 0)),
 				bool(message.get("sudden_death", false))
@@ -552,7 +574,7 @@ func _handle_message(text: String) -> void:
 			)
 		"match_finished":
 			if message.has("score_0") or message.has("score_1"):
-				match_score_updated.emit(
+				_emit_match_score(
 					int(message.get("score_0", 0)),
 					int(message.get("score_1", 0)),
 					bool(message.get("sudden_death", false))
@@ -576,6 +598,12 @@ func _handle_message(text: String) -> void:
 			var crystal_state: Variant = message.get("crystal", {})
 			if crystal_state is Dictionary:
 				crystal_state_received.emit(crystal_state)
+		"crystal_sync":
+			# 1 Hz repair copy of the server's shard state; heals a dropped
+			# pickup/drop/deliver packet. Same payload as crystal_state.
+			var synced_crystal: Variant = message.get("crystal", {})
+			if synced_crystal is Dictionary:
+				crystal_state_received.emit(synced_crystal)
 		"attack_denied":
 			attack_denied.emit(
 				int(message.get("target_id", 0)),
@@ -583,11 +611,23 @@ func _handle_message(text: String) -> void:
 				String(message.get("reason", "denied"))
 			)
 		"sync":
-			sync_received.emit(
-				float(message.get("hp", 0.0)),
-				float(message.get("max_hp", 0.0)),
-				bool(message.get("alive", true))
-			)
+			var sync_tick := int(message.get("tick", 0))
+			if _tick_is_fresh(local_hp_tick, sync_tick):
+				local_hp_tick = maxi(local_hp_tick, sync_tick)
+				sync_received.emit(
+					float(message.get("hp", 0.0)),
+					float(message.get("max_hp", 0.0)),
+					bool(message.get("alive", true))
+				)
+			if message.has("tick") or message.has("score_0") or message.has("score_1"):
+				# Only revisioned (new) servers repeat the score in the sync.
+				# An old server's sync has neither, and treating that as 0:0
+				# would wipe a score that arrived in match_score.
+				_emit_match_score(
+					int(message.get("score_0", 0)),
+					int(message.get("score_1", 0)),
+					bool(message.get("sudden_death", false))
+				)
 			var time_left_ms := int(message.get("match_time_left_ms", -1))
 			if time_left_ms >= 0:
 				match_time_sync.emit(float(time_left_ms) / 1000.0)
@@ -600,6 +640,8 @@ func _handle_message(text: String) -> void:
 func _handle_welcome(message: Dictionary) -> void:
 	local_peer_id = int(message.get("id", 0))
 	server_protocol = int(message.get("protocol", 0))
+	local_hp_tick = 0
+	_bot_hp_ticks.clear()
 	welcome_received.emit(local_peer_id)
 	var players: Variant = message.get("players", [])
 	if players is Array:
@@ -618,6 +660,7 @@ func _handle_state(message: Dictionary) -> void:
 		float(message.get("z", 0.0))
 	)
 	var rotation_y := float(message.get("rotation", 0.0))
+	var tick := int(message.get("tick", 0))
 	var is_new := not remote_players.has(player_id)
 	var info: Dictionary
 	if is_new:
@@ -635,25 +678,91 @@ func _handle_state(message: Dictionary) -> void:
 		info["rotation"] = rotation_y
 		info["has_state"] = true
 	var was_alive := bool(info.get("alive", true))
-	if message.has("max_hp") or message.has("hp") or message.has("alive"):
+	if _tick_is_fresh(int(info.get("hp_tick", 0)), tick) and (message.has("max_hp") or message.has("hp") or message.has("alive")):
 		var synced_max := maxf(float(message.get("max_hp", info.get("max_hp", 0.0))), 0.0)
 		var synced_hp := maxf(float(message.get("hp", info.get("hp", 0.0))), 0.0)
 		var now_alive := bool(message.get("alive", info.get("alive", true)))
-		info["max_hp"] = synced_max
-		info["hp"] = synced_hp
-		info["alive"] = now_alive
-		if now_alive and not was_alive:
-			# A missed death/respawn packet used to leave the remote node
-			# invisible forever. The 12 Hz state packet now repairs it.
-			remote_respawn_received.emit(player_id, position, rotation_y)
-		elif was_alive and not now_alive:
-			# A missed death packet used to leave a corpse standing with a
-			# full health bar, immune to server-side attacks.
-			remote_death_received.emit(player_id, 0)
-		remote_stats_updated.emit(player_id, synced_max, synced_hp, float(info.get("attack_damage", 0.0)))
+		var alive_ok := true
+		if tick <= 0 and now_alive != was_alive:
+			# A server from before the tick revision has no way to order this
+			# packet against a damage/death one, so a single stale sample is
+			# not enough to flip alive.
+			alive_ok = _legacy_alive_flip(info, now_alive)
+		else:
+			info["alive_pending"] = -1
+			info["alive_pending_count"] = 0
+		if alive_ok:
+			info["hp_tick"] = maxi(int(info.get("hp_tick", 0)), tick)
+			info["max_hp"] = synced_max
+			info["hp"] = synced_hp
+			info["alive"] = now_alive
+			if now_alive and not was_alive:
+				# A missed death/respawn packet used to leave the remote node
+				# invisible forever. The 12 Hz state packet repairs it.
+				info["respawn_msec"] = Time.get_ticks_msec()
+				remote_respawn_received.emit(player_id, position, rotation_y)
+			elif was_alive and not now_alive:
+				# A missed death packet used to leave a corpse standing with a
+				# full health bar, immune to server-side attacks.
+				info["death_msec"] = Time.get_ticks_msec()
+				remote_death_received.emit(player_id, 0)
+			remote_stats_updated.emit(player_id, synced_max, synced_hp, float(info.get("attack_damage", 0.0)))
 	if is_new:
 		remote_player_joined.emit(player_id, info)
 	remote_player_state.emit(player_id, position, rotation_y)
+
+
+# True when a revisioned message is at least as new as the HP the client has
+# already applied for that entity. tick <= 0 means an old server that predates
+# revisions; those packets keep the legacy "apply everything" behaviour.
+func _tick_is_fresh(current: int, tick: int) -> bool:
+	if tick <= 0 or current <= 0:
+		return true
+	return tick > current
+
+
+# A death packet shares the revision of the lethal damage it belongs to, so it
+# must accept an equal tick. A stale death from before a respawn still has a
+# lower revision and is rejected.
+func _tick_accepts_event(current: int, tick: int) -> bool:
+	if tick <= 0 or current <= 0:
+		return true
+	return tick >= current
+
+
+# Legacy-server alive debounce: require two consecutive state samples with the
+# new value and a minimum spacing from the opposite event. A real respawn is at
+# least six seconds after death and a stale snapshot is at most a few hundred
+# milliseconds old, so this only removes the flicker.
+func _legacy_alive_flip(info: Dictionary, now_alive: bool) -> bool:
+	var now := Time.get_ticks_msec()
+	var want := 1 if now_alive else 0
+	if int(info.get("alive_pending", -1)) == want:
+		info["alive_pending_count"] = int(info.get("alive_pending_count", 0)) + 1
+	else:
+		info["alive_pending"] = want
+		info["alive_pending_count"] = 1
+	var pending_count := int(info.get("alive_pending_count", 0))
+	if now_alive:
+		var dead_at := int(info.get("death_msec", 0))
+		if dead_at > 0 and now - dead_at < 1500:
+			return false
+	else:
+		var respawn_at := int(info.get("respawn_msec", 0))
+		if respawn_at > 0 and now - respawn_at < 800:
+			return false
+	return pending_count >= 2
+
+
+# Announce the server score only when it actually changed. Both the match_score
+# event and the 1 Hz sync feed this, so a lost packet is repaired without
+# spamming the game (and the result screen) with the same score every second.
+func _emit_match_score(score_0: int, score_1: int, sudden: bool) -> void:
+	if score_0 == _last_score.x and score_1 == _last_score.y and sudden == _last_sudden_death:
+		return
+	_last_score = Vector2i(score_0, score_1)
+	_last_sudden_death = sudden
+	match_score_updated.emit(score_0, score_1, sudden)
 
 
 func _upsert_remote(message: Dictionary, emit_join: bool) -> void:
@@ -724,6 +833,11 @@ func _make_remote_info(message: Dictionary) -> Dictionary:
 		"hp": maxf(float(message.get("hp", 0.0)), 0.0),
 		"attack_damage": maxf(float(message.get("attack_damage", 0.0)), 0.0),
 		"animation": "",
+		"hp_tick": 0,
+		"death_msec": 0,
+		"respawn_msec": 0,
+		"alive_pending": -1,
+		"alive_pending_count": 0,
 	}
 
 
@@ -746,6 +860,9 @@ func _handle_match_start(message: Dictionary) -> void:
 	remote_players.clear()
 	assigned_team = 0
 	is_host = host_id == local_peer_id and local_peer_id > 0
+	_bot_hp_ticks.clear()
+	_last_score = Vector2i(-1, -1)
+	_last_sudden_death = false
 	for entry in match_players:
 		if not entry is Dictionary:
 			continue
@@ -774,8 +891,14 @@ func _handle_bot_states(message: Dictionary) -> void:
 			continue
 		if is_host:
 			# The host owns movement/AI but not HP. Apply the server's HP to
-			# its local bots without creating remote copies.
-			bot_state_updated.emit(int(entry.get("id", 0)), entry)
+			# its local bots without creating remote copies. A snapshot made
+			# before a confirmed hit must not heal or resurrect the local bot.
+			var bot_id := int(entry.get("id", 0))
+			var tick := int(entry.get("tick", 0))
+			if not _tick_is_fresh(int(_bot_hp_ticks.get(bot_id, 0)), tick):
+				continue
+			_bot_hp_ticks[bot_id] = maxi(int(_bot_hp_ticks.get(bot_id, 0)), tick)
+			bot_state_updated.emit(bot_id, entry)
 		else:
 			_apply_bot_snapshot(entry)
 
@@ -812,10 +935,28 @@ func _apply_bot_snapshot(entry: Dictionary) -> void:
 	)
 	info["rotation"] = float(entry.get("rotation", 0.0))
 	info["has_state"] = true
-	info["alive"] = bool(entry.get("alive", true))
-	info["max_hp"] = maxf(float(entry.get("max_hp", 0.0)), 0.0)
-	info["hp"] = maxf(float(entry.get("hp", 0.0)), 0.0)
-	info["attack_damage"] = maxf(float(entry.get("attack_damage", 0.0)), 0.0)
+	var tick := int(entry.get("tick", 0))
+	var fresh := _tick_is_fresh(int(info.get("hp_tick", 0)), tick)
+	var now_alive := bool(entry.get("alive", true))
+	if tick <= 0 and now_alive != bool(info.get("alive", true)):
+		# Server without HP revisions: don't let one stale snapshot resurrect
+		# or kill the bot.
+		if not _legacy_alive_flip(info, now_alive):
+			now_alive = bool(info.get("alive", true))
+	if fresh:
+		if tick > 0:
+			info["hp_tick"] = maxi(int(info.get("hp_tick", 0)), tick)
+		info["alive"] = now_alive
+		info["max_hp"] = maxf(float(entry.get("max_hp", 0.0)), 0.0)
+		info["hp"] = maxf(float(entry.get("hp", 0.0)), 0.0)
+		info["attack_damage"] = maxf(float(entry.get("attack_damage", 0.0)), 0.0)
+	else:
+		# Position/animation are still useful; HP and alive are not, a newer
+		# confirmed hit already owns them.
+		entry = entry.duplicate(true)
+		entry["alive"] = bool(info.get("alive", true))
+		entry["max_hp"] = float(info.get("max_hp", 0.0))
+		entry["hp"] = float(info.get("hp", 0.0))
 	info["animation"] = String(entry.get("animation", ""))
 	var is_new := not remote_players.has(bot_id)
 	remote_players[bot_id] = info
@@ -841,6 +982,28 @@ func _handle_damage(message: Dictionary) -> void:
 	var amount := float(message.get("amount", 0.0))
 	if target_id == 0 or amount <= 0.0:
 		return
+	var tick := int(message.get("tick", 0))
+	if target_id == local_peer_id:
+		if not _tick_is_fresh(local_hp_tick, tick):
+			# A newer state/sync already contains this hit.
+			return
+		local_hp_tick = maxi(local_hp_tick, tick)
+	elif remote_players.has(target_id):
+		var info: Dictionary = remote_players[target_id]
+		if not _tick_is_fresh(int(info.get("hp_tick", 0)), tick):
+			return
+		info["hp_tick"] = maxi(int(info.get("hp_tick", 0)), tick)
+		info["hp"] = maxf(0.0, float(info.get("hp", 0.0)) - amount)
+		if float(info["hp"]) <= 0.0 and bool(info.get("bot", false)):
+			# The confirmed hit is lethal for a remote bot: stop a stale
+			# snapshot from feeding the old alive=true back. Humans get their
+			# death from the death packet / the next state.
+			info["alive"] = false
+			info["death_msec"] = Time.get_ticks_msec()
+	elif target_id < 0:
+		if not _tick_is_fresh(int(_bot_hp_ticks.get(target_id, 0)), tick):
+			return
+		_bot_hp_ticks[target_id] = maxi(int(_bot_hp_ticks.get(target_id, 0)), tick)
 	remote_damage_received.emit(source_id, target_id, amount, String(message.get("skill", "auto")), bool(message.get("crit", false)), float(message.get("stun", 0.0)))
 
 
@@ -848,8 +1011,23 @@ func _handle_heal(message: Dictionary) -> void:
 	var source_id := int(message.get("source_id", message.get("id", 0)))
 	var target_id := int(message.get("target_id", 0))
 	var amount := float(message.get("amount", 0.0))
-	if target_id <= 0 or amount <= 0.0:
+	if target_id == 0 or amount <= 0.0:
 		return
+	var tick := int(message.get("tick", 0))
+	if target_id == local_peer_id:
+		if not _tick_is_fresh(local_hp_tick, tick):
+			return
+		local_hp_tick = maxi(local_hp_tick, tick)
+	elif remote_players.has(target_id):
+		var info: Dictionary = remote_players[target_id]
+		if not _tick_is_fresh(int(info.get("hp_tick", 0)), tick):
+			return
+		info["hp_tick"] = maxi(int(info.get("hp_tick", 0)), tick)
+		info["hp"] = float(info.get("hp", 0.0)) + amount
+	elif target_id < 0:
+		if not _tick_is_fresh(int(_bot_hp_ticks.get(target_id, 0)), tick):
+			return
+		_bot_hp_ticks[target_id] = maxi(int(_bot_hp_ticks.get(target_id, 0)), tick)
 	remote_heal_received.emit(source_id, target_id, amount)
 
 
@@ -857,11 +1035,15 @@ func _handle_stats(message: Dictionary) -> void:
 	var player_id := int(message.get("id", 0))
 	if player_id <= 0 or player_id == local_peer_id:
 		return
+	var tick := int(message.get("tick", 0))
 	if not remote_players.has(player_id):
-		var info := _make_remote_info(message)
-		remote_players[player_id] = info
-		remote_player_joined.emit(player_id, info)
+		var fresh_info := _make_remote_info(message)
+		remote_players[player_id] = fresh_info
+		remote_player_joined.emit(player_id, fresh_info)
 	var info: Dictionary = remote_players[player_id]
+	if not _tick_is_fresh(int(info.get("hp_tick", 0)), tick):
+		return
+	info["hp_tick"] = maxi(int(info.get("hp_tick", 0)), tick)
 	info["max_hp"] = maxf(float(message.get("max_hp", 0.0)), 0.0)
 	info["hp"] = maxf(float(message.get("hp", 0.0)), 0.0)
 	info["attack_damage"] = maxf(float(message.get("attack_damage", 0.0)), 0.0)
@@ -877,9 +1059,25 @@ func _handle_death(message: Dictionary) -> void:
 	var player_id := int(message.get("id", message.get("player_id", 0)))
 	if player_id == 0:
 		return
-	if remote_players.has(player_id):
+	var tick := int(message.get("tick", 0))
+	if player_id == local_peer_id:
+		if not _tick_accepts_event(local_hp_tick, tick):
+			return
+		local_hp_tick = maxi(local_hp_tick, tick)
+	elif remote_players.has(player_id):
 		var info: Dictionary = remote_players[player_id]
+		if not _tick_accepts_event(int(info.get("hp_tick", 0)), tick):
+			return
+		info["hp_tick"] = maxi(int(info.get("hp_tick", 0)), tick)
 		info["alive"] = false
+		info["hp"] = 0.0
+		info["death_msec"] = Time.get_ticks_msec()
+		info["alive_pending"] = -1
+		info["alive_pending_count"] = 0
+	elif player_id < 0:
+		if not _tick_accepts_event(int(_bot_hp_ticks.get(player_id, 0)), tick):
+			return
+		_bot_hp_ticks[player_id] = maxi(int(_bot_hp_ticks.get(player_id, 0)), tick)
 	remote_death_received.emit(player_id, int(message.get("source_id", 0)))
 
 
@@ -893,12 +1091,20 @@ func _handle_respawn(message: Dictionary) -> void:
 		float(message.get("z", 0.0))
 	)
 	var rotation_y := float(message.get("rotation", 0.0))
+	var tick := int(message.get("tick", 0))
 	if remote_players.has(player_id):
 		var info: Dictionary = remote_players[player_id]
+		if not _tick_is_fresh(int(info.get("hp_tick", 0)), tick):
+			return
+		info["hp_tick"] = maxi(int(info.get("hp_tick", 0)), tick)
 		info["alive"] = true
+		info["hp"] = float(info.get("max_hp", 0.0))
 		info["position"] = position
 		info["rotation"] = rotation_y
 		info["has_state"] = true
+		info["respawn_msec"] = Time.get_ticks_msec()
+		info["alive_pending"] = -1
+		info["alive_pending_count"] = 0
 	remote_respawn_received.emit(player_id, position, rotation_y)
 
 

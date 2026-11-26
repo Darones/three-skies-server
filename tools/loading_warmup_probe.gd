@@ -98,6 +98,9 @@ class Watcher extends Node:
 	var main_frames := 0
 	var saw_load_failed := false
 	var match_scene_ready := false
+	## The flow's report is a Dictionary, so this stays valid after the node is
+	## freed and lets the pacing numbers be checked here too.
+	var flow_report: Dictionary = {}
 
 	func _ready() -> void:
 		started_ms = Time.get_ticks_msec()
@@ -152,6 +155,8 @@ class Watcher extends Node:
 			_on_warmup_stopped()
 		elif flow != null:
 			flow_started = true
+			if flow_report.is_empty():
+				flow_report = flow.get("report") as Dictionary
 			var percent := clampf(float(flow.get("_progress")), 0.0, 100.0)
 			var stage := String(flow.get("_stage"))
 			if percents.is_empty() or percent != percents[percents.size() - 1]:
@@ -247,7 +252,46 @@ class Watcher extends Node:
 				"Main не открылся раньше окончания прогрева (переход %d, прогрев %d)" % [transition_at, flow_stopped_at]
 			)
 			_check(main_prewarmed, "Main получил battle_prewarmed (не греет бой повторно)")
+			_check_pacing(now)
 		_report_and_quit(now)
+
+	## Pacing/load profile of the warmup that ran behind the search screen.
+	## In fallback mode the flow is cut by the budget on purpose, so only the
+	## transition time is checked there.
+	func _check_pacing(_now: int) -> void:
+		var elapsed := float(flow_report.get("elapsed", 0.0))
+		var pauses := float(flow_report.get("pauses_s", 0.0))
+		var p95 := float(flow_report.get("frame_ms_p95", 0.0))
+		var first2s := float(flow_report.get("first2s_max_frame_ms", 0.0))
+		var settled := float(flow_report.get("first2s_settled_max_frame_ms", 0.0))
+		print("LOADING_WARMUP_PACING total=%.2f work=%.2f pauses=%.2f target=%.1f"
+			% [
+				elapsed,
+				float(flow_report.get("work_s", 0.0)),
+				pauses,
+				float(flow_report.get("pacing_target_s", 0.0)),
+			])
+		print("LOADING_WARMUP_FRAMES avg=%.1f p95=%.1f max=%.1f first2s_max=%.1f at=%.2fs settled=%.1f viewport=%d"
+			% [
+				float(flow_report.get("frame_ms_avg", 0.0)),
+				p95,
+				float(flow_report.get("frame_ms_max", 0.0)),
+				first2s,
+				float(flow_report.get("first2s_max_at_s", 0.0)),
+				settled,
+				int(flow_report.get("frames_rendered", 0)),
+			])
+		_check(flow_report.size() > 0, "report прогрева прочитан")
+		_check(elapsed > 0.0 and elapsed <= 30.0, "прогрев уложился в 30 с (%.2f с)" % elapsed)
+		_check(elapsed >= 15.0, "прогрев растянут (%.2f с)" % elapsed)
+		_check(pauses >= 3.0, "паузы между шагами (%.2f с)" % pauses)
+		_check(not bool(flow_report.get("deadline_hit", false)), "жёсткий бюджет не понадобился")
+		_check(p95 <= 250.0, "p95 кадра в норме (%.1f мс)" % p95)
+		_check(first2s <= 200.0,
+			"первый кадр экрана не завис (%.1f мс; это первый draw экрана)"
+			% first2s)
+		_check(settled <= 100.0,
+			"прогрев не даёт пика в первые 2 с (%.1f мс)" % settled)
 
 	func _capture() -> void:
 		if shot_taken:

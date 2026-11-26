@@ -1,0 +1,62 @@
+﻿Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[Platform] id=standalone adapter=Standalone
+[NET] REST URL: https://three-skies-server.relaxdev.ru
+[NET] WebSocket URL: wss://three-skies-server.relaxdev.ru/ws
+[MCPRuntimeServer] port: scanning 6570-6585 (default)
+[MCPRuntimeServer] listening on 127.0.0.1:6570
+[MCPRegistry] runtime port 6570 registered for c:/mygames3d/three-skies
+[Ads] x2 waiting for the base reward room=987654321
+PASS: (a) rewarded success doubles the totals
+PASS: (a) the screen shows exactly x2 shards
+PASS: (a) the bonus waits for the base answer
+PASS: (a) no request is sent before the base answer
+[REWARD] confirmed room=987654321 bonus=false
+[Ads] x2 bonus sent room=987654321 shards=6 xp=200 base_ok=true
+PASS: (a) the bonus is sent after the base is confirmed
+PASS: (a) the bonus carries the doubled total
+PASS: (a) the bonus keeps the character
+PASS: (a) nothing stays pending
+PASS: (e) the x2 button requests no second ad
+PASS: (e) exactly one bonus request exists for the match
+PASS: (e) the doubled total is applied once
+PASS: (b) the base reward is in the outbox
+[Ads] x2 waiting for the base reward room=987654321
+PASS: (b) the bonus waits while the base is unconfirmed
+PASS: (b) the bonus is not sent before the base
+[REWARD] not confirmed room=987654321 bonus=false error=╨Э╨╡╤В ╤Б╨▓╤П╨╖╨╕ ╤Б ╤Б╨╡╤А╨▓╨╡╤А╨╛╨╝; kept for next profile
+[Ads] base reward failed room=987654321 error=╨Э╨╡╤В ╤Б╨▓╤П╨╖╨╕ ╤Б ╤Б╨╡╤А╨▓╨╡╤А╨╛╨╝; queuing the x2
+[Ads] x2 bonus sent room=987654321 shards=6 xp=200 base_ok=false
+PASS: (b) the x2 is queued after the base failed
+PASS: (b) the queued bonus keeps the doubled total
+PASS: (b) the outbox keeps the base before the bonus
+[Ads] rewarded results_double not completed error=not_completed detail=stub
+[Ads] results x2 failed error=not_completed detail=stub
+PASS: (c) a failed rewarded does not double
+PASS: (c) a failed rewarded pays nothing
+PASS: (c) a failed rewarded queues no bonus
+PASS: (c) the outbox gains no bonus
+PASS: (c) the attempt is recorded
+PASS: (c) no interstitial after a failed rewarded
+PASS: (c) the results screen refuses it
+PASS: (c) no second ad screen is opened
+PASS: (c) control: a fresh results screen may show one
+[Ads] x2 waiting for the base reward room=987654321
+PASS: (d) the watched rewarded is recorded
+PASS: (d) no interstitial after a watched rewarded
+PASS: (d) the results screen refuses it
+PASS: (d) no second ad screen is opened
+PASS: (e) a double click opens one ad
+PASS: (e) offline x2 is applied once
+PASS: (e) offline x2 xp is applied once
+RESULTS_AD_X2_FAILURES=0
+godot : WARNING: 12 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+строка:1 знак:30
++ ... hree-skies; godot --headless --path . res://tools/ResultsAdX2Probe.ts ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (WARNING: 12 Obj...` for details).:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+   at: cleanup (core/object/object.cpp:2536)
+ERROR: 3 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:822)

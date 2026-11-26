@@ -9,6 +9,12 @@ extends Node
 ## sees a dark screen: lobby.gd shows WelcomeOverlay in WARMING and starts the
 ## match from the `finished` signal.
 ##
+## Pacing: the search screen gives ~30 s, so the work is spread over ~21 s (see
+## PACING_* below) instead of running flat out in ~10 s. A short quiet start,
+## then one step at a time with a measured pause between steps, and the hidden
+## viewport draws only the frames the flow asks for. The machine is never pegged
+## from the first second, and the loading screen stays smooth.
+##
 ## Safety: Main.tscn is instantiated with its game.gd script removed, so no
 ## match starts, no HUD is created, no network connection is opened and no
 ## music plays. The instance is freed at the end; only the resource cache
@@ -103,6 +109,39 @@ const STAGE_SWITCH := "Второй проход"
 const STAGE_FINAL := "Финальный рендер"
 const STAGE_DONE := "Готово"
 
+## Pacing. The player is already waiting for the match search (30 s), so the
+## same amount of work is deliberately spread over ~21 s instead of ~10 s: a
+## short quiet start, then one step at a time with a measured pause between
+## steps. The machine is never pegged from the first second, the search screen
+## keeps animating smoothly and the warmup still fits the search window.
+const PACING_TARGET_SECONDS := 21.0
+const PACING_TARGET_SECONDS_MOBILE := 23.0
+## Hard ceiling. The search screen waits for the warmup at most 30 s and needs
+## a couple of frames for the scene switch, so the flow stops itself at 28 s
+## and reports a truncation instead of risking a hang.
+const PACING_HARD_BUDGET_SECONDS := 28.0
+## Quiet start on the loading screen before the first heavy step.
+const PACING_START_DELAY_SECONDS := 1.4
+## Share of wall time the warmup may keep the machine busy. The rest is the
+## loading screen at idle between steps.
+const PACING_DUTY := 0.45
+const PACING_MAX_PAUSE_SECONDS := 1.5
+const PACING_MIN_PAUSE_SECONDS := 0.12
+## The loading screen's own first draw (background + font atlas upload) lands in
+## the first frames and existed before any warmup. Frame samples after this mark
+## describe the warmup itself.
+const PACING_START_SETTLED_SECONDS := 0.25
+
+## Hidden viewports are small on purpose: shader and pipeline compilation does
+## not depend on resolution, and a smaller target keeps the fill rate cheap.
+## The arena pass keeps its original size: `video_after_arena_mb` is measured
+## there and the two-pass VRAM guard is calibrated against it, so shrinking it
+## would make the guard under-report the real arena by ~0.7 MB.
+const ARENA_VIEWPORT_SIZE := Vector2i(384, 216)
+const VIEWPORT_WIDTH_DESKTOP := 320
+const VIEWPORT_WIDTH_MOBILE := 288
+const CANVAS_VIEWPORT_SIZE := 32
+
 var report := {
 	"main_scene_loaded": false,
 	"main_script_stripped": false,
@@ -134,6 +173,19 @@ var report := {
 	"mobile": false,
 	"quality": "unknown",
 	"stats_tracked": false,
+	"frame_ms_avg": 0.0,
+	"frame_ms_p95": 0.0,
+	"frame_ms_max": 0.0,
+	"first2s_max_frame_ms": 0.0,
+	"first2s_max_at_s": 0.0,
+	"first2s_settled_max_frame_ms": 0.0,
+	"frames_sampled": 0,
+	"pauses_s": 0.0,
+	"work_s": 0.0,
+	"pacing_target_s": 0.0,
+	"paced": false,
+	"deadline_hit": false,
+	"truncated": false,
 }
 
 ## "auto" (mobile + heavy arena), "on" (always) or "off". Probes and the
@@ -158,6 +210,24 @@ var _video_mem_available := false
 var _two_pass := false
 var _pass := 1
 var _pass_peak_mb := 0.0
+## Frame-time sampling. It answers the two questions the pacing has to solve:
+## is there a spike in the first seconds, and what is the typical frame during
+## the warmup? A delta over one second is a window drag or a debugger stop, not
+## warmup load, so it is skipped.
+var _frame_ms: Array[float] = []
+var _first2s_max_ms := 0.0
+var _first2s_settled_max_ms := 0.0
+var _frame_ema_ms := 16.7
+## 0 = auto by platform. Probes set it to shrink or stretch the run.
+var target_seconds := 0.0
+## 0 = PACING_HARD_BUDGET_SECONDS. Probes shrink it to exercise the truncation
+## path without waiting half a minute.
+var budget_seconds := 0.0
+var _paced := true
+var _pause_ms := 0.0
+var _last_step_ms := 0
+var _deadline_hit := false
+var _truncated := false
 
 
 func start() -> void:
@@ -173,6 +243,7 @@ func start() -> void:
 	_running = true
 	_started_ms = Time.get_ticks_msec()
 	_stage_started_ms = _started_ms
+	_last_step_ms = _started_ms
 	_stage = STAGE_LOAD
 	_emit(0.0)
 	_run()
@@ -187,20 +258,34 @@ func is_finished() -> bool:
 
 
 func _run() -> void:
+	# Quiet start: the search screen keeps animating, the machine is idle and
+	# the first heavy step does not land in the first second of the screen.
+	await _wait_seconds(PACING_START_DELAY_SECONDS)
+	if not _alive():
+		return
+	_emit(1.0)
+
+	var load_started := Time.get_ticks_msec()
 	var packed := await _load_threaded(MAIN_SCENE_PATH)
 	report["main_scene_loaded"] = packed != null
+	report["main_load_ms"] = Time.get_ticks_msec() - load_started
 	if not _alive():
 		return
 	if packed == null:
 		_fail("Main.tscn не загрузился")
 		return
 	_emit(8.0)
+	await _pace()
+	if _over_budget():
+		await _finish_truncated()
+		return
 
 	_setup_viewport()
 	await _render_frames(1)
 	if not _alive():
 		return
 	_emit(11.0, STAGE_INSTANCE)
+	await _pace()
 
 	_main = packed.instantiate() as Node3D
 	if _main == null:
@@ -214,29 +299,39 @@ func _run() -> void:
 	_arena = _main.get_node_or_null("Arena") as Node3D
 	if _arena != null:
 		report["arena_children"] = _arena.get_child_count()
-	await _render_frames(3)
+	await _render_frames(2)
 	if not _alive():
 		return
-	_emit(18.0)
+	_emit(16.0)
+	await _pace()
 
 	# The same two calls game.gd makes on the baked arena: perimeter ridge and
 	# runtime props/materials (grass, paths, crystals, ruin columns...).
 	if _arena != null:
 		ArenaKit.ensure_perimeter_ridge(_arena)
-		await _render_frames(2)
+		await _render_frames(1)
 		if not _alive():
 			return
-		_emit(24.0, STAGE_ARENA)
+		_emit(20.0, STAGE_ARENA)
+		await _pace()
 		ArenaKit.ensure_arena_features(_arena)
 		await _render_frames(2)
 		report["arena_children"] = _arena.get_child_count()
 	if not _alive():
 		return
-	_emit(31.0)
+	_emit(26.0)
+	await _pace()
+	if _over_budget():
+		await _finish_truncated()
+		return
 	await _render_arena_views()
 	if not _alive():
 		return
-	_emit(36.0)
+	_emit(34.0)
+	await _pace()
+	if _over_budget():
+		await _finish_truncated()
+		return
 	report["video_after_arena_mb"] = _video_mb()
 	report["mobile"] = _is_mobile()
 	report["quality"] = _quality()
@@ -246,23 +341,36 @@ func _run() -> void:
 		await _switch_to_second_pass()
 		if not _alive():
 			return
-		_emit(37.0, STAGE_SWITCH)
+		_emit(36.0, STAGE_SWITCH)
+		await _pace()
 
 	await _warm_characters()
 	if not _alive():
 		return
-	_emit(56.0)
+	_emit(54.0)
+	await _pace()
+	if _over_budget():
+		await _finish_truncated()
+		return
 
 	await _warm_props()
 	if not _alive():
 		return
 	_emit(64.0)
+	await _pace()
+	if _over_budget():
+		await _finish_truncated()
+		return
 
 	await _warm_vfx()
 	if not _alive():
 		return
 	_emit(88.0)
 	report["video_after_vfx_mb"] = _video_mb()
+	await _pace()
+	if _over_budget():
+		await _finish_truncated()
+		return
 
 	_set_stage(STAGE_SHADERS)
 	_emit(88.0)
@@ -270,6 +378,10 @@ func _run() -> void:
 	if not _alive():
 		return
 	_emit(94.0)
+	await _pace()
+	if _over_budget():
+		await _finish_truncated()
+		return
 
 	_set_stage(STAGE_FINAL)
 	_emit(94.0)
@@ -283,6 +395,7 @@ func _run() -> void:
 	_emit(99.0)
 
 	report["elapsed"] = _elapsed()
+	_record_metrics()
 	_emit(100.0, STAGE_DONE)
 	_cleanup()
 	# Give the viewport and the stripped arena two frames to actually leave
@@ -304,10 +417,22 @@ func _setup_viewport(pass_two := false) -> void:
 		_viewport.name = "WarmupFlowViewport2"
 	else:
 		_viewport.name = "WarmupFlowViewport"
-	_viewport.size = Vector2i(384, 216)
+	# Small by design: shader/pipeline compilation is resolution independent,
+	# and the arena fill rate plus the shadow pass stay cheap.
+	if pass_two:
+		var width := VIEWPORT_WIDTH_MOBILE if _is_mobile() else VIEWPORT_WIDTH_DESKTOP
+		_viewport.size = Vector2i(width, int(round(float(width) * 9.0 / 16.0)))
+	else:
+		_viewport.size = ARENA_VIEWPORT_SIZE
 	_viewport.own_world_3d = true
 	_viewport.transparent_bg = false
-	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	# The shadow atlas keeps the project default on purpose: the two-pass VRAM
+	# decision below is measured on this viewport, so it must not under-report
+	# what the real arena costs.
+	# Only the frames the flow asks for are drawn. UPDATE_ALWAYS would keep
+	# the hidden arena at full GPU load through every pause between steps,
+	# which is exactly the first-second spike the pacing is here to remove.
+	_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	add_child(_viewport)
 
 	_camera = Camera3D.new()
@@ -347,6 +472,10 @@ func _warm_characters() -> void:
 	for index in total:
 		if not _alive():
 			return
+		# Never start an item that could cross the hard budget by a whole
+		# stage: one model is the largest unit left here.
+		if _over_budget():
+			return
 		var path: String = CHARACTER_SCENES[index]
 		var packed := await _load_threaded(path)
 		if packed is PackedScene:
@@ -355,11 +484,14 @@ func _warm_characters() -> void:
 				model.position = Vector3(-4.6 + 2.3 * float(index), 0.05, 1.4)
 				_viewport.add_child(model)
 				_play_first_animation(model)
-				await _render_frames(3)
+				# One drawn frame compiles the materials, the second makes sure
+				# the upload finished before the model is freed.
+				await _render_frames(2)
 				model.queue_free()
 				await _render_frames(1)
 				report["heroes_warmed"] = int(report["heroes_warmed"]) + 1
-		_emit(36.0 + 20.0 * float(index + 1) / float(total))
+		_emit(34.0 + 20.0 * float(index + 1) / float(total))
+		await _pace()
 	await _render_frames(1)
 
 
@@ -369,27 +501,37 @@ func _warm_props() -> void:
 	for index in total:
 		if not _alive():
 			return
+		if _over_budget():
+			return
 		var packed := await _load_threaded(PROP_SCENES[index])
 		if packed is PackedScene:
 			var prop := (packed as PackedScene).instantiate() as Node3D
 			if prop != null:
 				prop.position = Vector3(-5.0 + 1.1 * float(index), 1.0, -1.6)
 				_viewport.add_child(prop)
-				await _render_frames(2)
+				# A prop is a single mesh: one drawn frame is enough to compile
+				# its material, the second is the queue_free frame.
+				await _render_frames(1)
 				prop.queue_free()
 				await _render_frames(1)
 				report["props_warmed"] = int(report["props_warmed"]) + 1
-		_emit(56.0 + 8.0 * float(index + 1) / float(total))
+		_emit(54.0 + 10.0 * float(index + 1) / float(total))
+		await _pace()
 
 
 func _warm_vfx() -> void:
 	_set_stage(STAGE_VFX)
 	_emit(64.0)
+	await _pace()
 	var preloader: Variant = VFX_PRELOADER.new()
 	preloader.name = "WarmupVfxPreloader"
 	preloader.step_progress.connect(_on_vfx_step)
 	add_child(preloader)
-	var deadline := Time.get_ticks_msec() + 30000
+	# The preloader drives its own small viewport; the only thing worth doing
+	# here is to stop waiting for it when the hard budget is gone.
+	var deadline := Time.get_ticks_msec() + int(
+		maxf(1.0, _budget_seconds() - _elapsed()) * 1000.0
+	)
 	while is_instance_valid(preloader) and not bool(preloader.completed):
 		if not _alive():
 			return
@@ -402,11 +544,14 @@ func _warm_vfx() -> void:
 		report["sounds_warmed"] = preloader.sounds_warmed
 		preloader.queue_free()
 	await _render_frames(2)
+	await _pace()
 	# Hero hit-flash copies materials at runtime; render an emissive copy once.
 	await _warm_emissive_flash()
+	await _pace()
 	# Mobile fireflies: the first GPUParticles3D draw compiles a separate
 	# particle shader, which used to hitch right after the arena appears.
 	await _warm_gpu_particles()
+	await _pace()
 	# Base spawn domes use the rim-lit transparent StandardMaterial variant.
 	await _warm_rim_material()
 
@@ -503,6 +648,8 @@ func _warm_shaders() -> void:
 	for path in SPATIAL_SHADERS:
 		if not _alive():
 			return
+		if _over_budget():
+			return
 		var shader := load(path) as Shader
 		if shader != null:
 			var quad := MeshInstance3D.new()
@@ -520,6 +667,7 @@ func _warm_shaders() -> void:
 			report["shaders_warmed"] = int(report["shaders_warmed"]) + 1
 		done += 1
 		_emit(88.0 + 5.0 * float(done) / float(total))
+		await _pace()
 	await _warm_canvas_shaders()
 	await _render_frames(1)
 
@@ -530,14 +678,16 @@ func _warm_canvas_shaders() -> void:
 	var canvas := SubViewport.new()
 	_canvas = canvas
 	canvas.name = "WarmupFlowCanvas"
-	canvas.size = Vector2i(64, 64)
-	canvas.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	canvas.size = Vector2i(CANVAS_VIEWPORT_SIZE, CANVAS_VIEWPORT_SIZE)
+	canvas.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	add_child(canvas)
 	var layer := Control.new()
 	layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	canvas.add_child(layer)
 	for path in CANVAS_SHADERS:
 		if not _alive():
+			return
+		if _over_budget():
 			return
 		var shader := load(path) as Shader
 		if shader == null:
@@ -552,6 +702,7 @@ func _warm_canvas_shaders() -> void:
 		await _render_frames(2)
 		rect.queue_free()
 		report["shaders_warmed"] = int(report["shaders_warmed"]) + 1
+		await _pace()
 	await _render_frames(1)
 	canvas.queue_free()
 	_canvas = null
@@ -568,9 +719,14 @@ func _render_arena_views() -> void:
 	for position in views:
 		if not _alive():
 			return
+		if _over_budget():
+			return
 		_camera.position = position
 		_camera.look_at(Vector3(0.0, 0.6, 0.0), Vector3.UP)
+		# A new camera angle is the most expensive frame of the arena pass;
+		# it gets its own render and a break before the next one.
 		await _render_frames(2)
+		await _pace()
 
 
 func _render_final_views() -> void:
@@ -584,9 +740,12 @@ func _render_final_views() -> void:
 	for position in views:
 		if not _alive():
 			return
+		if _over_budget():
+			return
 		_camera.position = position
 		_camera.look_at(Vector3(0.0, 0.8, 0.0), Vector3.UP)
-		await _render_frames(2)
+		await _render_frames(1)
+		await _pace()
 	await RenderingServer.frame_post_draw
 
 
@@ -615,6 +774,13 @@ func _render_frames(count: int) -> void:
 	for _index in count:
 		if not is_inside_tree():
 			return
+		# Draw only the frames that were asked for. UPDATE_ALWAYS would render
+		# the hidden arena on every frame of every pause, keeping the machine
+		# busy the whole time the loading screen shows.
+		if _viewport != null and is_instance_valid(_viewport):
+			_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+		if _canvas != null and is_instance_valid(_canvas):
+			_canvas.render_target_update_mode = SubViewport.UPDATE_ONCE
 		await get_tree().process_frame
 		_frames += 1
 		report["frames_rendered"] = _frames
@@ -700,6 +866,9 @@ func _switch_to_second_pass() -> void:
 	_set_stage(STAGE_SWITCH)
 	var started := Time.get_ticks_msec()
 	_finalize_pass()
+	# Two-pass exists to keep arena textures and fighter textures out of VRAM
+	# at the same time. The shared arena materials hold the big floor/rock/plaza
+	# textures, so the references drop here; the match builds fresh ones.
 	if _main != null and is_instance_valid(_main):
 		_main.queue_free()
 		report["main_freed"] = true
@@ -791,6 +960,14 @@ func _track_stats() -> void:
 		"two_pass": _two_pass,
 		"two_pass_reason": String(report["two_pass_reason"]),
 		"failed": bool(report["failed"]),
+		"paced": _paced,
+		"frame_ms_avg": report["frame_ms_avg"],
+		"frame_ms_p95": report["frame_ms_p95"],
+		"frame_ms_max": report["frame_ms_max"],
+		"first2s_max_frame_ms": report["first2s_max_frame_ms"],
+		"first2s_settled_max_frame_ms": report["first2s_settled_max_frame_ms"],
+		"pauses_s": report["pauses_s"],
+		"truncated": _truncated,
 	}
 	stats.call("track", "warmup_done", payload)
 	report["stats_tracked"] = true
@@ -802,6 +979,7 @@ func _fail(message: String) -> void:
 	report["elapsed"] = _elapsed()
 	report["stage_times"] = _stage_times()
 	_finalize_pass()
+	_record_metrics()
 	push_error("[WarmupFlow] " + message)
 	_track_stats()
 	_cleanup()
@@ -838,3 +1016,174 @@ func _emit(percent: float, stage_name := "") -> void:
 
 func _elapsed() -> float:
 	return float(Time.get_ticks_msec() - _started_ms) / 1000.0
+
+
+## Samples every frame the warmup is running, including the pauses: those are
+## real frames of the loading screen and count towards the load profile.
+func _process(delta: float) -> void:
+	if not _running or _done:
+		return
+	var frame_ms := delta * 1000.0
+	if frame_ms <= 0.0 or frame_ms > 1000.0:
+		return
+	_frame_ema_ms = lerpf(_frame_ema_ms, frame_ms, 0.12)
+	if _frame_ms.size() < 8192:
+		_frame_ms.append(frame_ms)
+	if _elapsed() <= 2.0:
+		if frame_ms > _first2s_max_ms:
+			_first2s_max_ms = frame_ms
+			report["first2s_max_at_s"] = snappedf(_elapsed(), 0.01)
+		# The loading scene's own first draw (background and font upload) sits
+		# in the first frames and predates the warmup; the warmup profile is
+		# measured after it has settled.
+		if _elapsed() >= PACING_START_SETTLED_SECONDS:
+			_first2s_settled_max_ms = maxf(_first2s_settled_max_ms, frame_ms)
+
+
+## Aggregates the frame samples into the report. `work_s` is the wall clock
+## minus the deliberate pauses, so work/pauses shows how even the load is.
+func _record_metrics() -> void:
+	var samples := _frame_ms.duplicate()
+	samples.sort()
+	var count := samples.size()
+	var total := 0.0
+	for value in samples:
+		total += value
+	report["frames_sampled"] = count
+	report["frame_ms_avg"] = snappedf(total / maxf(1.0, float(count)), 0.1)
+	report["frame_ms_max"] = snappedf(samples[count - 1] if count > 0 else 0.0, 0.1)
+	report["frame_ms_p95"] = snappedf(_percentile(samples, 0.95), 0.1)
+	report["first2s_max_frame_ms"] = snappedf(_first2s_max_ms, 0.1)
+	report["first2s_settled_max_frame_ms"] = snappedf(_first2s_settled_max_ms, 0.1)
+	report["pauses_s"] = snappedf(_pause_ms / 1000.0, 0.01)
+	report["work_s"] = snappedf(maxf(0.0, _elapsed() - _pause_ms / 1000.0), 0.01)
+	report["pacing_target_s"] = snappedf(_target_seconds(), 0.1)
+	report["paced"] = _paced
+	report["deadline_hit"] = _deadline_hit
+	report["truncated"] = _truncated
+	print(
+		(
+			"[WarmupFlow] pacing total=%.2fs work=%.2fs pauses=%.2fs frames=%d "
+			+ "avg=%.1fms p95=%.1fms max=%.1fms first2s_max=%.1fms(settled %.1fms) target=%.1fs truncated=%s"
+		)
+		% [
+			_elapsed(),
+			float(report["work_s"]),
+			float(report["pauses_s"]),
+			count,
+			float(report["frame_ms_avg"]),
+			float(report["frame_ms_p95"]),
+			float(report["frame_ms_max"]),
+			float(report["first2s_max_frame_ms"]),
+			float(report["first2s_settled_max_frame_ms"]),
+			float(report["pacing_target_s"]),
+			str(_truncated),
+		]
+	)
+
+
+func _percentile(sorted_values: Array, ratio: float) -> float:
+	if sorted_values.is_empty():
+		return 0.0
+	var index := int(ceil(ratio * float(sorted_values.size()))) - 1
+	return float(sorted_values[clampi(index, 0, sorted_values.size() - 1)])
+
+
+func _target_seconds() -> float:
+	if target_seconds > 0.0:
+		return target_seconds
+	return PACING_TARGET_SECONDS_MOBILE if _is_mobile() else PACING_TARGET_SECONDS
+
+
+func _budget_seconds() -> float:
+	if budget_seconds > 0.0:
+		return budget_seconds
+	return PACING_HARD_BUDGET_SECONDS
+
+
+func _wait_seconds(seconds: float) -> void:
+	if seconds <= 0.0:
+		return
+	await get_tree().create_timer(seconds).timeout
+
+
+## Spreads the warmup over the target time instead of running it flat out.
+##
+## Two rules, whichever asks for the longer break:
+##  - duty cycle: the pause is proportional to what the previous step cost, so a
+##    heavy step (arena view, shader compile, VFX scene) gets a longer break and
+##    a cheap one does not turn the run into a sprint;
+##  - schedule: the reported percent is also a time mark (8% = 8% of the
+##    target), so the flow cannot finish far ahead of the target and leave the
+##    player with a 10 s warmup that pegs the machine.
+## A heavy average frame time adds a little extra back-off, and everything is
+## capped by the target and the hard budget (see `_over_budget`). When the work
+## itself is slower than the schedule the pauses simply disappear, so a weak
+## device is never pushed past the budget by the pacing.
+func _pace(weight := 1.0) -> void:
+	if not _alive():
+		return
+	var now := Time.get_ticks_msec()
+	var worked_ms := float(now - _last_step_ms)
+	_last_step_ms = now
+	if not _paced or worked_ms <= 1.0:
+		return
+	var target := _target_seconds()
+	var remaining := target - _elapsed()
+	if remaining <= 0.0:
+		return
+	var wanted := worked_ms / 1000.0 * (1.0 - PACING_DUTY) / PACING_DUTY
+	wanted *= clampf(_frame_ema_ms / 16.7, 0.85, 1.5)
+	wanted *= maxf(0.1, weight)
+	# The percent shown in the UI doubles as the time mark of the run.
+	var schedule := target * clampf(_progress / 100.0, 0.0, 1.0)
+	wanted = maxf(wanted, schedule - _elapsed())
+	wanted = clampf(minf(wanted, remaining), 0.0, PACING_MAX_PAUSE_SECONDS)
+	if wanted < PACING_MIN_PAUSE_SECONDS:
+		return
+	_pause_ms += wanted * 1000.0
+	await get_tree().create_timer(wanted).timeout
+	# The pause itself must not count as work for the next step.
+	_last_step_ms = Time.get_ticks_msec()
+
+
+## True once the hard budget is gone. The caller then finishes the warmup with
+## `_finish_truncated` instead of running a step that could overrun the 30 s
+## search window.
+func _over_budget() -> bool:
+	if _elapsed() < _budget_seconds():
+		return false
+	_deadline_hit = true
+	report["deadline_hit"] = true
+	return true
+
+
+## Ends the warmup early on a slow device. It is reported as a failed warmup,
+## so the loading screen opens the match without `battle_prewarmed` and game.gd
+## falls back to its own first-frame warmup. Finishing early with a warning is
+## always better than leaving the player on a frozen loading screen.
+func _finish_truncated() -> void:
+	if _truncated or _done:
+		return
+	_truncated = true
+	report["truncated"] = true
+	report["failed"] = true
+	report["error"] = "прогрев прерван по бюджету %.0f с" % _budget_seconds()
+	report["elapsed"] = _elapsed()
+	report["stage_times"] = _stage_times()
+	_finalize_pass()
+	_record_metrics()
+	push_warning("[WarmupFlow] " + String(report["error"]))
+	_track_stats()
+	_set_stage(STAGE_DONE)
+	_progress = 100.0
+	progress_changed.emit(100.0, _elapsed(), _stage)
+	_cleanup()
+	await _render_frames(2)
+	if not is_inside_tree():
+		return
+	_done = true
+	_running = false
+	finished.emit()
+
+

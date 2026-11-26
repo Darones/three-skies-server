@@ -11,22 +11,30 @@ const NOVICE_INTERSTITIAL_COOLDOWN := 30 * 60
 
 var ad_showing := false
 var rewarded_watched_this_results := false
+# Set as soon as a rewarded ad is requested, before the adapter answers. A
+# failed or timed-out rewarded still means the player already sat through one
+# ad screen: the results screen must not show an interstitial on top of it.
+var rewarded_attempted_this_results := false
 var interstitial_shown_this_results := false
 
 
 func begin_results() -> void:
 	rewarded_watched_this_results = false
+	rewarded_attempted_this_results = false
 	interstitial_shown_this_results = false
 
 
 func register_rewarded_watched() -> void:
 	rewarded_watched_this_results = true
+	rewarded_attempted_this_results = true
 
 
 func can_show_interstitial_after_results() -> bool:
 	if ad_showing:
 		return false
-	if rewarded_watched_this_results:
+	# One ad screen per results. A rewarded x2 that was watched, or only
+	# attempted, already took that slot.
+	if rewarded_watched_this_results or rewarded_attempted_this_results:
 		return false
 	if interstitial_shown_this_results:
 		return false
@@ -72,6 +80,9 @@ func show_rewarded_ad() -> bool:
 	if not Platform.is_rewarded_available():
 		return false
 	ad_showing = true
+	# Marked before the adapter runs: whether VK filled the ad, timed out or
+	# the player closed it early, the results screen already had its ad.
+	rewarded_attempted_this_results = true
 	var rewarded: bool = await Platform.show_rewarded_ad("results_double")
 	ad_showing = false
 	var ad_error := Platform.get_last_ad_error()

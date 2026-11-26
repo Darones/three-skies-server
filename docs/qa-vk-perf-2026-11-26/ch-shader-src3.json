@@ -1,0 +1,354 @@
+{
+  "tag": "ch-shader-src3",
+  "url": "https://three-skies-server.relaxdev.ru/game/?mobile=1&tutorial=1",
+  "viewport": {
+    "W": 844,
+    "H": 390,
+    "DPR": 1,
+    "mobile": true
+  },
+  "cpuThrottle": 1,
+  "chrome": "Chrome/158.0.8127.88",
+  "bootMs": 25213,
+  "bootCanvas": [
+    844,
+    390,
+    844,
+    390
+  ],
+  "probe": {
+    "href": "https://three-skies-server.relaxdev.ru/game/?mobile=1&tutorial=1&v=20261126_192357",
+    "ua": "Mozilla/5.0 (Linux; Android 14; SM-A566B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
+    "platform": "Linux armv8l",
+    "dpr": 1,
+    "inner": [
+      844,
+      390
+    ],
+    "outer": [
+      844,
+      390
+    ],
+    "screen": [
+      844,
+      390,
+      844,
+      390
+    ],
+    "orientation": "landscape-primary",
+    "hardwareConcurrency": 28,
+    "deviceMemory": 32,
+    "webgl2": true,
+    "glVendor": "Google Inc. (AMD)",
+    "glRenderer": "ANGLE (AMD, Radeon RX 570 Series (0x000067DF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "glVersion": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+    "maxTexture": 16384,
+    "glExtensions": [
+      "EXT_clip_control",
+      "EXT_color_buffer_float",
+      "EXT_color_buffer_half_float",
+      "EXT_conservative_depth",
+      "EXT_depth_clamp",
+      "EXT_disjoint_timer_query_webgl2",
+      "EXT_float_blend",
+      "EXT_polygon_offset_clamp",
+      "EXT_render_snorm",
+      "EXT_texture_compression_bptc",
+      "EXT_texture_compression_rgtc",
+      "EXT_texture_filter_anisotropic",
+      "EXT_texture_mirror_clamp_to_edge",
+      "EXT_texture_norm16",
+      "KHR_parallel_shader_compile",
+      "NV_shader_noperspective_interpolation",
+      "OES_draw_buffers_indexed",
+      "OES_sample_variables",
+      "OES_shader_multisample_interpolation",
+      "OES_texture_float_linear",
+      "OVR_multiview2",
+      "WEBGL_blend_func_extended",
+      "WEBGL_clip_cull_distance",
+      "WEBGL_compressed_texture_s3tc",
+      "WEBGL_compressed_texture_s3tc_srgb",
+      "WEBGL_debug_renderer_info",
+      "WEBGL_debug_shaders",
+      "WEBGL_lose_context",
+      "WEBGL_multi_draw",
+      "WEBGL_polygon_mode",
+      "WEBGL_provoking_vertex",
+      "WEBGL_shader_pixel_local_storage",
+      "WEBGL_stencil_texturing"
+    ],
+    "canvas": {
+      "w": 844,
+      "h": 390,
+      "cssW": 844,
+      "cssH": 390,
+      "rectW": 844,
+      "rectH": 390
+    },
+    "canvasStyle": {
+      "width": "844px",
+      "height": "390px"
+    },
+    "visualViewport": {
+      "w": 844,
+      "h": 390,
+      "scale": 1
+    },
+    "vkBridge": "object",
+    "vkInit": "object",
+    "mem": {
+      "usedMB": 67.7,
+      "totalMB": 73.2,
+      "limitMB": 4192
+    },
+    "crossOriginIsolated": false,
+    "sharedArrayBuffer": "undefined",
+    "wasm": "object",
+    "fpsCounterInstalled": true,
+    "canvases": [
+      {
+        "id": "canvas",
+        "w": 844,
+        "h": 390
+      }
+    ],
+    "loadState": "complete",
+    "loaderHidden": true,
+    "statusText": "",
+    "frameCount": -1
+  },
+  "fpsSeries": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "frameStats": null,
+  "shader": null,
+  "cpuTop": null,
+  "longtasks": [],
+  "longTaskTotalMs": 0,
+  "resources": [],
+  "net": [
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 10491813,
+      "ms": 2024,
+      "ce": null
+    },
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 10491809,
+      "ms": 3331,
+      "ce": null
+    },
+    {
+      "url": "index.wasm",
+      "status": 200,
+      "mime": "application/wasm",
+      "bytes": 10169697,
+      "ms": 3068,
+      "ce": "gzip"
+    },
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 6872021,
+      "ms": 710,
+      "ce": null
+    },
+    {
+      "url": "index_splash.jpg",
+      "status": 200,
+      "mime": "image/jpeg",
+      "bytes": 220512,
+      "ms": 118,
+      "ce": null
+    },
+    {
+      "url": "main.js",
+      "status": 200,
+      "mime": "application/x-javascript",
+      "bytes": 139781,
+      "ms": 18,
+      "ce": null
+    },
+    {
+      "url": "index.js",
+      "status": 200,
+      "mime": "text/javascript",
+      "bytes": 68707,
+      "ms": 135,
+      "ce": "gzip"
+    },
+    {
+      "url": "",
+      "status": 200,
+      "mime": "text/html",
+      "bytes": 14147,
+      "ms": 26,
+      "ce": null
+    },
+    {
+      "url": "vk-bridge.min.js",
+      "status": 200,
+      "mime": "text/javascript",
+      "bytes": 4680,
+      "ms": 121,
+      "ce": null
+    },
+    {
+      "url": "index.icon.png",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 1415,
+      "ms": 109,
+      "ce": null
+    },
+    {
+      "url": "init",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 765,
+      "ms": 15,
+      "ce": null
+    },
+    {
+      "url": "profile",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 618,
+      "ms": 25,
+      "ce": null
+    },
+    {
+      "url": "progress",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 556,
+      "ms": 22,
+      "ce": null
+    },
+    {
+      "url": "register",
+      "status": 201,
+      "mime": "application/json",
+      "bytes": 454,
+      "ms": 24,
+      "ce": null
+    },
+    {
+      "url": "event",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 358,
+      "ms": 36,
+      "ce": null
+    },
+    {
+      "url": "wsm.sessionActivated",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 199,
+      "ms": 2,
+      "ce": null
+    },
+    {
+      "url": "27e9b4b3-fd1a-4fd4-a313-a1f80e90250c",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 0,
+      "ms": 1,
+      "ce": null
+    },
+    {
+      "url": "27e9b4b3-fd1a-4fd4-a313-a1f80e90250c",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 0,
+      "ms": 1,
+      "ce": null
+    }
+  ],
+  "console": [
+    {
+      "t": 1795724667919,
+      "type": "exception",
+      "text": "SyntaxError: Invalid or unexpected token"
+    },
+    {
+      "t": 1795724674737,
+      "type": "log",
+      "text": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "t": 1795724679830,
+      "type": "log",
+      "text": "OpenGL API OpenGL ES 3.0 (WebGL 2.0 (OpenGL ES 3.0 Chromium)) - Compatibility - Using Device: WebKit - WebKit WebGL"
+    },
+    {
+      "t": 1795724680248,
+      "type": "log",
+      "text": "Build configuration: Emscripten 4.0.20, single-threaded, no GDExtension support."
+    },
+    {
+      "t": 1795724680265,
+      "type": "error",
+      "text": "WARNING: Screen-space AA is only available when using the Forward+ or Mobile renderer."
+    },
+    {
+      "t": 1795724680265,
+      "type": "error",
+      "text": "   at: viewport_set_screen_space_aa (servers/rendering/renderer_viewport.cpp:1435)"
+    },
+    {
+      "t": 1795724681319,
+      "type": "log",
+      "text": "[Platform] id=standalone adapter=Standalone"
+    },
+    {
+      "t": 1795724681322,
+      "type": "log",
+      "text": "[NET] REST URL: https://three-skies-server.relaxdev.ru"
+    },
+    {
+      "t": 1795724681322,
+      "type": "log",
+      "text": "[NET] WebSocket URL: wss://three-skies-server.relaxdev.ru/ws"
+    },
+    {
+      "t": 1795724692929,
+      "type": "error",
+      "text": "ERROR: Parse JSON failed. Error at line 0: Unknown error getting token"
+    },
+    {
+      "t": 1795724692929,
+      "type": "error",
+      "text": "   at: parse_string (core/io/json.cpp:629)"
+    }
+  ],
+  "pageErrors": [],
+  "metrics": {
+    "TaskDuration": 77.504718,
+    "ScriptDuration": 58.499069,
+    "LayoutDuration": 0.013588,
+    "RecalcStyleDuration": 0.001232,
+    "JSHeapUsedMB": 15.2,
+    "Nodes": 65,
+    "Documents": 1
+  }
+}

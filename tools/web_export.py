@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 
 from patch_chunk_loader import patch as patch_chunk_loader
+from vk_perf_web_export_patch import patch_web_shell
 
 ROOT = Path(__file__).resolve().parents[1]
 PROJECT = ROOT / "project.godot"
@@ -430,6 +431,9 @@ def main() -> None:
     patch_reset_script()
     patch_splash()
     patch_legal_overlay()
+    # Diagnostics + phone DPR cap must be in place before prepare_server_web
+    # copies build/web to server/web. The probe is inert without ?perf=1.
+    patch_web_shell(OUT_DIR, ROOT)
     copy_editor_page()
     copy_payment_icon()
 

@@ -1,0 +1,7415 @@
+{
+  "action": "clash",
+  "adapter": "Radeon RX 570 Series",
+  "canvas": [
+    1440,
+    734
+  ],
+  "events": [
+    {
+      "detail": "match_start 0.9ms",
+      "frame": 1,
+      "kind": "mark_sfx",
+      "t_ms": -1.0
+    },
+    {
+      "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+      "frame": 1,
+      "kind": "sound",
+      "t_ms": 2.0
+    },
+    {
+      "detail": "forced_clash",
+      "frame": 20,
+      "kind": "probe",
+      "t_ms": 305.0
+    },
+    {
+      "detail": "Даронес 40",
+      "frame": 24,
+      "kind": "mark_attack",
+      "t_ms": 352.0
+    },
+    {
+      "detail": "Даронес 40",
+      "frame": 24,
+      "kind": "attack",
+      "t_ms": 352.0
+    },
+    {
+      "detail": "Player -> Стальной Волк 40",
+      "frame": 24,
+      "kind": "mark_hit",
+      "t_ms": 352.0
+    },
+    {
+      "detail": "Player -> Стальной Волк 40",
+      "frame": 24,
+      "kind": "hit",
+      "t_ms": 352.0
+    },
+    {
+      "detail": "81 crit=false 0.1ms",
+      "frame": 24,
+      "kind": "mark_number",
+      "t_ms": 353.0
+    },
+    {
+      "detail": "81 crit=false 0.1ms",
+      "frame": 24,
+      "kind": "damage_number",
+      "t_ms": 353.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 24,
+      "kind": "mark_vfx",
+      "t_ms": 353.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 24,
+      "kind": "vfx",
+      "t_ms": 353.0
+    },
+    {
+      "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+      "frame": 24,
+      "kind": "sound",
+      "t_ms": 357.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 24,
+      "kind": "sound",
+      "t_ms": 357.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 24,
+      "kind": "sound_hit",
+      "t_ms": 357.0
+    },
+    {
+      "detail": "Стальной Волк 1050->969",
+      "frame": 24,
+      "kind": "damage",
+      "t_ms": 357.0
+    },
+    {
+      "detail": "Стальной Волк 29",
+      "frame": 31,
+      "kind": "mark_attack",
+      "t_ms": 456.0
+    },
+    {
+      "detail": "Стальной Волк 29",
+      "frame": 31,
+      "kind": "attack",
+      "t_ms": 456.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 29",
+      "frame": 31,
+      "kind": "mark_hit",
+      "t_ms": 456.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 29",
+      "frame": 31,
+      "kind": "hit",
+      "t_ms": 456.0
+    },
+    {
+      "detail": "58 crit=false 0.1ms",
+      "frame": 31,
+      "kind": "mark_number",
+      "t_ms": 456.0
+    },
+    {
+      "detail": "58 crit=false 0.1ms",
+      "frame": 31,
+      "kind": "damage_number",
+      "t_ms": 456.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.5ms",
+      "frame": 31,
+      "kind": "mark_vfx",
+      "t_ms": 456.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.5ms",
+      "frame": 31,
+      "kind": "vfx",
+      "t_ms": 456.0
+    },
+    {
+      "detail": "Даронес 1050->992",
+      "frame": 31,
+      "kind": "damage",
+      "t_ms": 473.0
+    },
+    {
+      "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+      "frame": 31,
+      "kind": "sound",
+      "t_ms": 473.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 31,
+      "kind": "sound",
+      "t_ms": 473.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 31,
+      "kind": "sound_hit",
+      "t_ms": 473.0
+    },
+    {
+      "detail": "Footsteps footstep_4.ogg",
+      "frame": 35,
+      "kind": "sound",
+      "t_ms": 540.0
+    },
+    {
+      "detail": "Стальной Волк 1",
+      "frame": 39,
+      "kind": "mark_ability",
+      "t_ms": 604.0
+    },
+    {
+      "detail": "Стальной Волк 1",
+      "frame": 39,
+      "kind": "cast",
+      "t_ms": 604.0
+    },
+    {
+      "detail": "vfx_impact_01.tscn 0.6ms",
+      "frame": 39,
+      "kind": "mark_vfx",
+      "t_ms": 605.0
+    },
+    {
+      "detail": "vfx_impact_01.tscn 0.6ms",
+      "frame": 39,
+      "kind": "vfx",
+      "t_ms": 605.0
+    },
+    {
+      "detail": "Footsteps footstep_4.ogg",
+      "frame": 58,
+      "kind": "sound",
+      "t_ms": 924.0
+    },
+    {
+      "detail": "Даронес 41",
+      "frame": 60,
+      "kind": "mark_attack",
+      "t_ms": 954.0
+    },
+    {
+      "detail": "Даронес 41",
+      "frame": 60,
+      "kind": "attack",
+      "t_ms": 954.0
+    },
+    {
+      "detail": "Player -> Стальной Волк 41",
+      "frame": 60,
+      "kind": "mark_hit",
+      "t_ms": 954.0
+    },
+    {
+      "detail": "Player -> Стальной Волк 41",
+      "frame": 60,
+      "kind": "hit",
+      "t_ms": 954.0
+    },
+    {
+      "detail": "82 crit=false 0.1ms",
+      "frame": 60,
+      "kind": "mark_number",
+      "t_ms": 954.0
+    },
+    {
+      "detail": "82 crit=false 0.1ms",
+      "frame": 60,
+      "kind": "damage_number",
+      "t_ms": 954.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 60,
+      "kind": "mark_vfx",
+      "t_ms": 955.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 60,
+      "kind": "vfx",
+      "t_ms": 955.0
+    },
+    {
+      "detail": "Стальной Волк 969->887",
+      "frame": 60,
+      "kind": "damage",
+      "t_ms": 960.0
+    },
+    {
+      "detail": "Стальной Волк 61",
+      "frame": 72,
+      "kind": "mark_attack",
+      "t_ms": 1154.0
+    },
+    {
+      "detail": "Стальной Волк 61",
+      "frame": 72,
+      "kind": "attack",
+      "t_ms": 1154.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 61",
+      "frame": 72,
+      "kind": "mark_hit",
+      "t_ms": 1154.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 61",
+      "frame": 72,
+      "kind": "hit",
+      "t_ms": 1154.0
+    },
+    {
+      "detail": "123 crit=true 0.0ms",
+      "frame": 72,
+      "kind": "mark_number",
+      "t_ms": 1155.0
+    },
+    {
+      "detail": "123 crit=true 0.0ms",
+      "frame": 72,
+      "kind": "damage_number",
+      "t_ms": 1155.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.5ms",
+      "frame": 72,
+      "kind": "mark_vfx",
+      "t_ms": 1155.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.5ms",
+      "frame": 72,
+      "kind": "vfx",
+      "t_ms": 1155.0
+    },
+    {
+      "detail": "Даронес 992->869",
+      "frame": 72,
+      "kind": "damage",
+      "t_ms": 1159.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 72,
+      "kind": "sound",
+      "t_ms": 1159.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 72,
+      "kind": "sound_hit",
+      "t_ms": 1159.0
+    },
+    {
+      "detail": "Стальной Волк 0",
+      "frame": 81,
+      "kind": "mark_ability",
+      "t_ms": 1305.0
+    },
+    {
+      "detail": "Стальной Волк 0",
+      "frame": 81,
+      "kind": "cast",
+      "t_ms": 1305.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 44",
+      "frame": 81,
+      "kind": "mark_hit",
+      "t_ms": 1305.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 44",
+      "frame": 81,
+      "kind": "hit",
+      "t_ms": 1305.0
+    },
+    {
+      "detail": "88 crit=false 0.0ms",
+      "frame": 81,
+      "kind": "mark_number",
+      "t_ms": 1305.0
+    },
+    {
+      "detail": "88 crit=false 0.0ms",
+      "frame": 81,
+      "kind": "damage_number",
+      "t_ms": 1305.0
+    },
+    {
+      "detail": "vfx_hit_02.tscn 0.6ms",
+      "frame": 81,
+      "kind": "mark_vfx",
+      "t_ms": 1306.0
+    },
+    {
+      "detail": "vfx_hit_02.tscn 0.6ms",
+      "frame": 81,
+      "kind": "vfx",
+      "t_ms": 1306.0
+    },
+    {
+      "detail": "Даронес 869->781",
+      "frame": 81,
+      "kind": "damage",
+      "t_ms": 1309.0
+    },
+    {
+      "detail": "Footsteps footstep_3.ogg",
+      "frame": 104,
+      "kind": "sound",
+      "t_ms": 1692.0
+    },
+    {
+      "detail": "Footsteps footstep_0.ogg",
+      "frame": 127,
+      "kind": "sound",
+      "t_ms": 2076.0
+    },
+    {
+      "detail": "Стальной Волк 41",
+      "frame": 128,
+      "kind": "mark_attack",
+      "t_ms": 2090.0
+    },
+    {
+      "detail": "Стальной Волк 41",
+      "frame": 128,
+      "kind": "attack",
+      "t_ms": 2090.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 41",
+      "frame": 128,
+      "kind": "mark_hit",
+      "t_ms": 2090.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 41",
+      "frame": 128,
+      "kind": "hit",
+      "t_ms": 2090.0
+    },
+    {
+      "detail": "83 crit=false 0.1ms",
+      "frame": 128,
+      "kind": "mark_number",
+      "t_ms": 2090.0
+    },
+    {
+      "detail": "83 crit=false 0.1ms",
+      "frame": 128,
+      "kind": "damage_number",
+      "t_ms": 2090.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.5ms",
+      "frame": 128,
+      "kind": "mark_vfx",
+      "t_ms": 2091.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.5ms",
+      "frame": 128,
+      "kind": "vfx",
+      "t_ms": 2091.0
+    },
+    {
+      "detail": "Даронес 781->698",
+      "frame": 128,
+      "kind": "damage",
+      "t_ms": 2094.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 128,
+      "kind": "sound",
+      "t_ms": 2094.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 128,
+      "kind": "sound_hit",
+      "t_ms": 2094.0
+    },
+    {
+      "detail": "Даронес 38",
+      "frame": 141,
+      "kind": "mark_attack",
+      "t_ms": 2306.0
+    },
+    {
+      "detail": "Даронес 38",
+      "frame": 141,
+      "kind": "attack",
+      "t_ms": 2306.0
+    },
+    {
+      "detail": "Player -> Стальной Волк 38",
+      "frame": 141,
+      "kind": "mark_hit",
+      "t_ms": 2306.0
+    },
+    {
+      "detail": "Player -> Стальной Волк 38",
+      "frame": 141,
+      "kind": "hit",
+      "t_ms": 2306.0
+    },
+    {
+      "detail": "76 crit=false 0.0ms",
+      "frame": 141,
+      "kind": "mark_number",
+      "t_ms": 2306.0
+    },
+    {
+      "detail": "76 crit=false 0.0ms",
+      "frame": 141,
+      "kind": "damage_number",
+      "t_ms": 2306.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.3ms",
+      "frame": 141,
+      "kind": "mark_vfx",
+      "t_ms": 2307.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.3ms",
+      "frame": 141,
+      "kind": "vfx",
+      "t_ms": 2307.0
+    },
+    {
+      "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+      "frame": 141,
+      "kind": "sound",
+      "t_ms": 2311.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 141,
+      "kind": "sound",
+      "t_ms": 2311.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 141,
+      "kind": "sound_hit",
+      "t_ms": 2311.0
+    },
+    {
+      "detail": "Стальной Волк 887->811",
+      "frame": 141,
+      "kind": "damage",
+      "t_ms": 2311.0
+    },
+    {
+      "detail": "Footsteps footstep_3.ogg",
+      "frame": 150,
+      "kind": "sound",
+      "t_ms": 2460.0
+    },
+    {
+      "detail": "Стальной Волк 66",
+      "frame": 170,
+      "kind": "mark_attack",
+      "t_ms": 2792.0
+    },
+    {
+      "detail": "Стальной Волк 66",
+      "frame": 170,
+      "kind": "attack",
+      "t_ms": 2792.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 66",
+      "frame": 170,
+      "kind": "mark_hit",
+      "t_ms": 2792.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 66",
+      "frame": 170,
+      "kind": "hit",
+      "t_ms": 2792.0
+    },
+    {
+      "detail": "131 crit=true 0.1ms",
+      "frame": 170,
+      "kind": "mark_number",
+      "t_ms": 2792.0
+    },
+    {
+      "detail": "131 crit=true 0.1ms",
+      "frame": 170,
+      "kind": "damage_number",
+      "t_ms": 2792.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.3ms",
+      "frame": 170,
+      "kind": "mark_vfx",
+      "t_ms": 2792.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.3ms",
+      "frame": 170,
+      "kind": "vfx",
+      "t_ms": 2792.0
+    },
+    {
+      "detail": "Даронес 698->567",
+      "frame": 170,
+      "kind": "damage",
+      "t_ms": 2796.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 170,
+      "kind": "sound",
+      "t_ms": 2796.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 170,
+      "kind": "sound_hit",
+      "t_ms": 2796.0
+    },
+    {
+      "detail": "Footsteps footstep_0.ogg",
+      "frame": 173,
+      "kind": "sound",
+      "t_ms": 2845.0
+    },
+    {
+      "detail": "Даронес 52",
+      "frame": 177,
+      "kind": "mark_attack",
+      "t_ms": 2908.0
+    },
+    {
+      "detail": "Даронес 52",
+      "frame": 177,
+      "kind": "attack",
+      "t_ms": 2908.0
+    },
+    {
+      "detail": "Player -> Стальной Волк 52",
+      "frame": 177,
+      "kind": "mark_hit",
+      "t_ms": 2908.0
+    },
+    {
+      "detail": "Player -> Стальной Волк 52",
+      "frame": 177,
+      "kind": "hit",
+      "t_ms": 2908.0
+    },
+    {
+      "detail": "104 crit=false 0.0ms",
+      "frame": 177,
+      "kind": "mark_number",
+      "t_ms": 2908.0
+    },
+    {
+      "detail": "104 crit=false 0.0ms",
+      "frame": 177,
+      "kind": "damage_number",
+      "t_ms": 2908.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.3ms",
+      "frame": 177,
+      "kind": "mark_vfx",
+      "t_ms": 2909.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.3ms",
+      "frame": 177,
+      "kind": "vfx",
+      "t_ms": 2909.0
+    },
+    {
+      "detail": "Стальной Волк 811->707",
+      "frame": 177,
+      "kind": "damage",
+      "t_ms": 2912.0
+    },
+    {
+      "detail": "Footsteps footstep_1.ogg",
+      "frame": 182,
+      "kind": "sound",
+      "t_ms": 2995.0
+    },
+    {
+      "detail": "Footsteps footstep_0.ogg",
+      "frame": 196,
+      "kind": "sound",
+      "t_ms": 3229.0
+    }
+  ],
+  "first": {
+    "attack": {
+      "detail": "Даронес 40",
+      "frame": 24,
+      "t_ms": 352.0
+    },
+    "cast": {
+      "detail": "Стальной Волк 1",
+      "frame": 39,
+      "t_ms": 604.0
+    },
+    "damage": {
+      "detail": "Стальной Волк 1050->969",
+      "frame": 24,
+      "t_ms": 357.0
+    },
+    "damage_number": {
+      "detail": "81 crit=false 0.1ms",
+      "frame": 24,
+      "t_ms": 353.0
+    },
+    "hit": {
+      "detail": "Player -> Стальной Волк 40",
+      "frame": 24,
+      "t_ms": 352.0
+    },
+    "mark_ability": {
+      "detail": "Стальной Волк 1",
+      "frame": 39,
+      "t_ms": 604.0
+    },
+    "mark_attack": {
+      "detail": "Даронес 40",
+      "frame": 24,
+      "t_ms": 352.0
+    },
+    "mark_hit": {
+      "detail": "Player -> Стальной Волк 40",
+      "frame": 24,
+      "t_ms": 352.0
+    },
+    "mark_number": {
+      "detail": "81 crit=false 0.1ms",
+      "frame": 24,
+      "t_ms": 353.0
+    },
+    "mark_sfx": {
+      "detail": "match_start 0.9ms",
+      "frame": 1,
+      "t_ms": -1.0
+    },
+    "mark_vfx": {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 24,
+      "t_ms": 353.0
+    },
+    "probe": {
+      "detail": "forced_clash",
+      "frame": 20,
+      "t_ms": 305.0
+    },
+    "sound": {
+      "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+      "frame": 1,
+      "t_ms": 2.0
+    },
+    "sound_hit": {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 24,
+      "t_ms": 357.0
+    },
+    "vfx": {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 24,
+      "t_ms": 353.0
+    }
+  },
+  "first_clash_max_ms": 20.62,
+  "first_clash_window": {
+    "avg_ms": 16.69,
+    "fps_avg": 59.9,
+    "frames": 90,
+    "max_ms": 20.62,
+    "over_16": 43,
+    "over_33": 0,
+    "over_50": 0,
+    "p50_ms": 16.62,
+    "p95_ms": 18.52,
+    "p99_ms": 20.62,
+    "process_max_ms": 2.69,
+    "render_max_ms": 18.0
+  },
+  "forced_cpu_ms": 0.04,
+  "forced_steps": [
+    {
+      "cpu_ms": 0.04,
+      "step": "clash"
+    },
+    {
+      "cpu_ms": 1.01,
+      "step": "enemy_attack"
+    }
+  ],
+  "forced_t_ms": 305.0,
+  "frames": {
+    "all": {
+      "avg_ms": 16.47,
+      "fps_avg": 60.7,
+      "frames": 201,
+      "max_ms": 20.62,
+      "over_16": 98,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 16.66,
+      "p95_ms": 18.46,
+      "p99_ms": 19.15,
+      "process_max_ms": 3.84,
+      "render_max_ms": 18.07
+    },
+    "clash_0_1500ms": {
+      "avg_ms": 16.69,
+      "fps_avg": 59.9,
+      "frames": 90,
+      "max_ms": 20.62,
+      "over_16": 43,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 16.62,
+      "p95_ms": 18.52,
+      "p99_ms": 20.62,
+      "process_max_ms": 2.69,
+      "render_max_ms": 18.0
+    },
+    "clash_0_200ms": {
+      "avg_ms": 16.67,
+      "fps_avg": 60.0,
+      "frames": 12,
+      "max_ms": 18.52,
+      "over_16": 6,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 16.51,
+      "p95_ms": 18.52,
+      "p99_ms": 18.52,
+      "process_max_ms": 1.46,
+      "render_max_ms": 17.14
+    },
+    "post_1500ms": {
+      "avg_ms": 16.7,
+      "fps_avg": 59.9,
+      "frames": 90,
+      "max_ms": 18.9,
+      "over_16": 47,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 16.7,
+      "p95_ms": 18.69,
+      "p99_ms": 18.9,
+      "process_max_ms": 3.84,
+      "render_max_ms": 18.07
+    },
+    "start_0_to_clash": {
+      "avg_ms": 14.54,
+      "fps_avg": 68.8,
+      "frames": 21,
+      "max_ms": 17.66,
+      "over_16": 8,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 16.55,
+      "p95_ms": 17.6,
+      "p99_ms": 17.66,
+      "process_max_ms": 2.8,
+      "render_max_ms": 17.03
+    }
+  },
+  "hero_spawns": [],
+  "load_main_ms": 216.2,
+  "mobile": false,
+  "novsync": false,
+  "pipeline_monitors": [
+    "canvas",
+    "mesh",
+    "surface",
+    "draw",
+    "specialization"
+  ],
+  "quality": "high",
+  "ready_ms": 682.3,
+  "renderer": "forward_plus",
+  "screenshot": "C:/myGames3D/three-skies/docs/qa-first-clash/first_clash_final-warm-desktop-high-vsync.png",
+  "spikes_16": [
+    {
+      "draws": 187,
+      "frame_ms": 17.601,
+      "near_events": [
+        {
+          "detail": "match_start 0.9ms",
+          "frame": 1,
+          "kind": "mark_sfx",
+          "t_ms": -1.0
+        },
+        {
+          "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+          "frame": 1,
+          "kind": "sound",
+          "t_ms": 2.0
+        }
+      ],
+      "nodes": 1338,
+      "perf_physics_ms": 1.31,
+      "perf_process_ms": 287.1,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        87
+      ],
+      "process_ms": 0.36,
+      "render_ms": 17.02,
+      "setup_ms": 0.12,
+      "t_ms": 21.0
+    },
+    {
+      "draws": 184,
+      "frame_ms": 16.694,
+      "near_events": [
+        {
+          "detail": "match_start 0.9ms",
+          "frame": 1,
+          "kind": "mark_sfx",
+          "t_ms": -1.0
+        },
+        {
+          "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+          "frame": 1,
+          "kind": "sound",
+          "t_ms": 2.0
+        }
+      ],
+      "nodes": 1337,
+      "perf_physics_ms": 1.31,
+      "perf_process_ms": 287.1,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        87
+      ],
+      "process_ms": 0.37,
+      "render_ms": 16.32,
+      "setup_ms": 0.1,
+      "t_ms": 121.0
+    },
+    {
+      "draws": 185,
+      "frame_ms": 16.819,
+      "near_events": [
+        {
+          "detail": "match_start 0.9ms",
+          "frame": 1,
+          "kind": "mark_sfx",
+          "t_ms": -1.0
+        },
+        {
+          "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+          "frame": 1,
+          "kind": "sound",
+          "t_ms": 2.0
+        }
+      ],
+      "nodes": 1337,
+      "perf_physics_ms": 1.31,
+      "perf_process_ms": 287.1,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        87
+      ],
+      "process_ms": 0.38,
+      "render_ms": 16.36,
+      "setup_ms": 0.14,
+      "t_ms": 137.0
+    },
+    {
+      "draws": 183,
+      "frame_ms": 17.658,
+      "near_events": [
+        {
+          "detail": "match_start 0.9ms",
+          "frame": 1,
+          "kind": "mark_sfx",
+          "t_ms": -1.0
+        },
+        {
+          "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+          "frame": 1,
+          "kind": "sound",
+          "t_ms": 2.0
+        }
+      ],
+      "nodes": 1337,
+      "perf_physics_ms": 1.31,
+      "perf_process_ms": 287.1,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        87
+      ],
+      "process_ms": 0.46,
+      "render_ms": 17.03,
+      "setup_ms": 0.11,
+      "t_ms": 154.0
+    },
+    {
+      "draws": 171,
+      "frame_ms": 16.687,
+      "near_events": [
+        {
+          "detail": "match_start 0.9ms",
+          "frame": 1,
+          "kind": "mark_sfx",
+          "t_ms": -1.0
+        },
+        {
+          "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+          "frame": 1,
+          "kind": "sound",
+          "t_ms": 2.0
+        }
+      ],
+      "nodes": 1337,
+      "perf_physics_ms": 1.31,
+      "perf_process_ms": 287.1,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        87
+      ],
+      "process_ms": 0.46,
+      "render_ms": 16.29,
+      "setup_ms": 0.11,
+      "t_ms": 221.0
+    },
+    {
+      "draws": 171,
+      "frame_ms": 16.673,
+      "near_events": [
+        {
+          "detail": "match_start 0.9ms",
+          "frame": 1,
+          "kind": "mark_sfx",
+          "t_ms": -1.0
+        },
+        {
+          "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+          "frame": 1,
+          "kind": "sound",
+          "t_ms": 2.0
+        }
+      ],
+      "nodes": 1337,
+      "perf_physics_ms": 1.31,
+      "perf_process_ms": 287.1,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        87
+      ],
+      "process_ms": 0.4,
+      "render_ms": 16.23,
+      "setup_ms": 0.16,
+      "t_ms": 238.0
+    },
+    {
+      "draws": 169,
+      "frame_ms": 16.912,
+      "near_events": [
+        {
+          "detail": "match_start 0.9ms",
+          "frame": 1,
+          "kind": "mark_sfx",
+          "t_ms": -1.0
+        },
+        {
+          "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+          "frame": 1,
+          "kind": "sound",
+          "t_ms": 2.0
+        },
+        {
+          "detail": "forced_clash",
+          "frame": 20,
+          "kind": "probe",
+          "t_ms": 305.0
+        }
+      ],
+      "nodes": 1337,
+      "perf_physics_ms": 1.31,
+      "perf_process_ms": 287.1,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        87
+      ],
+      "process_ms": 0.36,
+      "render_ms": 16.41,
+      "setup_ms": 0.11,
+      "t_ms": 271.0
+    },
+    {
+      "draws": 169,
+      "frame_ms": 17.346,
+      "near_events": [
+        {
+          "detail": "match_start 0.9ms",
+          "frame": 1,
+          "kind": "mark_sfx",
+          "t_ms": -1.0
+        },
+        {
+          "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+          "frame": 1,
+          "kind": "sound",
+          "t_ms": 2.0
+        },
+        {
+          "detail": "forced_clash",
+          "frame": 20,
+          "kind": "probe",
+          "t_ms": 305.0
+        }
+      ],
+      "nodes": 1337,
+      "perf_physics_ms": 1.31,
+      "perf_process_ms": 287.1,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        87
+      ],
+      "process_ms": 0.5,
+      "render_ms": 16.81,
+      "setup_ms": 0.14,
+      "t_ms": 288.0
+    },
+    {
+      "draws": 173,
+      "frame_ms": 17.009,
+      "near_events": [
+        {
+          "detail": "match_start 0.9ms",
+          "frame": 1,
+          "kind": "mark_sfx",
+          "t_ms": -1.0
+        },
+        {
+          "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+          "frame": 1,
+          "kind": "sound",
+          "t_ms": 2.0
+        },
+        {
+          "detail": "forced_clash",
+          "frame": 20,
+          "kind": "probe",
+          "t_ms": 305.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "mark_attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "mark_hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "mark_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "damage_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "mark_vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound_hit",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 1050->969",
+          "frame": 24,
+          "kind": "damage",
+          "t_ms": 357.0
+        }
+      ],
+      "nodes": 1337,
+      "perf_physics_ms": 1.31,
+      "perf_process_ms": 287.1,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        87
+      ],
+      "process_ms": 0.36,
+      "render_ms": 16.65,
+      "setup_ms": 0.15,
+      "t_ms": 321.0
+    },
+    {
+      "draws": 164,
+      "frame_ms": 18.521,
+      "near_events": [
+        {
+          "detail": "match_start 0.9ms",
+          "frame": 1,
+          "kind": "mark_sfx",
+          "t_ms": -1.0
+        },
+        {
+          "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+          "frame": 1,
+          "kind": "sound",
+          "t_ms": 2.0
+        },
+        {
+          "detail": "forced_clash",
+          "frame": 20,
+          "kind": "probe",
+          "t_ms": 305.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "mark_attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "mark_hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "mark_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "damage_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "mark_vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound_hit",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 1050->969",
+          "frame": 24,
+          "kind": "damage",
+          "t_ms": 357.0
+        }
+      ],
+      "nodes": 1337,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        87
+      ],
+      "process_ms": 0.36,
+      "render_ms": 17.14,
+      "setup_ms": 0.1,
+      "t_ms": 338.0
+    },
+    {
+      "draws": 187,
+      "frame_ms": 17.194,
+      "near_events": [
+        {
+          "detail": "match_start 0.9ms",
+          "frame": 1,
+          "kind": "mark_sfx",
+          "t_ms": -1.0
+        },
+        {
+          "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+          "frame": 1,
+          "kind": "sound",
+          "t_ms": 2.0
+        },
+        {
+          "detail": "forced_clash",
+          "frame": 20,
+          "kind": "probe",
+          "t_ms": 305.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "mark_attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "mark_hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "mark_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "damage_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "mark_vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound_hit",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 1050->969",
+          "frame": 24,
+          "kind": "damage",
+          "t_ms": 357.0
+        }
+      ],
+      "nodes": 1317,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        87
+      ],
+      "process_ms": 0.48,
+      "render_ms": 16.02,
+      "setup_ms": 0.17,
+      "t_ms": 372.0
+    },
+    {
+      "draws": 174,
+      "frame_ms": 17.015,
+      "near_events": [
+        {
+          "detail": "forced_clash",
+          "frame": 20,
+          "kind": "probe",
+          "t_ms": 305.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "mark_attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "mark_hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "mark_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "damage_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "mark_vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound_hit",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 1050->969",
+          "frame": 24,
+          "kind": "damage",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "mark_attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "mark_hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "mark_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "damage_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "mark_vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Даронес 1050->992",
+          "frame": 31,
+          "kind": "damage",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound_hit",
+          "t_ms": 473.0
+        }
+      ],
+      "nodes": 1317,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        87
+      ],
+      "process_ms": 0.39,
+      "render_ms": 16.56,
+      "setup_ms": 0.17,
+      "t_ms": 438.0
+    },
+    {
+      "draws": 180,
+      "frame_ms": 18.019,
+      "near_events": [
+        {
+          "detail": "forced_clash",
+          "frame": 20,
+          "kind": "probe",
+          "t_ms": 305.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "mark_attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "mark_hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "mark_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "damage_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "mark_vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound_hit",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 1050->969",
+          "frame": 24,
+          "kind": "damage",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "mark_attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "mark_hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "mark_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "damage_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "mark_vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Даронес 1050->992",
+          "frame": 31,
+          "kind": "damage",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound_hit",
+          "t_ms": 473.0
+        }
+      ],
+      "nodes": 1317,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        87
+      ],
+      "process_ms": 0.45,
+      "render_ms": 16.56,
+      "setup_ms": 0.26,
+      "t_ms": 455.0
+    },
+    {
+      "draws": 183,
+      "frame_ms": 16.893,
+      "near_events": [
+        {
+          "detail": "forced_clash",
+          "frame": 20,
+          "kind": "probe",
+          "t_ms": 305.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "mark_attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "mark_hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "mark_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "damage_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "mark_vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound_hit",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 1050->969",
+          "frame": 24,
+          "kind": "damage",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "mark_attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "mark_hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "mark_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "damage_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "mark_vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Даронес 1050->992",
+          "frame": 31,
+          "kind": "damage",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound_hit",
+          "t_ms": 473.0
+        }
+      ],
+      "nodes": 1326,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        87
+      ],
+      "process_ms": 0.43,
+      "render_ms": 16.42,
+      "setup_ms": 0.18,
+      "t_ms": 488.0
+    },
+    {
+      "draws": 183,
+      "frame_ms": 17.954,
+      "near_events": [
+        {
+          "detail": "forced_clash",
+          "frame": 20,
+          "kind": "probe",
+          "t_ms": 305.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "mark_attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "mark_hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "mark_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "damage_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "mark_vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound_hit",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 1050->969",
+          "frame": 24,
+          "kind": "damage",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "mark_attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "mark_hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "mark_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "damage_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "mark_vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Даронес 1050->992",
+          "frame": 31,
+          "kind": "damage",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound_hit",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 35,
+          "kind": "sound",
+          "t_ms": 540.0
+        }
+      ],
+      "nodes": 1326,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        87
+      ],
+      "process_ms": 0.45,
+      "render_ms": 17.48,
+      "setup_ms": 0.24,
+      "t_ms": 522.0
+    },
+    {
+      "draws": 186,
+      "frame_ms": 16.682,
+      "near_events": [
+        {
+          "detail": "forced_clash",
+          "frame": 20,
+          "kind": "probe",
+          "t_ms": 305.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "mark_attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "mark_hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "mark_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "damage_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "mark_vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound_hit",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 1050->969",
+          "frame": 24,
+          "kind": "damage",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "mark_attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "mark_hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "mark_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "damage_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "mark_vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Даронес 1050->992",
+          "frame": 31,
+          "kind": "damage",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound_hit",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 35,
+          "kind": "sound",
+          "t_ms": 540.0
+        }
+      ],
+      "nodes": 1326,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        87
+      ],
+      "process_ms": 0.49,
+      "render_ms": 16.25,
+      "setup_ms": 0.23,
+      "t_ms": 555.0
+    },
+    {
+      "draws": 185,
+      "frame_ms": 16.736,
+      "near_events": [
+        {
+          "detail": "forced_clash",
+          "frame": 20,
+          "kind": "probe",
+          "t_ms": 305.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "mark_attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "mark_hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "mark_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "damage_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "mark_vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound_hit",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 1050->969",
+          "frame": 24,
+          "kind": "damage",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "mark_attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "mark_hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "mark_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "damage_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "mark_vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Даронес 1050->992",
+          "frame": 31,
+          "kind": "damage",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound_hit",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 35,
+          "kind": "sound",
+          "t_ms": 540.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "mark_ability",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "cast",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "mark_vfx",
+          "t_ms": 605.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "vfx",
+          "t_ms": 605.0
+        }
+      ],
+      "nodes": 1326,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        87
+      ],
+      "process_ms": 0.44,
+      "render_ms": 16.23,
+      "setup_ms": 0.17,
+      "t_ms": 572.0
+    },
+    {
+      "draws": 184,
+      "frame_ms": 20.392,
+      "near_events": [
+        {
+          "detail": "forced_clash",
+          "frame": 20,
+          "kind": "probe",
+          "t_ms": 305.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "mark_attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "mark_hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "mark_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "damage_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "mark_vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound_hit",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 1050->969",
+          "frame": 24,
+          "kind": "damage",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "mark_attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "mark_hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "mark_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "damage_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "mark_vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Даронес 1050->992",
+          "frame": 31,
+          "kind": "damage",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound_hit",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 35,
+          "kind": "sound",
+          "t_ms": 540.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "mark_ability",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "cast",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "mark_vfx",
+          "t_ms": 605.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "vfx",
+          "t_ms": 605.0
+        }
+      ],
+      "nodes": 1326,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        87
+      ],
+      "process_ms": 0.5,
+      "render_ms": 18.0,
+      "setup_ms": 0.17,
+      "t_ms": 589.0
+    },
+    {
+      "draws": 188,
+      "frame_ms": 16.792,
+      "near_events": [
+        {
+          "detail": "forced_clash",
+          "frame": 20,
+          "kind": "probe",
+          "t_ms": 305.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "mark_attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "mark_hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "mark_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "damage_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "mark_vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound_hit",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 1050->969",
+          "frame": 24,
+          "kind": "damage",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "mark_attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "mark_hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "mark_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "damage_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "mark_vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Даронес 1050->992",
+          "frame": 31,
+          "kind": "damage",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound_hit",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 35,
+          "kind": "sound",
+          "t_ms": 540.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "mark_ability",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "cast",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "mark_vfx",
+          "t_ms": 605.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "vfx",
+          "t_ms": 605.0
+        }
+      ],
+      "nodes": 1338,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.55,
+      "render_ms": 16.27,
+      "setup_ms": 0.21,
+      "t_ms": 656.0
+    },
+    {
+      "draws": 187,
+      "frame_ms": 17.082,
+      "near_events": [
+        {
+          "detail": "forced_clash",
+          "frame": 20,
+          "kind": "probe",
+          "t_ms": 305.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "mark_attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "mark_hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "mark_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "damage_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "mark_vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound_hit",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 1050->969",
+          "frame": 24,
+          "kind": "damage",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "mark_attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "mark_hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "mark_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "damage_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "mark_vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Даронес 1050->992",
+          "frame": 31,
+          "kind": "damage",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound_hit",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 35,
+          "kind": "sound",
+          "t_ms": 540.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "mark_ability",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "cast",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "mark_vfx",
+          "t_ms": 605.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "vfx",
+          "t_ms": 605.0
+        }
+      ],
+      "nodes": 1338,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.53,
+      "render_ms": 16.31,
+      "setup_ms": 0.27,
+      "t_ms": 673.0
+    },
+    {
+      "draws": 171,
+      "frame_ms": 16.807,
+      "near_events": [
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "mark_attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "mark_hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "mark_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "damage_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "mark_vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound_hit",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 1050->969",
+          "frame": 24,
+          "kind": "damage",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "mark_attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "mark_hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "mark_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "damage_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "mark_vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Даронес 1050->992",
+          "frame": 31,
+          "kind": "damage",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound_hit",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 35,
+          "kind": "sound",
+          "t_ms": 540.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "mark_ability",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "cast",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "mark_vfx",
+          "t_ms": 605.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "vfx",
+          "t_ms": 605.0
+        }
+      ],
+      "nodes": 1338,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.56,
+      "render_ms": 16.36,
+      "setup_ms": 0.22,
+      "t_ms": 722.0
+    },
+    {
+      "draws": 170,
+      "frame_ms": 16.882,
+      "near_events": [
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "mark_attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Даронес 40",
+          "frame": 24,
+          "kind": "attack",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "mark_hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 40",
+          "frame": 24,
+          "kind": "hit",
+          "t_ms": 352.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "mark_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "81 crit=false 0.1ms",
+          "frame": 24,
+          "kind": "damage_number",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "mark_vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 24,
+          "kind": "vfx",
+          "t_ms": 353.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound_hit",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 1050->969",
+          "frame": 24,
+          "kind": "damage",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "mark_attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "mark_hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "mark_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "damage_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "mark_vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Даронес 1050->992",
+          "frame": 31,
+          "kind": "damage",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound_hit",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 35,
+          "kind": "sound",
+          "t_ms": 540.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "mark_ability",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "cast",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "mark_vfx",
+          "t_ms": 605.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "vfx",
+          "t_ms": 605.0
+        }
+      ],
+      "nodes": 1338,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.45,
+      "render_ms": 16.31,
+      "setup_ms": 0.18,
+      "t_ms": 739.0
+    },
+    {
+      "draws": 169,
+      "frame_ms": 17.15,
+      "near_events": [
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 24,
+          "kind": "sound_hit",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 1050->969",
+          "frame": 24,
+          "kind": "damage",
+          "t_ms": 357.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "mark_attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "mark_hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "mark_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "damage_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "mark_vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Даронес 1050->992",
+          "frame": 31,
+          "kind": "damage",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound_hit",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 35,
+          "kind": "sound",
+          "t_ms": 540.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "mark_ability",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "cast",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "mark_vfx",
+          "t_ms": 605.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "vfx",
+          "t_ms": 605.0
+        }
+      ],
+      "nodes": 1338,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.57,
+      "render_ms": 16.65,
+      "setup_ms": 0.27,
+      "t_ms": 756.0
+    },
+    {
+      "draws": 172,
+      "frame_ms": 16.922,
+      "near_events": [
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "mark_attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "mark_hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "mark_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "damage_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "mark_vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Даронес 1050->992",
+          "frame": 31,
+          "kind": "damage",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound_hit",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 35,
+          "kind": "sound",
+          "t_ms": 540.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "mark_ability",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "cast",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "mark_vfx",
+          "t_ms": 605.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "vfx",
+          "t_ms": 605.0
+        }
+      ],
+      "nodes": 1338,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.51,
+      "render_ms": 16.47,
+      "setup_ms": 0.19,
+      "t_ms": 789.0
+    },
+    {
+      "draws": 177,
+      "frame_ms": 16.877,
+      "near_events": [
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "mark_attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Стальной Волк 29",
+          "frame": 31,
+          "kind": "attack",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "mark_hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 29",
+          "frame": 31,
+          "kind": "hit",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "mark_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "58 crit=false 0.1ms",
+          "frame": 31,
+          "kind": "damage_number",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "mark_vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 31,
+          "kind": "vfx",
+          "t_ms": 456.0
+        },
+        {
+          "detail": "Даронес 1050->992",
+          "frame": 31,
+          "kind": "damage",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 31,
+          "kind": "sound_hit",
+          "t_ms": 473.0
+        },
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 35,
+          "kind": "sound",
+          "t_ms": 540.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "mark_ability",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "cast",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "mark_vfx",
+          "t_ms": 605.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "vfx",
+          "t_ms": 605.0
+        }
+      ],
+      "nodes": 1338,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.43,
+      "render_ms": 16.38,
+      "setup_ms": 0.18,
+      "t_ms": 839.0
+    },
+    {
+      "draws": 185,
+      "frame_ms": 16.806,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 35,
+          "kind": "sound",
+          "t_ms": 540.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "mark_ability",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "cast",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "mark_vfx",
+          "t_ms": 605.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "vfx",
+          "t_ms": 605.0
+        },
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 58,
+          "kind": "sound",
+          "t_ms": 924.0
+        }
+      ],
+      "nodes": 1338,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.46,
+      "render_ms": 16.35,
+      "setup_ms": 0.27,
+      "t_ms": 889.0
+    },
+    {
+      "draws": 185,
+      "frame_ms": 18.43,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 35,
+          "kind": "sound",
+          "t_ms": 540.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "mark_ability",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "cast",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "mark_vfx",
+          "t_ms": 605.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "vfx",
+          "t_ms": 605.0
+        },
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 58,
+          "kind": "sound",
+          "t_ms": 924.0
+        }
+      ],
+      "nodes": 1338,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.45,
+      "render_ms": 17.89,
+      "setup_ms": 0.23,
+      "t_ms": 906.0
+    },
+    {
+      "draws": 185,
+      "frame_ms": 20.617,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 35,
+          "kind": "sound",
+          "t_ms": 540.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "mark_ability",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "cast",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "mark_vfx",
+          "t_ms": 605.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "vfx",
+          "t_ms": 605.0
+        },
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 58,
+          "kind": "sound",
+          "t_ms": 924.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "mark_attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "mark_hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "mark_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "damage_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "mark_vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "Стальной Волк 969->887",
+          "frame": 60,
+          "kind": "damage",
+          "t_ms": 960.0
+        }
+      ],
+      "nodes": 1338,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.47,
+      "render_ms": 17.92,
+      "setup_ms": 0.2,
+      "t_ms": 939.0
+    },
+    {
+      "draws": 191,
+      "frame_ms": 16.743,
+      "near_events": [
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "mark_ability",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "Стальной Волк 1",
+          "frame": 39,
+          "kind": "cast",
+          "t_ms": 604.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "mark_vfx",
+          "t_ms": 605.0
+        },
+        {
+          "detail": "vfx_impact_01.tscn 0.6ms",
+          "frame": 39,
+          "kind": "vfx",
+          "t_ms": 605.0
+        },
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 58,
+          "kind": "sound",
+          "t_ms": 924.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "mark_attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "mark_hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "mark_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "damage_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "mark_vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "Стальной Волк 969->887",
+          "frame": 60,
+          "kind": "damage",
+          "t_ms": 960.0
+        }
+      ],
+      "nodes": 1348,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.51,
+      "render_ms": 16.29,
+      "setup_ms": 0.2,
+      "t_ms": 990.0
+    },
+    {
+      "draws": 190,
+      "frame_ms": 17.554,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 58,
+          "kind": "sound",
+          "t_ms": 924.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "mark_attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "mark_hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "mark_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "damage_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "mark_vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "Стальной Волк 969->887",
+          "frame": 60,
+          "kind": "damage",
+          "t_ms": 960.0
+        }
+      ],
+      "nodes": 1348,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.45,
+      "render_ms": 16.98,
+      "setup_ms": 0.26,
+      "t_ms": 1006.0
+    },
+    {
+      "draws": 190,
+      "frame_ms": 17.188,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 58,
+          "kind": "sound",
+          "t_ms": 924.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "mark_attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "mark_hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "mark_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "damage_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "mark_vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "Стальной Волк 969->887",
+          "frame": 60,
+          "kind": "damage",
+          "t_ms": 960.0
+        }
+      ],
+      "nodes": 1348,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.45,
+      "render_ms": 16.67,
+      "setup_ms": 0.21,
+      "t_ms": 1040.0
+    },
+    {
+      "draws": 190,
+      "frame_ms": 16.69,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 58,
+          "kind": "sound",
+          "t_ms": 924.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "mark_attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "mark_hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "mark_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "damage_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "mark_vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "Стальной Волк 969->887",
+          "frame": 60,
+          "kind": "damage",
+          "t_ms": 960.0
+        }
+      ],
+      "nodes": 1348,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.54,
+      "render_ms": 16.08,
+      "setup_ms": 0.29,
+      "t_ms": 1073.0
+    },
+    {
+      "draws": 190,
+      "frame_ms": 16.849,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 58,
+          "kind": "sound",
+          "t_ms": 924.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "mark_attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "mark_hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "mark_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "damage_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "mark_vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "Стальной Волк 969->887",
+          "frame": 60,
+          "kind": "damage",
+          "t_ms": 960.0
+        }
+      ],
+      "nodes": 1348,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.62,
+      "render_ms": 16.24,
+      "setup_ms": 0.3,
+      "t_ms": 1090.0
+    },
+    {
+      "draws": 186,
+      "frame_ms": 18.935,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 58,
+          "kind": "sound",
+          "t_ms": 924.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "mark_attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "mark_hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "mark_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "damage_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "mark_vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "Стальной Волк 969->887",
+          "frame": 60,
+          "kind": "damage",
+          "t_ms": 960.0
+        },
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "mark_attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "mark_hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "mark_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "damage_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "mark_vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "Даронес 992->869",
+          "frame": 72,
+          "kind": "damage",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound_hit",
+          "t_ms": 1159.0
+        }
+      ],
+      "nodes": 1348,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.45,
+      "render_ms": 17.54,
+      "setup_ms": 0.19,
+      "t_ms": 1140.0
+    },
+    {
+      "draws": 192,
+      "frame_ms": 17.618,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 58,
+          "kind": "sound",
+          "t_ms": 924.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "mark_attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "mark_hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "mark_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "damage_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "mark_vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "Стальной Волк 969->887",
+          "frame": 60,
+          "kind": "damage",
+          "t_ms": 960.0
+        },
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "mark_attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "mark_hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "mark_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "damage_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "mark_vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "Даронес 992->869",
+          "frame": 72,
+          "kind": "damage",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound_hit",
+          "t_ms": 1159.0
+        }
+      ],
+      "nodes": 1356,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.43,
+      "render_ms": 16.22,
+      "setup_ms": 0.21,
+      "t_ms": 1207.0
+    },
+    {
+      "draws": 192,
+      "frame_ms": 17.496,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 58,
+          "kind": "sound",
+          "t_ms": 924.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "mark_attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "mark_hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "mark_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "damage_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "mark_vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "Стальной Волк 969->887",
+          "frame": 60,
+          "kind": "damage",
+          "t_ms": 960.0
+        },
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "mark_attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "mark_hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "mark_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "damage_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "mark_vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "Даронес 992->869",
+          "frame": 72,
+          "kind": "damage",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound_hit",
+          "t_ms": 1159.0
+        }
+      ],
+      "nodes": 1356,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.54,
+      "render_ms": 17.02,
+      "setup_ms": 0.21,
+      "t_ms": 1240.0
+    },
+    {
+      "draws": 191,
+      "frame_ms": 19.149,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_4.ogg",
+          "frame": 58,
+          "kind": "sound",
+          "t_ms": 924.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "mark_attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "mark_hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "mark_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "damage_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "mark_vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "Стальной Волк 969->887",
+          "frame": 60,
+          "kind": "damage",
+          "t_ms": 960.0
+        },
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "mark_attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "mark_hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "mark_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "damage_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "mark_vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "Даронес 992->869",
+          "frame": 72,
+          "kind": "damage",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound_hit",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "mark_ability",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "cast",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "mark_hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "mark_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "damage_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "mark_vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "Даронес 869->781",
+          "frame": 81,
+          "kind": "damage",
+          "t_ms": 1309.0
+        }
+      ],
+      "nodes": 1356,
+      "perf_physics_ms": 1.64,
+      "perf_process_ms": 59.19,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.53,
+      "render_ms": 17.61,
+      "setup_ms": 0.2,
+      "t_ms": 1290.0
+    },
+    {
+      "draws": 207,
+      "frame_ms": 17.145,
+      "near_events": [
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "mark_attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Даронес 41",
+          "frame": 60,
+          "kind": "attack",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "mark_hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "Player -> Стальной Волк 41",
+          "frame": 60,
+          "kind": "hit",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "mark_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "82 crit=false 0.1ms",
+          "frame": 60,
+          "kind": "damage_number",
+          "t_ms": 954.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "mark_vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.6ms",
+          "frame": 60,
+          "kind": "vfx",
+          "t_ms": 955.0
+        },
+        {
+          "detail": "Стальной Волк 969->887",
+          "frame": 60,
+          "kind": "damage",
+          "t_ms": 960.0
+        },
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "mark_attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "mark_hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "mark_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "damage_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "mark_vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "Даронес 992->869",
+          "frame": 72,
+          "kind": "damage",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound_hit",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "mark_ability",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "cast",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "mark_hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "mark_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "damage_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "mark_vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "Даронес 869->781",
+          "frame": 81,
+          "kind": "damage",
+          "t_ms": 1309.0
+        }
+      ],
+      "nodes": 1364,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.55,
+      "render_ms": 16.67,
+      "setup_ms": 0.23,
+      "t_ms": 1340.0
+    },
+    {
+      "draws": 206,
+      "frame_ms": 16.82,
+      "near_events": [
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "mark_attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "mark_hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "mark_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "damage_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "mark_vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "Даронес 992->869",
+          "frame": 72,
+          "kind": "damage",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound_hit",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "mark_ability",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "cast",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "mark_hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "mark_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "damage_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "mark_vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "Даронес 869->781",
+          "frame": 81,
+          "kind": "damage",
+          "t_ms": 1309.0
+        }
+      ],
+      "nodes": 1364,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.55,
+      "render_ms": 16.29,
+      "setup_ms": 0.34,
+      "t_ms": 1374.0
+    },
+    {
+      "draws": 205,
+      "frame_ms": 16.948,
+      "near_events": [
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "mark_attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "mark_hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "mark_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "damage_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "mark_vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "Даронес 992->869",
+          "frame": 72,
+          "kind": "damage",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound_hit",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "mark_ability",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "cast",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "mark_hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "mark_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "damage_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "mark_vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "Даронес 869->781",
+          "frame": 81,
+          "kind": "damage",
+          "t_ms": 1309.0
+        }
+      ],
+      "nodes": 1364,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.47,
+      "render_ms": 16.4,
+      "setup_ms": 0.24,
+      "t_ms": 1424.0
+    },
+    {
+      "draws": 204,
+      "frame_ms": 17.066,
+      "near_events": [
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "mark_attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "mark_hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "mark_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "damage_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "mark_vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "Даронес 992->869",
+          "frame": 72,
+          "kind": "damage",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound_hit",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "mark_ability",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "cast",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "mark_hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "mark_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "damage_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "mark_vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "Даронес 869->781",
+          "frame": 81,
+          "kind": "damage",
+          "t_ms": 1309.0
+        }
+      ],
+      "nodes": 1364,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.55,
+      "render_ms": 16.51,
+      "setup_ms": 0.35,
+      "t_ms": 1457.0
+    },
+    {
+      "draws": 202,
+      "frame_ms": 16.828,
+      "near_events": [
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "mark_attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "mark_hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "mark_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "damage_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "mark_vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "Даронес 992->869",
+          "frame": 72,
+          "kind": "damage",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound_hit",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "mark_ability",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "cast",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "mark_hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "mark_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "damage_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "mark_vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "Даронес 869->781",
+          "frame": 81,
+          "kind": "damage",
+          "t_ms": 1309.0
+        }
+      ],
+      "nodes": 1364,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.56,
+      "render_ms": 16.04,
+      "setup_ms": 0.28,
+      "t_ms": 1474.0
+    },
+    {
+      "draws": 202,
+      "frame_ms": 17.322,
+      "near_events": [
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "mark_attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "mark_hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "mark_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "damage_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "mark_vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "Даронес 992->869",
+          "frame": 72,
+          "kind": "damage",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound_hit",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "mark_ability",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "cast",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "mark_hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "mark_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "damage_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "mark_vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "Даронес 869->781",
+          "frame": 81,
+          "kind": "damage",
+          "t_ms": 1309.0
+        }
+      ],
+      "nodes": 1364,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.79,
+      "render_ms": 15.77,
+      "setup_ms": 0.29,
+      "t_ms": 1491.0
+    },
+    {
+      "draws": 201,
+      "frame_ms": 16.922,
+      "near_events": [
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "mark_attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Стальной Волк 61",
+          "frame": 72,
+          "kind": "attack",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "mark_hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 61",
+          "frame": 72,
+          "kind": "hit",
+          "t_ms": 1154.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "mark_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "123 crit=true 0.0ms",
+          "frame": 72,
+          "kind": "damage_number",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "mark_vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 72,
+          "kind": "vfx",
+          "t_ms": 1155.0
+        },
+        {
+          "detail": "Даронес 992->869",
+          "frame": 72,
+          "kind": "damage",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 72,
+          "kind": "sound_hit",
+          "t_ms": 1159.0
+        },
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "mark_ability",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "cast",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "mark_hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "mark_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "damage_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "mark_vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "Даронес 869->781",
+          "frame": 81,
+          "kind": "damage",
+          "t_ms": 1309.0
+        }
+      ],
+      "nodes": 1364,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.56,
+      "render_ms": 16.25,
+      "setup_ms": 0.28,
+      "t_ms": 1541.0
+    },
+    {
+      "draws": 201,
+      "frame_ms": 16.696,
+      "near_events": [
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "mark_ability",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "cast",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "mark_hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "mark_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "damage_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "mark_vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "Даронес 869->781",
+          "frame": 81,
+          "kind": "damage",
+          "t_ms": 1309.0
+        }
+      ],
+      "nodes": 1364,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.55,
+      "render_ms": 16.15,
+      "setup_ms": 0.24,
+      "t_ms": 1574.0
+    },
+    {
+      "draws": 198,
+      "frame_ms": 17.711,
+      "near_events": [
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "mark_ability",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "cast",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "mark_hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "mark_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "damage_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "mark_vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "Даронес 869->781",
+          "frame": 81,
+          "kind": "damage",
+          "t_ms": 1309.0
+        }
+      ],
+      "nodes": 1364,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.55,
+      "render_ms": 16.3,
+      "setup_ms": 0.27,
+      "t_ms": 1591.0
+    },
+    {
+      "draws": 192,
+      "frame_ms": 17.455,
+      "near_events": [
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "mark_ability",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "cast",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "mark_hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "mark_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "damage_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "mark_vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "Даронес 869->781",
+          "frame": 81,
+          "kind": "damage",
+          "t_ms": 1309.0
+        },
+        {
+          "detail": "Footsteps footstep_3.ogg",
+          "frame": 104,
+          "kind": "sound",
+          "t_ms": 1692.0
+        }
+      ],
+      "nodes": 1364,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.52,
+      "render_ms": 16.84,
+      "setup_ms": 0.22,
+      "t_ms": 1657.0
+    },
+    {
+      "draws": 192,
+      "frame_ms": 17.595,
+      "near_events": [
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "mark_ability",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Стальной Волк 0",
+          "frame": 81,
+          "kind": "cast",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "mark_hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 44",
+          "frame": 81,
+          "kind": "hit",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "mark_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "88 crit=false 0.0ms",
+          "frame": 81,
+          "kind": "damage_number",
+          "t_ms": 1305.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "mark_vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "vfx_hit_02.tscn 0.6ms",
+          "frame": 81,
+          "kind": "vfx",
+          "t_ms": 1306.0
+        },
+        {
+          "detail": "Даронес 869->781",
+          "frame": 81,
+          "kind": "damage",
+          "t_ms": 1309.0
+        },
+        {
+          "detail": "Footsteps footstep_3.ogg",
+          "frame": 104,
+          "kind": "sound",
+          "t_ms": 1692.0
+        }
+      ],
+      "nodes": 1364,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.61,
+      "render_ms": 17.03,
+      "setup_ms": 0.29,
+      "t_ms": 1675.0
+    },
+    {
+      "draws": 192,
+      "frame_ms": 17.206,
+      "near_events": [
+        {
+          "detail": "Даронес 869->781",
+          "frame": 81,
+          "kind": "damage",
+          "t_ms": 1309.0
+        },
+        {
+          "detail": "Footsteps footstep_3.ogg",
+          "frame": 104,
+          "kind": "sound",
+          "t_ms": 1692.0
+        }
+      ],
+      "nodes": 1364,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.5,
+      "render_ms": 16.35,
+      "setup_ms": 0.25,
+      "t_ms": 1708.0
+    },
+    {
+      "draws": 192,
+      "frame_ms": 16.863,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_3.ogg",
+          "frame": 104,
+          "kind": "sound",
+          "t_ms": 1692.0
+        }
+      ],
+      "nodes": 1364,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.85,
+      "render_ms": 16.24,
+      "setup_ms": 0.3,
+      "t_ms": 1725.0
+    },
+    {
+      "draws": 189,
+      "frame_ms": 16.967,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_3.ogg",
+          "frame": 104,
+          "kind": "sound",
+          "t_ms": 1692.0
+        }
+      ],
+      "nodes": 1364,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.57,
+      "render_ms": 16.48,
+      "setup_ms": 0.23,
+      "t_ms": 1774.0
+    },
+    {
+      "draws": 187,
+      "frame_ms": 17.874,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_3.ogg",
+          "frame": 104,
+          "kind": "sound",
+          "t_ms": 1692.0
+        }
+      ],
+      "nodes": 1364,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.47,
+      "render_ms": 16.47,
+      "setup_ms": 0.23,
+      "t_ms": 1808.0
+    },
+    {
+      "draws": 187,
+      "frame_ms": 17.097,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_3.ogg",
+          "frame": 104,
+          "kind": "sound",
+          "t_ms": 1692.0
+        }
+      ],
+      "nodes": 1364,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.65,
+      "render_ms": 16.57,
+      "setup_ms": 0.26,
+      "t_ms": 1841.0
+    },
+    {
+      "draws": 185,
+      "frame_ms": 16.947,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_3.ogg",
+          "frame": 104,
+          "kind": "sound",
+          "t_ms": 1692.0
+        }
+      ],
+      "nodes": 1364,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.48,
+      "render_ms": 16.47,
+      "setup_ms": 0.18,
+      "t_ms": 1891.0
+    },
+    {
+      "draws": 185,
+      "frame_ms": 16.926,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_3.ogg",
+          "frame": 104,
+          "kind": "sound",
+          "t_ms": 1692.0
+        }
+      ],
+      "nodes": 1364,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.46,
+      "render_ms": 16.5,
+      "setup_ms": 0.2,
+      "t_ms": 1925.0
+    },
+    {
+      "draws": 185,
+      "frame_ms": 16.771,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_3.ogg",
+          "frame": 104,
+          "kind": "sound",
+          "t_ms": 1692.0
+        }
+      ],
+      "nodes": 1364,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.42,
+      "render_ms": 16.22,
+      "setup_ms": 0.2,
+      "t_ms": 1941.0
+    },
+    {
+      "draws": 184,
+      "frame_ms": 16.739,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_3.ogg",
+          "frame": 104,
+          "kind": "sound",
+          "t_ms": 1692.0
+        }
+      ],
+      "nodes": 1365,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.56,
+      "render_ms": 16.23,
+      "setup_ms": 0.18,
+      "t_ms": 1958.0
+    },
+    {
+      "draws": 182,
+      "frame_ms": 16.813,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_3.ogg",
+          "frame": 104,
+          "kind": "sound",
+          "t_ms": 1692.0
+        }
+      ],
+      "nodes": 1365,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.44,
+      "render_ms": 16.3,
+      "setup_ms": 0.13,
+      "t_ms": 2025.0
+    },
+    {
+      "draws": 182,
+      "frame_ms": 17.204,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_3.ogg",
+          "frame": 104,
+          "kind": "sound",
+          "t_ms": 1692.0
+        },
+        {
+          "detail": "Footsteps footstep_0.ogg",
+          "frame": 127,
+          "kind": "sound",
+          "t_ms": 2076.0
+        }
+      ],
+      "nodes": 1365,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.52,
+      "render_ms": 16.61,
+      "setup_ms": 0.15,
+      "t_ms": 2041.0
+    },
+    {
+      "draws": 182,
+      "frame_ms": 17.728,
+      "near_events": [
+        {
+          "detail": "Footsteps footstep_3.ogg",
+          "frame": 104,
+          "kind": "sound",
+          "t_ms": 1692.0
+        },
+        {
+          "detail": "Footsteps footstep_0.ogg",
+          "frame": 127,
+          "kind": "sound",
+          "t_ms": 2076.0
+        },
+        {
+          "detail": "Стальной Волк 41",
+          "frame": 128,
+          "kind": "mark_attack",
+          "t_ms": 2090.0
+        },
+        {
+          "detail": "Стальной Волк 41",
+          "frame": 128,
+          "kind": "attack",
+          "t_ms": 2090.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 41",
+          "frame": 128,
+          "kind": "mark_hit",
+          "t_ms": 2090.0
+        },
+        {
+          "detail": "Воин_1_3 -> Даронес 41",
+          "frame": 128,
+          "kind": "hit",
+          "t_ms": 2090.0
+        },
+        {
+          "detail": "83 crit=false 0.1ms",
+          "frame": 128,
+          "kind": "mark_number",
+          "t_ms": 2090.0
+        },
+        {
+          "detail": "83 crit=false 0.1ms",
+          "frame": 128,
+          "kind": "damage_number",
+          "t_ms": 2090.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 128,
+          "kind": "mark_vfx",
+          "t_ms": 2091.0
+        },
+        {
+          "detail": "vfx_hit_01.tscn 0.5ms",
+          "frame": 128,
+          "kind": "vfx",
+          "t_ms": 2091.0
+        },
+        {
+          "detail": "Даронес 781->698",
+          "frame": 128,
+          "kind": "damage",
+          "t_ms": 2094.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 128,
+          "kind": "sound",
+          "t_ms": 2094.0
+        },
+        {
+          "detail": "CombatAudio_Impact warrior_hit.mp3",
+          "frame": 128,
+          "kind": "sound_hit",
+          "t_ms": 2094.0
+        }
+      ],
+      "nodes": 1365,
+      "perf_physics_ms": 2.73,
+      "perf_process_ms": 16.08,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        11,
+        49,
+        65,
+        0,
+        88
+      ],
+      "process_ms": 0.6,
+      "render_ms": 17.2,
+      "setup_ms": 0.17,
+      "t_ms": 2059.0
+    }
+  ],
+  "spikes_33": [],
+  "start_match_to_live_ms": 665.4,
+  "tag": "final-warm-desktop-high-vsync",
+  "warmup": true,
+  "warmup_report": {
+    "arena_children": 12,
+    "deadline_hit": false,
+    "elapsed": 19.791,
+    "error": "",
+    "failed": false,
+    "first2s_max_at_s": 0.0,
+    "first2s_max_frame_ms": 135.8,
+    "first2s_settled_max_frame_ms": 52.6,
+    "frame_ms_avg": 16.9,
+    "frame_ms_max": 135.8,
+    "frame_ms_p95": 17.1,
+    "frames_rendered": 101,
+    "frames_sampled": 1170,
+    "heroes_warmed": 5,
+    "main_cached": true,
+    "main_freed": true,
+    "main_load_ms": 2037,
+    "main_scene_loaded": true,
+    "main_script_stripped": true,
+    "mobile": false,
+    "paced": true,
+    "pacing_target_s": 21.0,
+    "pass1_video_mb": 383.6,
+    "pass2_video_mb": 0.0,
+    "pauses_s": 10.75,
+    "peak_static_mb": 87.6,
+    "peak_video_mb": 383.6,
+    "props_warmed": 18,
+    "quality": "high",
+    "reload_ms": 0,
+    "shaders_warmed": 9,
+    "sounds_warmed": 38,
+    "stage_times": {
+      "Бойцы и скины": 5.31,
+      "Готово": 0.016,
+      "Загрузка арены": 4.814,
+      "Инстанс арены": 0.387,
+      "Материалы арены": 0.832,
+      "Оружие и предметы": 2.087,
+      "Финальный рендер": 0.067,
+      "Шейдеры": 1.136,
+      "Эффекты и шейдеры": 5.159
+    },
+    "stats_tracked": true,
+    "truncated": false,
+    "two_pass": false,
+    "two_pass_policy": "auto",
+    "two_pass_reason": "desktop",
+    "two_pass_switch_ms": 0,
+    "two_pass_switch_s": 0.0,
+    "vfx_scenes_warmed": 10,
+    "video_after_arena_free_mb": 0.0,
+    "video_after_arena_mb": 316.4,
+    "video_after_vfx_mb": 349.4,
+    "video_mem_available": true,
+    "work_s": 9.04
+  },
+  "window": [
+    1440,
+    734
+  ]
+}

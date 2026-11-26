@@ -1,0 +1,936 @@
+{
+  "action": "clash",
+  "adapter": "Radeon RX 570 Series",
+  "canvas": [
+    1440,
+    734
+  ],
+  "events": [
+    {
+      "detail": "Игрок 6414 team=0",
+      "frame": 0,
+      "kind": "bot_spawn",
+      "t_ms": 0.0
+    },
+    {
+      "detail": "Сумрачный Клинок team=0",
+      "frame": 0,
+      "kind": "bot_spawn",
+      "t_ms": 0.0
+    },
+    {
+      "detail": "Искра team=0",
+      "frame": 0,
+      "kind": "bot_spawn",
+      "t_ms": 0.0
+    },
+    {
+      "detail": "Северный Ветер team=1",
+      "frame": 0,
+      "kind": "bot_spawn",
+      "t_ms": 0.0
+    },
+    {
+      "detail": "Белый Ворон team=1",
+      "frame": 0,
+      "kind": "bot_spawn",
+      "t_ms": 0.0
+    },
+    {
+      "detail": "Холодный Рассвет team=1",
+      "frame": 0,
+      "kind": "bot_spawn",
+      "t_ms": 0.0
+    },
+    {
+      "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+      "frame": 1,
+      "kind": "sound",
+      "t_ms": 12.0
+    },
+    {
+      "detail": "forced_clash",
+      "frame": 93,
+      "kind": "probe",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "Игрок 6414 51",
+      "frame": 94,
+      "kind": "mark_attack",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "Игрок 6414 51",
+      "frame": 94,
+      "kind": "attack",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "Player -> Северный Ветер 51",
+      "frame": 94,
+      "kind": "mark_hit",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "Player -> Северный Ветер 51",
+      "frame": 94,
+      "kind": "hit",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "101 crit=false 0.1ms",
+      "frame": 94,
+      "kind": "mark_number",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "101 crit=false 0.1ms",
+      "frame": 94,
+      "kind": "damage_number",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 94,
+      "kind": "mark_vfx",
+      "t_ms": 302.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 94,
+      "kind": "vfx",
+      "t_ms": 302.0
+    },
+    {
+      "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+      "frame": 94,
+      "kind": "sound",
+      "t_ms": 304.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 94,
+      "kind": "sound",
+      "t_ms": 304.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 94,
+      "kind": "sound_hit",
+      "t_ms": 304.0
+    },
+    {
+      "detail": "Северный Ветер 1050->949",
+      "frame": 94,
+      "kind": "damage",
+      "t_ms": 304.0
+    },
+    {
+      "detail": "Северный Ветер 42",
+      "frame": 145,
+      "kind": "mark_attack",
+      "t_ms": 458.0
+    },
+    {
+      "detail": "Северный Ветер 42",
+      "frame": 145,
+      "kind": "attack",
+      "t_ms": 458.0
+    },
+    {
+      "detail": "Воин_1_3 -> Игрок 6414 42",
+      "frame": 145,
+      "kind": "mark_hit",
+      "t_ms": 458.0
+    },
+    {
+      "detail": "Воин_1_3 -> Игрок 6414 42",
+      "frame": 145,
+      "kind": "hit",
+      "t_ms": 458.0
+    },
+    {
+      "detail": "84 crit=false 0.1ms",
+      "frame": 145,
+      "kind": "mark_number",
+      "t_ms": 458.0
+    },
+    {
+      "detail": "84 crit=false 0.1ms",
+      "frame": 145,
+      "kind": "damage_number",
+      "t_ms": 458.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.5ms",
+      "frame": 145,
+      "kind": "mark_vfx",
+      "t_ms": 459.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.5ms",
+      "frame": 145,
+      "kind": "vfx",
+      "t_ms": 459.0
+    },
+    {
+      "detail": "Игрок 6414 1050->966",
+      "frame": 145,
+      "kind": "damage",
+      "t_ms": 465.0
+    },
+    {
+      "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+      "frame": 145,
+      "kind": "sound",
+      "t_ms": 465.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 145,
+      "kind": "sound",
+      "t_ms": 465.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 145,
+      "kind": "sound_hit",
+      "t_ms": 465.0
+    },
+    {
+      "detail": "Footsteps footstep_2.ogg",
+      "frame": 164,
+      "kind": "sound",
+      "t_ms": 529.0
+    },
+    {
+      "detail": "Северный Ветер 1",
+      "frame": 262,
+      "kind": "mark_ability",
+      "t_ms": 844.0
+    },
+    {
+      "detail": "Северный Ветер 1",
+      "frame": 262,
+      "kind": "cast",
+      "t_ms": 844.0
+    },
+    {
+      "detail": "vfx_impact_01.tscn 0.6ms",
+      "frame": 262,
+      "kind": "mark_vfx",
+      "t_ms": 845.0
+    },
+    {
+      "detail": "vfx_impact_01.tscn 0.6ms",
+      "frame": 262,
+      "kind": "vfx",
+      "t_ms": 845.0
+    },
+    {
+      "detail": "Игрок 6414 52",
+      "frame": 275,
+      "kind": "mark_attack",
+      "t_ms": 893.0
+    },
+    {
+      "detail": "Игрок 6414 52",
+      "frame": 275,
+      "kind": "attack",
+      "t_ms": 893.0
+    },
+    {
+      "detail": "Player -> Северный Ветер 52",
+      "frame": 275,
+      "kind": "mark_hit",
+      "t_ms": 893.0
+    },
+    {
+      "detail": "Player -> Северный Ветер 52",
+      "frame": 275,
+      "kind": "hit",
+      "t_ms": 893.0
+    },
+    {
+      "detail": "104 crit=false 0.1ms",
+      "frame": 275,
+      "kind": "mark_number",
+      "t_ms": 893.0
+    },
+    {
+      "detail": "104 crit=false 0.1ms",
+      "frame": 275,
+      "kind": "damage_number",
+      "t_ms": 893.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.5ms",
+      "frame": 275,
+      "kind": "mark_vfx",
+      "t_ms": 894.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.5ms",
+      "frame": 275,
+      "kind": "vfx",
+      "t_ms": 894.0
+    },
+    {
+      "detail": "Северный Ветер 949->845",
+      "frame": 275,
+      "kind": "damage",
+      "t_ms": 897.0
+    },
+    {
+      "detail": "Footsteps footstep_0.ogg",
+      "frame": 279,
+      "kind": "sound",
+      "t_ms": 913.0
+    },
+    {
+      "detail": "Северный Ветер 57",
+      "frame": 345,
+      "kind": "mark_attack",
+      "t_ms": 1142.0
+    },
+    {
+      "detail": "Северный Ветер 57",
+      "frame": 345,
+      "kind": "attack",
+      "t_ms": 1142.0
+    },
+    {
+      "detail": "Воин_1_3 -> Игрок 6414 57",
+      "frame": 345,
+      "kind": "mark_hit",
+      "t_ms": 1142.0
+    },
+    {
+      "detail": "Воин_1_3 -> Игрок 6414 57",
+      "frame": 345,
+      "kind": "hit",
+      "t_ms": 1142.0
+    },
+    {
+      "detail": "114 crit=true 0.0ms",
+      "frame": 345,
+      "kind": "mark_number",
+      "t_ms": 1142.0
+    },
+    {
+      "detail": "114 crit=true 0.0ms",
+      "frame": 345,
+      "kind": "damage_number",
+      "t_ms": 1142.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.5ms",
+      "frame": 345,
+      "kind": "mark_vfx",
+      "t_ms": 1142.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.5ms",
+      "frame": 345,
+      "kind": "vfx",
+      "t_ms": 1142.0
+    },
+    {
+      "detail": "Игрок 6414 966->852",
+      "frame": 345,
+      "kind": "damage",
+      "t_ms": 1146.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 345,
+      "kind": "sound",
+      "t_ms": 1146.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 345,
+      "kind": "sound_hit",
+      "t_ms": 1146.0
+    },
+    {
+      "detail": "Игрок 6414 43",
+      "frame": 447,
+      "kind": "mark_attack",
+      "t_ms": 1494.0
+    },
+    {
+      "detail": "Игрок 6414 43",
+      "frame": 447,
+      "kind": "attack",
+      "t_ms": 1494.0
+    },
+    {
+      "detail": "Player -> Северный Ветер 43",
+      "frame": 447,
+      "kind": "mark_hit",
+      "t_ms": 1494.0
+    },
+    {
+      "detail": "Player -> Северный Ветер 43",
+      "frame": 447,
+      "kind": "hit",
+      "t_ms": 1494.0
+    },
+    {
+      "detail": "85 crit=false 0.1ms",
+      "frame": 447,
+      "kind": "mark_number",
+      "t_ms": 1494.0
+    },
+    {
+      "detail": "85 crit=false 0.1ms",
+      "frame": 447,
+      "kind": "damage_number",
+      "t_ms": 1494.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.5ms",
+      "frame": 447,
+      "kind": "mark_vfx",
+      "t_ms": 1494.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.5ms",
+      "frame": 447,
+      "kind": "vfx",
+      "t_ms": 1494.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 447,
+      "kind": "sound",
+      "t_ms": 1498.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 447,
+      "kind": "sound_hit",
+      "t_ms": 1498.0
+    },
+    {
+      "detail": "Северный Ветер 845->760",
+      "frame": 447,
+      "kind": "damage",
+      "t_ms": 1498.0
+    },
+    {
+      "detail": "Footsteps footstep_2.ogg",
+      "frame": 455,
+      "kind": "sound",
+      "t_ms": 1529.0
+    },
+    {
+      "detail": "Footsteps footstep_1.ogg",
+      "frame": 543,
+      "kind": "sound",
+      "t_ms": 1830.0
+    },
+    {
+      "detail": "Северный Ветер 34",
+      "frame": 547,
+      "kind": "mark_attack",
+      "t_ms": 1842.0
+    },
+    {
+      "detail": "Северный Ветер 34",
+      "frame": 547,
+      "kind": "attack",
+      "t_ms": 1842.0
+    },
+    {
+      "detail": "Воин_1_3 -> Игрок 6414 34",
+      "frame": 547,
+      "kind": "mark_hit",
+      "t_ms": 1842.0
+    },
+    {
+      "detail": "Воин_1_3 -> Игрок 6414 34",
+      "frame": 547,
+      "kind": "hit",
+      "t_ms": 1842.0
+    },
+    {
+      "detail": "68 crit=false 0.0ms",
+      "frame": 547,
+      "kind": "mark_number",
+      "t_ms": 1842.0
+    },
+    {
+      "detail": "68 crit=false 0.0ms",
+      "frame": 547,
+      "kind": "damage_number",
+      "t_ms": 1842.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 547,
+      "kind": "mark_vfx",
+      "t_ms": 1843.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 547,
+      "kind": "vfx",
+      "t_ms": 1843.0
+    },
+    {
+      "detail": "Игрок 6414 852->784",
+      "frame": 547,
+      "kind": "damage",
+      "t_ms": 1846.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 547,
+      "kind": "sound",
+      "t_ms": 1846.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 547,
+      "kind": "sound_hit",
+      "t_ms": 1846.0
+    },
+    {
+      "detail": "Игрок 6414 53",
+      "frame": 621,
+      "kind": "mark_attack",
+      "t_ms": 2094.0
+    },
+    {
+      "detail": "Игрок 6414 53",
+      "frame": 621,
+      "kind": "attack",
+      "t_ms": 2094.0
+    },
+    {
+      "detail": "Player -> Северный Ветер 53",
+      "frame": 621,
+      "kind": "mark_hit",
+      "t_ms": 2094.0
+    },
+    {
+      "detail": "Player -> Северный Ветер 53",
+      "frame": 621,
+      "kind": "hit",
+      "t_ms": 2094.0
+    },
+    {
+      "detail": "105 crit=false 0.0ms",
+      "frame": 621,
+      "kind": "mark_number",
+      "t_ms": 2094.0
+    },
+    {
+      "detail": "105 crit=false 0.0ms",
+      "frame": 621,
+      "kind": "damage_number",
+      "t_ms": 2094.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 621,
+      "kind": "mark_vfx",
+      "t_ms": 2095.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 621,
+      "kind": "vfx",
+      "t_ms": 2095.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 621,
+      "kind": "sound",
+      "t_ms": 2099.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 621,
+      "kind": "sound_hit",
+      "t_ms": 2099.0
+    },
+    {
+      "detail": "Северный Ветер 760->655",
+      "frame": 621,
+      "kind": "damage",
+      "t_ms": 2099.0
+    },
+    {
+      "detail": "Северный Ветер 0",
+      "frame": 668,
+      "kind": "mark_ability",
+      "t_ms": 2260.0
+    },
+    {
+      "detail": "Северный Ветер 0",
+      "frame": 668,
+      "kind": "cast",
+      "t_ms": 2260.0
+    },
+    {
+      "detail": "Воин_1_3 -> Игрок 6414 32",
+      "frame": 668,
+      "kind": "mark_hit",
+      "t_ms": 2260.0
+    },
+    {
+      "detail": "Воин_1_3 -> Игрок 6414 32",
+      "frame": 668,
+      "kind": "hit",
+      "t_ms": 2260.0
+    },
+    {
+      "detail": "64 crit=false 0.0ms",
+      "frame": 668,
+      "kind": "mark_number",
+      "t_ms": 2260.0
+    },
+    {
+      "detail": "64 crit=false 0.0ms",
+      "frame": 668,
+      "kind": "damage_number",
+      "t_ms": 2260.0
+    },
+    {
+      "detail": "vfx_hit_02.tscn 0.5ms",
+      "frame": 668,
+      "kind": "mark_vfx",
+      "t_ms": 2261.0
+    },
+    {
+      "detail": "vfx_hit_02.tscn 0.5ms",
+      "frame": 668,
+      "kind": "vfx",
+      "t_ms": 2261.0
+    },
+    {
+      "detail": "Игрок 6414 784->720",
+      "frame": 668,
+      "kind": "damage",
+      "t_ms": 2265.0
+    },
+    {
+      "detail": "Footsteps footstep_4.ogg",
+      "frame": 668,
+      "kind": "sound",
+      "t_ms": 2265.0
+    }
+  ],
+  "first": {
+    "attack": {
+      "detail": "Игрок 6414 51",
+      "frame": 94,
+      "t_ms": 301.0
+    },
+    "bot_spawn": {
+      "detail": "Игрок 6414 team=0",
+      "frame": 0,
+      "t_ms": 0.0
+    },
+    "cast": {
+      "detail": "Северный Ветер 1",
+      "frame": 262,
+      "t_ms": 844.0
+    },
+    "damage": {
+      "detail": "Северный Ветер 1050->949",
+      "frame": 94,
+      "t_ms": 304.0
+    },
+    "damage_number": {
+      "detail": "101 crit=false 0.1ms",
+      "frame": 94,
+      "t_ms": 301.0
+    },
+    "hit": {
+      "detail": "Player -> Северный Ветер 51",
+      "frame": 94,
+      "t_ms": 301.0
+    },
+    "mark_ability": {
+      "detail": "Северный Ветер 1",
+      "frame": 262,
+      "t_ms": 844.0
+    },
+    "mark_attack": {
+      "detail": "Игрок 6414 51",
+      "frame": 94,
+      "t_ms": 301.0
+    },
+    "mark_hit": {
+      "detail": "Player -> Северный Ветер 51",
+      "frame": 94,
+      "t_ms": 301.0
+    },
+    "mark_number": {
+      "detail": "101 crit=false 0.1ms",
+      "frame": 94,
+      "t_ms": 301.0
+    },
+    "mark_vfx": {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 94,
+      "t_ms": 302.0
+    },
+    "probe": {
+      "detail": "forced_clash",
+      "frame": 93,
+      "t_ms": 301.0
+    },
+    "sound": {
+      "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+      "frame": 1,
+      "t_ms": 12.0
+    },
+    "sound_hit": {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 94,
+      "t_ms": 304.0
+    },
+    "vfx": {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 94,
+      "t_ms": 302.0
+    }
+  },
+  "first_clash_max_ms": 6.77,
+  "first_clash_window": {
+    "avg_ms": 3.39,
+    "fps_avg": 294.7,
+    "frames": 442,
+    "max_ms": 6.77,
+    "over_16": 0,
+    "over_33": 0,
+    "over_50": 0,
+    "p50_ms": 3.11,
+    "p95_ms": 5.06,
+    "p99_ms": 6.17,
+    "process_max_ms": 2.84,
+    "render_max_ms": 5.32
+  },
+  "forced_cpu_ms": 1.14,
+  "forced_steps": [
+    {
+      "cpu_ms": 1.14,
+      "step": "clash"
+    },
+    {
+      "cpu_ms": 1.01,
+      "step": "enemy_attack"
+    }
+  ],
+  "forced_t_ms": 301.0,
+  "frames": {
+    "all": {
+      "avg_ms": 3.4,
+      "fps_avg": 294.2,
+      "frames": 678,
+      "max_ms": 22.57,
+      "over_16": 1,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 3.12,
+      "p95_ms": 5.06,
+      "p99_ms": 6.6,
+      "process_max_ms": 291.8,
+      "render_max_ms": 20.06
+    },
+    "clash_0_1500ms": {
+      "avg_ms": 3.39,
+      "fps_avg": 294.7,
+      "frames": 442,
+      "max_ms": 6.77,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 3.11,
+      "p95_ms": 5.06,
+      "p99_ms": 6.17,
+      "process_max_ms": 2.84,
+      "render_max_ms": 5.32
+    },
+    "clash_0_200ms": {
+      "avg_ms": 3.18,
+      "fps_avg": 314.9,
+      "frames": 63,
+      "max_ms": 6.6,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 2.85,
+      "p95_ms": 4.21,
+      "p99_ms": 6.6,
+      "process_max_ms": 2.84,
+      "render_max_ms": 5.17
+    },
+    "post_1500ms": {
+      "avg_ms": 3.52,
+      "fps_avg": 283.9,
+      "frames": 142,
+      "max_ms": 7.7,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 3.18,
+      "p95_ms": 4.82,
+      "p99_ms": 7.66,
+      "process_max_ms": 2.35,
+      "render_max_ms": 6.15
+    },
+    "start_0_to_clash": {
+      "avg_ms": 3.24,
+      "fps_avg": 308.9,
+      "frames": 94,
+      "max_ms": 22.57,
+      "over_16": 1,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 2.55,
+      "p95_ms": 5.35,
+      "p99_ms": 22.57,
+      "process_max_ms": 291.8,
+      "render_max_ms": 20.06
+    }
+  },
+  "hero_spawns": [
+    {
+      "name": "Игрок 6414",
+      "player": true,
+      "t_ms": 0.0,
+      "team": 0
+    },
+    {
+      "name": "Сумрачный Клинок",
+      "player": false,
+      "t_ms": 0.0,
+      "team": 0
+    },
+    {
+      "name": "Искра",
+      "player": false,
+      "t_ms": 0.0,
+      "team": 0
+    },
+    {
+      "name": "Северный Ветер",
+      "player": false,
+      "t_ms": 0.0,
+      "team": 1
+    },
+    {
+      "name": "Белый Ворон",
+      "player": false,
+      "t_ms": 0.0,
+      "team": 1
+    },
+    {
+      "name": "Холодный Рассвет",
+      "player": false,
+      "t_ms": 0.0,
+      "team": 1
+    }
+  ],
+  "load_main_ms": 2185.1,
+  "mobile": false,
+  "novsync": true,
+  "pipeline_monitors": [
+    "canvas",
+    "mesh",
+    "surface",
+    "draw",
+    "specialization"
+  ],
+  "quality": "high",
+  "ready_ms": 834.2,
+  "renderer": "forward_plus",
+  "screenshot": "C:/myGames3D/three-skies/docs/qa-first-clash/first_clash_after-nowarm-desktop-high.png",
+  "spikes_16": [
+    {
+      "draws": 160,
+      "frame_ms": 22.565,
+      "near_events": [
+        {
+          "detail": "Игрок 6414 team=0",
+          "frame": 0,
+          "kind": "bot_spawn",
+          "t_ms": 0.0
+        },
+        {
+          "detail": "Сумрачный Клинок team=0",
+          "frame": 0,
+          "kind": "bot_spawn",
+          "t_ms": 0.0
+        },
+        {
+          "detail": "Искра team=0",
+          "frame": 0,
+          "kind": "bot_spawn",
+          "t_ms": 0.0
+        },
+        {
+          "detail": "Северный Ветер team=1",
+          "frame": 0,
+          "kind": "bot_spawn",
+          "t_ms": 0.0
+        },
+        {
+          "detail": "Белый Ворон team=1",
+          "frame": 0,
+          "kind": "bot_spawn",
+          "t_ms": 0.0
+        },
+        {
+          "detail": "Холодный Рассвет team=1",
+          "frame": 0,
+          "kind": "bot_spawn",
+          "t_ms": 0.0
+        },
+        {
+          "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+          "frame": 1,
+          "kind": "sound",
+          "t_ms": 12.0
+        }
+      ],
+      "nodes": 1308,
+      "perf_physics_ms": 0.35,
+      "perf_process_ms": 3017.87,
+      "pipe_compiled": [
+        3,
+        0,
+        0,
+        0,
+        6
+      ],
+      "pipe_frame": [
+        9,
+        28,
+        34,
+        0,
+        35
+      ],
+      "process_ms": 291.8,
+      "render_ms": 20.06,
+      "setup_ms": 0.82,
+      "t_ms": 12.0
+    }
+  ],
+  "spikes_33": [],
+  "start_match_to_live_ms": 422.8,
+  "tag": "after-nowarm-desktop-high",
+  "warmup": false,
+  "warmup_report": {},
+  "window": [
+    1440,
+    734
+  ]
+}

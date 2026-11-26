@@ -61,7 +61,30 @@ signal finished
 signal stopped
 
 func _ready() -> void:
+	if not Engine.is_editor_hint():
+		_apply_low_quality_budget()
 	if autoplay: play()
+
+
+func _apply_low_quality_budget() -> void:
+	# Desktop "low" used to keep the full VFX cost: Hero._prepare_vfx only
+	# trims particles and hides effect lights on mobile. This applies the same
+	# budget to desktop low, where glow/shadows are already off, so the hit
+	# still reads by shape and colour but costs half the particles and no
+	# extra omni light. Move above the particle cap if a phone tier changes.
+	var profile := get_node_or_null("/root/DeviceProfile")
+	if profile == null:
+		return
+	if bool(profile.get("mobile_ui")):
+		return
+	if String(profile.call("effective_quality")) != "low":
+		return
+	for p in particles:
+		p.amount = maxi(1, p.amount / 2)
+		p.fixed_fps = 20
+	for child in get_children():
+		if child is Light3D:
+			child.visible = false
 
 func _enter_tree() -> void:
 	if autoplay: play()

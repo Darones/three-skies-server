@@ -1,0 +1,1366 @@
+{
+  "tag": "ch-tutorial-shaders",
+  "url": "https://three-skies-server.relaxdev.ru/game/?mobile=1&tutorial=1",
+  "viewport": {
+    "W": 844,
+    "H": 390,
+    "DPR": 1,
+    "mobile": true
+  },
+  "cpuThrottle": 1,
+  "chrome": "Chrome/158.0.8127.88",
+  "bootMs": 25010,
+  "bootCanvas": [
+    844,
+    390,
+    844,
+    390
+  ],
+  "probe": {
+    "href": "https://three-skies-server.relaxdev.ru/game/?mobile=1&tutorial=1&v=20261126_192357",
+    "ua": "Mozilla/5.0 (Linux; Android 14; SM-A566B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
+    "platform": "Linux armv8l",
+    "dpr": 1,
+    "inner": [
+      844,
+      390
+    ],
+    "outer": [
+      844,
+      390
+    ],
+    "screen": [
+      844,
+      390,
+      844,
+      390
+    ],
+    "orientation": "landscape-primary",
+    "hardwareConcurrency": 28,
+    "deviceMemory": 32,
+    "webgl2": true,
+    "glVendor": "Google Inc. (AMD)",
+    "glRenderer": "ANGLE (AMD, Radeon RX 570 Series (0x000067DF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "glVersion": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+    "maxTexture": 16384,
+    "glExtensions": [
+      "EXT_clip_control",
+      "EXT_color_buffer_float",
+      "EXT_color_buffer_half_float",
+      "EXT_conservative_depth",
+      "EXT_depth_clamp",
+      "EXT_disjoint_timer_query_webgl2",
+      "EXT_float_blend",
+      "EXT_polygon_offset_clamp",
+      "EXT_render_snorm",
+      "EXT_texture_compression_bptc",
+      "EXT_texture_compression_rgtc",
+      "EXT_texture_filter_anisotropic",
+      "EXT_texture_mirror_clamp_to_edge",
+      "EXT_texture_norm16",
+      "KHR_parallel_shader_compile",
+      "NV_shader_noperspective_interpolation",
+      "OES_draw_buffers_indexed",
+      "OES_sample_variables",
+      "OES_shader_multisample_interpolation",
+      "OES_texture_float_linear",
+      "OVR_multiview2",
+      "WEBGL_blend_func_extended",
+      "WEBGL_clip_cull_distance",
+      "WEBGL_compressed_texture_s3tc",
+      "WEBGL_compressed_texture_s3tc_srgb",
+      "WEBGL_debug_renderer_info",
+      "WEBGL_debug_shaders",
+      "WEBGL_lose_context",
+      "WEBGL_multi_draw",
+      "WEBGL_polygon_mode",
+      "WEBGL_provoking_vertex",
+      "WEBGL_shader_pixel_local_storage",
+      "WEBGL_stencil_texturing"
+    ],
+    "canvas": {
+      "w": 844,
+      "h": 390,
+      "cssW": 844,
+      "cssH": 390,
+      "rectW": 844,
+      "rectH": 390
+    },
+    "canvasStyle": {
+      "width": "844px",
+      "height": "390px"
+    },
+    "visualViewport": {
+      "w": 844,
+      "h": 390,
+      "scale": 1
+    },
+    "vkBridge": "object",
+    "vkInit": "object",
+    "mem": {
+      "usedMB": 95.9,
+      "totalMB": 96.7,
+      "limitMB": 4192
+    },
+    "crossOriginIsolated": false,
+    "sharedArrayBuffer": "undefined",
+    "wasm": "object",
+    "fpsCounterInstalled": true,
+    "canvases": [
+      {
+        "id": "canvas",
+        "w": 844,
+        "h": 390
+      }
+    ],
+    "loadState": "complete",
+    "loaderHidden": true,
+    "statusText": "",
+    "frameCount": 801
+  },
+  "fpsSeries": [
+    36,
+    1,
+    4,
+    19,
+    8,
+    17,
+    47,
+    47,
+    14,
+    48,
+    3,
+    4,
+    11,
+    13,
+    61,
+    60,
+    61,
+    61,
+    60,
+    61
+  ],
+  "frameStats": {
+    "n": 791,
+    "meanMs": 26.35,
+    "fpsMean": 38,
+    "p50": 16.7,
+    "p95": 17,
+    "p99": 384.1,
+    "max": 868.3,
+    "over50msPct": 3.8,
+    "over100msPct": 2.5
+  },
+  "shader": {
+    "links": 256,
+    "linkBlockMs": 86374,
+    "compiles": 512,
+    "compileMs": 2,
+    "blocks": [
+      {
+        "ms": 2410.1,
+        "at": 6980,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 2426.3,
+        "at": 9421,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 33.9,
+        "at": 11897,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 44,
+        "at": 14662,
+        "tag": "#ver ion 300 e \n#define USE_SKELETON\n#define USE_NORMAL\n#define USE_TANGENT\n#define FINAL_ | #ver ion 300 e \n#define USE_SKELETON\n#define USE_NORMAL\n#define USE_TANGENT\n#define FINAL_"
+      },
+      {
+        "ms": 2397.3,
+        "at": 14744,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 2317.2,
+        "at": 17171,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 36.9,
+        "at": 19542,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 2333.2,
+        "at": 19667,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 2414.5,
+        "at": 22029,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 37.1,
+        "at": 24496,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 104.4,
+        "at": 24589,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_OMNI\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_OMNI\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 104,
+        "at": 24711,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_OMNI\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_OMNI\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 2220.8,
+        "at": 27282,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 2211,
+        "at": 29531,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 34.2,
+        "at": 31788,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 34.9,
+        "at": 31832,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_DIRECTIONAL\n#define DISABLE | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_DIRECTIONAL\n#define DISABLE"
+      },
+      {
+        "ms": 2443.1,
+        "at": 31929,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 2468,
+        "at": 34403,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 37.1,
+        "at": 36922,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 38.1,
+        "at": 36970,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_DIRECTIONAL\n#define DISABLE | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_DIRECTIONAL\n#define DISABLE"
+      },
+      {
+        "ms": 95.4,
+        "at": 37026,
+        "tag": "#ver ion 300 e \n#define USE_INVERTED_Y\n#define APPLY_TONEMAPPING\n#define MATERIAL_UNIFORMS | #ver ion 300 e \n#define USE_INVERTED_Y\n#define APPLY_TONEMAPPING\n#define MATERIAL_UNIFORMS"
+      },
+      {
+        "ms": 66.6,
+        "at": 37128,
+        "tag": "#ver ion 300 e \n#define USE_INVERTED_Y\n#define APPLY_TONEMAPPING\n#define MATERIAL_UNIFORMS | #ver ion 300 e \n#define USE_INVERTED_Y\n#define APPLY_TONEMAPPING\n#define MATERIAL_UNIFORMS"
+      },
+      {
+        "ms": 89,
+        "at": 37200,
+        "tag": "#ver ion 300 e \n\n\n#define MAX_SAMPLE_COUNT 128\n\n\n#define  amplerExternalOES  ampler2D\n#ifd | #ver ion 300 e \n\n\n#define MAX_SAMPLE_COUNT 128\n\n\n#define  amplerExternalOES  ampler2D\n#ifd"
+      },
+      {
+        "ms": 31.7,
+        "at": 37291,
+        "tag": "#ver ion 300 e \n\n\n#define MAX_SAMPLE_COUNT 128\n#define MODE_DIRECT_WRITE\n\n#define  amplerE | #ver ion 300 e \n\n\n#define MAX_SAMPLE_COUNT 128\n#define MODE_DIRECT_WRITE\n\n#define  amplerE"
+      },
+      {
+        "ms": 46.5,
+        "at": 37337,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_DIRECTIONAL\n#define DISABLE | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_DIRECTIONAL\n#define DISABLE"
+      },
+      {
+        "ms": 2444.9,
+        "at": 37411,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 2449.4,
+        "at": 39884,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 75.6,
+        "at": 42348,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 92.5,
+        "at": 42436,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 76.3,
+        "at": 42540,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_DIRECTIONAL\n#define DISABLE | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_DIRECTIONAL\n#define DISABLE"
+      },
+      {
+        "ms": 2431.3,
+        "at": 42644,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 2346.7,
+        "at": 45103,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 73.6,
+        "at": 47463,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 94.4,
+        "at": 47548,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 74.6,
+        "at": 47655,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_DIRECTIONAL\n#define DISABLE | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_DIRECTIONAL\n#define DISABLE"
+      },
+      {
+        "ms": 37.2,
+        "at": 47741,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_DIRECTIONAL\n#define DISABLE | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_DIRECTIONAL\n#define DISABLE"
+      },
+      {
+        "ms": 2341.2,
+        "at": 47804,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 2376.1,
+        "at": 50173,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 37.1,
+        "at": 52601,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 75.3,
+        "at": 52693,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 92,
+        "at": 52789,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 37.6,
+        "at": 52931,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 478.3,
+        "at": 53028,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 507.6,
+        "at": 53526,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 497.3,
+        "at": 54054,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 497.3,
+        "at": 54571,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 494,
+        "at": 55088,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 68.3,
+        "at": 55597,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 478.2,
+        "at": 55684,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 65.6,
+        "at": 56170,
+        "tag": "#ver ion 300 e \n#define USE_INVERTED_Y\n#define MATERIAL_UNIFORMS_USED\n#define SKY_CODE_USE | #ver ion 300 e \n#define USE_INVERTED_Y\n#define MATERIAL_UNIFORMS_USED\n#define SKY_CODE_USE"
+      },
+      {
+        "ms": 2354.8,
+        "at": 56262,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 2392.9,
+        "at": 58645,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 36.8,
+        "at": 61088,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 489,
+        "at": 61143,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 45.3,
+        "at": 61681,
+        "tag": "#ver ion 300 e \n#define USE_GLOW\n#define USE_LUMINANCE_MULTIPLIER\n\n\n\n#define  amplerExtern | #ver ion 300 e \n#define USE_GLOW\n#define USE_LUMINANCE_MULTIPLIER\n\n\n\n#define  amplerExtern"
+      },
+      {
+        "ms": 76,
+        "at": 61841,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 93.2,
+        "at": 61935,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 36.8,
+        "at": 62078,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 68,
+        "at": 62165,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 37.3,
+        "at": 62599,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_DIRECTIONAL\n#define DISABLE | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_DIRECTIONAL\n#define DISABLE"
+      },
+      {
+        "ms": 1420.9,
+        "at": 62663,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 1411.4,
+        "at": 64111,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 39.2,
+        "at": 65575,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 434.6,
+        "at": 65784,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 438.9,
+        "at": 66237,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 371.9,
+        "at": 66695,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 449.8,
+        "at": 67087,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 444.5,
+        "at": 67578,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 284.3,
+        "at": 68041,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_OMNI\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_OMNI\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 441.3,
+        "at": 68585,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 2338.1,
+        "at": 69882,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 2354.3,
+        "at": 72248,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 38.7,
+        "at": 74653,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 436.5,
+        "at": 74750,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 30.1,
+        "at": 75554,
+        "tag": "#ver ion 300 e \n#define USE_BLEND_SHAPES\n#define USE_NORMAL\n#define USE_TANGENT\n\n#define M | #ver ion 300 e \n#define USE_BLEND_SHAPES\n#define USE_NORMAL\n#define USE_TANGENT\n\n#define M"
+      },
+      {
+        "ms": 34,
+        "at": 75587,
+        "tag": "#ver ion 300 e \n#define USE_BLEND_SHAPES\n#define USE_NORMAL\n#define USE_TANGENT\n#define FI | #ver ion 300 e \n#define USE_BLEND_SHAPES\n#define USE_NORMAL\n#define USE_TANGENT\n#define FI"
+      },
+      {
+        "ms": 2349.1,
+        "at": 75673,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 2360.5,
+        "at": 78050,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 39.2,
+        "at": 80460,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 457.1,
+        "at": 80559,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 95.5,
+        "at": 81985,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 116.3,
+        "at": 82100,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 85.6,
+        "at": 82229,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 105.5,
+        "at": 82327,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 88.7,
+        "at": 82447,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 76.6,
+        "at": 83509,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 92.6,
+        "at": 83604,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 36.9,
+        "at": 83746,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 67.5,
+        "at": 83797,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_OMNI\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_OMNI\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 74.7,
+        "at": 83990,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 88.4,
+        "at": 84083,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 35.2,
+        "at": 84219,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 63.9,
+        "at": 84267,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_OMNI\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_OMNI\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 66,
+        "at": 84377,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 81.2,
+        "at": 84463,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 32.2,
+        "at": 84556,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 43.2,
+        "at": 84600,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 55.5,
+        "at": 84657,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_OMNI\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_OMNI\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 75.5,
+        "at": 84780,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 91.5,
+        "at": 84874,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 37.1,
+        "at": 85017,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 65.9,
+        "at": 85105,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_OMNI\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_OMNI\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 81.7,
+        "at": 85389,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_OMNI\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_OMNI\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 37,
+        "at": 86312,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_DIRECTIONAL\n#define DISABLE | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_DIRECTIONAL\n#define DISABLE"
+      },
+      {
+        "ms": 84.9,
+        "at": 86363,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 2277.9,
+        "at": 86468,
+        "tag": "#ver ion 300 e \n#define MATERIAL_UNIFORMS_USED\n#define START_CODE_USED\n#define PROCESS_COD | #ver ion 300 e \n#define MATERIAL_UNIFORMS_USED\n#define START_CODE_USED\n#define PROCESS_COD"
+      },
+      {
+        "ms": 2303.9,
+        "at": 88764,
+        "tag": "#ver ion 300 e \n#define MODE_3D\n#define USERDATA1_USED\n#define MATERIAL_UNIFORMS_USED\n#def | #ver ion 300 e \n#define MODE_3D\n#define USERDATA1_USED\n#define MATERIAL_UNIFORMS_USED\n#def"
+      },
+      {
+        "ms": 89.1,
+        "at": 91073,
+        "tag": "#ver ion 300 e \n\n\n\n#define  amplerExternalOES  ampler2D\n#ifdef USE_MULTIVIEW\n#if defined(G | #ver ion 300 e \n\n\n\n#define  amplerExternalOES  ampler2D\n#ifdef USE_MULTIVIEW\n#if defined(G"
+      },
+      {
+        "ms": 85.7,
+        "at": 91167,
+        "tag": "#ver ion 300 e \n#define MODE_3D\n\n\n\n#define  amplerExternalOES  ampler2D\n#ifdef USE_MULTIVI | #ver ion 300 e \n#define MODE_3D\n\n\n\n#define  amplerExternalOES  ampler2D\n#ifdef USE_MULTIVI"
+      },
+      {
+        "ms": 2924.2,
+        "at": 91346,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 2576.8,
+        "at": 94299,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 36.1,
+        "at": 96925,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 470.1,
+        "at": 96979,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 62.7,
+        "at": 97548,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 74.9,
+        "at": 97629,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 30.2,
+        "at": 97715,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 39.8,
+        "at": 97756,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 55.9,
+        "at": 97809,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 2310.8,
+        "at": 97906,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 2336.2,
+        "at": 100245,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 31.5,
+        "at": 102594,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 45.1,
+        "at": 102637,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 32.2,
+        "at": 102692,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_DIRECTIONAL\n#define DISABLE | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_DIRECTIONAL\n#define DISABLE"
+      },
+      {
+        "ms": 436.9,
+        "at": 102744,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 73.7,
+        "at": 103264,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 89.4,
+        "at": 103356,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 35.5,
+        "at": 103493,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 72.8,
+        "at": 103541,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 71.3,
+        "at": 103655,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 72.5,
+        "at": 103760,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 87.8,
+        "at": 103851,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 34.5,
+        "at": 103987,
+        "tag": "#ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS | #ver ion 300 e \n#define DISABLE_REFLECTION_PROBE\n#define USE_RADIANCE_MAP\n#define BASE_PAS"
+      },
+      {
+        "ms": 74.3,
+        "at": 104034,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 227.3,
+        "at": 105774,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 222.9,
+        "at": 106017,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 221.7,
+        "at": 106256,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 102,
+        "at": 106493,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_OMNI\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_OMNI\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 229.2,
+        "at": 106611,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 68.8,
+        "at": 106854,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 185.7,
+        "at": 106938,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 232.1,
+        "at": 107142,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 84.4,
+        "at": 107388,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 58.2,
+        "at": 107487,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 67,
+        "at": 107558,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 241.4,
+        "at": 107731,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      },
+      {
+        "ms": 54.8,
+        "at": 107986,
+        "tag": "#ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_ | #ver ion 300 e \n#define DISABLE_LIGHTMAP\n#define DISABLE_LIGHT_SPOT\n#define DISABLE_LIGHT_"
+      }
+    ]
+  },
+  "cpuTop": null,
+  "longtasks": [
+    {
+      "start": 276,
+      "dur": 557
+    },
+    {
+      "start": 6488.4,
+      "dur": 18506
+    },
+    {
+      "start": 25308,
+      "dur": 62
+    },
+    {
+      "start": 25725.4,
+      "dur": 650
+    },
+    {
+      "start": 26375.9,
+      "dur": 863
+    },
+    {
+      "start": 27240.2,
+      "dur": 34540
+    },
+    {
+      "start": 61814.7,
+      "dur": 422
+    },
+    {
+      "start": 62244.7,
+      "dur": 6122
+    },
+    {
+      "start": 68473.1,
+      "dur": 602
+    },
+    {
+      "start": 69124.3,
+      "dur": 76
+    },
+    {
+      "start": 69241.3,
+      "dur": 78
+    },
+    {
+      "start": 69358.1,
+      "dur": 76
+    },
+    {
+      "start": 69475,
+      "dur": 87
+    },
+    {
+      "start": 69625.2,
+      "dur": 5612
+    },
+    {
+      "start": 75519.8,
+      "dur": 5543
+    },
+    {
+      "start": 81147.2,
+      "dur": 128
+    },
+    {
+      "start": 81948.7,
+      "dur": 590
+    },
+    {
+      "start": 83017.3,
+      "dur": 100
+    },
+    {
+      "start": 83184.4,
+      "dur": 79
+    },
+    {
+      "start": 83334.6,
+      "dur": 83
+    },
+    {
+      "start": 83485,
+      "dur": 382
+    },
+    {
+      "start": 83969.3,
+      "dur": 364
+    },
+    {
+      "start": 84353.2,
+      "dur": 362
+    },
+    {
+      "start": 84754.2,
+      "dur": 508
+    },
+    {
+      "start": 85271.6,
+      "dur": 101
+    },
+    {
+      "start": 85373.5,
+      "dur": 99
+    },
+    {
+      "start": 86223.4,
+      "dur": 227
+    },
+    {
+      "start": 86451.3,
+      "dur": 4841
+    },
+    {
+      "start": 91316.4,
+      "dur": 6189
+    },
+    {
+      "start": 97528.1,
+      "dur": 339
+    },
+    {
+      "start": 97878.8,
+      "dur": 5348
+    },
+    {
+      "start": 103243.3,
+      "dur": 383
+    },
+    {
+      "start": 103639.8,
+      "dur": 96
+    },
+    {
+      "start": 103740.4,
+      "dur": 378
+    },
+    {
+      "start": 104474.6,
+      "dur": 3600
+    },
+    {
+      "start": 108077.1,
+      "dur": 407
+    }
+  ],
+  "longTaskTotalMs": 98400,
+  "resources": [
+    {
+      "name": "vk-bridge.min.js",
+      "start": 175,
+      "dur": 29,
+      "transfer": 4728,
+      "encoded": 4428,
+      "decoded": 4428,
+      "type": "script"
+    },
+    {
+      "name": "index.js",
+      "start": 175,
+      "dur": 90,
+      "transfer": 68691,
+      "encoded": 68391,
+      "decoded": 279815,
+      "type": "script"
+    },
+    {
+      "name": "index.icon.png",
+      "start": 838,
+      "dur": 79,
+      "transfer": 1494,
+      "encoded": 1194,
+      "decoded": 1194,
+      "type": "other"
+    },
+    {
+      "name": "index.wasm",
+      "start": 832,
+      "dur": 2651,
+      "transfer": 10164141,
+      "encoded": 10163841,
+      "decoded": 39514754,
+      "type": "fetch"
+    },
+    {
+      "name": "index.pck",
+      "start": 833,
+      "dur": 2951,
+      "transfer": 10486060,
+      "encoded": 10485760,
+      "decoded": 10485760,
+      "type": "fetch"
+    },
+    {
+      "name": "index.pck",
+      "start": 3815,
+      "dur": 1665,
+      "transfer": 10486060,
+      "encoded": 10485760,
+      "decoded": 10485760,
+      "type": "fetch"
+    },
+    {
+      "name": "index.pck",
+      "start": 5513,
+      "dur": 959,
+      "transfer": 6868264,
+      "encoded": 6867964,
+      "decoded": 6867964,
+      "type": "fetch"
+    },
+    {
+      "name": "register",
+      "start": 25025,
+      "dur": 90,
+      "transfer": 408,
+      "encoded": 108,
+      "decoded": 108,
+      "type": "fetch"
+    },
+    {
+      "name": "profile",
+      "start": 25225,
+      "dur": 23,
+      "transfer": 797,
+      "encoded": 497,
+      "decoded": 497,
+      "type": "fetch"
+    },
+    {
+      "name": "progress",
+      "start": 25392,
+      "dur": 24,
+      "transfer": 514,
+      "encoded": 214,
+      "decoded": 214,
+      "type": "fetch"
+    },
+    {
+      "name": "event",
+      "start": 85612,
+      "dur": 28,
+      "transfer": 317,
+      "encoded": 17,
+      "decoded": 17,
+      "type": "fetch"
+    },
+    {
+      "name": "event",
+      "start": 112140,
+      "dur": 23,
+      "transfer": 317,
+      "encoded": 17,
+      "decoded": 17,
+      "type": "fetch"
+    }
+  ],
+  "net": [
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 10491813,
+      "ms": 1665,
+      "ce": null
+    },
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 10491809,
+      "ms": 2951,
+      "ce": null
+    },
+    {
+      "url": "index.wasm",
+      "status": 200,
+      "mime": "application/wasm",
+      "bytes": 10169688,
+      "ms": 2651,
+      "ce": "gzip"
+    },
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 6872027,
+      "ms": 959,
+      "ce": null
+    },
+    {
+      "url": "index_splash.jpg",
+      "status": 200,
+      "mime": "image/jpeg",
+      "bytes": 220512,
+      "ms": 87,
+      "ce": null
+    },
+    {
+      "url": "main.js",
+      "status": 200,
+      "mime": "application/x-javascript",
+      "bytes": 139781,
+      "ms": 20,
+      "ce": null
+    },
+    {
+      "url": "index.js",
+      "status": 200,
+      "mime": "text/javascript",
+      "bytes": 68707,
+      "ms": 90,
+      "ce": "gzip"
+    },
+    {
+      "url": "",
+      "status": 200,
+      "mime": "text/html",
+      "bytes": 14150,
+      "ms": 78,
+      "ce": null
+    },
+    {
+      "url": "vk-bridge.min.js",
+      "status": 200,
+      "mime": "text/javascript",
+      "bytes": 4680,
+      "ms": 29,
+      "ce": null
+    },
+    {
+      "url": "index.icon.png",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 1415,
+      "ms": 79,
+      "ce": null
+    },
+    {
+      "url": "init",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 765,
+      "ms": 17,
+      "ce": null
+    },
+    {
+      "url": "profile",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 618,
+      "ms": 23,
+      "ce": null
+    },
+    {
+      "url": "progress",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 556,
+      "ms": 24,
+      "ce": null
+    },
+    {
+      "url": "register",
+      "status": 201,
+      "mime": "application/json",
+      "bytes": 454,
+      "ms": 90,
+      "ce": null
+    },
+    {
+      "url": "event",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 358,
+      "ms": 28,
+      "ce": null
+    },
+    {
+      "url": "event",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 358,
+      "ms": 23,
+      "ce": null
+    },
+    {
+      "url": "wsm.sessionActivated",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 199,
+      "ms": 2,
+      "ce": null
+    },
+    {
+      "url": "b364444d-7bb8-485b-abf5-6c4ec9b5d194",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 0,
+      "ms": 1,
+      "ce": null
+    },
+    {
+      "url": "b364444d-7bb8-485b-abf5-6c4ec9b5d194",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 0,
+      "ms": 1,
+      "ce": null
+    }
+  ],
+  "console": [
+    {
+      "t": 1795723705257,
+      "type": "log",
+      "text": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "t": 1795723710556,
+      "type": "log",
+      "text": "OpenGL API OpenGL ES 3.0 (WebGL 2.0 (OpenGL ES 3.0 Chromium)) - Compatibility - Using Device: WebKit - WebKit WebGL"
+    },
+    {
+      "t": 1795723710988,
+      "type": "log",
+      "text": "Build configuration: Emscripten 4.0.20, single-threaded, no GDExtension support."
+    },
+    {
+      "t": 1795723710998,
+      "type": "error",
+      "text": "WARNING: Screen-space AA is only available when using the Forward+ or Mobile renderer."
+    },
+    {
+      "t": 1795723710998,
+      "type": "error",
+      "text": "   at: viewport_set_screen_space_aa (servers/rendering/renderer_viewport.cpp:1435)"
+    },
+    {
+      "t": 1795723711913,
+      "type": "log",
+      "text": "[Platform] id=standalone adapter=Standalone"
+    },
+    {
+      "t": 1795723711916,
+      "type": "log",
+      "text": "[NET] REST URL: https://three-skies-server.relaxdev.ru"
+    },
+    {
+      "t": 1795723711917,
+      "type": "log",
+      "text": "[NET] WebSocket URL: wss://three-skies-server.relaxdev.ru/ws"
+    },
+    {
+      "t": 1795723723616,
+      "type": "error",
+      "text": "ERROR: Parse JSON failed. Error at line 0: Unknown error getting token"
+    },
+    {
+      "t": 1795723723616,
+      "type": "error",
+      "text": "   at: parse_string (core/io/json.cpp:629)"
+    }
+  ],
+  "pageErrors": [],
+  "metrics": {
+    "TaskDuration": 106.057589,
+    "ScriptDuration": 86.62877,
+    "LayoutDuration": 0.014248,
+    "RecalcStyleDuration": 0.001263,
+    "JSHeapUsedMB": 17,
+    "Nodes": 65,
+    "Documents": 1
+  }
+}

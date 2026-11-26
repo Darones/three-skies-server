@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"log"
@@ -10,6 +11,70 @@ import (
 
 const noviceInterstitialCooldown = 30 * time.Minute
 const minMatchesForAds = 3
+
+// Match reward (x2 rewarded ad) answers. They are distinct on purpose:
+// the client drops "Reward already claimed" for a base reward, so a match row
+// that has not reached the database yet must not look like an already paid
+// one, or a slow saveMatch would silently cost the player the whole payout.
+const (
+	rewardAlreadyClaimedError = "Reward already claimed"
+	rewardBasePendingError    = "Base reward not claimed yet"
+	matchNotRecordedError     = "Match not recorded"
+)
+
+// baseRewardCap is the server-side ceiling for one match payout: a win pays at
+// most 5 shards, a loss at most 3. The client picks the 1/3/5 tier.
+func baseRewardCap(won bool) int {
+	if won {
+		return 5
+	}
+	return 3
+}
+
+// bonusPayoutShards returns the shards for the separately idempotent x2 bonus.
+// The base payout stored by handleMatchReward is authoritative, so the bonus
+// always pays exactly the same amount again and the match pays 2x in total.
+// Rows rewarded before reward_shards existed have no stored base; the client
+// sends the already doubled total there, so paying it as the bonus would pay
+// 3x. legacy caps that fallback to the base ceiling.
+func bonusPayoutShards(storedShards, requestAmount int, won bool) (payout int, legacy bool) {
+	if storedShards > 0 {
+		return storedShards, false
+	}
+	payout = requestAmount
+	if limit := baseRewardCap(won); payout > limit {
+		payout = limit
+	}
+	return payout, true
+}
+
+// matchRewardClaimFailure explains why the FOR UPDATE claim found no row. The
+// cases need different client behaviour: a match row that is not saved yet is
+// retried, an already paid base reward is final, and a bonus that arrives
+// before its base reward waits for the retry instead of being dropped.
+func matchRewardClaimFailure(ctx context.Context, tx *sql.Tx, roomID, playerID int64, bonus bool) (int, string) {
+	var recorded, basePaid bool
+	err := tx.QueryRowContext(ctx,
+		`SELECT EXISTS(SELECT 1 FROM matches WHERE room_id = $1 AND player_id = $2),
+		        EXISTS(SELECT 1 FROM matches WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = TRUE)`,
+		roomID, playerID,
+	).Scan(&recorded, &basePaid)
+	if err != nil {
+		log.Printf("inspect match reward room=%d player=%d: %v", roomID, playerID, err)
+		return http.StatusInternalServerError, "Internal server error"
+	}
+	if !recorded {
+		// saveMatch runs asynchronously from the match end; the results screen
+		// can ask for the reward before the row is committed.
+		log.Printf("match reward room=%d player=%d: match row not saved yet", roomID, playerID)
+		return http.StatusConflict, matchNotRecordedError
+	}
+	if bonus && !basePaid {
+		log.Printf("match x2 room=%d player=%d: bonus before the base reward", roomID, playerID)
+		return http.StatusConflict, rewardBasePendingError
+	}
+	return http.StatusConflict, rewardAlreadyClaimedError
+}
 
 type interstitialRequest struct {
 	PlayerID int64 `json:"player_id"`

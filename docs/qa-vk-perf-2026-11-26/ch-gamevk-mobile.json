@@ -1,0 +1,546 @@
+{
+  "tag": "ch-gamevk-mobile",
+  "url": "https://three-skies-server.relaxdev.ru/game-vk/",
+  "viewport": {
+    "W": 844,
+    "H": 390,
+    "DPR": 3,
+    "mobile": true
+  },
+  "cpuThrottle": 1,
+  "chrome": "Chrome/158.0.8127.88",
+  "bootMs": 25228,
+  "bootCanvas": [
+    2532,
+    1170,
+    844,
+    390
+  ],
+  "probe": {
+    "href": "https://three-skies-server.relaxdev.ru/game/?v=20261126_192357",
+    "ua": "Mozilla/5.0 (Linux; Android 14; SM-A566B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
+    "platform": "Linux armv8l",
+    "dpr": 3,
+    "inner": [
+      844,
+      390
+    ],
+    "outer": [
+      844,
+      390
+    ],
+    "screen": [
+      844,
+      390,
+      844,
+      390
+    ],
+    "orientation": "landscape-primary",
+    "hardwareConcurrency": 28,
+    "deviceMemory": 32,
+    "webgl2": true,
+    "glVendor": "Google Inc. (AMD)",
+    "glRenderer": "ANGLE (AMD, Radeon RX 570 Series (0x000067DF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "glVersion": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+    "maxTexture": 16384,
+    "glExtensions": [
+      "EXT_clip_control",
+      "EXT_color_buffer_float",
+      "EXT_color_buffer_half_float",
+      "EXT_conservative_depth",
+      "EXT_depth_clamp",
+      "EXT_disjoint_timer_query_webgl2",
+      "EXT_float_blend",
+      "EXT_polygon_offset_clamp",
+      "EXT_render_snorm",
+      "EXT_texture_compression_bptc",
+      "EXT_texture_compression_rgtc",
+      "EXT_texture_filter_anisotropic",
+      "EXT_texture_mirror_clamp_to_edge",
+      "EXT_texture_norm16",
+      "KHR_parallel_shader_compile",
+      "NV_shader_noperspective_interpolation",
+      "OES_draw_buffers_indexed",
+      "OES_sample_variables",
+      "OES_shader_multisample_interpolation",
+      "OES_texture_float_linear",
+      "OVR_multiview2",
+      "WEBGL_blend_func_extended",
+      "WEBGL_clip_cull_distance",
+      "WEBGL_compressed_texture_s3tc",
+      "WEBGL_compressed_texture_s3tc_srgb",
+      "WEBGL_debug_renderer_info",
+      "WEBGL_debug_shaders",
+      "WEBGL_lose_context",
+      "WEBGL_multi_draw",
+      "WEBGL_polygon_mode",
+      "WEBGL_provoking_vertex",
+      "WEBGL_shader_pixel_local_storage",
+      "WEBGL_stencil_texturing"
+    ],
+    "canvas": {
+      "w": 2532,
+      "h": 1170,
+      "cssW": 844,
+      "cssH": 390,
+      "rectW": 844,
+      "rectH": 390
+    },
+    "canvasStyle": {
+      "width": "844px",
+      "height": "390px"
+    },
+    "visualViewport": {
+      "w": 844,
+      "h": 390,
+      "scale": 1
+    },
+    "vkBridge": "object",
+    "vkInit": "object",
+    "mem": {
+      "usedMB": 36.5,
+      "totalMB": 37.4,
+      "limitMB": 4192
+    },
+    "crossOriginIsolated": false,
+    "sharedArrayBuffer": "undefined",
+    "wasm": "object",
+    "fpsCounterInstalled": true,
+    "canvases": [
+      {
+        "id": "canvas",
+        "w": 2532,
+        "h": 1170
+      }
+    ],
+    "loadState": "complete",
+    "loaderHidden": true,
+    "statusText": "",
+    "frameCount": 485
+  },
+  "fpsSeries": [
+    53,
+    61,
+    60,
+    60,
+    61,
+    60
+  ],
+  "frameStats": {
+    "n": 483,
+    "meanMs": 19.22,
+    "fpsMean": 52,
+    "p50": 16.7,
+    "p95": 16.8,
+    "p99": 83.4,
+    "max": 535.4,
+    "over50msPct": 1.4,
+    "over100msPct": 0.8
+  },
+  "shader": {
+    "links": 38,
+    "linkBlockMs": 15119,
+    "compiles": 76,
+    "compileMs": 0,
+    "blocks": [
+      {
+        "ms": 2431.8,
+        "at": 6682,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIRECTIONAL_LIGHT_BAKE_DYNAMIC,DIRECTIONAL_LIGHT_BAKE_STATIC,DIRECTIONAL_LIGHT_ENABLED,DISABLE_REFLECTION_PROBE,FLAGS_NON_UNIFORM_SCALE,IN_SHADOW_PASS,MAX_DIRECTIONAL_LIGHT_DATA_STRUCTS,MAX_FORWARD_LIGHTS,MAX_GLOBAL_SHADER_UNIFORMS,MAX_LIGHT_DATA_STRUCTS,MAX_ROUGHNESS_LOD,MAX_VIEWS,M_PI,M_TAU,NORMAL_USED,OUTPUT_IS_MULTIVIEW,RADIANCE_MAX_LOD,REFLECTION_AMBIENT_COLOR,REFLECTION_AMBIENT_DISABLED,REFLECTION_AMBIENT_ENVIRONMENT,REFLECTION_PROBE_MAX_LOD,SHADER_IS_SRGB,SHADER_SPACE_FAR,SHADOWMASK_MODE_NONE,SHADOWMASK_MODE_ONLY,SHADOWMASK_MODE_OVERLAY,SHADOWMASK_MODE_REPLACE,SPECULAR_SCHLICK_GGX,TONEMAPPER_ACES,TONEMAPPER_AGX,TONEMAPPER_FILMIC,TONEMAPPER_LINEAR,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,ViewIndex,packHalf2x16,packSnorm2x16,packSnorm4x8,packUnorm2x16,packUnorm4x8,samplerExternalOES,unpackHalf2x16,unpackSnorm2x16,unpackSnorm4x8,unpackUnorm2x16,unpackUnorm4x8"
+      },
+      {
+        "ms": 2422.4,
+        "at": 9149,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIRECTIONAL_LIGHT_BAKE_DYNAMIC,DIRECTIONAL_LIGHT_BAKE_STATIC,DIRECTIONAL_LIGHT_ENABLED,DISABLE_REFLECTION_PROBE,FLAGS_NON_UNIFORM_SCALE,IN_SHADOW_PASS,MAX_DIRECTIONAL_LIGHT_DATA_STRUCTS,MAX_FORWARD_LIGHTS,MAX_GLOBAL_SHADER_UNIFORMS,MAX_LIGHT_DATA_STRUCTS,MAX_ROUGHNESS_LOD,MAX_VIEWS,M_PI,M_TAU,NORMAL_USED,OUTPUT_IS_MULTIVIEW,RADIANCE_MAX_LOD,REFLECTION_AMBIENT_COLOR,REFLECTION_AMBIENT_DISABLED,REFLECTION_AMBIENT_ENVIRONMENT,REFLECTION_PROBE_MAX_LOD,SHADER_IS_SRGB,SHADER_SPACE_FAR,SHADOWMASK_MODE_NONE,SHADOWMASK_MODE_ONLY,SHADOWMASK_MODE_OVERLAY,SHADOWMASK_MODE_REPLACE,SPECULAR_SCHLICK_GGX,TONEMAPPER_ACES,TONEMAPPER_AGX,TONEMAPPER_FILMIC,TONEMAPPER_LINEAR,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,ViewIndex,packHalf2x16,packSnorm2x16,packSnorm4x8,packUnorm2x16,packUnorm4x8,samplerExternalOES,unpackHalf2x16,unpackSnorm2x16,unpackSnorm4x8,unpackUnorm2x16,unpackUnorm4x8"
+      },
+      {
+        "ms": 33.5,
+        "at": 11626,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIRECTIONAL_LIGHT_BAKE_DYNAMIC,DIRECTIONAL_LIGHT_BAKE_STATIC,DIRECTIONAL_LIGHT_ENABLED,DISABLE_REFLECTION_PROBE,FLAGS_NON_UNIFORM_SCALE,IN_SHADOW_PASS,MAX_DIRECTIONAL_LIGHT_DATA_STRUCTS,MAX_FORWARD_LIGHTS,MAX_GLOBAL_SHADER_UNIFORMS,MAX_LIGHT_DATA_STRUCTS,MAX_ROUGHNESS_LOD,MAX_VIEWS,MODE_RENDER_DEPTH,M_PI,M_TAU,NORMAL_USED,OUTPUT_IS_MULTIVIEW,RADIANCE_MAX_LOD,REFLECTION_AMBIENT_COLOR,REFLECTION_AMBIENT_DISABLED,REFLECTION_AMBIENT_ENVIRONMENT,REFLECTION_PROBE_MAX_LOD,SHADER_IS_SRGB,SHADER_SPACE_FAR,SHADOWMASK_MODE_NONE,SHADOWMASK_MODE_ONLY,SHADOWMASK_MODE_OVERLAY,SHADOWMASK_MODE_REPLACE,SPECULAR_SCHLICK_GGX,TONEMAPPER_ACES,TONEMAPPER_AGX,TONEMAPPER_FILMIC,TONEMAPPER_LINEAR,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,ViewIndex,packHalf2x16,packSnorm2x16,packSnorm4x8,packUnorm2x16,packUnorm4x8,samplerExternalOES,unpackHalf2x16,unpackSnorm2x16,unpackSnorm4x8,unpackUnorm2x16,unpackUnorm4x8"
+      },
+      {
+        "ms": 43,
+        "at": 14550,
+        "tag": " FINAL_PASS,GET_BONE_MATRIX,MAX_VIEWS,OFORMAT,TEX,USE_NORMAL,USE_SKELETON,USE_TANGENT,VFORMAT,ViewIndex,packHalf2x16,packSnorm2x16,packSnorm4x8,packUnorm2x16,packUnorm4x8,samplerExternalOES,unpackHalf2x16,unpackSnorm2x16,unpackSnorm4x8,unpackUnorm2x16,unpackUnorm4x8"
+      },
+      {
+        "ms": 2416.1,
+        "at": 14638,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DIRECTIONAL_LIGHT_BAKE_DYNAMIC,DIRECTIONAL_LIGHT_BAKE_STATIC,DIRECTIONAL_LIGHT_ENABLED,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FLAGS_NON_UNIFORM_SCALE,FRAGMENT_CODE_USED,IN_SHADOW_PASS,MATERIAL_UNIFORMS_USED,MAX_DIRECTIONAL_LIGHT_DATA_STRUCTS,MAX_FORWARD_LIGHTS,MAX_GLOBAL_SHADER_UNIFORMS,MAX_LIGHT_DATA_STRUCTS,MAX_ROUGHNESS_LOD,MAX_VIEWS,M_PI,M_TAU,NORMAL_USED,OUTPUT_IS_MULTIVIEW,RADIANCE_MAX_LOD,REFLECTION_AMBIENT_COLOR,REFLECTION_AMBIENT_DISABLED,REFLECTION_AMBIENT_ENVIRONMENT,REFLECTION_PROBE_MAX_LOD,SHADER_IS_SRGB,SHADER_SPACE_FAR,SHADOWMASK_MODE_NONE,SHADOWMASK_MODE_ONLY,SHADOWMASK_MODE_OVERLAY,SHADOWMASK_MODE_REPLACE,SPECULAR_SCHLICK_GGX,TONEMAPPER_ACES,TONEMAPPER_AGX,TONEMAPPER_FILMIC,TONEMAPPER_LINEAR,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED,ViewIndex,packHalf2x16,packSnorm2x16,packSnorm4x8,packUnorm2x16,packUnorm4x8,samplerExternalOES,unpackHalf2x16,unpackSnorm2x16,unpackSnorm4x8,unpackUnorm2x16,unpackUnorm4x8"
+      },
+      {
+        "ms": 2409.2,
+        "at": 17094,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DIRECTIONAL_LIGHT_BAKE_DYNAMIC,DIRECTIONAL_LIGHT_BAKE_STATIC,DIRECTIONAL_LIGHT_ENABLED,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FLAGS_NON_UNIFORM_SCALE,FRAGMENT_CODE_USED,IN_SHADOW_PASS,MATERIAL_UNIFORMS_USED,MAX_DIRECTIONAL_LIGHT_DATA_STRUCTS,MAX_FORWARD_LIGHTS,MAX_GLOBAL_SHADER_UNIFORMS,MAX_LIGHT_DATA_STRUCTS,MAX_ROUGHNESS_LOD,MAX_VIEWS,M_PI,M_TAU,NORMAL_USED,OUTPUT_IS_MULTIVIEW,RADIANCE_MAX_LOD,REFLECTION_AMBIENT_COLOR,REFLECTION_AMBIENT_DISABLED,REFLECTION_AMBIENT_ENVIRONMENT,REFLECTION_PROBE_MAX_LOD,SHADER_IS_SRGB,SHADER_SPACE_FAR,SHADOWMASK_MODE_NONE,SHADOWMASK_MODE_ONLY,SHADOWMASK_MODE_OVERLAY,SHADOWMASK_MODE_REPLACE,SPECULAR_SCHLICK_GGX,TONEMAPPER_ACES,TONEMAPPER_AGX,TONEMAPPER_FILMIC,TONEMAPPER_LINEAR,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED,ViewIndex,packHalf2x16,packSnorm2x16,packSnorm4x8,packUnorm2x16,packUnorm4x8,samplerExternalOES,unpackHalf2x16,unpackSnorm2x16,unpackSnorm4x8,unpackUnorm2x16,unpackUnorm4x8"
+      },
+      {
+        "ms": 36.6,
+        "at": 19556,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DIRECTIONAL_LIGHT_BAKE_DYNAMIC,DIRECTIONAL_LIGHT_BAKE_STATIC,DIRECTIONAL_LIGHT_ENABLED,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FLAGS_NON_UNIFORM_SCALE,FRAGMENT_CODE_USED,IN_SHADOW_PASS,MATERIAL_UNIFORMS_USED,MAX_DIRECTIONAL_LIGHT_DATA_STRUCTS,MAX_FORWARD_LIGHTS,MAX_GLOBAL_SHADER_UNIFORMS,MAX_LIGHT_DATA_STRUCTS,MAX_ROUGHNESS_LOD,MAX_VIEWS,MODE_RENDER_DEPTH,M_PI,M_TAU,NORMAL_USED,OUTPUT_IS_MULTIVIEW,RADIANCE_MAX_LOD,REFLECTION_AMBIENT_COLOR,REFLECTION_AMBIENT_DISABLED,REFLECTION_AMBIENT_ENVIRONMENT,REFLECTION_PROBE_MAX_LOD,SHADER_IS_SRGB,SHADER_SPACE_FAR,SHADOWMASK_MODE_NONE,SHADOWMASK_MODE_ONLY,SHADOWMASK_MODE_OVERLAY,SHADOWMASK_MODE_REPLACE,SPECULAR_SCHLICK_GGX,TONEMAPPER_ACES,TONEMAPPER_AGX,TONEMAPPER_FILMIC,TONEMAPPER_LINEAR,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED,ViewIndex,packHalf2x16,packSnorm2x16,packSnorm4x8,packUnorm2x16,packUnorm4x8,samplerExternalOES,unpackHalf2x16,unpackSnorm2x16,unpackSnorm4x8,unpackUnorm2x16,unpackUnorm4x8"
+      },
+      {
+        "ms": 33.1,
+        "at": 19606,
+        "tag": "VL DIFFUSE_BURLEY,DIRECTIONAL_LIGHT_BAKE_DYNAMIC,DIRECTIONAL_LIGHT_BAKE_STATIC,DIRECTIONAL_LIGHT_ENABLED,DISABLE_FOG,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_DIRECTIONAL,DISABLE_LIGHT_OMNI,DISABLE_LIGHT_SPOT,DO_SIDE_CHECK,FLAGS_NON_UNIFORM_SCALE,FRAGMENT_CODE_USED,IN_SHADOW_PASS,MATERIAL_UNIFORMS_USED,MAX_DIRECTIONAL_LIGHT_DATA_STRUCTS,MAX_FORWARD_LIGHTS,MAX_GLOBAL_SHADER_UNIFORMS,MAX_LIGHT_DATA_STRUCTS,MAX_ROUGHNESS_LOD,MAX_VIEWS,MODE_RENDER_DEPTH,M_PI,M_TAU,NORMAL_USED,OUTPUT_IS_MULTIVIEW,RADIANCE_MAX_LOD,REFLECTION_AMBIENT_COLOR,REFLECTION_AMBIENT_DISABLED,REFLECTION_AMBIENT_ENVIRONMENT,REFLECTION_PROBE_MAX_LOD,SHADER_IS_SRGB,SHADER_SPACE_FAR,SHADOWMASK_MODE_NONE,SHADOWMASK_MODE_ONLY,SHADOWMASK_MODE_OVERLAY,SHADOWMASK_MODE_REPLACE,SPECULAR_SCHLICK_GGX,TONEMAPPER_ACES,TONEMAPPER_AGX,TONEMAPPER_FILMIC,TONEMAPPER_LINEAR,TONEMAPPER_REINHARD,UV_USED,VERTEX_CODE_USED,ViewIndex,packHalf2x16,packSnorm2x16,packSnorm4x8,packUnorm2x16,packUnorm4x8,samplerExternalOES,unpackHalf2x16,unpackSnorm2x16,unpackSnorm4x8,unpackUnorm2x16,unpackUnorm4x8"
+      },
+      {
+        "ms": 2320.4,
+        "at": 19690,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DIRECTIONAL_LIGHT_BAKE_DYNAMIC,DIRECTIONAL_LIGHT_BAKE_STATIC,DIRECTIONAL_LIGHT_ENABLED,DISABLE_REFLECTION_PROBE,FLAGS_NON_UNIFORM_SCALE,FRAGMENT_CODE_USED,IN_SHADOW_PASS,MATERIAL_UNIFORMS_USED,MAX_DIRECTIONAL_LIGHT_DATA_STRUCTS,MAX_FORWARD_LIGHTS,MAX_GLOBAL_SHADER_UNIFORMS,MAX_LIGHT_DATA_STRUCTS,MAX_ROUGHNESS_LOD,MAX_VIEWS,M_PI,M_TAU,NORMAL_USED,OUTPUT_IS_MULTIVIEW,RADIANCE_MAX_LOD,REFLECTION_AMBIENT_COLOR,REFLECTION_AMBIENT_DISABLED,REFLECTION_AMBIENT_ENVIRONMENT,REFLECTION_PROBE_MAX_LOD,SHADER_IS_SRGB,SHADER_SPACE_FAR,SHADOWMASK_MODE_NONE,SHADOWMASK_MODE_ONLY,SHADOWMASK_MODE_OVERLAY,SHADOWMASK_MODE_REPLACE,SPECULAR_SCHLICK_GGX,TONEMAPPER_ACES,TONEMAPPER_AGX,TONEMAPPER_FILMIC,TONEMAPPER_LINEAR,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED,ViewIndex,packHalf2x16,packSnorm2x16,packSnorm4x8,packUnorm2x16,packUnorm4x8,samplerExternalOES,unpackHalf2x16,unpackSnorm2x16,unpackSnorm4x8,unpackUnorm2x16,unpackUnorm4x8"
+      },
+      {
+        "ms": 2417.7,
+        "at": 22039,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DIRECTIONAL_LIGHT_BAKE_DYNAMIC,DIRECTIONAL_LIGHT_BAKE_STATIC,DIRECTIONAL_LIGHT_ENABLED,DISABLE_REFLECTION_PROBE,FLAGS_NON_UNIFORM_SCALE,FRAGMENT_CODE_USED,IN_SHADOW_PASS,MATERIAL_UNIFORMS_USED,MAX_DIRECTIONAL_LIGHT_DATA_STRUCTS,MAX_FORWARD_LIGHTS,MAX_GLOBAL_SHADER_UNIFORMS,MAX_LIGHT_DATA_STRUCTS,MAX_ROUGHNESS_LOD,MAX_VIEWS,M_PI,M_TAU,NORMAL_USED,OUTPUT_IS_MULTIVIEW,RADIANCE_MAX_LOD,REFLECTION_AMBIENT_COLOR,REFLECTION_AMBIENT_DISABLED,REFLECTION_AMBIENT_ENVIRONMENT,REFLECTION_PROBE_MAX_LOD,SHADER_IS_SRGB,SHADER_SPACE_FAR,SHADOWMASK_MODE_NONE,SHADOWMASK_MODE_ONLY,SHADOWMASK_MODE_OVERLAY,SHADOWMASK_MODE_REPLACE,SPECULAR_SCHLICK_GGX,TONEMAPPER_ACES,TONEMAPPER_AGX,TONEMAPPER_FILMIC,TONEMAPPER_LINEAR,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED,ViewIndex,packHalf2x16,packSnorm2x16,packSnorm4x8,packUnorm2x16,packUnorm4x8,samplerExternalOES,unpackHalf2x16,unpackSnorm2x16,unpackSnorm4x8,unpackUnorm2x16,unpackUnorm4x8"
+      },
+      {
+        "ms": 36.5,
+        "at": 24511,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DIRECTIONAL_LIGHT_BAKE_DYNAMIC,DIRECTIONAL_LIGHT_BAKE_STATIC,DIRECTIONAL_LIGHT_ENABLED,DISABLE_REFLECTION_PROBE,FLAGS_NON_UNIFORM_SCALE,FRAGMENT_CODE_USED,IN_SHADOW_PASS,MATERIAL_UNIFORMS_USED,MAX_DIRECTIONAL_LIGHT_DATA_STRUCTS,MAX_FORWARD_LIGHTS,MAX_GLOBAL_SHADER_UNIFORMS,MAX_LIGHT_DATA_STRUCTS,MAX_ROUGHNESS_LOD,MAX_VIEWS,MODE_RENDER_DEPTH,M_PI,M_TAU,NORMAL_USED,OUTPUT_IS_MULTIVIEW,RADIANCE_MAX_LOD,REFLECTION_AMBIENT_COLOR,REFLECTION_AMBIENT_DISABLED,REFLECTION_AMBIENT_ENVIRONMENT,REFLECTION_PROBE_MAX_LOD,SHADER_IS_SRGB,SHADER_SPACE_FAR,SHADOWMASK_MODE_NONE,SHADOWMASK_MODE_ONLY,SHADOWMASK_MODE_OVERLAY,SHADOWMASK_MODE_REPLACE,SPECULAR_SCHLICK_GGX,TONEMAPPER_ACES,TONEMAPPER_AGX,TONEMAPPER_FILMIC,TONEMAPPER_LINEAR,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED,ViewIndex,packHalf2x16,packSnorm2x16,packSnorm4x8,packUnorm2x16,packUnorm4x8,samplerExternalOES,unpackHalf2x16,unpackSnorm2x16,unpackSnorm4x8,unpackUnorm2x16,unpackUnorm4x8"
+      },
+      {
+        "ms": 103.9,
+        "at": 24603,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DIRECTIONAL_LIGHT_BAKE_DYNAMIC,DIRECTIONAL_LIGHT_BAKE_STATIC,DIRECTIONAL_LIGHT_ENABLED,DISABLE_FOG,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_OMNI,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FLAGS_NON_UNIFORM_SCALE,FRAGMENT_CODE_USED,IN_SHADOW_PASS,MATERIAL_UNIFORMS_USED,MAX_DIRECTIONAL_LIGHT_DATA_STRUCTS,MAX_FORWARD_LIGHTS,MAX_GLOBAL_SHADER_UNIFORMS,MAX_LIGHT_DATA_STRUCTS,MAX_ROUGHNESS_LOD,MAX_VIEWS,M_PI,M_TAU,NORMAL_USED,OUTPUT_IS_MULTIVIEW,RADIANCE_MAX_LOD,REFLECTION_AMBIENT_COLOR,REFLECTION_AMBIENT_DISABLED,REFLECTION_AMBIENT_ENVIRONMENT,REFLECTION_PROBE_MAX_LOD,SHADER_IS_SRGB,SHADER_SPACE_FAR,SHADOWMASK_MODE_NONE,SHADOWMASK_MODE_ONLY,SHADOWMASK_MODE_OVERLAY,SHADOWMASK_MODE_REPLACE,SPECULAR_SCHLICK_GGX,TONEMAPPER_ACES,TONEMAPPER_AGX,TONEMAPPER_FILMIC,TONEMAPPER_LINEAR,TONEMAPPER_REINHARD,UV_USED,VERTEX_CODE_USED,ViewIndex,packHalf2x16,packSnorm2x16,packSnorm4x8,packUnorm2x16,packUnorm4x8,samplerExternalOES,unpackHalf2x16,unpackSnorm2x16,unpackSnorm4x8,unpackUnorm2x16,unpackUnorm4x8"
+      },
+      {
+        "ms": 111.2,
+        "at": 24726,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DIRECTIONAL_LIGHT_BAKE_DYNAMIC,DIRECTIONAL_LIGHT_BAKE_STATIC,DIRECTIONAL_LIGHT_ENABLED,DISABLE_FOG,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_OMNI,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,FLAGS_NON_UNIFORM_SCALE,FRAGMENT_CODE_USED,IN_SHADOW_PASS,MATERIAL_UNIFORMS_USED,MAX_DIRECTIONAL_LIGHT_DATA_STRUCTS,MAX_FORWARD_LIGHTS,MAX_GLOBAL_SHADER_UNIFORMS,MAX_LIGHT_DATA_STRUCTS,MAX_ROUGHNESS_LOD,MAX_VIEWS,M_PI,M_TAU,NORMAL_USED,OUTPUT_IS_MULTIVIEW,RADIANCE_MAX_LOD,REFLECTION_AMBIENT_COLOR,REFLECTION_AMBIENT_DISABLED,REFLECTION_AMBIENT_ENVIRONMENT,REFLECTION_PROBE_MAX_LOD,SHADER_IS_SRGB,SHADER_SPACE_FAR,SHADOWMASK_MODE_NONE,SHADOWMASK_MODE_ONLY,SHADOWMASK_MODE_OVERLAY,SHADOWMASK_MODE_REPLACE,SPECULAR_SCHLICK_GGX,TONEMAPPER_ACES,TONEMAPPER_AGX,TONEMAPPER_FILMIC,TONEMAPPER_LINEAR,TONEMAPPER_REINHARD,UV_USED,VERTEX_CODE_USED,ViewIndex,packHalf2x16,packSnorm2x16,packSnorm4x8,packUnorm2x16,packUnorm4x8,samplerExternalOES,unpackHalf2x16,unpackSnorm2x16,unpackSnorm4x8,unpackUnorm2x16,unpackUnorm4x8"
+      }
+    ]
+  },
+  "cpuTop": null,
+  "longtasks": [
+    {
+      "start": 214.4,
+      "dur": 642
+    },
+    {
+      "start": 6134.5,
+      "dur": 18880
+    },
+    {
+      "start": 25331.6,
+      "dur": 140
+    }
+  ],
+  "longTaskTotalMs": 19662,
+  "resources": [
+    {
+      "name": "vk-bridge.min.js",
+      "start": 93,
+      "dur": 83,
+      "transfer": 4728,
+      "encoded": 4428,
+      "decoded": 4428,
+      "type": "script"
+    },
+    {
+      "name": "index.js",
+      "start": 93,
+      "dur": 105,
+      "transfer": 68691,
+      "encoded": 68391,
+      "decoded": 279815,
+      "type": "script"
+    },
+    {
+      "name": "index.icon.png",
+      "start": 880,
+      "dur": 203,
+      "transfer": 1494,
+      "encoded": 1194,
+      "decoded": 1194,
+      "type": "other"
+    },
+    {
+      "name": "index.wasm",
+      "start": 856,
+      "dur": 2507,
+      "transfer": 10164141,
+      "encoded": 10163841,
+      "decoded": 39514754,
+      "type": "fetch"
+    },
+    {
+      "name": "index.pck",
+      "start": 857,
+      "dur": 2740,
+      "transfer": 10486060,
+      "encoded": 10485760,
+      "decoded": 10485760,
+      "type": "fetch"
+    },
+    {
+      "name": "index.pck",
+      "start": 3627,
+      "dur": 1254,
+      "transfer": 10486060,
+      "encoded": 10485760,
+      "decoded": 10485760,
+      "type": "fetch"
+    },
+    {
+      "name": "index.pck",
+      "start": 4912,
+      "dur": 1205,
+      "transfer": 6868264,
+      "encoded": 6867964,
+      "decoded": 6867964,
+      "type": "fetch"
+    },
+    {
+      "name": "register",
+      "start": 25049,
+      "dur": 91,
+      "transfer": 408,
+      "encoded": 108,
+      "decoded": 108,
+      "type": "fetch"
+    },
+    {
+      "name": "profile",
+      "start": 25249,
+      "dur": 21,
+      "transfer": 797,
+      "encoded": 497,
+      "decoded": 497,
+      "type": "fetch"
+    },
+    {
+      "name": "progress",
+      "start": 25499,
+      "dur": 24,
+      "transfer": 514,
+      "encoded": 214,
+      "decoded": 214,
+      "type": "fetch"
+    },
+    {
+      "name": "event",
+      "start": 30809,
+      "dur": 22,
+      "transfer": 317,
+      "encoded": 17,
+      "decoded": 17,
+      "type": "fetch"
+    }
+  ],
+  "net": [
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 10491797,
+      "ms": 2740,
+      "ce": null
+    },
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 10491786,
+      "ms": 1254,
+      "ce": null
+    },
+    {
+      "url": "index.wasm",
+      "status": 200,
+      "mime": "application/wasm",
+      "bytes": 10169691,
+      "ms": 2507,
+      "ce": "gzip"
+    },
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 6872018,
+      "ms": 1205,
+      "ce": null
+    },
+    {
+      "url": "index_splash.jpg",
+      "status": 200,
+      "mime": "image/jpeg",
+      "bytes": 220512,
+      "ms": 99,
+      "ce": null
+    },
+    {
+      "url": "main.js",
+      "status": 200,
+      "mime": "application/x-javascript",
+      "bytes": 139781,
+      "ms": 13,
+      "ce": null
+    },
+    {
+      "url": "main.js",
+      "status": 200,
+      "mime": "application/x-javascript",
+      "bytes": 139781,
+      "ms": 13,
+      "ce": null
+    },
+    {
+      "url": "index.js",
+      "status": 200,
+      "mime": "text/javascript",
+      "bytes": 68707,
+      "ms": 105,
+      "ce": "gzip"
+    },
+    {
+      "url": "",
+      "status": 200,
+      "mime": "text/html",
+      "bytes": 14104,
+      "ms": 24,
+      "ce": null
+    },
+    {
+      "url": "vk-bridge.min.js",
+      "status": 200,
+      "mime": "text/javascript",
+      "bytes": 4680,
+      "ms": 82,
+      "ce": null
+    },
+    {
+      "url": "",
+      "status": 200,
+      "mime": "text/html",
+      "bytes": 1522,
+      "ms": 23,
+      "ce": null
+    },
+    {
+      "url": "index.icon.png",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 1415,
+      "ms": 203,
+      "ce": null
+    },
+    {
+      "url": "init",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 765,
+      "ms": 10,
+      "ce": null
+    },
+    {
+      "url": "profile",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 618,
+      "ms": 21,
+      "ce": null
+    },
+    {
+      "url": "progress",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 556,
+      "ms": 24,
+      "ce": null
+    },
+    {
+      "url": "register",
+      "status": 201,
+      "mime": "application/json",
+      "bytes": 454,
+      "ms": 91,
+      "ce": null
+    },
+    {
+      "url": "event",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 358,
+      "ms": 22,
+      "ce": null
+    },
+    {
+      "url": "wsm.sessionActivated",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 199,
+      "ms": 2,
+      "ce": null
+    },
+    {
+      "url": "538e3af2-1ba0-4757-ac8b-8782118d3748",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 0,
+      "ms": 1,
+      "ce": null
+    }
+  ],
+  "console": [
+    {
+      "t": 1795724286803,
+      "type": "log",
+      "text": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "t": 1795724292165,
+      "type": "log",
+      "text": "OpenGL API OpenGL ES 3.0 (WebGL 2.0 (OpenGL ES 3.0 Chromium)) - Compatibility - Using Device: WebKit - WebKit WebGL"
+    },
+    {
+      "t": 1795724292594,
+      "type": "log",
+      "text": "Build configuration: Emscripten 4.0.20, single-threaded, no GDExtension support."
+    },
+    {
+      "t": 1795724292603,
+      "type": "error",
+      "text": "WARNING: Screen-space AA is only available when using the Forward+ or Mobile renderer."
+    },
+    {
+      "t": 1795724292603,
+      "type": "error",
+      "text": "   at: viewport_set_screen_space_aa (servers/rendering/renderer_viewport.cpp:1435)"
+    },
+    {
+      "t": 1795724293578,
+      "type": "log",
+      "text": "[Platform] id=standalone adapter=Standalone"
+    },
+    {
+      "t": 1795724293583,
+      "type": "log",
+      "text": "[NET] REST URL: https://three-skies-server.relaxdev.ru"
+    },
+    {
+      "t": 1795724293584,
+      "type": "log",
+      "text": "[NET] WebSocket URL: wss://three-skies-server.relaxdev.ru/ws"
+    },
+    {
+      "t": 1795724305515,
+      "type": "error",
+      "text": "ERROR: Parse JSON failed. Error at line 0: Unknown error getting token"
+    },
+    {
+      "t": 1795724305515,
+      "type": "error",
+      "text": "   at: parse_string (core/io/json.cpp:629)"
+    }
+  ],
+  "pageErrors": [],
+  "metrics": {
+    "TaskDuration": 21.848169,
+    "ScriptDuration": 1.882908,
+    "LayoutDuration": 0.016342,
+    "RecalcStyleDuration": 0.00115,
+    "JSHeapUsedMB": 9.3,
+    "Nodes": 65,
+    "Documents": 1
+  }
+}

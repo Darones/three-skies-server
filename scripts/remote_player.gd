@@ -42,6 +42,7 @@ var _move_anim := ""
 var _last_state_msec := 0
 var _attack_lock_msec := 0
 var last_damage_msec := 0
+var last_heal_msec := 0
 var _name_label: Label3D = null
 var _health_back: MeshInstance3D = null
 var _health_fill: MeshInstance3D = null
@@ -99,7 +100,18 @@ func apply_stats(stats_max_hp: float, stats_hp: float, stats_attack_damage: floa
 	if stats_max_hp > 0.0:
 		max_health = stats_max_hp
 	if not dead and stats_hp > 0.0:
-		health = clampf(stats_hp, 0.0, max_health)
+		var applied := clampf(stats_hp, 0.0, max_health)
+		var now := Time.get_ticks_msec()
+		if applied > health and last_damage_msec > 0 and now - last_damage_msec < 600:
+			# A state packet created just before the confirmed hit can arrive
+			# after it. Hold the confirmed value briefly so the hit does not
+			# visibly heal back; a real regen/heal after 600 ms still applies.
+			applied = health
+		elif applied < health and last_heal_msec > 0 and now - last_heal_msec < 600:
+			# Mirror of the same race for heals: an older state packet must
+			# not undo the +N that was just shown.
+			applied = health
+		health = applied
 	attack_damage = maxf(stats_attack_damage, 0.0)
 	_update_health_bar()
 
@@ -496,6 +508,7 @@ func receive_heal(amount: float, source: Node = null) -> void:
 	var applied := minf(maxf(amount, 0.0), max_health - health)
 	if applied <= 0.0:
 		return
+	last_heal_msec = Time.get_ticks_msec()
 	health = minf(max_health, health + applied)
 	_update_health_bar()
 	if game != null and game.has_method("heal_number"):
@@ -510,6 +523,7 @@ func apply_network_heal(amount: float) -> void:
 	var applied := minf(maxf(amount, 0.0), max_health - health)
 	if applied <= 0.0:
 		return
+	last_heal_msec = Time.get_ticks_msec()
 	health = minf(max_health, health + applied)
 	_update_health_bar()
 	if game != null and game.has_method("heal_number"):
@@ -531,6 +545,8 @@ func apply_network_death() -> void:
 func apply_network_respawn(position: Vector3, rotation_y: float) -> void:
 	dead = false
 	health = max_health
+	last_damage_msec = 0
+	last_heal_msec = 0
 	global_position = position
 	target_position = position
 	rotation.y = rotation_y

@@ -46,6 +46,19 @@ const BOT_CALLSIGNS := [
 	"Пепел", "Огненный Лис", "Ночная Птица",
 ]
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
+# First-clash assets. WarmupFlow draws them in its own World3D (separate
+# environment/fog/shadow state), which was not enough on Compatibility: the
+# first hit VFX and the first damage number still compiled their pipelines in
+# the first clash frame (44-60 ms). These are drawn once in the REAL match
+# world at _ready instead, while the class-select panel covers the screen.
+const FIRST_CLASH_WARM_VFX := [
+	"res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn",
+	"res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_02.tscn",
+	"res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_01.tscn",
+	"res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/big_impact/vfx_big_impact_02.tscn",
+	"res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_01.tscn",
+	"res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/impact/vfx_impact_02.tscn",
+]
 const CLOUD_WALL_SHADER: Shader = preload("res://shaders/cloud_wall.gdshader")
 const FOG_OF_WAR_SHADER_PATH := "res://shaders/fog_of_war.gdshader"
 const FOG_VIEW_RADIUS := 10.0
@@ -113,6 +126,13 @@ var match_started := false
 # Set by WarmupFlow before the tutorial scene load; the scene still creates its
 # arena/HUD, but skips the expensive double warmup.
 var battle_prewarmed := false
+# Real-world first-clash warm: VFX pipelines and the damage-number Label3D
+# material only compile for the environment/lighting state actually used in
+# the match. Runs once behind the class-select panel (see
+# _warm_first_clash_world); start_match waits for it if the player is fast.
+var _clash_warm_running := false
+var _clash_warm_done := false
+var first_clash_warm_ms := 0
 var match_time := MATCH_LENGTH
 var time_up_announced := false
 var match_end_reason := ""
@@ -271,6 +291,8 @@ func _ready() -> void:
 		get_tree().set_meta("battle_prewarmed", false)
 	if not battle_prewarmed and (DeviceProfile.mobile_ui or OS.has_feature("web")):
 		await _warm_battle_world()
+	if not tutorial_mode:
+		_start_first_clash_warm()
 	if get_tree().has_meta("selected_class"):
 		var selected_class := int(get_tree().get_meta("selected_class"))
 		if selected_class >= 0 and selected_class <= 2:
@@ -387,6 +409,213 @@ func _warm_first_clash_vfx() -> void:
 	if is_instance_valid(warm_viewport):
 		warm_viewport.queue_free()
 	await get_tree().process_frame
+
+
+func _start_first_clash_warm() -> void:
+	if _clash_warm_running or _clash_warm_done:
+		return
+	_clash_warm_running = true
+	call_deferred("_warm_first_clash_world")
+
+
+func _warm_first_clash_world() -> void:
+	# One real-world draw of every first-clash asset. WarmupFlow already warms
+	# these in a hidden viewport with its own World3D; on the Compatibility
+	# renderer that was not the same pipeline state as the match (environment,
+	# depth-test flag of the damage-number Label3D), so the first hit still
+	# froze for 45-80 ms. Everything here is invisible from the match camera
+	# (y = -100) and is freed before the match starts.
+	if _clash_warm_done:
+		_clash_warm_running = false
+		return
+	if not is_inside_tree():
+		_clash_warm_running = false
+		return
+	var started := Time.get_ticks_msec()
+	var warm_viewport := SubViewport.new()
+	warm_viewport.name = "FirstClashWarmViewport"
+	warm_viewport.size = Vector2i(192, 192)
+	warm_viewport.own_world_3d = false
+	warm_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(warm_viewport)
+	var warm_camera := Camera3D.new()
+	warm_camera.fov = 70.0
+	warm_camera.near = 0.1
+	warm_camera.far = 60.0
+	warm_camera.position = Vector3(0.0, -94.0, 8.0)
+	warm_viewport.add_child(warm_camera)
+	warm_camera.look_at(Vector3(0.0, -100.0, 0.0), Vector3.UP)
+	warm_camera.current = true
+	for _frame in 2:
+		await get_tree().process_frame
+
+	for path in FIRST_CLASH_WARM_VFX:
+		var packed := load(path) as PackedScene
+		if packed == null:
+			continue
+		var effect := packed.instantiate() as Node3D
+		if effect == null:
+			continue
+		add_child(effect)
+		effect.global_position = Vector3(0.0, -100.0, 0.0)
+		effect.visible = true
+		# Reproduce spawn_vfx(): tinted emission and a lit OmniLight compile the
+		# same material/light variants as the real hit.
+		for node in effect.find_children("*", "GeometryInstance3D", true, false):
+			var material := node.get("material_override") as StandardMaterial3D
+			if material != null:
+				material.emission_enabled = true
+				material.emission = Color.WHITE
+				material.emission_energy_multiplier = 1.6
+		for node in effect.find_children("*", "Light3D", true, false):
+			var light := node as Light3D
+			light.light_energy = 2.0
+			light.light_color = Color(1.0, 0.8, 0.4)
+		for node in effect.find_children("*", "GPUParticles3D", true, false):
+			var particles := node as GPUParticles3D
+			particles.emitting = true
+		for node in effect.find_children("*", "CPUParticles3D", true, false):
+			var particles := node as CPUParticles3D
+			particles.emitting = true
+		for node in effect.find_children("*", "AnimationPlayer", true, false):
+			var anim := node as AnimationPlayer
+			if anim.has_animation("main"):
+				anim.play("main")
+		for _frame in 2:
+			await get_tree().process_frame
+		effect.queue_free()
+		await get_tree().process_frame
+
+	# Damage / heal / crit numbers: the same Label3D configuration damage_number
+	# and heal_number use. no_depth_test and outline_size are part of the
+	# pipeline state, so the warm must match them exactly.
+	for probe in [[64, "0123456789"], [76, "0123456789"], [56, "+0123456789"]]:
+		var label := Label3D.new()
+		label.text = String(probe[1])
+		label.font = UI_FONT
+		label.font_size = int(probe[0])
+		label.pixel_size = 0.008
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.no_depth_test = true
+		label.outline_size = 12
+		label.outline_modulate = Color(0.05, 0.03, 0.08, 0.9)
+		label.modulate = Color(1.0, 0.92, 0.65)
+		add_child(label)
+		label.global_position = Vector3(0.0, -100.0, 0.0)
+		for _frame in 2:
+			await get_tree().process_frame
+		label.queue_free()
+		await get_tree().process_frame
+
+	# First stun paints a fallback-font Label3D plus the emissive torus ring
+	# (hero.gd _build_stun_indicator).
+	var stun_label := Label3D.new()
+	stun_label.text = "СТАН"
+	stun_label.font = ThemeDB.fallback_font
+	stun_label.font_size = 44
+	stun_label.pixel_size = 0.0055
+	stun_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	stun_label.no_depth_test = true
+	stun_label.outline_size = 12
+	stun_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)
+	stun_label.modulate = Color(1.0, 0.82, 0.25)
+	add_child(stun_label)
+	stun_label.global_position = Vector3(0.0, -100.0, 0.0)
+	var stun_ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.55
+	torus.outer_radius = 0.72
+	torus.rings = 24
+	torus.ring_segments = 8
+	stun_ring.mesh = torus
+	var ring_material := StandardMaterial3D.new()
+	ring_material.albedo_color = Color(1.0, 0.8, 0.25)
+	ring_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring_material.emission_enabled = true
+	ring_material.emission = Color(1.0, 0.65, 0.15)
+	ring_material.emission_energy_multiplier = 2.0
+	stun_ring.material_override = ring_material
+	add_child(stun_ring)
+	stun_ring.global_position = Vector3(0.0, -100.0, 0.0)
+	for _frame in 2:
+		await get_tree().process_frame
+	stun_label.queue_free()
+	stun_ring.queue_free()
+	await get_tree().process_frame
+
+	# Ability/pool visuals: pooled bursts, rings, root spikes, shell beams,
+	# projectiles and the per-cast lightning/crack meshes are all invisible
+	# until the first skill, so their pipelines were never drawn. Show the real
+	# pool nodes once at y=-100 (no gameplay state touched), then hide them.
+	for entry in burst_pool:
+		var burst_node := entry["node"] as CPUParticles3D
+		if burst_node == null:
+			continue
+		burst_node.global_position = Vector3(0.0, -100.0, 0.0)
+		burst_node.visible = true
+		burst_node.emitting = true
+	for entry in ring_pool:
+		var ring_node := entry["node"] as MeshInstance3D
+		if ring_node != null:
+			ring_node.global_position = Vector3(0.0, -100.0, 0.0)
+			ring_node.visible = true
+	for entry in root_spike_pool:
+		var spike_node := entry["node"] as MeshInstance3D
+		if spike_node != null:
+			spike_node.global_position = Vector3(0.0, -100.0, 0.0)
+			spike_node.visible = true
+	for entry in shell_beam_pool:
+		var beam_node := entry["node"] as MeshInstance3D
+		if beam_node != null:
+			beam_node.global_position = Vector3(0.0, -100.0, 0.0)
+			beam_node.visible = true
+	for entry in projectile_pool:
+		var projectile_node := entry["node"] as MeshInstance3D
+		if projectile_node != null:
+			projectile_node.global_position = Vector3(0.0, -100.0, 0.0)
+			projectile_node.visible = true
+	# The two per-cast meshes that are built from scratch in the first ult.
+	lightning_strike_fx(Vector3(0.0, -100.0, 0.0))
+	earthquake_fx(Vector3(0.0, -100.0, 0.0), 1.0, 0.12)
+	for _frame in 2:
+		await get_tree().process_frame
+	earthquake_timer = 0.0
+	earthquake_intensity = 0.0
+	for entry in burst_pool:
+		var burst_node := entry["node"] as CPUParticles3D
+		if burst_node != null:
+			burst_node.emitting = false
+			burst_node.visible = false
+	for entry in ring_pool:
+		var ring_node := entry["node"] as MeshInstance3D
+		if ring_node != null:
+			ring_node.visible = false
+	for entry in root_spike_pool:
+		var spike_node := entry["node"] as MeshInstance3D
+		if spike_node != null:
+			spike_node.visible = false
+	for entry in shell_beam_pool:
+		var beam_node := entry["node"] as MeshInstance3D
+		if beam_node != null:
+			beam_node.visible = false
+	for entry in projectile_pool:
+		var projectile_node := entry["node"] as MeshInstance3D
+		if projectile_node != null:
+			projectile_node.visible = false
+
+	# The first kill feed row loads the dark faction icon and builds the light
+	# cross texture lazily. Pre-cache both (HUD is untouched).
+	if hud != null and is_instance_valid(hud):
+		hud.call("_team_icon", 0)
+		hud.call("_team_icon", 1)
+
+	if is_instance_valid(warm_viewport):
+		warm_viewport.queue_free()
+	_clash_warm_done = true
+	_clash_warm_running = false
+	first_clash_warm_ms = Time.get_ticks_msec() - started
+	if CombatProfiler.enabled:
+		print("[ClashWarm] real-world first-clash warm done in %d ms" % first_clash_warm_ms)
 
 
 func _warm_tutorial_assets() -> void:
@@ -1666,6 +1895,14 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 				_spawn_hero(classes[i], enemy_team, false, enemy_spots[mini(i, 2)])
 				if DeviceProfile.mobile_ui:
 					await get_tree().process_frame
+	# Heroes are already spawned (so nothing waits on this for the player to
+	# exist), but the match is not live yet: the class-select panel still
+	# covers the screen while the real-world clash warm finishes. This keeps
+	# the first hit from compiling its pipeline mid-fight.
+	if _clash_warm_running and not _clash_warm_done:
+		var warm_deadline := Time.get_ticks_msec() + 10000
+		while _clash_warm_running and not _clash_warm_done and Time.get_ticks_msec() < warm_deadline:
+			await get_tree().process_frame
 	var needs_shader_warmup := (DeviceProfile.mobile_ui or OS.has_feature("web")) and not battle_prewarmed
 	if needs_shader_warmup and not tutorial_mode:
 		# Warm the freshly spawned hero models and every hit VFX while the

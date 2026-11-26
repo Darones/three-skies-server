@@ -1,0 +1,614 @@
+{
+  "tag": "ch-tutorial-dpr1-cpu1",
+  "url": "https://three-skies-server.relaxdev.ru/game/?mobile=1&tutorial=1",
+  "viewport": {
+    "W": 844,
+    "H": 390,
+    "DPR": 1,
+    "mobile": true
+  },
+  "cpuThrottle": 1,
+  "chrome": "Chrome/158.0.8127.88",
+  "bootMs": 24192,
+  "bootCanvas": [
+    844,
+    390,
+    844,
+    390
+  ],
+  "probe": {
+    "href": "https://three-skies-server.relaxdev.ru/game/?mobile=1&tutorial=1&v=20261126_192357",
+    "ua": "Mozilla/5.0 (Linux; Android 14; SM-A566B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
+    "platform": "Linux armv8l",
+    "dpr": 1,
+    "inner": [
+      844,
+      390
+    ],
+    "outer": [
+      844,
+      390
+    ],
+    "screen": [
+      844,
+      390,
+      844,
+      390
+    ],
+    "orientation": "landscape-primary",
+    "hardwareConcurrency": 28,
+    "deviceMemory": 32,
+    "webgl2": true,
+    "glVendor": "Google Inc. (AMD)",
+    "glRenderer": "ANGLE (AMD, Radeon RX 570 Series (0x000067DF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "glVersion": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+    "maxTexture": 16384,
+    "glExtensions": [
+      "EXT_clip_control",
+      "EXT_color_buffer_float",
+      "EXT_color_buffer_half_float",
+      "EXT_conservative_depth",
+      "EXT_depth_clamp",
+      "EXT_disjoint_timer_query_webgl2",
+      "EXT_float_blend",
+      "EXT_polygon_offset_clamp",
+      "EXT_render_snorm",
+      "EXT_texture_compression_bptc",
+      "EXT_texture_compression_rgtc",
+      "EXT_texture_filter_anisotropic",
+      "EXT_texture_mirror_clamp_to_edge",
+      "EXT_texture_norm16",
+      "KHR_parallel_shader_compile",
+      "NV_shader_noperspective_interpolation",
+      "OES_draw_buffers_indexed",
+      "OES_sample_variables",
+      "OES_shader_multisample_interpolation",
+      "OES_texture_float_linear",
+      "OVR_multiview2",
+      "WEBGL_blend_func_extended",
+      "WEBGL_clip_cull_distance",
+      "WEBGL_compressed_texture_s3tc",
+      "WEBGL_compressed_texture_s3tc_srgb",
+      "WEBGL_debug_renderer_info",
+      "WEBGL_debug_shaders",
+      "WEBGL_lose_context",
+      "WEBGL_multi_draw",
+      "WEBGL_polygon_mode",
+      "WEBGL_provoking_vertex",
+      "WEBGL_shader_pixel_local_storage",
+      "WEBGL_stencil_texturing"
+    ],
+    "canvas": {
+      "w": 844,
+      "h": 390,
+      "cssW": 844,
+      "cssH": 390,
+      "rectW": 844,
+      "rectH": 390
+    },
+    "canvasStyle": {
+      "width": "844px",
+      "height": "390px"
+    },
+    "visualViewport": {
+      "w": 844,
+      "h": 390,
+      "scale": 1
+    },
+    "vkBridge": "object",
+    "vkInit": "object",
+    "mem": {
+      "usedMB": 198.5,
+      "totalMB": 202,
+      "limitMB": 4192
+    },
+    "crossOriginIsolated": false,
+    "sharedArrayBuffer": "undefined",
+    "wasm": "object",
+    "fpsCounterInstalled": true,
+    "canvases": [
+      {
+        "id": "canvas",
+        "w": 844,
+        "h": 390
+      }
+    ],
+    "loadState": "complete",
+    "loaderHidden": true,
+    "statusText": "",
+    "frameCount": 535
+  },
+  "fpsSeries": [
+    36,
+    1,
+    4,
+    19,
+    8,
+    17,
+    47,
+    47,
+    14,
+    48,
+    3,
+    4,
+    7,
+    17,
+    62,
+    52
+  ],
+  "frameStats": {
+    "n": 525,
+    "meanMs": 31.23,
+    "fpsMean": 32,
+    "p50": 16.7,
+    "p95": 66.8,
+    "p99": 450.9,
+    "max": 901.8,
+    "over50msPct": 6.3,
+    "over100msPct": 3.6
+  },
+  "longtasks": [
+    {
+      "start": 364.6,
+      "dur": 372
+    },
+    {
+      "start": 5903.7,
+      "dur": 18268
+    },
+    {
+      "start": 24899.9,
+      "dur": 642
+    },
+    {
+      "start": 25543,
+      "dur": 897
+    },
+    {
+      "start": 26441.3,
+      "dur": 34112
+    },
+    {
+      "start": 60589.2,
+      "dur": 416
+    },
+    {
+      "start": 61019.8,
+      "dur": 6040
+    },
+    {
+      "start": 67163.2,
+      "dur": 587
+    },
+    {
+      "start": 67797.8,
+      "dur": 73
+    },
+    {
+      "start": 67914.7,
+      "dur": 72
+    },
+    {
+      "start": 68031.6,
+      "dur": 71
+    },
+    {
+      "start": 68148.5,
+      "dur": 83
+    },
+    {
+      "start": 68298.8,
+      "dur": 5632
+    },
+    {
+      "start": 74209.9,
+      "dur": 5673
+    },
+    {
+      "start": 79954.1,
+      "dur": 132
+    },
+    {
+      "start": 80755.7,
+      "dur": 588
+    },
+    {
+      "start": 81824.4,
+      "dur": 92
+    },
+    {
+      "start": 81991.5,
+      "dur": 71
+    },
+    {
+      "start": 82141.6,
+      "dur": 77
+    },
+    {
+      "start": 82291.9,
+      "dur": 382
+    },
+    {
+      "start": 82776.2,
+      "dur": 367
+    },
+    {
+      "start": 83177,
+      "dur": 364
+    },
+    {
+      "start": 83577.7,
+      "dur": 506
+    },
+    {
+      "start": 84095.4,
+      "dur": 104
+    },
+    {
+      "start": 84200.5,
+      "dur": 99
+    },
+    {
+      "start": 85047.2,
+      "dur": 227
+    },
+    {
+      "start": 85275.3,
+      "dur": 4868
+    },
+    {
+      "start": 90173.6,
+      "dur": 6787
+    },
+    {
+      "start": 96986.4,
+      "dur": 348
+    },
+    {
+      "start": 97340.6,
+      "dur": 5371
+    },
+    {
+      "start": 102717.3,
+      "dur": 456
+    },
+    {
+      "start": 103181.5,
+      "dur": 98
+    },
+    {
+      "start": 103284.4,
+      "dur": 412
+    },
+    {
+      "start": 104066.6,
+      "dur": 3654
+    },
+    {
+      "start": 107723.7,
+      "dur": 392
+    },
+    {
+      "start": 109987.2,
+      "dur": 51
+    },
+    {
+      "start": 110076.4,
+      "dur": 76
+    },
+    {
+      "start": 110189.1,
+      "dur": 74
+    }
+  ],
+  "longTaskTotalMs": 98534,
+  "resources": [
+    {
+      "name": "vk-bridge.min.js",
+      "start": 189,
+      "dur": 119,
+      "transfer": 4728,
+      "encoded": 4428,
+      "decoded": 4428,
+      "type": "script"
+    },
+    {
+      "name": "index.js",
+      "start": 189,
+      "dur": 170,
+      "transfer": 68691,
+      "encoded": 68391,
+      "decoded": 279815,
+      "type": "script"
+    },
+    {
+      "name": "index.icon.png",
+      "start": 742,
+      "dur": 172,
+      "transfer": 1494,
+      "encoded": 1194,
+      "decoded": 1194,
+      "type": "other"
+    },
+    {
+      "name": "index.wasm",
+      "start": 736,
+      "dur": 2468,
+      "transfer": 10164141,
+      "encoded": 10163841,
+      "decoded": 39514754,
+      "type": "fetch"
+    },
+    {
+      "name": "index.pck",
+      "start": 737,
+      "dur": 2642,
+      "transfer": 10486060,
+      "encoded": 10485760,
+      "decoded": 10485760,
+      "type": "fetch"
+    },
+    {
+      "name": "index.pck",
+      "start": 3411,
+      "dur": 1526,
+      "transfer": 10486060,
+      "encoded": 10485760,
+      "decoded": 10485760,
+      "type": "fetch"
+    },
+    {
+      "name": "index.pck",
+      "start": 4968,
+      "dur": 920,
+      "transfer": 6868264,
+      "encoded": 6867964,
+      "decoded": 6867964,
+      "type": "fetch"
+    },
+    {
+      "name": "register",
+      "start": 24216,
+      "dur": 56,
+      "transfer": 408,
+      "encoded": 108,
+      "decoded": 108,
+      "type": "fetch"
+    },
+    {
+      "name": "profile",
+      "start": 24383,
+      "dur": 20,
+      "transfer": 797,
+      "encoded": 497,
+      "decoded": 497,
+      "type": "fetch"
+    },
+    {
+      "name": "progress",
+      "start": 24533,
+      "dur": 26,
+      "transfer": 514,
+      "encoded": 214,
+      "decoded": 214,
+      "type": "fetch"
+    },
+    {
+      "name": "event",
+      "start": 84435,
+      "dur": 20,
+      "transfer": 317,
+      "encoded": 17,
+      "decoded": 17,
+      "type": "fetch"
+    }
+  ],
+  "net": [
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 10491804,
+      "ms": 1526,
+      "ce": null
+    },
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 10491797,
+      "ms": 2642,
+      "ce": null
+    },
+    {
+      "url": "index.wasm",
+      "status": 200,
+      "mime": "application/wasm",
+      "bytes": 10169697,
+      "ms": 2468,
+      "ce": "gzip"
+    },
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 6872018,
+      "ms": 920,
+      "ce": null
+    },
+    {
+      "url": "index_splash.jpg",
+      "status": 200,
+      "mime": "image/jpeg",
+      "bytes": 220512,
+      "ms": 117,
+      "ce": null
+    },
+    {
+      "url": "main.js",
+      "status": 200,
+      "mime": "application/x-javascript",
+      "bytes": 139781,
+      "ms": 19,
+      "ce": null
+    },
+    {
+      "url": "index.js",
+      "status": 200,
+      "mime": "text/javascript",
+      "bytes": 68710,
+      "ms": 170,
+      "ce": "gzip"
+    },
+    {
+      "url": "",
+      "status": 200,
+      "mime": "text/html",
+      "bytes": 14147,
+      "ms": 29,
+      "ce": null
+    },
+    {
+      "url": "vk-bridge.min.js",
+      "status": 200,
+      "mime": "text/javascript",
+      "bytes": 4680,
+      "ms": 119,
+      "ce": null
+    },
+    {
+      "url": "index.icon.png",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 1415,
+      "ms": 172,
+      "ce": null
+    },
+    {
+      "url": "init",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 765,
+      "ms": 16,
+      "ce": null
+    },
+    {
+      "url": "profile",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 618,
+      "ms": 20,
+      "ce": null
+    },
+    {
+      "url": "progress",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 556,
+      "ms": 26,
+      "ce": null
+    },
+    {
+      "url": "register",
+      "status": 201,
+      "mime": "application/json",
+      "bytes": 454,
+      "ms": 56,
+      "ce": null
+    },
+    {
+      "url": "event",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 358,
+      "ms": 20,
+      "ce": null
+    },
+    {
+      "url": "wsm.sessionActivated",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 199,
+      "ms": 2,
+      "ce": null
+    },
+    {
+      "url": "16842265-f7d0-42d3-b45c-10cc6d00386b",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 0,
+      "ms": 1,
+      "ce": null
+    },
+    {
+      "url": "16842265-f7d0-42d3-b45c-10cc6d00386b",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 0,
+      "ms": 1,
+      "ce": null
+    }
+  ],
+  "console": [
+    {
+      "t": 1795723410768,
+      "type": "log",
+      "text": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "t": 1795723415810,
+      "type": "log",
+      "text": "OpenGL API OpenGL ES 3.0 (WebGL 2.0 (OpenGL ES 3.0 Chromium)) - Compatibility - Using Device: WebKit - WebKit WebGL"
+    },
+    {
+      "t": 1795723416229,
+      "type": "log",
+      "text": "Build configuration: Emscripten 4.0.20, single-threaded, no GDExtension support."
+    },
+    {
+      "t": 1795723416237,
+      "type": "error",
+      "text": "WARNING: Screen-space AA is only available when using the Forward+ or Mobile renderer."
+    },
+    {
+      "t": 1795723416237,
+      "type": "error",
+      "text": "   at: viewport_set_screen_space_aa (servers/rendering/renderer_viewport.cpp:1435)"
+    },
+    {
+      "t": 1795723417256,
+      "type": "log",
+      "text": "[Platform] id=standalone adapter=Standalone"
+    },
+    {
+      "t": 1795723417259,
+      "type": "log",
+      "text": "[NET] REST URL: https://three-skies-server.relaxdev.ru"
+    },
+    {
+      "t": 1795723417259,
+      "type": "log",
+      "text": "[NET] WebSocket URL: wss://three-skies-server.relaxdev.ru/ws"
+    },
+    {
+      "t": 1795723428894,
+      "type": "error",
+      "text": "ERROR: Parse JSON failed. Error at line 0: Unknown error getting token"
+    },
+    {
+      "t": 1795723428894,
+      "type": "error",
+      "text": "   at: parse_string (core/io/json.cpp:629)"
+    }
+  ],
+  "pageErrors": [],
+  "metrics": {
+    "TaskDuration": 101.964602,
+    "ScriptDuration": 82.921693,
+    "LayoutDuration": 0.013411,
+    "RecalcStyleDuration": 0.001265,
+    "JSHeapUsedMB": 21,
+    "Nodes": 65,
+    "Documents": 1
+  }
+}

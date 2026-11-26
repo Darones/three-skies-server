@@ -1,0 +1,919 @@
+{
+  "tag": "ch-tutorial-angle-gl",
+  "url": "https://three-skies-server.relaxdev.ru/game/?mobile=1&tutorial=1",
+  "viewport": {
+    "W": 844,
+    "H": 390,
+    "DPR": 1,
+    "mobile": true
+  },
+  "cpuThrottle": 1,
+  "chrome": "Chrome/158.0.8127.88",
+  "bootMs": 14481,
+  "bootCanvas": [
+    844,
+    390,
+    844,
+    390
+  ],
+  "probe": {
+    "href": "https://three-skies-server.relaxdev.ru/game/?mobile=1&tutorial=1&v=20261126_192357",
+    "ua": "Mozilla/5.0 (Linux; Android 14; SM-A566B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
+    "platform": "Linux armv8l",
+    "dpr": 1,
+    "inner": [
+      844,
+      390
+    ],
+    "outer": [
+      844,
+      390
+    ],
+    "screen": [
+      844,
+      390,
+      844,
+      390
+    ],
+    "orientation": "landscape-primary",
+    "hardwareConcurrency": 28,
+    "deviceMemory": 32,
+    "webgl2": true,
+    "glVendor": "Google Inc. (ATI Technologies Inc.)",
+    "glRenderer": "ANGLE (ATI Technologies Inc., Radeon RX 570 Series, OpenGL 4.5.0)",
+    "glVersion": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+    "maxTexture": 16384,
+    "glExtensions": [
+      "EXT_clip_control",
+      "EXT_color_buffer_float",
+      "EXT_color_buffer_half_float",
+      "EXT_conservative_depth",
+      "EXT_depth_clamp",
+      "EXT_disjoint_timer_query_webgl2",
+      "EXT_float_blend",
+      "EXT_polygon_offset_clamp",
+      "EXT_render_snorm",
+      "EXT_texture_compression_bptc",
+      "EXT_texture_compression_rgtc",
+      "EXT_texture_filter_anisotropic",
+      "EXT_texture_mirror_clamp_to_edge",
+      "EXT_texture_norm16",
+      "KHR_parallel_shader_compile",
+      "NV_shader_noperspective_interpolation",
+      "OES_sample_variables",
+      "OES_shader_multisample_interpolation",
+      "OES_texture_float_linear",
+      "OVR_multiview2",
+      "WEBGL_blend_func_extended",
+      "WEBGL_clip_cull_distance",
+      "WEBGL_compressed_texture_astc",
+      "WEBGL_compressed_texture_s3tc",
+      "WEBGL_compressed_texture_s3tc_srgb",
+      "WEBGL_debug_renderer_info",
+      "WEBGL_debug_shaders",
+      "WEBGL_lose_context",
+      "WEBGL_multi_draw",
+      "WEBGL_polygon_mode",
+      "WEBGL_provoking_vertex",
+      "WEBGL_shader_pixel_local_storage",
+      "WEBGL_stencil_texturing"
+    ],
+    "canvas": {
+      "w": 844,
+      "h": 390,
+      "cssW": 844,
+      "cssH": 390,
+      "rectW": 844,
+      "rectH": 390
+    },
+    "canvasStyle": {
+      "width": "844px",
+      "height": "390px"
+    },
+    "visualViewport": {
+      "w": 844,
+      "h": 390,
+      "scale": 1
+    },
+    "vkBridge": "object",
+    "vkInit": "object",
+    "mem": {
+      "usedMB": 93.7,
+      "totalMB": 108.6,
+      "limitMB": 4192
+    },
+    "crossOriginIsolated": false,
+    "sharedArrayBuffer": "undefined",
+    "wasm": "object",
+    "fpsCounterInstalled": true,
+    "canvases": [
+      {
+        "id": "canvas",
+        "w": 844,
+        "h": 390
+      }
+    ],
+    "loadState": "complete",
+    "loaderHidden": true,
+    "statusText": "",
+    "frameCount": 313
+  },
+  "fpsSeries": [
+    13,
+    1,
+    4,
+    20,
+    10,
+    19,
+    34,
+    25,
+    24,
+    11,
+    33,
+    16
+  ],
+  "frameStats": {
+    "n": 310,
+    "meanMs": 53.33,
+    "fpsMean": 18.8,
+    "p50": 31.3,
+    "p95": 187.5,
+    "p99": 562.4,
+    "max": 1062.5,
+    "over50msPct": 11.9,
+    "over100msPct": 7.1
+  },
+  "shader": {
+    "links": 202,
+    "linkBlockMs": 4512,
+    "compiles": 404,
+    "compileMs": 1,
+    "blocks": [
+      {
+        "ms": 69.8,
+        "at": 10705,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DISABLE_REFLECTION_PROBE,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP"
+      },
+      {
+        "ms": 69.7,
+        "at": 10808,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DISABLE_REFLECTION_PROBE,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP"
+      },
+      {
+        "ms": 89.8,
+        "at": 13795,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 72,
+        "at": 13915,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 71.6,
+        "at": 14097,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 72.3,
+        "at": 14196,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 72,
+        "at": 16912,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 72.3,
+        "at": 17014,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 74,
+        "at": 17212,
+        "tag": "VL ALPHA_SCISSOR_USED,APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 78.4,
+        "at": 17315,
+        "tag": "VL ALPHA_SCISSOR_USED,APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 75.6,
+        "at": 17603,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TANGENT_USED,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 81.1,
+        "at": 17710,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TANGENT_USED,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 73.6,
+        "at": 17929,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TANGENT_USED,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 74.9,
+        "at": 18034,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TANGENT_USED,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 73.5,
+        "at": 18250,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 73.8,
+        "at": 18353,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 39.1,
+        "at": 18521,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,MODE_UNSHADED,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 40.3,
+        "at": 18581,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,MODE_UNSHADED,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 41.7,
+        "at": 18695,
+        "tag": "VL BASE_PASS,DIFFUSE_BURLEY,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,LIGHT_USE_PSSM4,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOW_MODE_PCF_5,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_ADDITIVE_LIGHTING,USE_DEPTH_FOG,USE_INSTANCING,USE_RADIANCE_MAP,USE_SUN_SCATTER,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 42.4,
+        "at": 18767,
+        "tag": "VL BASE_PASS,DIFFUSE_BURLEY,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,LIGHT_USE_PSSM4,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOW_MODE_PCF_5,SPECULAR_SCHLICK_GGX,TANGENT_USED,TONEMAPPER_REINHARD,USE_ADDITIVE_LIGHTING,USE_DEPTH_FOG,USE_RADIANCE_MAP,USE_SUN_SCATTER,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 41.8,
+        "at": 18839,
+        "tag": "VL BASE_PASS,DIFFUSE_BURLEY,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,LIGHT_USE_PSSM4,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOW_MODE_PCF_5,SPECULAR_SCHLICK_GGX,TANGENT_USED,TONEMAPPER_REINHARD,USE_ADDITIVE_LIGHTING,USE_DEPTH_FOG,USE_RADIANCE_MAP,USE_SUN_SCATTER,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 40.3,
+        "at": 18910,
+        "tag": "VL ALPHA_SCISSOR_USED,BASE_PASS,DIFFUSE_BURLEY,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,LIGHT_USE_PSSM4,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOW_MODE_PCF_5,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_ADDITIVE_LIGHTING,USE_DEPTH_FOG,USE_INSTANCING,USE_RADIANCE_MAP,USE_SUN_SCATTER,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 42,
+        "at": 18980,
+        "tag": "VL BASE_PASS,DIFFUSE_BURLEY,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,LIGHT_USE_PSSM4,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOW_MODE_PCF_5,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_ADDITIVE_LIGHTING,USE_DEPTH_FOG,USE_RADIANCE_MAP,USE_SUN_SCATTER,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 39.9,
+        "at": 19091,
+        "tag": "VL BASE_PASS,DIFFUSE_BURLEY,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,LIGHT_USE_PSSM4,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOW_MODE_PCF_5,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_ADDITIVE_LIGHTING,USE_DEPTH_FOG,USE_RADIANCE_MAP,USE_SUN_SCATTER,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 75.5,
+        "at": 19186,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 74,
+        "at": 19289,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 41.4,
+        "at": 19427,
+        "tag": "VL BASE_PASS,DIFFUSE_BURLEY,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,LIGHT_USE_PSSM4,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOW_MODE_PCF_5,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_ADDITIVE_LIGHTING,USE_DEPTH_FOG,USE_RADIANCE_MAP,USE_SUN_SCATTER,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 38.9,
+        "at": 19824,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FOG_DISABLED,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,MODE_UNSHADED,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 39,
+        "at": 19883,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FOG_DISABLED,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,MODE_UNSHADED,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 71.7,
+        "at": 20454,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,COLOR_USED,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_DISABLED,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 69.3,
+        "at": 20555,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,COLOR_USED,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_DISABLED,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 41.5,
+        "at": 20774,
+        "tag": "VL BASE_PASS,DIFFUSE_BURLEY,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,LIGHT_USE_PSSM2,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOW_MODE_PCF_5,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_ADDITIVE_LIGHTING,USE_DEPTH_FOG,USE_INSTANCING,USE_RADIANCE_MAP,USE_SUN_SCATTER,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 38.5,
+        "at": 20837,
+        "tag": "VL BASE_PASS,DIFFUSE_BURLEY,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,LIGHT_USE_PSSM2,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOW_MODE_PCF_5,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_ADDITIVE_LIGHTING,USE_DEPTH_FOG,USE_RADIANCE_MAP,USE_SUN_SCATTER,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 39.2,
+        "at": 20904,
+        "tag": "VL BASE_PASS,COLOR_USED,DIFFUSE_BURLEY,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,LIGHT_USE_PSSM2,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOW_MODE_PCF_5,SPECULAR_DISABLED,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_ADDITIVE_LIGHTING,USE_DEPTH_FOG,USE_RADIANCE_MAP,USE_SUN_SCATTER,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 39.5,
+        "at": 20972,
+        "tag": "VL BASE_PASS,DIFFUSE_BURLEY,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,LIGHT_USE_PSSM2,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOW_MODE_PCF_5,SPECULAR_SCHLICK_GGX,TANGENT_USED,TONEMAPPER_REINHARD,USE_ADDITIVE_LIGHTING,USE_DEPTH_FOG,USE_RADIANCE_MAP,USE_SUN_SCATTER,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 38.6,
+        "at": 21050,
+        "tag": "VL BASE_PASS,DIFFUSE_BURLEY,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,LIGHT_USE_PSSM2,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOW_MODE_PCF_5,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_ADDITIVE_LIGHTING,USE_DEPTH_FOG,USE_RADIANCE_MAP,USE_SUN_SCATTER,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 40.3,
+        "at": 21702,
+        "tag": "VL BASE_PASS,DIFFUSE_BURLEY,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,LIGHT_USE_PSSM2,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOW_MODE_PCF_5,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_ADDITIVE_LIGHTING,USE_DEPTH_FOG,USE_RADIANCE_MAP,USE_SUN_SCATTER,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 69.8,
+        "at": 22954,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,COLOR_USED,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 69.4,
+        "at": 23053,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,COLOR_USED,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 39.3,
+        "at": 23226,
+        "tag": "VL BASE_PASS,COLOR_USED,DIFFUSE_BURLEY,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,LIGHT_USE_PSSM2,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOW_MODE_PCF_5,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_ADDITIVE_LIGHTING,USE_DEPTH_FOG,USE_RADIANCE_MAP,USE_SUN_SCATTER,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 68.8,
+        "at": 23995,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,COLOR_USED,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 69.4,
+        "at": 24089,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,COLOR_USED,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 40.9,
+        "at": 24227,
+        "tag": "VL BASE_PASS,COLOR_USED,DIFFUSE_BURLEY,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,LIGHT_USE_PSSM2,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOW_MODE_PCF_5,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_ADDITIVE_LIGHTING,USE_DEPTH_FOG,USE_RADIANCE_MAP,USE_SUN_SCATTER,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 40.4,
+        "at": 25863,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,COLOR_USED,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,MODE_UNSHADED,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 39.7,
+        "at": 25926,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,COLOR_USED,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,MODE_UNSHADED,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 38.8,
+        "at": 27453,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,MODE_UNSHADED,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 39.4,
+        "at": 27512,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,MODE_UNSHADED,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 38.8,
+        "at": 27893,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,MODE_UNSHADED,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOWS_DISABLED,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED"
+      },
+      {
+        "ms": 38.3,
+        "at": 27957,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,MODE_UNSHADED,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOWS_DISABLED,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED"
+      },
+      {
+        "ms": 38.7,
+        "at": 28205,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,COLOR_USED,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,MODE_UNSHADED,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 39.8,
+        "at": 28266,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,COLOR_USED,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,MODE_UNSHADED,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 38.3,
+        "at": 28544,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,MODE_UNSHADED,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 38.7,
+        "at": 28599,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,MODE_UNSHADED,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 46.5,
+        "at": 30485,
+        "tag": " DISABLE_VELOCITY,MATERIAL_UNIFORMS_USED,MAX_VIEWS,PROCESS_CODE_USED,START_CODE_USED,USERDATA1_USED"
+      },
+      {
+        "ms": 45.7,
+        "at": 30555,
+        "tag": " DISABLE_VELOCITY,MATERIAL_UNIFORMS_USED,MAX_VIEWS,MODE_3D,PROCESS_CODE_USED,START_CODE_USED,USERDATA1_USED"
+      },
+      {
+        "ms": 70.9,
+        "at": 30940,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,LIGHT_RIM_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 69.9,
+        "at": 31039,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,LIGHT_RIM_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 39.2,
+        "at": 31183,
+        "tag": "VL BASE_PASS,DIFFUSE_BURLEY,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,LIGHT_RIM_USED,LIGHT_USE_PSSM2,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOW_MODE_PCF_5,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_ADDITIVE_LIGHTING,USE_DEPTH_FOG,USE_RADIANCE_MAP,USE_SUN_SCATTER,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 36.9,
+        "at": 31424,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FOG_DISABLED,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,MODE_UNSHADED,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOWS_DISABLED,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 37.2,
+        "at": 31483,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FOG_DISABLED,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,MODE_UNSHADED,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOWS_DISABLED,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 67.7,
+        "at": 31717,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,COLOR_USED,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 68,
+        "at": 31812,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,COLOR_USED,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 37.5,
+        "at": 31973,
+        "tag": "VL BASE_PASS,COLOR_USED,DIFFUSE_BURLEY,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,LIGHT_USE_PSSM2,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SHADOW_MODE_PCF_5,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_ADDITIVE_LIGHTING,USE_DEPTH_FOG,USE_RADIANCE_MAP,USE_SUN_SCATTER,VERTEX_CODE_USED"
+      }
+    ],
+    "sample": ""
+  },
+  "cpuTop": null,
+  "longtasks": [
+    {
+      "start": 10234.4,
+      "dur": 4237
+    },
+    {
+      "start": 14482.1,
+      "dur": 168
+    },
+    {
+      "start": 15243.8,
+      "dur": 714
+    },
+    {
+      "start": 15958.5,
+      "dur": 885
+    },
+    {
+      "start": 16845.2,
+      "dur": 2869
+    },
+    {
+      "start": 19775.1,
+      "dur": 232
+    },
+    {
+      "start": 20055.9,
+      "dur": 1088
+    },
+    {
+      "start": 21145.6,
+      "dur": 253
+    },
+    {
+      "start": 21587.2,
+      "dur": 158
+    },
+    {
+      "start": 21746.2,
+      "dur": 153
+    },
+    {
+      "start": 21964,
+      "dur": 74
+    },
+    {
+      "start": 22120.2,
+      "dur": 109
+    },
+    {
+      "start": 22306.9,
+      "dur": 89
+    },
+    {
+      "start": 22493.9,
+      "dur": 79
+    },
+    {
+      "start": 22684.7,
+      "dur": 583
+    },
+    {
+      "start": 23268.9,
+      "dur": 133
+    },
+    {
+      "start": 23902.4,
+      "dur": 368
+    },
+    {
+      "start": 24271.4,
+      "dur": 135
+    },
+    {
+      "start": 24528,
+      "dur": 86
+    },
+    {
+      "start": 25810.2,
+      "dur": 254
+    },
+    {
+      "start": 26065.1,
+      "dur": 57
+    },
+    {
+      "start": 26838.6,
+      "dur": 85
+    },
+    {
+      "start": 27025.1,
+      "dur": 68
+    },
+    {
+      "start": 27212.5,
+      "dur": 73
+    },
+    {
+      "start": 27402.8,
+      "dur": 212
+    },
+    {
+      "start": 27840.8,
+      "dur": 236
+    },
+    {
+      "start": 28152.8,
+      "dur": 238
+    },
+    {
+      "start": 28497.7,
+      "dur": 251
+    },
+    {
+      "start": 28778,
+      "dur": 73
+    },
+    {
+      "start": 30309.6,
+      "dur": 125
+    },
+    {
+      "start": 30435.9,
+      "dur": 198
+    },
+    {
+      "start": 30634.9,
+      "dur": 205
+    },
+    {
+      "start": 30871.5,
+      "dur": 353
+    },
+    {
+      "start": 31225.5,
+      "dur": 115
+    }
+  ],
+  "longTaskTotalMs": 14956,
+  "resources": [
+    {
+      "name": "vk-bridge.min.js",
+      "start": 146,
+      "dur": 90,
+      "transfer": 4728,
+      "encoded": 4428,
+      "decoded": 4428,
+      "type": "script"
+    },
+    {
+      "name": "index.js",
+      "start": 146,
+      "dur": 103,
+      "transfer": 68691,
+      "encoded": 68391,
+      "decoded": 279815,
+      "type": "script"
+    },
+    {
+      "name": "index.icon.png",
+      "start": 264,
+      "dur": 286,
+      "transfer": 1494,
+      "encoded": 1194,
+      "decoded": 1194,
+      "type": "other"
+    },
+    {
+      "name": "index.wasm",
+      "start": 260,
+      "dur": 2518,
+      "transfer": 10164141,
+      "encoded": 10163841,
+      "decoded": 39514754,
+      "type": "fetch"
+    },
+    {
+      "name": "index.pck",
+      "start": 261,
+      "dur": 2680,
+      "transfer": 10486060,
+      "encoded": 10485760,
+      "decoded": 10485760,
+      "type": "fetch"
+    },
+    {
+      "name": "index.pck",
+      "start": 2971,
+      "dur": 2850,
+      "transfer": 10486060,
+      "encoded": 10485760,
+      "decoded": 10485760,
+      "type": "fetch"
+    },
+    {
+      "name": "index.pck",
+      "start": 5850,
+      "dur": 4368,
+      "transfer": 6868264,
+      "encoded": 6867964,
+      "decoded": 6867964,
+      "type": "fetch"
+    },
+    {
+      "name": "register",
+      "start": 14483,
+      "dur": 41,
+      "transfer": 408,
+      "encoded": 108,
+      "decoded": 108,
+      "type": "fetch"
+    },
+    {
+      "name": "profile",
+      "start": 14840,
+      "dur": 26,
+      "transfer": 797,
+      "encoded": 497,
+      "decoded": 497,
+      "type": "fetch"
+    },
+    {
+      "name": "progress",
+      "start": 15057,
+      "dur": 30,
+      "transfer": 514,
+      "encoded": 214,
+      "decoded": 214,
+      "type": "fetch"
+    },
+    {
+      "name": "event",
+      "start": 26435,
+      "dur": 23,
+      "transfer": 317,
+      "encoded": 17,
+      "decoded": 17,
+      "type": "fetch"
+    }
+  ],
+  "net": [
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 10491807,
+      "ms": 2850,
+      "ce": null
+    },
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 10491788,
+      "ms": 2680,
+      "ce": null
+    },
+    {
+      "url": "index.wasm",
+      "status": 200,
+      "mime": "application/wasm",
+      "bytes": 10169697,
+      "ms": 2518,
+      "ce": "gzip"
+    },
+    {
+      "url": "index.pck",
+      "status": 206,
+      "mime": "application/octet-stream",
+      "bytes": 6872021,
+      "ms": 4368,
+      "ce": null
+    },
+    {
+      "url": "index_splash.jpg",
+      "status": 200,
+      "mime": "image/jpeg",
+      "bytes": 220521,
+      "ms": 90,
+      "ce": null
+    },
+    {
+      "url": "main.js",
+      "status": 200,
+      "mime": "application/x-javascript",
+      "bytes": 139781,
+      "ms": 20,
+      "ce": null
+    },
+    {
+      "url": "index.js",
+      "status": 200,
+      "mime": "text/javascript",
+      "bytes": 68707,
+      "ms": 103,
+      "ce": "gzip"
+    },
+    {
+      "url": "",
+      "status": 200,
+      "mime": "text/html",
+      "bytes": 14147,
+      "ms": 30,
+      "ce": null
+    },
+    {
+      "url": "vk-bridge.min.js",
+      "status": 200,
+      "mime": "text/javascript",
+      "bytes": 4680,
+      "ms": 90,
+      "ce": null
+    },
+    {
+      "url": "index.icon.png",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 1415,
+      "ms": 286,
+      "ce": null
+    },
+    {
+      "url": "init",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 765,
+      "ms": 16,
+      "ce": null
+    },
+    {
+      "url": "profile",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 618,
+      "ms": 26,
+      "ce": null
+    },
+    {
+      "url": "progress",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 556,
+      "ms": 30,
+      "ce": null
+    },
+    {
+      "url": "register",
+      "status": 201,
+      "mime": "application/json",
+      "bytes": 454,
+      "ms": 41,
+      "ce": null
+    },
+    {
+      "url": "event",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 358,
+      "ms": 23,
+      "ce": null
+    },
+    {
+      "url": "wsm.sessionActivated",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 199,
+      "ms": 2,
+      "ce": null
+    },
+    {
+      "url": "fd81205c-a737-4597-8a48-7daddc2dd989",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 0,
+      "ms": 1,
+      "ce": null
+    },
+    {
+      "url": "fd81205c-a737-4597-8a48-7daddc2dd989",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 0,
+      "ms": 1,
+      "ce": null
+    }
+  ],
+  "console": [
+    {
+      "t": 1795725049174,
+      "type": "log",
+      "text": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "t": 1795725049728,
+      "type": "log",
+      "text": "OpenGL API OpenGL ES 3.0 (WebGL 2.0 (OpenGL ES 3.0 Chromium)) - Compatibility - Using Device: WebKit - WebKit WebGL"
+    },
+    {
+      "t": 1795725050132,
+      "type": "log",
+      "text": "Build configuration: Emscripten 4.0.20, single-threaded, no GDExtension support."
+    },
+    {
+      "t": 1795725050140,
+      "type": "error",
+      "text": "WARNING: Screen-space AA is only available when using the Forward+ or Mobile renderer."
+    },
+    {
+      "t": 1795725050140,
+      "type": "error",
+      "text": "   at: viewport_set_screen_space_aa (servers/rendering/renderer_viewport.cpp:1435)"
+    },
+    {
+      "t": 1795725051092,
+      "type": "log",
+      "text": "[Platform] id=standalone adapter=Standalone"
+    },
+    {
+      "t": 1795725051095,
+      "type": "log",
+      "text": "[NET] REST URL: https://three-skies-server.relaxdev.ru"
+    },
+    {
+      "t": 1795725051096,
+      "type": "log",
+      "text": "[NET] WebSocket URL: wss://three-skies-server.relaxdev.ru/ws"
+    },
+    {
+      "t": 1795725054753,
+      "type": "error",
+      "text": "ERROR: Parameter \"data.tree\" is null."
+    },
+    {
+      "t": 1795725054753,
+      "type": "error",
+      "text": "   at: get_tree (scene/main/node.h:559)"
+    }
+  ],
+  "pageErrors": [],
+  "metrics": {
+    "TaskDuration": 21.642912,
+    "ScriptDuration": 16.777228,
+    "LayoutDuration": 0.013626,
+    "RecalcStyleDuration": 0.001287,
+    "JSHeapUsedMB": 17.6,
+    "Nodes": 65,
+    "Documents": 1
+  }
+}

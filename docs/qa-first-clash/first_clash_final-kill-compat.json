@@ -1,0 +1,430 @@
+{
+  "action": "kill",
+  "adapter": "Radeon RX 570 Series",
+  "canvas": [
+    1440,
+    734
+  ],
+  "events": [
+    {
+      "detail": "match_start 0.9ms",
+      "frame": 1,
+      "kind": "mark_sfx",
+      "t_ms": -1.0
+    },
+    {
+      "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+      "frame": 1,
+      "kind": "sound",
+      "t_ms": 2.0
+    },
+    {
+      "detail": "forced_kill",
+      "frame": 142,
+      "kind": "probe",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "Даронес 36",
+      "frame": 143,
+      "kind": "mark_attack",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "Даронес 36",
+      "frame": 143,
+      "kind": "attack",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "Player -> Каменный Путь 36",
+      "frame": 143,
+      "kind": "mark_hit",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "Player -> Каменный Путь 36",
+      "frame": 143,
+      "kind": "hit",
+      "t_ms": 301.0
+    },
+    {
+      "detail": "1 crit=false 0.1ms",
+      "frame": 143,
+      "kind": "mark_number",
+      "t_ms": 302.0
+    },
+    {
+      "detail": "1 crit=false 0.1ms",
+      "frame": 143,
+      "kind": "damage_number",
+      "t_ms": 302.0
+    },
+    {
+      "detail": "vfx_impact_02.tscn 0.5ms",
+      "frame": 143,
+      "kind": "mark_vfx",
+      "t_ms": 303.0
+    },
+    {
+      "detail": "vfx_impact_02.tscn 0.5ms",
+      "frame": 143,
+      "kind": "vfx",
+      "t_ms": 303.0
+    },
+    {
+      "detail": "death 0.1ms",
+      "frame": 143,
+      "kind": "mark_sfx",
+      "t_ms": 303.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 143,
+      "kind": "mark_vfx",
+      "t_ms": 304.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 143,
+      "kind": "vfx",
+      "t_ms": 304.0
+    },
+    {
+      "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+      "frame": 143,
+      "kind": "sound",
+      "t_ms": 309.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 143,
+      "kind": "sound",
+      "t_ms": 309.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 143,
+      "kind": "sound_hit",
+      "t_ms": 309.0
+    },
+    {
+      "detail": "Каменный Путь 1050->0",
+      "frame": 143,
+      "kind": "damage",
+      "t_ms": 309.0
+    },
+    {
+      "detail": "Каменный Путь",
+      "frame": 143,
+      "kind": "death",
+      "t_ms": 309.0
+    },
+    {
+      "detail": "game_sfx death_soft_thud.mp3",
+      "frame": 143,
+      "kind": "sound",
+      "t_ms": 309.0
+    },
+    {
+      "detail": "rows=1",
+      "frame": 143,
+      "kind": "kill_feed",
+      "t_ms": 308.0
+    }
+  ],
+  "first": {
+    "attack": {
+      "detail": "Даронес 36",
+      "frame": 143,
+      "t_ms": 301.0
+    },
+    "damage": {
+      "detail": "Каменный Путь 1050->0",
+      "frame": 143,
+      "t_ms": 309.0
+    },
+    "damage_number": {
+      "detail": "1 crit=false 0.1ms",
+      "frame": 143,
+      "t_ms": 302.0
+    },
+    "death": {
+      "detail": "Каменный Путь",
+      "frame": 143,
+      "t_ms": 309.0
+    },
+    "hit": {
+      "detail": "Player -> Каменный Путь 36",
+      "frame": 143,
+      "t_ms": 301.0
+    },
+    "kill_feed": {
+      "detail": "rows=1",
+      "frame": 143,
+      "t_ms": 308.0
+    },
+    "mark_attack": {
+      "detail": "Даронес 36",
+      "frame": 143,
+      "t_ms": 301.0
+    },
+    "mark_hit": {
+      "detail": "Player -> Каменный Путь 36",
+      "frame": 143,
+      "t_ms": 301.0
+    },
+    "mark_number": {
+      "detail": "1 crit=false 0.1ms",
+      "frame": 143,
+      "t_ms": 302.0
+    },
+    "mark_sfx": {
+      "detail": "match_start 0.9ms",
+      "frame": 1,
+      "t_ms": -1.0
+    },
+    "mark_vfx": {
+      "detail": "vfx_impact_02.tscn 0.5ms",
+      "frame": 143,
+      "t_ms": 303.0
+    },
+    "probe": {
+      "detail": "forced_kill",
+      "frame": 142,
+      "t_ms": 301.0
+    },
+    "sound": {
+      "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+      "frame": 1,
+      "t_ms": 2.0
+    },
+    "sound_hit": {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 143,
+      "t_ms": 309.0
+    },
+    "vfx": {
+      "detail": "vfx_impact_02.tscn 0.5ms",
+      "frame": 143,
+      "t_ms": 303.0
+    }
+  },
+  "first_clash_max_ms": 14.67,
+  "first_clash_window": {
+    "avg_ms": 1.95,
+    "fps_avg": 511.7,
+    "frames": 764,
+    "max_ms": 14.67,
+    "over_16": 0,
+    "over_33": 0,
+    "over_50": 0,
+    "p50_ms": 1.78,
+    "p95_ms": 3.01,
+    "p99_ms": 3.67,
+    "process_max_ms": 7.64,
+    "render_max_ms": 14.06
+  },
+  "forced_cpu_ms": 2.91,
+  "forced_steps": [
+    {
+      "cpu_ms": 2.91,
+      "step": "kill"
+    }
+  ],
+  "forced_t_ms": 301.0,
+  "frames": {
+    "all": {
+      "avg_ms": 1.94,
+      "fps_avg": 515.2,
+      "frames": 1186,
+      "max_ms": 18.24,
+      "over_16": 1,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 1.72,
+      "p95_ms": 3.05,
+      "p99_ms": 3.87,
+      "process_max_ms": 7.64,
+      "render_max_ms": 16.85
+    },
+    "clash_0_1500ms": {
+      "avg_ms": 1.95,
+      "fps_avg": 511.7,
+      "frames": 764,
+      "max_ms": 14.67,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 1.78,
+      "p95_ms": 3.01,
+      "p99_ms": 3.67,
+      "process_max_ms": 7.64,
+      "render_max_ms": 14.06
+    },
+    "clash_0_200ms": {
+      "avg_ms": 2.52,
+      "fps_avg": 397.0,
+      "frames": 77,
+      "max_ms": 14.67,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 1.96,
+      "p95_ms": 5.47,
+      "p99_ms": 14.67,
+      "process_max_ms": 7.64,
+      "render_max_ms": 14.06
+    },
+    "post_1500ms": {
+      "avg_ms": 1.79,
+      "fps_avg": 557.6,
+      "frames": 279,
+      "max_ms": 3.87,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 1.62,
+      "p95_ms": 2.86,
+      "p99_ms": 3.85,
+      "process_max_ms": 1.41,
+      "render_max_ms": 3.47
+    },
+    "start_0_to_clash": {
+      "avg_ms": 2.16,
+      "fps_avg": 463.2,
+      "frames": 143,
+      "max_ms": 18.24,
+      "over_16": 1,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 1.74,
+      "p95_ms": 3.27,
+      "p99_ms": 8.96,
+      "process_max_ms": 3.05,
+      "render_max_ms": 16.85
+    }
+  },
+  "hero_spawns": [],
+  "load_main_ms": 85.7,
+  "mobile": false,
+  "novsync": true,
+  "pipeline_monitors": [
+    "canvas",
+    "mesh",
+    "surface",
+    "draw",
+    "specialization"
+  ],
+  "quality": "high",
+  "ready_ms": 552.6,
+  "renderer": "gl_compatibility",
+  "screenshot": "C:/myGames3D/three-skies/docs/qa-first-clash/first_clash_final-kill-compat.png",
+  "spikes_16": [
+    {
+      "draws": 199,
+      "frame_ms": 18.237,
+      "near_events": [
+        {
+          "detail": "match_start 0.9ms",
+          "frame": 1,
+          "kind": "mark_sfx",
+          "t_ms": -1.0
+        },
+        {
+          "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+          "frame": 1,
+          "kind": "sound",
+          "t_ms": 2.0
+        }
+      ],
+      "nodes": 1338,
+      "perf_physics_ms": 0.37,
+      "perf_process_ms": 636.85,
+      "pipe_compiled": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pipe_frame": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "process_ms": 0.35,
+      "render_ms": 16.85,
+      "setup_ms": 0.1,
+      "t_ms": 22.0
+    }
+  ],
+  "spikes_33": [],
+  "start_match_to_live_ms": 514.1,
+  "tag": "final-kill-compat",
+  "warmup": true,
+  "warmup_report": {
+    "arena_children": 12,
+    "deadline_hit": false,
+    "elapsed": 19.749,
+    "error": "",
+    "failed": false,
+    "first2s_max_at_s": 0.0,
+    "first2s_max_frame_ms": 131.4,
+    "first2s_settled_max_frame_ms": 1.4,
+    "frame_ms_avg": 0.3,
+    "frame_ms_max": 131.4,
+    "frame_ms_p95": 0.3,
+    "frames_rendered": 101,
+    "frames_sampled": 8192,
+    "heroes_warmed": 5,
+    "main_cached": true,
+    "main_freed": true,
+    "main_load_ms": 1403,
+    "main_scene_loaded": true,
+    "main_script_stripped": true,
+    "mobile": false,
+    "paced": true,
+    "pacing_target_s": 21.0,
+    "pass1_video_mb": 142.1,
+    "pass2_video_mb": 0.0,
+    "pauses_s": 14.85,
+    "peak_static_mb": 64.3,
+    "peak_video_mb": 142.1,
+    "props_warmed": 18,
+    "quality": "high",
+    "reload_ms": 1,
+    "shaders_warmed": 9,
+    "sounds_warmed": 38,
+    "stage_times": {
+      "Бойцы и скины": 5.866,
+      "Готово": 0.008,
+      "Загрузка арены": 4.173,
+      "Инстанс арены": 0.338,
+      "Материалы арены": 0.967,
+      "Оружие и предметы": 1.865,
+      "Финальный рендер": 0.782,
+      "Шейдеры": 0.475,
+      "Эффекты и шейдеры": 5.285
+    },
+    "stats_tracked": true,
+    "truncated": false,
+    "two_pass": false,
+    "two_pass_policy": "auto",
+    "two_pass_reason": "desktop",
+    "two_pass_switch_ms": 0,
+    "two_pass_switch_s": 0.0,
+    "vfx_scenes_warmed": 10,
+    "video_after_arena_free_mb": 0.0,
+    "video_after_arena_mb": 110.1,
+    "video_after_vfx_mb": 115.2,
+    "video_mem_available": true,
+    "work_s": 4.9
+  },
+  "window": [
+    1440,
+    734
+  ]
+}

@@ -1,0 +1,840 @@
+{
+  "action": "clash",
+  "adapter": "Radeon RX 570 Series",
+  "canvas": [
+    1168,
+    540
+  ],
+  "events": [
+    {
+      "detail": "Звёздный След team=0",
+      "frame": 0,
+      "kind": "bot_spawn",
+      "t_ms": 0.0
+    },
+    {
+      "detail": "Каменный Путь team=0",
+      "frame": 0,
+      "kind": "bot_spawn",
+      "t_ms": 0.0
+    },
+    {
+      "detail": "Холодный Рассвет team=1",
+      "frame": 0,
+      "kind": "bot_spawn",
+      "t_ms": 0.0
+    },
+    {
+      "detail": "Тёмный Лис team=1",
+      "frame": 0,
+      "kind": "bot_spawn",
+      "t_ms": 0.0
+    },
+    {
+      "detail": "Тихий Шторм team=1",
+      "frame": 0,
+      "kind": "bot_spawn",
+      "t_ms": 0.0
+    },
+    {
+      "detail": "match_start 0.9ms",
+      "frame": 1,
+      "kind": "mark_sfx",
+      "t_ms": -1.0
+    },
+    {
+      "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+      "frame": 1,
+      "kind": "sound",
+      "t_ms": 1.0
+    },
+    {
+      "detail": "forced_clash",
+      "frame": 132,
+      "kind": "probe",
+      "t_ms": 300.0
+    },
+    {
+      "detail": "Даронес 45",
+      "frame": 133,
+      "kind": "mark_attack",
+      "t_ms": 299.0
+    },
+    {
+      "detail": "Даронес 45",
+      "frame": 133,
+      "kind": "attack",
+      "t_ms": 299.0
+    },
+    {
+      "detail": "Player -> Холодный Рассвет 45",
+      "frame": 133,
+      "kind": "mark_hit",
+      "t_ms": 299.0
+    },
+    {
+      "detail": "Player -> Холодный Рассвет 45",
+      "frame": 133,
+      "kind": "hit",
+      "t_ms": 299.0
+    },
+    {
+      "detail": "90 crit=false 0.1ms",
+      "frame": 133,
+      "kind": "mark_number",
+      "t_ms": 300.0
+    },
+    {
+      "detail": "90 crit=false 0.1ms",
+      "frame": 133,
+      "kind": "damage_number",
+      "t_ms": 300.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 133,
+      "kind": "mark_vfx",
+      "t_ms": 300.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 133,
+      "kind": "vfx",
+      "t_ms": 300.0
+    },
+    {
+      "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+      "frame": 133,
+      "kind": "sound",
+      "t_ms": 303.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 133,
+      "kind": "sound",
+      "t_ms": 303.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 133,
+      "kind": "sound_hit",
+      "t_ms": 303.0
+    },
+    {
+      "detail": "Холодный Рассвет 1050->960",
+      "frame": 133,
+      "kind": "damage",
+      "t_ms": 303.0
+    },
+    {
+      "detail": "Холодный Рассвет 29",
+      "frame": 193,
+      "kind": "mark_attack",
+      "t_ms": 460.0
+    },
+    {
+      "detail": "Холодный Рассвет 29",
+      "frame": 193,
+      "kind": "attack",
+      "t_ms": 460.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 29",
+      "frame": 193,
+      "kind": "mark_hit",
+      "t_ms": 460.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 29",
+      "frame": 193,
+      "kind": "hit",
+      "t_ms": 460.0
+    },
+    {
+      "detail": "57 crit=false 0.1ms",
+      "frame": 193,
+      "kind": "mark_number",
+      "t_ms": 460.0
+    },
+    {
+      "detail": "57 crit=false 0.1ms",
+      "frame": 193,
+      "kind": "damage_number",
+      "t_ms": 460.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 193,
+      "kind": "mark_vfx",
+      "t_ms": 461.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 193,
+      "kind": "vfx",
+      "t_ms": 461.0
+    },
+    {
+      "detail": "Даронес 1050->993",
+      "frame": 193,
+      "kind": "damage",
+      "t_ms": 465.0
+    },
+    {
+      "detail": "CombatAudio_Attack warrior_attack_sword_01.mp3",
+      "frame": 193,
+      "kind": "sound",
+      "t_ms": 465.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 193,
+      "kind": "sound",
+      "t_ms": 465.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 193,
+      "kind": "sound_hit",
+      "t_ms": 465.0
+    },
+    {
+      "detail": "Footsteps footstep_1.ogg",
+      "frame": 212,
+      "kind": "sound",
+      "t_ms": 525.0
+    },
+    {
+      "detail": "Холодный Рассвет 1",
+      "frame": 262,
+      "kind": "mark_ability",
+      "t_ms": 673.0
+    },
+    {
+      "detail": "Холодный Рассвет 1",
+      "frame": 262,
+      "kind": "cast",
+      "t_ms": 673.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 262,
+      "kind": "mark_vfx",
+      "t_ms": 674.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 262,
+      "kind": "vfx",
+      "t_ms": 674.0
+    },
+    {
+      "detail": "Даронес 41",
+      "frame": 337,
+      "kind": "mark_attack",
+      "t_ms": 890.0
+    },
+    {
+      "detail": "Даронес 41",
+      "frame": 337,
+      "kind": "attack",
+      "t_ms": 890.0
+    },
+    {
+      "detail": "Player -> Холодный Рассвет 41",
+      "frame": 337,
+      "kind": "mark_hit",
+      "t_ms": 890.0
+    },
+    {
+      "detail": "Player -> Холодный Рассвет 41",
+      "frame": 337,
+      "kind": "hit",
+      "t_ms": 890.0
+    },
+    {
+      "detail": "82 crit=false 0.1ms",
+      "frame": 337,
+      "kind": "mark_number",
+      "t_ms": 890.0
+    },
+    {
+      "detail": "82 crit=false 0.1ms",
+      "frame": 337,
+      "kind": "damage_number",
+      "t_ms": 890.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 337,
+      "kind": "mark_vfx",
+      "t_ms": 891.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 337,
+      "kind": "vfx",
+      "t_ms": 891.0
+    },
+    {
+      "detail": "Холодный Рассвет 960->878",
+      "frame": 337,
+      "kind": "damage",
+      "t_ms": 895.0
+    },
+    {
+      "detail": "Footsteps footstep_4.ogg",
+      "frame": 341,
+      "kind": "sound",
+      "t_ms": 909.0
+    },
+    {
+      "detail": "Холодный Рассвет 87",
+      "frame": 427,
+      "kind": "mark_attack",
+      "t_ms": 1156.0
+    },
+    {
+      "detail": "Холодный Рассвет 87",
+      "frame": 427,
+      "kind": "attack",
+      "t_ms": 1156.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 87",
+      "frame": 427,
+      "kind": "mark_hit",
+      "t_ms": 1156.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 87",
+      "frame": 427,
+      "kind": "hit",
+      "t_ms": 1156.0
+    },
+    {
+      "detail": "174 crit=true 0.0ms",
+      "frame": 427,
+      "kind": "mark_number",
+      "t_ms": 1156.0
+    },
+    {
+      "detail": "174 crit=true 0.0ms",
+      "frame": 427,
+      "kind": "damage_number",
+      "t_ms": 1156.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 427,
+      "kind": "mark_vfx",
+      "t_ms": 1157.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 427,
+      "kind": "vfx",
+      "t_ms": 1157.0
+    },
+    {
+      "detail": "Даронес 993->818",
+      "frame": 427,
+      "kind": "damage",
+      "t_ms": 1161.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 427,
+      "kind": "sound",
+      "t_ms": 1161.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 427,
+      "kind": "sound_hit",
+      "t_ms": 1161.0
+    },
+    {
+      "detail": "Footsteps footstep_4.ogg",
+      "frame": 472,
+      "kind": "sound",
+      "t_ms": 1293.0
+    },
+    {
+      "detail": "Даронес 37",
+      "frame": 541,
+      "kind": "mark_attack",
+      "t_ms": 1488.0
+    },
+    {
+      "detail": "Даронес 37",
+      "frame": 541,
+      "kind": "attack",
+      "t_ms": 1488.0
+    },
+    {
+      "detail": "Player -> Холодный Рассвет 37",
+      "frame": 541,
+      "kind": "mark_hit",
+      "t_ms": 1488.0
+    },
+    {
+      "detail": "Player -> Холодный Рассвет 37",
+      "frame": 541,
+      "kind": "hit",
+      "t_ms": 1488.0
+    },
+    {
+      "detail": "73 crit=false 0.0ms",
+      "frame": 541,
+      "kind": "mark_number",
+      "t_ms": 1489.0
+    },
+    {
+      "detail": "73 crit=false 0.0ms",
+      "frame": 541,
+      "kind": "damage_number",
+      "t_ms": 1489.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 541,
+      "kind": "mark_vfx",
+      "t_ms": 1489.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 541,
+      "kind": "vfx",
+      "t_ms": 1489.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 541,
+      "kind": "sound",
+      "t_ms": 1496.0
+    },
+    {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 541,
+      "kind": "sound_hit",
+      "t_ms": 1496.0
+    },
+    {
+      "detail": "Холодный Рассвет 878->805",
+      "frame": 541,
+      "kind": "damage",
+      "t_ms": 1496.0
+    },
+    {
+      "detail": "Холодный Рассвет 0",
+      "frame": 560,
+      "kind": "mark_ability",
+      "t_ms": 1557.0
+    },
+    {
+      "detail": "Холодный Рассвет 0",
+      "frame": 560,
+      "kind": "cast",
+      "t_ms": 1557.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 35",
+      "frame": 560,
+      "kind": "mark_hit",
+      "t_ms": 1557.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 35",
+      "frame": 560,
+      "kind": "hit",
+      "t_ms": 1557.0
+    },
+    {
+      "detail": "70 crit=false 0.1ms",
+      "frame": 560,
+      "kind": "mark_number",
+      "t_ms": 1557.0
+    },
+    {
+      "detail": "70 crit=false 0.1ms",
+      "frame": 560,
+      "kind": "damage_number",
+      "t_ms": 1557.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 560,
+      "kind": "mark_vfx",
+      "t_ms": 1558.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 560,
+      "kind": "vfx",
+      "t_ms": 1558.0
+    },
+    {
+      "detail": "Даронес 818->748",
+      "frame": 560,
+      "kind": "damage",
+      "t_ms": 1562.0
+    },
+    {
+      "detail": "Footsteps footstep_3.ogg",
+      "frame": 649,
+      "kind": "sound",
+      "t_ms": 1843.0
+    },
+    {
+      "detail": "Холодный Рассвет 34",
+      "frame": 739,
+      "kind": "mark_attack",
+      "t_ms": 2107.0
+    },
+    {
+      "detail": "Холодный Рассвет 34",
+      "frame": 739,
+      "kind": "attack",
+      "t_ms": 2107.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 34",
+      "frame": 739,
+      "kind": "mark_hit",
+      "t_ms": 2107.0
+    },
+    {
+      "detail": "Воин_1_3 -> Даронес 34",
+      "frame": 739,
+      "kind": "hit",
+      "t_ms": 2107.0
+    },
+    {
+      "detail": "69 crit=false 0.1ms",
+      "frame": 739,
+      "kind": "mark_number",
+      "t_ms": 2107.0
+    },
+    {
+      "detail": "69 crit=false 0.1ms",
+      "frame": 739,
+      "kind": "damage_number",
+      "t_ms": 2107.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 739,
+      "kind": "mark_vfx",
+      "t_ms": 2108.0
+    },
+    {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 739,
+      "kind": "vfx",
+      "t_ms": 2108.0
+    },
+    {
+      "detail": "Даронес 748->679",
+      "frame": 739,
+      "kind": "damage",
+      "t_ms": 2112.0
+    }
+  ],
+  "first": {
+    "attack": {
+      "detail": "Даронес 45",
+      "frame": 133,
+      "t_ms": 299.0
+    },
+    "bot_spawn": {
+      "detail": "Звёздный След team=0",
+      "frame": 0,
+      "t_ms": 0.0
+    },
+    "cast": {
+      "detail": "Холодный Рассвет 1",
+      "frame": 262,
+      "t_ms": 673.0
+    },
+    "damage": {
+      "detail": "Холодный Рассвет 1050->960",
+      "frame": 133,
+      "t_ms": 303.0
+    },
+    "damage_number": {
+      "detail": "90 crit=false 0.1ms",
+      "frame": 133,
+      "t_ms": 300.0
+    },
+    "hit": {
+      "detail": "Player -> Холодный Рассвет 45",
+      "frame": 133,
+      "t_ms": 299.0
+    },
+    "mark_ability": {
+      "detail": "Холодный Рассвет 1",
+      "frame": 262,
+      "t_ms": 673.0
+    },
+    "mark_attack": {
+      "detail": "Даронес 45",
+      "frame": 133,
+      "t_ms": 299.0
+    },
+    "mark_hit": {
+      "detail": "Player -> Холодный Рассвет 45",
+      "frame": 133,
+      "t_ms": 299.0
+    },
+    "mark_number": {
+      "detail": "90 crit=false 0.1ms",
+      "frame": 133,
+      "t_ms": 300.0
+    },
+    "mark_sfx": {
+      "detail": "match_start 0.9ms",
+      "frame": 1,
+      "t_ms": -1.0
+    },
+    "mark_vfx": {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 133,
+      "t_ms": 300.0
+    },
+    "probe": {
+      "detail": "forced_clash",
+      "frame": 132,
+      "t_ms": 300.0
+    },
+    "sound": {
+      "detail": "game_sfx misc_start_kenney_hit_15.ogg",
+      "frame": 1,
+      "t_ms": 1.0
+    },
+    "sound_hit": {
+      "detail": "CombatAudio_Impact warrior_hit.mp3",
+      "frame": 133,
+      "t_ms": 303.0
+    },
+    "vfx": {
+      "detail": "vfx_hit_01.tscn 0.6ms",
+      "frame": 133,
+      "t_ms": 300.0
+    }
+  },
+  "first_clash_max_ms": 9.31,
+  "first_clash_warm_done": true,
+  "first_clash_warm_ms": 554,
+  "first_clash_window": {
+    "avg_ms": 2.98,
+    "fps_avg": 335.5,
+    "frames": 503,
+    "max_ms": 9.31,
+    "over_16": 0,
+    "over_33": 0,
+    "over_50": 0,
+    "p50_ms": 2.65,
+    "p95_ms": 4.62,
+    "p99_ms": 6.51,
+    "process_max_ms": 4.62,
+    "render_max_ms": 6.35
+  },
+  "forced_cpu_ms": 1.07,
+  "forced_steps": [
+    {
+      "cpu_ms": 1.07,
+      "step": "clash"
+    },
+    {
+      "cpu_ms": 1.08,
+      "step": "enemy_attack"
+    }
+  ],
+  "forced_t_ms": 300.0,
+  "frames": {
+    "all": {
+      "avg_ms": 2.86,
+      "fps_avg": 349.8,
+      "frames": 805,
+      "max_ms": 9.31,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 2.62,
+      "p95_ms": 4.41,
+      "p99_ms": 6.0,
+      "process_max_ms": 4.62,
+      "render_max_ms": 6.35
+    },
+    "clash_0_1500ms": {
+      "avg_ms": 2.98,
+      "fps_avg": 335.5,
+      "frames": 503,
+      "max_ms": 9.31,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 2.65,
+      "p95_ms": 4.62,
+      "p99_ms": 6.51,
+      "process_max_ms": 4.62,
+      "render_max_ms": 6.35
+    },
+    "clash_0_200ms": {
+      "avg_ms": 2.76,
+      "fps_avg": 362.1,
+      "frames": 72,
+      "max_ms": 5.26,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 2.47,
+      "p95_ms": 4.07,
+      "p99_ms": 5.26,
+      "process_max_ms": 2.88,
+      "render_max_ms": 3.92
+    },
+    "post_1500ms": {
+      "avg_ms": 2.95,
+      "fps_avg": 338.6,
+      "frames": 169,
+      "max_ms": 6.31,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 2.68,
+      "p95_ms": 4.4,
+      "p99_ms": 5.73,
+      "process_max_ms": 1.41,
+      "render_max_ms": 5.25
+    },
+    "start_0_to_clash": {
+      "avg_ms": 2.28,
+      "fps_avg": 439.1,
+      "frames": 133,
+      "max_ms": 5.49,
+      "over_16": 0,
+      "over_33": 0,
+      "over_50": 0,
+      "p50_ms": 2.01,
+      "p95_ms": 3.96,
+      "p99_ms": 5.43,
+      "process_max_ms": 2.2,
+      "render_max_ms": 5.04
+    }
+  },
+  "hero_spawns": [
+    {
+      "name": "Звёздный След",
+      "player": false,
+      "t_ms": 0.0,
+      "team": 0
+    },
+    {
+      "name": "Каменный Путь",
+      "player": false,
+      "t_ms": 0.0,
+      "team": 0
+    },
+    {
+      "name": "Холодный Рассвет",
+      "player": false,
+      "t_ms": 0.0,
+      "team": 1
+    },
+    {
+      "name": "Тёмный Лис",
+      "player": false,
+      "t_ms": 0.0,
+      "team": 1
+    },
+    {
+      "name": "Тихий Шторм",
+      "player": false,
+      "t_ms": 0.0,
+      "team": 1
+    }
+  ],
+  "load_main_ms": 219.0,
+  "mobile": true,
+  "novsync": true,
+  "pipeline_monitors": [
+    "canvas",
+    "mesh",
+    "surface",
+    "draw",
+    "specialization"
+  ],
+  "quality": "low",
+  "ready_ms": 675.6,
+  "renderer": "forward_plus",
+  "screenshot": "C:/myGames3D/three-skies/docs/qa-first-clash/first_clash_final-warm-mobile-low.png",
+  "spikes_16": [],
+  "spikes_33": [],
+  "start_match_to_live_ms": 468.6,
+  "tag": "final-warm-mobile-low",
+  "warmup": true,
+  "warmup_report": {
+    "arena_children": 12,
+    "deadline_hit": false,
+    "elapsed": 21.622,
+    "error": "",
+    "failed": false,
+    "first2s_max_at_s": 0.0,
+    "first2s_max_frame_ms": 130.0,
+    "first2s_settled_max_frame_ms": 37.5,
+    "frame_ms_avg": 0.5,
+    "frame_ms_max": 130.0,
+    "frame_ms_p95": 0.6,
+    "frames_rendered": 101,
+    "frames_sampled": 8192,
+    "heroes_warmed": 5,
+    "main_cached": true,
+    "main_freed": true,
+    "main_load_ms": 1600,
+    "main_scene_loaded": true,
+    "main_script_stripped": true,
+    "mobile": true,
+    "paced": true,
+    "pacing_target_s": 23.0,
+    "pass1_video_mb": 380.3,
+    "pass2_video_mb": 0.0,
+    "pauses_s": 16.25,
+    "peak_static_mb": 87.9,
+    "peak_video_mb": 380.3,
+    "props_warmed": 18,
+    "quality": "low",
+    "reload_ms": 0,
+    "shaders_warmed": 9,
+    "sounds_warmed": 38,
+    "stage_times": {
+      "Бойцы и скины": 6.453,
+      "Готово": 0.005,
+      "Загрузка арены": 4.376,
+      "Инстанс арены": 0.27,
+      "Материалы арены": 1.323,
+      "Оружие и предметы": 2.297,
+      "Финальный рендер": 0.007,
+      "Шейдеры": 1.334,
+      "Эффекты и шейдеры": 5.565
+    },
+    "stats_tracked": true,
+    "truncated": false,
+    "two_pass": false,
+    "two_pass_policy": "auto",
+    "two_pass_reason": "arena_peak_313_mb",
+    "two_pass_switch_ms": 0,
+    "two_pass_switch_s": 0.0,
+    "vfx_scenes_warmed": 10,
+    "video_after_arena_free_mb": 0.0,
+    "video_after_arena_mb": 313.2,
+    "video_after_vfx_mb": 346.2,
+    "video_mem_available": true,
+    "work_s": 5.38
+  },
+  "window": [
+    844,
+    390
+  ]
+}

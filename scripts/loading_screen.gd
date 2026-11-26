@@ -10,10 +10,13 @@ const WARMUP_FLOW_SCRIPT := preload('res://scripts/warmup_flow.gd')
 ## The battle warmup runs inside the match-search window. If the match is
 ## found earlier the transition waits for it, but never longer than this:
 ## after the budget the match starts without the warmup (game.gd falls back
-## to its own first-frame warmup).
+## to its own first-frame warmup). WarmupFlow paces itself to ~21 s and stops
+## at 28 s, so this budget is the real ceiling.
 const WARMUP_BUDGET_SECONDS := 30.0
 ## Tutorial loading screen: a broken warmup must never leave the player here.
-const TUTORIAL_WARMUP_TIMEOUT_SECONDS := 45.0
+## WarmupFlow stops itself at 28 s; this is only the backstop for a stalled
+## frame loop.
+const TUTORIAL_WARMUP_TIMEOUT_SECONDS := 32.0
 const SEARCH_SECONDS := 15.0
 # Клиент ждёт сервер; сервер стартует комнату через 30 секунд после
 # последнего вошедшего игрока, поэтому обратный отсчёт тоже 30.
@@ -106,6 +109,11 @@ func _ready() -> void:
 
 
 func _add_vfx_preloader() -> void:
+	# Only the direct tutorial entry (no tutorial warmup) takes this path:
+	# WarmupFlow runs its own VFX pass, so a second preloader would duplicate
+	# the whole VFX/character warmup.
+	if warmup_flow != null or warmup_active or find_child('VfxPreloader', true, false) != null:
+		return
 	var preloader := preload('res://scripts/vfx_preloader.gd').new()
 	preloader.name = 'VfxPreloader'
 	add_child(preloader)
@@ -221,7 +229,8 @@ func _start_tutorial_warmup() -> void:
 	warmup_flow.finished.connect(_on_tutorial_warmup_finished)
 	warmup_flow.start()
 	# Hard watchdog: a driver hiccup must never leave the player on a frozen
-	# loading screen. The normal flow finishes in ~10 s.
+	# loading screen. The normal flow finishes in ~20-22 s; the warmup itself
+	# stops at 28 s, so this only catches a stalled frame loop.
 	tutorial_warmup_token += 1
 	var token := tutorial_warmup_token
 	get_tree().create_timer(TUTORIAL_WARMUP_TIMEOUT_SECONDS).timeout.connect(func() -> void:

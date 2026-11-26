@@ -26,6 +26,14 @@ var _ads_checked := false
 var _rewarded_available := false
 var _interstitial_available := false
 
+# VK resolves the ShowNativeAds promise only after the ad is closed, so the
+# wait budget must cover the whole video, not just the load. The old 20 s
+# default made a watched 30 s rewarded video end as "timeout": no x2, even
+# though the player had just watched the ad. 120 s is four times the longest
+# VK reward video plus loading, and still bounds a stuck bridge.
+const REWARDED_SHOW_TIMEOUT := 120.0
+const INTERSTITIAL_SHOW_TIMEOUT := 90.0
+
 
 func _init() -> void:
 	platform_id = "vk"
@@ -162,7 +170,7 @@ func show_rewarded_ad(placement: String) -> bool:
 	print("[Ads] check reward placement=%s ok=%s result=%s error=%s" % [
 		placement, check_ok, check_result, check_error,
 	])
-	var shown := await _call_ad_bridge("VKWebAppShowNativeAds", {"ad_format": "reward", "use_waterfall": true})
+	var shown := await _call_ad_bridge("VKWebAppShowNativeAds", {"ad_format": "reward", "use_waterfall": true}, REWARDED_SHOW_TIMEOUT)
 	var shown_ok := bool(shown.get("ok", false))
 	var shown_result := _ad_result_flag(shown)
 	var show_error := String(shown.get("error", ""))
@@ -175,10 +183,11 @@ func show_rewarded_ad(placement: String) -> bool:
 		check_ok, check_result, check_error, shown_ok, shown_result, show_error, elapsed_ms,
 	]
 	if not watched:
+		# A rejected bridge promise keeps its raw code; a resolved promise
+		# without result=true means the ad was closed early or the waterfall
+		# served a format that pays nothing.
 		if not shown_ok:
 			last_ad_error = show_error if not show_error.is_empty() else "show_error"
-		elif not shown_result:
-			last_ad_error = "no_fill"
 		else:
 			last_ad_error = "not_completed"
 	_rewarded_available = watched
@@ -193,7 +202,7 @@ func show_interstitial(placement: String) -> bool:
 	print("[Ads] check interstitial placement=%s ok=%s result=%s error=%s" % [
 		placement, check.get("ok", false), _ad_result_flag(check), check.get("error", ""),
 	])
-	var shown := await _call_ad_bridge("VKWebAppShowNativeAds", {"ad_format": "interstitial"})
+	var shown := await _call_ad_bridge("VKWebAppShowNativeAds", {"ad_format": "interstitial"}, INTERSTITIAL_SHOW_TIMEOUT)
 	var displayed := bool(shown.get("ok", false)) and _ad_result_flag(shown)
 	print("[Ads] show interstitial placement=%s ok=%s result=%s error=%s" % [
 		placement, shown.get("ok", false), displayed, shown.get("error", ""),
@@ -207,8 +216,31 @@ func _ad_result_flag(result: Dictionary) -> bool:
 	if not bool(result.get("ok", false)):
 		return false
 	var data: Variant = result.get("data", {})
+	# VK answers {result: bool}. Some bridge builds resolve with the bare
+	# boolean or spell the flag as a string after the JSON round-trip; a
+	# missing or false answer must still mean "no reward".
+	if data is bool:
+		return bool(data)
 	if data is Dictionary:
-		return bool((data as Dictionary).get("result", false))
+		var payload: Dictionary = data
+		if payload.has("result"):
+			return _ad_flag_value(payload.get("result"))
+		if payload.has("success"):
+			return _ad_flag_value(payload.get("success"))
+	return false
+
+
+func _ad_flag_value(value: Variant) -> bool:
+	if value is bool:
+		return value
+	if value is int:
+		return int(value) != 0
+	if value is float:
+		return float(value) != 0.0
+	if value is String:
+		# bool("false") is true in GDScript, so parse the string explicitly.
+		var text := (value as String).strip_edges().to_lower()
+		return text == "true" or text == "1"
 	return false
 
 

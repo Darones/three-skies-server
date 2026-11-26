@@ -34,6 +34,14 @@ var final_xp := 0
 var rewards_doubled := false
 var rewards_committed := false
 var server_match := false
+# x2 (rewarded ad) bookkeeping. The bonus is a second, separately idempotent
+# server payout for a match whose base reward must already be claimed. It is
+# held until the base answer arrives, so the bonus can never be rejected as
+# «Reward already claimed» while the screen still claims success.
+var reward_room := 0
+var base_reward_settled := false
+var base_reward_ok := false
+var pending_bonus := false
 var ad_in_progress := false
 var leaving_results := false
 var replay_button: Button
@@ -222,6 +230,12 @@ func _ready() -> void:
 		player_place = 1
 	var match_room := int(get_tree().get_meta("last_match_room", 0))
 	server_match = has_match and not match_aborted and match_room > 0
+	reward_room = match_room
+	# Listen before the base reward is sent: its answer decides when the x2
+	# bonus may go out (see _on_rewarded_ad_completed). Connected for every
+	# match — the payout itself is what decides, not the screen flags.
+	if not NetworkClient.match_reward_settled.is_connected(_on_results_reward_settled):
+		NetworkClient.match_reward_settled.connect(_on_results_reward_settled)
 	var kills := int(match_stats.get("p_kills", 0))
 	var shells_destroyed := int(match_stats.get("p_shells_destroyed", 0))
 	var crystals_delivered := int(match_stats.get("p_crystals", 0))
@@ -767,6 +781,7 @@ func _open_replay() -> void:
 		replay_button.disabled = true
 	if menu_button != null:
 		menu_button.disabled = true
+	_flush_pending_bonus_before_leaving()
 	var show_interstitial := _can_show_results_interstitial()
 	if show_interstitial:
 		await AdManager.maybe_show_interstitial_after_results()
@@ -781,6 +796,7 @@ func _open_menu() -> void:
 		replay_button.disabled = true
 	if menu_button != null:
 		menu_button.disabled = true
+	_flush_pending_bonus_before_leaving()
 	var show_interstitial := _can_show_results_interstitial()
 	if show_interstitial:
 		await AdManager.maybe_show_interstitial_after_results()
@@ -845,8 +861,16 @@ func _on_rewarded_ad_completed() -> void:
 	var character_key: String = str(CHARACTER_KEYS[selected_class])
 	if server_match:
 		# The server owns the x2 payout and applies the stored base reward a
-		# second time, exactly once per match (rewarded_bonus).
-		_grant_match_reward_to_server(final_shards, true, final_xp, character_key)
+		# second time, exactly once per match (rewarded_bonus). The bonus is a
+		# separate request that the server accepts only after the base reward
+		# is stored: sending it while the base is still in flight was answered
+		# with «Reward already claimed», so the banner said x2 while nothing
+		# was paid. Hold the bonus until the base answer arrives.
+		pending_bonus = true
+		if base_reward_settled:
+			_send_ad_bonus()
+		else:
+			print("[Ads] x2 waiting for the base reward room=%d" % _results_room_id())
 	else:
 		MetaProgression.add_character_xp(character_key, final_xp - previous_xp)
 		_grant_match_reward_to_server(final_shards - previous_shards, true, final_xp - previous_xp, character_key)
@@ -860,6 +884,63 @@ func _on_rewarded_ad_completed() -> void:
 	if ad_button_pulse_tween != null and ad_button_pulse_tween.is_running():
 		ad_button_pulse_tween.kill()
 		double_reward_button.scale = Vector2.ONE
+
+
+func _results_room_id() -> int:
+	if reward_room > 0:
+		return reward_room
+	return int(get_tree().get_meta("last_match_room", 0))
+
+
+func _send_ad_bonus() -> void:
+	if not pending_bonus:
+		return
+	pending_bonus = false
+	var character_key: String = str(CHARACTER_KEYS[selected_class])
+	# final_shards/final_xp are already doubled, and only here: the screen
+	# doubles them once, in _on_rewarded_ad_completed, so the bonus is sent
+	# exactly once with the exact doubled total.
+	_grant_match_reward_to_server(final_shards, true, final_xp, character_key)
+	print("[Ads] x2 bonus sent room=%d shards=%d xp=%d base_ok=%s" % [
+		_results_room_id(), final_shards, final_xp, base_reward_ok,
+	])
+
+
+func _on_results_reward_settled(success: bool, payload: Dictionary, _code: int, error: String, _profile: Dictionary) -> void:
+	var room_id := int(payload.get("room_id", 0))
+	var own_room := _results_room_id()
+	# Another match on a shared screen must not gate this one.
+	if room_id > 0 and own_room > 0 and room_id != own_room:
+		return
+	if bool(payload.get("bonus", false)):
+		if success:
+			print("[Ads] x2 bonus confirmed room=%d" % room_id)
+		else:
+			# MetaProgression keeps a rejected bonus in its outbox and retries
+			# it after the base reward, so the x2 is not lost here.
+			print("[Ads] x2 bonus not confirmed room=%d error=%s (kept for retry)" % [room_id, error])
+		return
+	base_reward_settled = true
+	base_reward_ok = success
+	if not pending_bonus:
+		return
+	if success:
+		_send_ad_bonus()
+		return
+	# The base answer is an error (network drop, server refuse). The bonus is
+	# already owed to the player who watched the ad: send it now so
+	# MetaProgression records it in the outbox and retries base then bonus in
+	# the original order.
+	print("[Ads] base reward failed room=%d error=%s; queuing the x2" % [room_id, error])
+	_send_ad_bonus()
+
+
+func _flush_pending_bonus_before_leaving() -> void:
+	# Leaving the results before the base answer arrives must not drop the
+	# bonus: MetaProgression keeps it queued behind the base reward.
+	if pending_bonus:
+		print("[Ads] leaving results with the x2 still waiting room=%d" % _results_room_id())
+		_send_ad_bonus()
 
 
 func _build_reward_banner() -> void:

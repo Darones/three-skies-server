@@ -2005,7 +2005,8 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 			request.RoomID, request.PlayerID,
 		).Scan(&matchID, &won, &storedShards, &storedXP, &storedCharacter)
 		if errors.Is(err, sql.ErrNoRows) {
-			writeJSON(w, http.StatusConflict, matchRewardResponse{Error: "Reward already claimed"})
+			status, message := matchRewardClaimFailure(r.Context(), transaction, request.RoomID, request.PlayerID, true)
+			writeJSON(w, status, matchRewardResponse{Error: message})
 			return
 		}
 		if err != nil {
@@ -2013,19 +2014,28 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
 			return
 		}
-		if storedShards > 0 {
-			rewardShards = storedShards
+		var legacy bool
+		rewardShards, legacy = bonusPayoutShards(storedShards, amount, won)
+		if legacy {
+			log.Printf("match x2 room=%d player=%d: no stored base, capped bonus to %d", request.RoomID, request.PlayerID, rewardShards)
 		}
 		if storedXP > 0 && storedCharacter != "" {
 			rewardXP = storedXP
 			rewardCharacter = storedCharacter
 		}
-		if _, err := transaction.ExecContext(r.Context(),
+		marked, markErr := transaction.ExecContext(r.Context(),
 			`UPDATE matches SET rewarded_bonus = TRUE WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = TRUE AND COALESCE(rewarded_bonus, FALSE) = FALSE`,
 			request.RoomID, request.PlayerID,
-		); err != nil {
-			log.Printf("mark match bonus: %v", err)
+		)
+		if markErr != nil {
+			log.Printf("mark match bonus: %v", markErr)
 			writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
+			return
+		}
+		if affected, _ := marked.RowsAffected(); affected == 0 {
+			// Never pay without the idempotency mark: a retry would pay the
+			// bonus a second time.
+			writeJSON(w, http.StatusConflict, matchRewardResponse{Error: rewardAlreadyClaimedError})
 			return
 		}
 	} else {
@@ -2034,7 +2044,8 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 			request.RoomID, request.PlayerID,
 		).Scan(&matchID, &won)
 		if errors.Is(err, sql.ErrNoRows) {
-			writeJSON(w, http.StatusConflict, matchRewardResponse{Error: "Reward already claimed"})
+			status, message := matchRewardClaimFailure(r.Context(), transaction, request.RoomID, request.PlayerID, false)
+			writeJSON(w, status, matchRewardResponse{Error: message})
 			return
 		}
 		if err != nil {
@@ -2044,23 +2055,24 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 		}
 		// The server owns the payout ceiling even though the client picks the
 		// 1/3/5 tier: a win can pay at most 5, a loss at most 3.
-		maxAward := 3
-		if won {
-			maxAward = 5
-		}
-		if rewardShards > maxAward {
+		if maxAward := baseRewardCap(won); rewardShards > maxAward {
 			rewardShards = maxAward
 		}
 		// Mark every duplicate row for this room/player as rewarded so a retry
 		// cannot farm the same match more than once. Store the base payout for
 		// the later, separately idempotent x2 bonus.
-		if _, err := transaction.ExecContext(r.Context(),
+		marked, markErr := transaction.ExecContext(r.Context(),
 			`UPDATE matches SET rewarded = TRUE, reward_shards = $3, reward_xp = $4, reward_character = $5
 			 WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = FALSE`,
 			request.RoomID, request.PlayerID, rewardShards, rewardXP, rewardCharacter,
-		); err != nil {
-			log.Printf("mark match reward: %v", err)
+		)
+		if markErr != nil {
+			log.Printf("mark match reward: %v", markErr)
 			writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
+			return
+		}
+		if affected, _ := marked.RowsAffected(); affected == 0 {
+			writeJSON(w, http.StatusConflict, matchRewardResponse{Error: rewardAlreadyClaimedError})
 			return
 		}
 	}
@@ -2092,6 +2104,13 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 		log.Printf("commit match reward: %v", err)
 		writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
 		return
+	}
+	if request.Bonus {
+		log.Printf("match x2 paid room=%d player=%d bonus_shards=%d xp=%d character=%s level_shards=%d new_shards=%d",
+			request.RoomID, request.PlayerID, rewardShards, rewardXP, rewardCharacter, levelUpShards, newShards)
+	} else {
+		log.Printf("match reward paid room=%d player=%d won=%t shards=%d xp=%d character=%s level_shards=%d new_shards=%d",
+			request.RoomID, request.PlayerID, won, rewardShards, rewardXP, rewardCharacter, levelUpShards, newShards)
 	}
 
 	writeJSON(w, http.StatusOK, matchRewardResponse{

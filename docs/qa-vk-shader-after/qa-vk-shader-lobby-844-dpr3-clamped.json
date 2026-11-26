@@ -1,0 +1,596 @@
+{
+  "tag": "qa-vk-shader-lobby-844-dpr3-clamped",
+  "url": "http://127.0.0.1:8123/?perf=1",
+  "viewport": {
+    "W": 844,
+    "H": 390,
+    "DPR": 3,
+    "mobile": true
+  },
+  "cpuThrottle": 1,
+  "chrome": "Chrome/158.0.8127.88",
+  "bootMs": 18796,
+  "bootCanvas": [
+    1266,
+    585,
+    844,
+    390
+  ],
+  "probe": {
+    "href": "http://127.0.0.1:8123/?perf=1",
+    "ua": "Mozilla/5.0 (Linux; Android 14; SM-A566B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
+    "platform": "Linux armv8l",
+    "dpr": 1.5,
+    "inner": [
+      844,
+      390
+    ],
+    "outer": [
+      844,
+      390
+    ],
+    "screen": [
+      844,
+      390,
+      844,
+      390
+    ],
+    "orientation": "landscape-primary",
+    "hardwareConcurrency": 28,
+    "deviceMemory": 32,
+    "webgl2": true,
+    "glVendor": "Google Inc. (AMD)",
+    "glRenderer": "ANGLE (AMD, Radeon RX 570 Series (0x000067DF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "glVersion": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+    "maxTexture": 16384,
+    "glExtensions": [
+      "EXT_clip_control",
+      "EXT_color_buffer_float",
+      "EXT_color_buffer_half_float",
+      "EXT_conservative_depth",
+      "EXT_depth_clamp",
+      "EXT_disjoint_timer_query_webgl2",
+      "EXT_float_blend",
+      "EXT_polygon_offset_clamp",
+      "EXT_render_snorm",
+      "EXT_texture_compression_bptc",
+      "EXT_texture_compression_rgtc",
+      "EXT_texture_filter_anisotropic",
+      "EXT_texture_mirror_clamp_to_edge",
+      "EXT_texture_norm16",
+      "KHR_parallel_shader_compile",
+      "NV_shader_noperspective_interpolation",
+      "OES_draw_buffers_indexed",
+      "OES_sample_variables",
+      "OES_shader_multisample_interpolation",
+      "OES_texture_float_linear",
+      "OVR_multiview2",
+      "WEBGL_blend_func_extended",
+      "WEBGL_clip_cull_distance",
+      "WEBGL_compressed_texture_s3tc",
+      "WEBGL_compressed_texture_s3tc_srgb",
+      "WEBGL_debug_renderer_info",
+      "WEBGL_debug_shaders",
+      "WEBGL_lose_context",
+      "WEBGL_multi_draw",
+      "WEBGL_polygon_mode",
+      "WEBGL_provoking_vertex",
+      "WEBGL_shader_pixel_local_storage",
+      "WEBGL_stencil_texturing"
+    ],
+    "canvas": {
+      "w": 1266,
+      "h": 585,
+      "cssW": 844,
+      "cssH": 390,
+      "rectW": 844,
+      "rectH": 390
+    },
+    "canvasStyle": {
+      "width": "844px",
+      "height": "390px"
+    },
+    "visualViewport": {
+      "w": 844,
+      "h": 390,
+      "scale": 1
+    },
+    "vkBridge": "undefined",
+    "vkInit": "undefined",
+    "mem": {
+      "usedMB": 65.1,
+      "totalMB": 66.5,
+      "limitMB": 4192
+    },
+    "crossOriginIsolated": false,
+    "sharedArrayBuffer": "undefined",
+    "wasm": "object",
+    "fpsCounterInstalled": true,
+    "canvases": [
+      {
+        "id": "canvas",
+        "w": 1266,
+        "h": 585
+      }
+    ],
+    "loadState": "complete",
+    "loaderHidden": true,
+    "statusText": "",
+    "frameCount": 676
+  },
+  "fpsSeries": [
+    60,
+    66,
+    64,
+    64,
+    64,
+    66,
+    64,
+    64,
+    64,
+    66
+  ],
+  "frameStats": {
+    "n": 337,
+    "meanMs": 33.66,
+    "fpsMean": 29.7,
+    "p50": 31.2,
+    "p95": 32.1,
+    "p99": 62.2,
+    "max": 562.5,
+    "over50msPct": 1.8,
+    "over100msPct": 0.6
+  },
+  "shader": {
+    "links": 38,
+    "linkBlockMs": 14263,
+    "compiles": 76,
+    "compileMs": 0,
+    "blocks": [
+      {
+        "ms": 2253.4,
+        "at": 1559,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DISABLE_REFLECTION_PROBE,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP"
+      },
+      {
+        "ms": 2284.3,
+        "at": 3845,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DISABLE_REFLECTION_PROBE,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP"
+      },
+      {
+        "ms": 33.9,
+        "at": 6180,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DISABLE_REFLECTION_PROBE,MAX_VIEWS,MODE_RENDER_DEPTH,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP"
+      },
+      {
+        "ms": 44,
+        "at": 8855,
+        "tag": " FINAL_PASS,MAX_VIEWS,USE_NORMAL,USE_SKELETON,USE_TANGENT"
+      },
+      {
+        "ms": 2308.2,
+        "at": 8935,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 2229.4,
+        "at": 11275,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 33.8,
+        "at": 13555,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,MODE_RENDER_DEPTH,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 2257.5,
+        "at": 13678,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 2271.8,
+        "at": 15966,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 36.2,
+        "at": 18289,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,MODE_RENDER_DEPTH,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,USE_INSTANCING,USE_RADIANCE_MAP,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 103.6,
+        "at": 18381,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_FOG,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_OMNI,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,DO_SIDE_CHECK,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,UV_USED,VERTEX_CODE_USED"
+      },
+      {
+        "ms": 100.4,
+        "at": 18503,
+        "tag": "VL APPLY_TONEMAPPING,BASE_PASS,DIFFUSE_BURLEY,DISABLE_FOG,DISABLE_LIGHTMAP,DISABLE_LIGHT_AREA,DISABLE_LIGHT_OMNI,DISABLE_LIGHT_SPOT,DISABLE_REFLECTION_PROBE,FRAGMENT_CODE_USED,MATERIAL_UNIFORMS_USED,MAX_VIEWS,NORMAL_USED,REFLECTION_AMBIENT_ENVIRONMENT,SPECULAR_SCHLICK_GGX,TONEMAPPER_REINHARD,UV_USED,VERTEX_CODE_USED"
+      }
+    ],
+    "tagVer": "active-defines"
+  },
+  "cpuTop": null,
+  "longtasks": [
+    {
+      "start": 50.9,
+      "dur": 603
+    },
+    {
+      "start": 1068.5,
+      "dur": 17707
+    },
+    {
+      "start": 19309.6,
+      "dur": 93
+    }
+  ],
+  "longTaskTotalMs": 18403,
+  "resources": [
+    {
+      "name": "vk_perf_diag.js",
+      "start": 19,
+      "dur": 15,
+      "transfer": 10794,
+      "encoded": 10494,
+      "decoded": 10494,
+      "type": "script"
+    },
+    {
+      "name": "index.js",
+      "start": 19,
+      "dur": 24,
+      "transfer": 280115,
+      "encoded": 279815,
+      "decoded": 279815,
+      "type": "script"
+    },
+    {
+      "name": "index.icon.png",
+      "start": 673,
+      "dur": 4,
+      "transfer": 1494,
+      "encoded": 1194,
+      "decoded": 1194,
+      "type": "other"
+    },
+    {
+      "name": "index.wasm",
+      "start": 668,
+      "dur": 244,
+      "transfer": 39515054,
+      "encoded": 39514754,
+      "decoded": 39514754,
+      "type": "fetch"
+    },
+    {
+      "name": "index.pck",
+      "start": 668,
+      "dur": 306,
+      "transfer": 27859960,
+      "encoded": 27859660,
+      "decoded": 27859660,
+      "type": "fetch"
+    },
+    {
+      "name": "register",
+      "start": 18842,
+      "dur": 109,
+      "transfer": 0,
+      "encoded": 0,
+      "decoded": 0,
+      "type": "fetch"
+    },
+    {
+      "name": "profile",
+      "start": 19153,
+      "dur": 42,
+      "transfer": 0,
+      "encoded": 0,
+      "decoded": 0,
+      "type": "fetch"
+    },
+    {
+      "name": "progress",
+      "start": 19466,
+      "dur": 102,
+      "transfer": 0,
+      "encoded": 0,
+      "decoded": 0,
+      "type": "fetch"
+    },
+    {
+      "name": "event",
+      "start": 24622,
+      "dur": 102,
+      "transfer": 0,
+      "encoded": 0,
+      "decoded": 0,
+      "type": "fetch"
+    }
+  ],
+  "net": [
+    {
+      "url": "index.wasm",
+      "status": 200,
+      "mime": "application/wasm",
+      "bytes": 39514952,
+      "ms": 244,
+      "ce": null
+    },
+    {
+      "url": "index.pck",
+      "status": 200,
+      "mime": "application/octet-stream",
+      "bytes": 27859866,
+      "ms": 306,
+      "ce": null
+    },
+    {
+      "url": "index.png",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 1223718,
+      "ms": 20,
+      "ce": null
+    },
+    {
+      "url": "index.js",
+      "status": 200,
+      "mime": "application/javascript",
+      "bytes": 280017,
+      "ms": 23,
+      "ce": null
+    },
+    {
+      "url": "main.js",
+      "status": 200,
+      "mime": "application/x-javascript",
+      "bytes": 151381,
+      "ms": 15,
+      "ce": null
+    },
+    {
+      "url": "",
+      "status": 200,
+      "mime": "text/html",
+      "bytes": 12767,
+      "ms": 6,
+      "ce": null
+    },
+    {
+      "url": "vk_perf_diag.js",
+      "status": 200,
+      "mime": "application/javascript",
+      "bytes": 10695,
+      "ms": 15,
+      "ce": null
+    },
+    {
+      "url": "index.icon.png",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 1381,
+      "ms": 4,
+      "ce": null
+    },
+    {
+      "url": "init",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 916,
+      "ms": 8,
+      "ce": null
+    },
+    {
+      "url": "profile",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 822,
+      "ms": 42,
+      "ce": null
+    },
+    {
+      "url": "progress",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 539,
+      "ms": 102,
+      "ce": null
+    },
+    {
+      "url": "register",
+      "status": 201,
+      "mime": "application/json",
+      "bytes": 437,
+      "ms": 109,
+      "ce": null
+    },
+    {
+      "url": "event",
+      "status": 200,
+      "mime": "application/json",
+      "bytes": 341,
+      "ms": 102,
+      "ce": null
+    },
+    {
+      "url": "wsm.sessionActivated",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 278,
+      "ms": 2,
+      "ce": null
+    },
+    {
+      "url": "from",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 268,
+      "ms": 2,
+      "ce": null
+    },
+    {
+      "url": "from",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 268,
+      "ms": 2,
+      "ce": null
+    },
+    {
+      "url": "from",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 268,
+      "ms": 3,
+      "ce": null
+    },
+    {
+      "url": "from",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 268,
+      "ms": 2,
+      "ce": null
+    },
+    {
+      "url": "from",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 268,
+      "ms": 2,
+      "ce": null
+    },
+    {
+      "url": "from",
+      "status": 200,
+      "mime": "text/plain",
+      "bytes": 268,
+      "ms": 2,
+      "ce": null
+    },
+    {
+      "url": "219de372-8901-446d-8683-d8001715ee83",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 0,
+      "ms": 1,
+      "ce": null
+    },
+    {
+      "url": "register",
+      "status": 204,
+      "mime": "",
+      "bytes": 0,
+      "ms": 82,
+      "ce": null
+    },
+    {
+      "url": "profile",
+      "status": 204,
+      "mime": "",
+      "bytes": 0,
+      "ms": 19,
+      "ce": null
+    },
+    {
+      "url": "progress",
+      "status": 204,
+      "mime": "",
+      "bytes": 0,
+      "ms": 52,
+      "ce": null
+    },
+    {
+      "url": "event",
+      "status": 204,
+      "mime": "",
+      "bytes": 0,
+      "ms": 79,
+      "ce": null
+    }
+  ],
+  "console": [
+    {
+      "t": 1795728656613,
+      "type": "log",
+      "text": "[VKPERF] probe armed http://127.0.0.1:8123/?perf=1"
+    },
+    {
+      "t": 1795728657178,
+      "type": "log",
+      "text": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "t": 1795728662178,
+      "type": "log",
+      "text": "OpenGL API OpenGL ES 3.0 (WebGL 2.0 (OpenGL ES 3.0 Chromium)) - Compatibility - Using Device: WebKit - WebKit WebGL"
+    },
+    {
+      "t": 1795728662596,
+      "type": "log",
+      "text": "Build configuration: Emscripten 4.0.20, single-threaded, no GDExtension support."
+    },
+    {
+      "t": 1795728662605,
+      "type": "error",
+      "text": "WARNING: Screen-space AA is only available when using the Forward+ or Mobile renderer."
+    },
+    {
+      "t": 1795728662605,
+      "type": "error",
+      "text": "   at: viewport_set_screen_space_aa (servers/rendering/renderer_viewport.cpp:1435)"
+    },
+    {
+      "t": 1795728663495,
+      "type": "log",
+      "text": "[Platform] id=standalone adapter=Standalone"
+    },
+    {
+      "t": 1795728663497,
+      "type": "log",
+      "text": "[NET] REST URL: https://three-skies-server.relaxdev.ru"
+    },
+    {
+      "t": 1795728663498,
+      "type": "log",
+      "text": "[NET] WebSocket URL: wss://three-skies-server.relaxdev.ru/ws"
+    },
+    {
+      "t": 1795728674736,
+      "type": "error",
+      "text": "ERROR: Parse JSON failed. Error at line 0: Unknown error getting token"
+    },
+    {
+      "t": 1795728674736,
+      "type": "error",
+      "text": "   at: parse_string (core/io/json.cpp:629)"
+    },
+    {
+      "t": 1795728674757,
+      "type": "log",
+      "text": "[VKPERF] {\"url\":\"http://127.0.0.1:8123/?perf=1\",\"ua\":\"Mozilla/5.0 (Linux; Android 14; SM-A566B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36\",\"renderer\":\"ANGLE (AMD, Radeon RX 570 Series (0x000067DF) Direct3D11 vs_5_0 ps_5_0, D3D11)\",\"gpu\":\"ANGLE-D3D11\",\"vendor\":\"Google Inc. (AMD)\",\"glVersion\":\"WebGL 2.0 (OpenGL ES 3.0 Chromium)\",\"webgl2\":true,\"maxTexture\":16384,\"dpr\":1.5,\"dprNative\":3,\"dprCapped\":true,\"screen\":[844,390],\"inner\":[844,390],\"canvas\":[1266,585,844,39"
+    },
+    {
+      "t": 1795728676614,
+      "type": "log",
+      "text": "[VKPERF] {\"url\":\"http://127.0.0.1:8123/?perf=1\",\"ua\":\"Mozilla/5.0 (Linux; Android 14; SM-A566B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36\",\"renderer\":\"ANGLE (AMD, Radeon RX 570 Series (0x000067DF) Direct3D11 vs_5_0 ps_5_0, D3D11)\",\"gpu\":\"ANGLE-D3D11\",\"vendor\":\"Google Inc. (AMD)\",\"glVersion\":\"WebGL 2.0 (OpenGL ES 3.0 Chromium)\",\"webgl2\":true,\"maxTexture\":16384,\"dpr\":1.5,\"dprNative\":3,\"dprCapped\":true,\"screen\":[844,390],\"inner\":[844,390],\"canvas\":[1266,585,844,39"
+    },
+    {
+      "t": 1795728681615,
+      "type": "log",
+      "text": "[VKPERF] {\"url\":\"http://127.0.0.1:8123/?perf=1\",\"ua\":\"Mozilla/5.0 (Linux; Android 14; SM-A566B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36\",\"renderer\":\"ANGLE (AMD, Radeon RX 570 Series (0x000067DF) Direct3D11 vs_5_0 ps_5_0, D3D11)\",\"gpu\":\"ANGLE-D3D11\",\"vendor\":\"Google Inc. (AMD)\",\"glVersion\":\"WebGL 2.0 (OpenGL ES 3.0 Chromium)\",\"webgl2\":true,\"maxTexture\":16384,\"dpr\":1.5,\"dprNative\":3,\"dprCapped\":true,\"screen\":[844,390],\"inner\":[844,390],\"canvas\":[1266,585,844,39"
+    }
+  ],
+  "pageErrors": [],
+  "metrics": {
+    "TaskDuration": 20.215828,
+    "ScriptDuration": 1.908191,
+    "LayoutDuration": 0.015717,
+    "RecalcStyleDuration": 0.002194,
+    "JSHeapUsedMB": 9.9,
+    "Nodes": 99,
+    "Documents": 1
+  }
+}
