@@ -9,7 +9,7 @@ extends Control
 signal play_pressed
 signal retry_pressed
 
-enum State { HIDDEN, LOADING, WELCOME, ERROR }
+enum State { HIDDEN, LOADING, WELCOME, ERROR, WARMING }
 
 const KEYART: Texture2D = preload("res://ui/welcome/welcome_keyart.webp")
 const LOGO: Texture2D = preload("res://ui/logo.png")
@@ -20,6 +20,8 @@ const LOGO_ASPECT := 1024.0 / 576.0
 const LOADING_TEXT := "Загрузка профиля…"
 const ERROR_TEXT := "Профиль не загрузился\nПроверьте соединение и попробуйте ещё раз."
 const AGE_TEXT := "12+"
+const WARMUP_TITLE := "Прогрев боя…"
+const WARMUP_STAGE_TEXT := "Подготовка…"
 const LEGAL_TEXT := (
 	"Продолжая игру, вы подтверждаете, что вам уже есть 12 лет, "
 	+ "и соглашаетесь с политикой конфиденциальности."
@@ -38,6 +40,13 @@ var legal_label: Label
 var loading_layer: CenterContainer
 var loading_label: Label
 var retry_button: Button
+var warmup_box: VBoxContainer
+var warmup_title: Label
+var warmup_bar: ProgressBar
+var warmup_row: HBoxContainer
+var warmup_stage: Label
+var warmup_elapsed: Label
+var warmup_done := false
 
 var _safe: Control
 var _keyart: TextureRect
@@ -88,6 +97,45 @@ func show_error(message := ERROR_TEXT) -> void:
 	_apply_state()
 
 
+## Play was pressed: keep the same card (key art, logo, 12+) and swap the
+## yellow button for a progress line while WarmupFlow prepares the match.
+func show_warming() -> void:
+	warmup_done = false
+	if warmup_bar != null:
+		warmup_bar.value = 0.0
+	if warmup_stage != null:
+		warmup_stage.text = WARMUP_STAGE_TEXT
+	if warmup_elapsed != null:
+		warmup_elapsed.text = "0.0 с"
+	state = State.WARMING
+	visible = true
+	_apply_state()
+
+
+func set_warmup_progress(percent: float, elapsed: float, stage: String) -> void:
+	if warmup_bar != null:
+		warmup_bar.value = clampf(percent, 0.0, 100.0)
+	if warmup_elapsed != null:
+		warmup_elapsed.text = "%.1f с" % maxf(0.0, elapsed)
+	if warmup_stage != null and not stage.strip_edges().is_empty():
+		warmup_stage.text = stage
+
+
+## Stays on the 100% frame: lobby.gd switches to Main.tscn right after, so
+## hiding here would flash the bare lobby for a frame.
+func finish_warming() -> void:
+	warmup_done = true
+	if warmup_bar != null:
+		warmup_bar.value = 100.0
+	if warmup_stage != null:
+		warmup_stage.text = "Готово"
+	_layout()
+
+
+func is_warming() -> bool:
+	return visible and state == State.WARMING
+
+
 func hide_overlay() -> void:
 	state = State.HIDDEN
 	visible = false
@@ -103,6 +151,8 @@ func state_name() -> String:
 			return "loading"
 		State.WELCOME:
 			return "welcome"
+		State.WARMING:
+			return "warming"
 		State.ERROR:
 			return "error"
 		_:
@@ -206,6 +256,69 @@ func _build() -> void:
 	play_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	play_button.pressed.connect(func() -> void: play_pressed.emit())
 	_bottom.add_child(play_button)
+
+	warmup_box = VBoxContainer.new()
+	warmup_box.name = "WelcomeWarmup"
+	warmup_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	warmup_box.add_theme_constant_override("separation", 8)
+	warmup_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bottom.add_child(warmup_box)
+
+	warmup_title = Label.new()
+	warmup_title.name = "WelcomeWarmupTitle"
+	warmup_title.text = WARMUP_TITLE
+	warmup_title.add_theme_font_override("font", FONT_BOLD)
+	warmup_title.add_theme_color_override("font_color", Color(1.0, 0.87, 0.62))
+	warmup_title.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.85))
+	warmup_title.add_theme_constant_override("shadow_offset_x", 1)
+	warmup_title.add_theme_constant_override("shadow_offset_y", 1)
+	warmup_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	warmup_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	warmup_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	warmup_box.add_child(warmup_title)
+
+	warmup_bar = ProgressBar.new()
+	warmup_bar.name = "WelcomeWarmupBar"
+	warmup_bar.max_value = 100.0
+	warmup_bar.value = 0.0
+	warmup_bar.show_percentage = false
+	warmup_bar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	warmup_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	warmup_bar.add_theme_stylebox_override("background", _warmup_bar_style(false))
+	warmup_bar.add_theme_stylebox_override("fill", _warmup_bar_style(true))
+	warmup_box.add_child(warmup_bar)
+
+	warmup_row = HBoxContainer.new()
+	warmup_row.name = "WelcomeWarmupInfo"
+	warmup_row.add_theme_constant_override("separation", 10)
+	warmup_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	warmup_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	warmup_box.add_child(warmup_row)
+
+	warmup_stage = Label.new()
+	warmup_stage.name = "WelcomeWarmupStage"
+	warmup_stage.text = WARMUP_STAGE_TEXT
+	warmup_stage.add_theme_font_override("font", FONT)
+	warmup_stage.add_theme_color_override("font_color", PALE)
+	warmup_stage.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.8))
+	warmup_stage.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	warmup_stage.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	warmup_stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	warmup_stage.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	warmup_stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	warmup_row.add_child(warmup_stage)
+
+	warmup_elapsed = Label.new()
+	warmup_elapsed.name = "WelcomeWarmupElapsed"
+	warmup_elapsed.text = "0.0 с"
+	warmup_elapsed.add_theme_font_override("font", FONT)
+	warmup_elapsed.add_theme_color_override("font_color", Color(1.0, 0.87, 0.62))
+	warmup_elapsed.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.8))
+	warmup_elapsed.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	warmup_elapsed.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	warmup_elapsed.size_flags_horizontal = Control.SIZE_SHRINK_END
+	warmup_elapsed.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	warmup_row.add_child(warmup_elapsed)
 
 	legal_label = Label.new()
 	legal_label.name = "WelcomeLegal"
@@ -316,18 +429,38 @@ func _secondary_style(hovered: bool) -> StyleBoxFlat:
 	return style
 
 
+func _warmup_bar_style(fill: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	if fill:
+		style.bg_color = Color(0.95, 0.76, 0.38)
+		style.set_corner_radius_all(6)
+	else:
+		style.bg_color = Color(0.03, 0.05, 0.09, 0.8)
+		style.border_color = Color(0.56, 0.64, 0.8, 0.6)
+		style.set_border_width_all(1)
+		style.set_corner_radius_all(6)
+	style.content_margin_top = 0.0
+	style.content_margin_bottom = 0.0
+	return style
+
+
 func _apply_state() -> void:
 	var welcome := state == State.WELCOME
+	var warming := state == State.WARMING
+	var card := welcome or warming
 	visible = state != State.HIDDEN
-	_keyart.visible = welcome
-	_top_shade.visible = welcome
-	_bottom_shade.visible = welcome
-	welcome_logo.visible = welcome
-	age_label.visible = welcome
-	_bottom.visible = welcome
-	loading_layer.visible = not welcome
+	_keyart.visible = card
+	_top_shade.visible = card
+	_bottom_shade.visible = card
+	welcome_logo.visible = card
+	age_label.visible = card
+	_bottom.visible = card
+	warmup_box.visible = warming
+	loading_layer.visible = state == State.LOADING or state == State.ERROR
 	retry_button.visible = state == State.ERROR
+	play_button.visible = welcome
 	play_button.disabled = not welcome
+	play_button.mouse_filter = Control.MOUSE_FILTER_STOP if welcome else Control.MOUSE_FILTER_IGNORE
 	if state == State.ERROR:
 		loading_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.78))
 	else:
@@ -357,6 +490,18 @@ func _layout() -> void:
 	play_button.add_theme_font_size_override(
 		"font_size", clampi(int(round(button_height * 0.36)), 18, 34)
 	)
+
+	var bar_width := clampf(width * 0.42, 220.0, 520.0)
+	if warmup_bar != null:
+		warmup_bar.custom_minimum_size = Vector2(bar_width, clampf(7.0 * k, 10.0, 16.0))
+		warmup_row.custom_minimum_size = Vector2(bar_width, 0.0)
+		warmup_title.add_theme_font_size_override(
+			"font_size", clampi(int(round(20.0 * k)), 16, 28)
+		)
+		var warmup_info_font := clampi(int(round(15.0 * k)), 13, 20)
+		warmup_stage.add_theme_font_size_override("font_size", warmup_info_font)
+		warmup_elapsed.add_theme_font_size_override("font_size", warmup_info_font)
+		warmup_box.add_theme_constant_override("separation", clampi(int(round(8.0 * k)), 5, 13))
 
 	legal_label.add_theme_font_size_override("font_size", clampi(int(round(15.0 * k)), 11, 20))
 

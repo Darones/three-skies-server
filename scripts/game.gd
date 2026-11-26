@@ -110,6 +110,9 @@ var crystal_intent_timer := 0.0
 
 var state := "select"
 var match_started := false
+# Set by WarmupFlow before the tutorial scene load; the scene still creates its
+# arena/HUD, but skips the expensive double warmup.
+var battle_prewarmed := false
 var match_time := MATCH_LENGTH
 var time_up_announced := false
 var match_end_reason := ""
@@ -259,7 +262,10 @@ func _ready() -> void:
 				var bush := bush_node as Area3D
 				bush.body_entered.connect(_on_bush_body_entered.bind(bush))
 				bush.body_exited.connect(_on_bush_body_exited.bind(bush))
-	if DeviceProfile.mobile_ui or OS.has_feature("web"):
+	battle_prewarmed = bool(get_tree().get_meta("battle_prewarmed", false))
+	if battle_prewarmed:
+		get_tree().set_meta("battle_prewarmed", false)
+	if not battle_prewarmed and (DeviceProfile.mobile_ui or OS.has_feature("web")):
 		await _warm_battle_world()
 	if get_tree().has_meta("selected_class"):
 		var selected_class := int(get_tree().get_meta("selected_class"))
@@ -1656,7 +1662,7 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 				_spawn_hero(classes[i], enemy_team, false, enemy_spots[mini(i, 2)])
 				if DeviceProfile.mobile_ui:
 					await get_tree().process_frame
-	var needs_shader_warmup := DeviceProfile.mobile_ui or OS.has_feature("web")
+	var needs_shader_warmup := (DeviceProfile.mobile_ui or OS.has_feature("web")) and not battle_prewarmed
 	if needs_shader_warmup and not tutorial_mode:
 		# Warm the freshly spawned hero models and every hit VFX while the
 		# class-select panel still covers the screen. Without this the first
@@ -1699,7 +1705,8 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 			tutorial_controller.call("begin")
 			# Warm during the welcome card, not before it: the card is already
 			# on screen and the duel is still a click plus the UI tour away.
-			call_deferred("_warm_tutorial_assets")
+			if not battle_prewarmed:
+				call_deferred("_warm_tutorial_assets")
 		else:
 			announce("Бой за осколки!", Color(1.0, 0.86, 0.55), 2.6)
 

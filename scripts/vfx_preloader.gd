@@ -3,6 +3,11 @@ extends Node
 # Warms up the heavy match assets while the player is still on the search
 # screen: shaders, textures and particle materials compile here instead of
 # freezing the first seconds of the battle (especially Shell destruction).
+# WarmupFlow also reuses this node before the tutorial and follows
+# step_progress/finished, so the progress bar has real steps to show.
+
+signal step_progress(done: int, total: int)
+signal finished
 
 const SCENES := [
 	"res://assets/hit_fx/BinbunVFX_Vol2/StylizedHitFX/effects/hit/vfx_hit_01.tscn",
@@ -60,6 +65,23 @@ const SOUNDS := [
 
 var viewport: SubViewport
 var camera: Camera3D
+var scenes_warmed := 0
+var sounds_warmed := 0
+var steps_done := 0
+var steps_total := SCENES.size() + 6
+var completed := false
+
+
+func _report_step() -> void:
+	steps_done = mini(steps_done + 1, steps_total)
+	step_progress.emit(steps_done, steps_total)
+
+
+func _finish() -> void:
+	if completed:
+		return
+	completed = true
+	finished.emit()
 
 
 func _ready() -> void:
@@ -88,6 +110,7 @@ func _run() -> void:
 
 	for path in SCENES:
 		if not is_inside_tree():
+			_finish()
 			return
 		var packed := load(path) as PackedScene
 		if packed == null:
@@ -113,6 +136,8 @@ func _run() -> void:
 		if is_instance_valid(instance):
 			instance.queue_free()
 		await get_tree().process_frame
+		scenes_warmed += 1
+		_report_step()
 
 	# Generic ability visuals: projectile spheres/bolts, telegraph rings and
 	# ground glows use materials that are created at runtime, not in a scene.
@@ -136,6 +161,7 @@ func _run() -> void:
 		await get_tree().process_frame
 	glow.queue_free()
 	await get_tree().process_frame
+	_report_step()
 
 	# Damage numbers are Label3D; warm the font atlas before the first hit.
 	var label := Label3D.new()
@@ -148,6 +174,7 @@ func _run() -> void:
 	for _frame in 2:
 		await get_tree().process_frame
 	label.queue_free()
+	_report_step()
 
 	# Player names use the larger fallback font with a heavy black outline.
 	# Warm it so the first visible enemy nameplate does not compile mid-fight.
@@ -161,6 +188,7 @@ func _run() -> void:
 	for _frame in 2:
 		await get_tree().process_frame
 	name_probe.queue_free()
+	_report_step()
 
 	# Stun indicator: the "СТАН" Label3D and the torus ring. They are created
 	# per hero and first drawn at the first stun, which used to hitch the clash.
@@ -191,6 +219,7 @@ func _run() -> void:
 		await get_tree().process_frame
 	stun_probe.queue_free()
 	ring_probe.queue_free()
+	_report_step()
 
 	# Weapon glow orbs/sparks and skill particles are built at runtime.
 	var glow_probe := MeshInstance3D.new()
@@ -225,6 +254,7 @@ func _run() -> void:
 		await get_tree().process_frame
 	glow_probe.queue_free()
 	spark_probe.queue_free()
+	_report_step()
 
 	# Decode the first-clash sounds while the search screen is still visible.
 	for path in SOUNDS:
@@ -239,6 +269,10 @@ func _run() -> void:
 		await get_tree().process_frame
 		player.stop()
 		player.queue_free()
+		sounds_warmed += 1
+	_report_step()
 
 	if is_instance_valid(viewport):
 		viewport.queue_free()
+	viewport = null
+	_finish()

@@ -64,6 +64,8 @@ const SHARD_ICON: Texture2D = preload("res://ui/icons/sky_shard.png")
 const SETTINGS_GEAR_ICON: Texture2D = preload("res://ui/icons/settings_gear.png")
 const WeaponCatalog = preload("res://scripts/weapon_catalog.gd")
 const SkinCatalog = preload("res://scripts/skin_catalog.gd")
+const TOUCH_SCROLL := preload("res://scripts/touch_scroll.gd")
+const WARMUP_FLOW_SCRIPT := preload("res://scripts/warmup_flow.gd")
 const NICKNAME_CHANGE_COST := 100
 const SHOP_2H_SWORD_ICON: Texture2D = preload("res://ui/icons/legendary_greatsword.png")
 const SHOP_WAND_ICON: Texture2D = preload("res://ui/icons/gear_wand.png")
@@ -204,6 +206,9 @@ var stats_tab := "all"
 var stats_tab_buttons: Dictionary = {}
 var welcome_overlay: WELCOME_OVERLAY_SCRIPT
 var welcome_wait_token := 0
+var warmup_flow: Node = null
+var warmup_in_progress := false
+var warmup_watch_token := 0
 
 
 func _notification(what: int) -> void:
@@ -1486,6 +1491,8 @@ func _on_profile_updated() -> void:
 
 
 func _on_profile_failed() -> void:
+	if welcome_overlay != null and welcome_overlay.is_warming():
+		return
 	if not _welcome_is_active() or not _welcome_is_candidate_pending():
 		return
 	if _is_platform_auth() and vk_auth_overlay != null and vk_auth_overlay.visible:
@@ -1532,6 +1539,10 @@ func _welcome_is_candidate_pending() -> bool:
 func _refresh_welcome_overlay() -> void:
 	if not _welcome_overlay_ready():
 		return
+	# A profile response or any other refresh must never replace the warmup
+	# card while WarmupFlow is running.
+	if welcome_overlay.is_warming():
+		return
 	welcome_wait_token += 1
 	# Probes and --no-welcome must never end up with a dark card over the lobby.
 	if not _welcome_overlay_enabled() or not _welcome_is_candidate_pending():
@@ -1563,14 +1574,78 @@ func _watch_welcome_loading() -> void:
 
 
 func _on_welcome_play_pressed() -> void:
-	if not MetaProgression.profile_loaded:
+	if warmup_in_progress or not MetaProgression.profile_loaded:
 		return
-	MetaProgression.mark_welcome_seen()
 	welcome_wait_token += 1
-	if _welcome_is_active():
-		welcome_overlay.hide_overlay()
 	if _tutorial_completed() or _tutorial_skipped():
+		if _welcome_is_active():
+			welcome_overlay.hide_overlay()
 		return
+	# Keep the same Welcome card (key art, logo, 12+) and turn its yellow
+	# button into a real warmup progress line. The tutorial scene only loads
+	# after WarmupFlow has compiled the arena, fighters, weapons, VFX and
+	# shaders; otherwise the first seconds of the tutorial hitch hard.
+	if _welcome_is_active():
+		welcome_overlay.show_warming()
+	warmup_in_progress = true
+	warmup_flow = WARMUP_FLOW_SCRIPT.new()
+	warmup_flow.name = "WarmupFlow"
+	add_child(warmup_flow)
+	warmup_flow.progress_changed.connect(_on_warmup_progress)
+	warmup_flow.finished.connect(_on_warmup_finished)
+	warmup_flow.start()
+	# Hard fallback: a driver hiccup must not leave the player on a frozen
+	# progress card forever. The normal flow finishes in ~10 s.
+	warmup_watch_token += 1
+	var token := warmup_watch_token
+	get_tree().create_timer(120.0).timeout.connect(func() -> void:
+		if not is_inside_tree() or not warmup_in_progress or token != warmup_watch_token:
+			return
+		warmup_in_progress = false
+		if warmup_flow != null and is_instance_valid(warmup_flow):
+			warmup_flow.queue_free()
+			warmup_flow = null
+		if _welcome_is_active():
+			welcome_overlay.hide_overlay()
+		_start_tutorial()
+	)
+
+
+func _on_warmup_progress(percent: float, elapsed: float, stage: String) -> void:
+	if _welcome_is_active() and welcome_overlay.is_warming():
+		welcome_overlay.set_warmup_progress(percent, elapsed, stage)
+
+
+func _on_warmup_finished() -> void:
+	if not warmup_in_progress:
+		return
+	warmup_in_progress = false
+	warmup_watch_token += 1
+	var report: Dictionary = {}
+	if warmup_flow != null and is_instance_valid(warmup_flow):
+		report = warmup_flow.get("report") as Dictionary
+		warmup_flow.queue_free()
+		warmup_flow = null
+	if bool(report.get("failed", false)):
+		# Do not soft-lock on a broken warmup: fall back to the normal Main
+		# scene warmup and hide the progress card.
+		if _welcome_is_active():
+			welcome_overlay.hide_overlay()
+		MetaProgression.mark_welcome_seen()
+		_start_tutorial()
+		return
+	# Marks the card as seen only after a successful warmup, so closing the
+	# app during the progress keeps Welcome available next launch.
+	MetaProgression.mark_welcome_seen()
+	if tutorial_button == null or tutorial_button.disabled:
+		if _welcome_is_active():
+			welcome_overlay.hide_overlay()
+		return
+	# The next Main scene skips its own expensive re-warm; these resources are
+	# already hot in the cache.
+	get_tree().set_meta("battle_prewarmed", true)
+	if _welcome_is_active():
+		welcome_overlay.finish_warming()
 	_start_tutorial()
 
 
@@ -1668,7 +1743,7 @@ func _build_player_menu() -> void:
 	var profile_content := VBoxContainer.new()
 	profile_content.add_theme_constant_override("separation", 6)
 	profile_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var profile_scroll := ScrollContainer.new()
+	var profile_scroll := TOUCH_SCROLL.new()
 	profile_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	profile_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	profile_panel.add_child(profile_scroll)
@@ -1851,7 +1926,7 @@ func _build_player_menu() -> void:
 	inventory_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	inventory_grid.add_theme_constant_override("h_separation", 8)
 	inventory_grid.add_theme_constant_override("v_separation", 8)
-	var inventory_scroll := ScrollContainer.new()
+	var inventory_scroll := TOUCH_SCROLL.new()
 	inventory_scroll.name = "InventoryScroll"
 	inventory_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	inventory_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
