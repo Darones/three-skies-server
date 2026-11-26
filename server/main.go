@@ -312,8 +312,15 @@ func main() {
 		Handler:           router,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      10 * time.Second,
-		IdleTimeout:       60 * time.Second,
+		// The browser downloads index.pck (50 MB) in 10 MB range requests.
+		// A 10 s write deadline killed the response on links slower than
+		// ~1 MB/s, which is a normal mobile speed, and the loader then showed
+		// "Не удалось загрузить игру" after three retries. A cold start can
+		// also wait for a missing PCK to be copied from the mirror before the
+		// first byte is written. ReadHeaderTimeout/ReadTimeout still bound how
+		// long a client may take to send its request.
+		WriteTimeout: 120 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
 	log.Printf("server listening on :%s (health: /health)", port)
 	shutdownSignals := make(chan os.Signal, 1)
@@ -436,7 +443,7 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 		mux.Handle("/game-ok/", service.trackGamePage(http.StripPrefix("/game-ok/", staticGameHandlerWithFallback(okDir, gameDir, gameOKOrigins()))))
 		go prefetchGamePack(okDir, gameOKOrigins())
 	}
-	return cors(databaseGate(mux, service))
+	return cors(legalRoutes(databaseGate(mux, service)))
 }
 
 // gameWebDir returns the directory with the exported HTML5 build, or "" when
@@ -538,14 +545,6 @@ func staticGameHandlerWithFallback(dir, fallback string, origins []string) http.
 			return
 		}
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		switch filepath.Ext(name) {
-		case ".html", ".pck":
-			// A new PCK keeps the same name on this host; never cache the
-			// entry point or the game data, or players stay on an old build.
-			w.Header().Set("Cache-Control", "no-store")
-		default:
-			w.Header().Set("Cache-Control", "public, max-age=86400")
-		}
 		// Serve the pre-compressed copy when one exists. The PCK stays raw:
 		// its 43 MB gzip stream breaks behind the platform proxy over HTTP/2,
 		// while the raw file has Content-Length and downloads at full speed.
@@ -557,14 +556,46 @@ func staticGameHandlerWithFallback(dir, fallback string, origins []string) http.
 				w.Header().Set("Vary", "Accept-Encoding")
 			}
 		}
+		// The ETag describes the bytes actually sent, so the compressed copy
+		// gets its own validator.
+		serveInfo := info
+		if servePath != full {
+			if serveStat, serveErr := os.Stat(servePath); serveErr == nil {
+				serveInfo = serveStat
+			}
+		}
+		switch filepath.Ext(name) {
+		case ".html", ".pck":
+			// The entry point and the PCK keep their names across deploys, so
+			// a stored copy must never be used without asking the server.
+			// no-cache + the strong ETag below makes the browser revalidate:
+			// an unchanged 50 MB pack costs one bodyless 304 instead of a
+			// full download, while a new build (size or mtime changed) gets
+			// a different ETag and is downloaded right away.
+			w.Header().Set("Cache-Control", "no-cache")
+		default:
+			w.Header().Set("Cache-Control", "public, max-age=86400")
+		}
+		w.Header().Set("ETag", fileETag(serveInfo))
 		file, err := os.Open(servePath)
 		if err != nil {
 			http.NotFound(w, r)
 			return
 		}
 		defer file.Close()
-		http.ServeContent(w, r, filepath.Base(name), info.ModTime(), file)
+		// ServeContent answers If-None-Match/If-Modified-Since with 304 and
+		// honours Range/If-Range against the same validator.
+		http.ServeContent(w, r, filepath.Base(name), serveInfo.ModTime(), file)
 	})
+}
+
+// fileETag is a strong validator built from the file identity on disk. The
+// exported files keep their names between deploys, so size and mtime are what
+// tell a new build from the cached one. Nanoseconds matter: a rebuild can land
+// in the same second as the copy it replaces, and copy2/rsync keep sub-second
+// mtimes.
+func fileETag(info os.FileInfo) string {
+	return fmt.Sprintf("\"%x-%x\"", info.Size(), info.ModTime().UnixNano())
 }
 
 var gameAssetLocks sync.Map
@@ -716,14 +747,53 @@ func prefetchGameAssetsWithOrigins(dir string, origins []string) {
 // mainPackInfo reads the PCK name and expected size from the exported HTML.
 // The HTML is small and always ships in the build context, so it is the
 // authoritative description of which pack the browser will request.
+//
+// The browser fetches the pack in five range requests, so this used to read
+// the HTML and compile two regular expressions on every one of them. The
+// parsed value is reused until index.html itself changes (a deploy), which
+// keeps the stale-pack check below correct even if files are swapped into a
+// running container.
+type gamePackInfo struct {
+	name    string
+	size    int64
+	modTime time.Time
+	modSize int64
+}
+
+var (
+	gamePackInfoCache sync.Map // dir -> gamePackInfo
+	mainPackNameRE    = regexp.MustCompile(`"mainPack":"([^"]+)"`)
+)
+
 func mainPackInfo(dir string) (string, int64) {
+	htmlPath := filepath.Join(dir, "index.html")
+	stat, statErr := os.Stat(htmlPath)
+	if cached, ok := gamePackInfoCache.Load(dir); ok && statErr == nil {
+		info := cached.(gamePackInfo)
+		if info.modTime.Equal(stat.ModTime()) && info.modSize == stat.Size() {
+			return info.name, info.size
+		}
+	}
+	name, size := readMainPackInfo(htmlPath)
+	if statErr == nil && size > 0 {
+		gamePackInfoCache.Store(dir, gamePackInfo{
+			name:    name,
+			size:    size,
+			modTime: stat.ModTime(),
+			modSize: stat.Size(),
+		})
+	}
+	return name, size
+}
+
+func readMainPackInfo(htmlPath string) (string, int64) {
 	name := "index.pck"
-	data, err := os.ReadFile(filepath.Join(dir, "index.html"))
+	data, err := os.ReadFile(htmlPath)
 	if err != nil {
 		return name, 0
 	}
 	html := string(data)
-	if match := regexp.MustCompile(`"mainPack":"([^"]+)"`).FindStringSubmatch(html); len(match) > 1 {
+	if match := mainPackNameRE.FindStringSubmatch(html); len(match) > 1 {
 		name = match[1]
 	}
 	sizePattern := regexp.MustCompile(`"` + regexp.QuoteMeta(name) + `":(\d+)`)
