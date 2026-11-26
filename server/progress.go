@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strings"
@@ -199,6 +200,41 @@ func applyCharacterXP(ctx context.Context, tx *sql.Tx, playerID int64, character
 	return levels, xps, levelUps, shardReward, nil
 }
 
+// mergeProgressUpdate decides what /progress is allowed to write.
+//
+// Before the first import the client may seed levels and XP (old standalone
+// profiles). After progress_initialized=TRUE the server owns the level curve:
+// client levels/xps are ignored, so a client cannot roll levels back to farm
+// level-up shards on the next /match_reward, and cannot raise them either.
+// Tutorial flags stay client-driven because they are not a reward source.
+func mergeProgressUpdate(stored, incoming progressState) progressState {
+	if !stored.ProgressInitialized {
+		incoming.ProgressInitialized = true
+		return incoming
+	}
+	return progressState{
+		CharLevels:          copyProgressMap(stored.CharLevels, 1),
+		CharXPs:             copyProgressMap(stored.CharXPs, 0),
+		TutorialCompleted:   incoming.TutorialCompleted,
+		TutorialSkipped:     incoming.TutorialSkipped,
+		TutorialBattlesUsed: incoming.TutorialBattlesUsed,
+		ProgressInitialized: true,
+	}
+}
+
+func copyProgressMap(source map[string]int, fallback int) map[string]int {
+	copied := make(map[string]int, len(characterKeys))
+	for _, key := range characterKeys {
+		copied[key] = fallback
+		if source != nil {
+			if value, ok := source[key]; ok {
+				copied[key] = value
+			}
+		}
+	}
+	return copied
+}
+
 func (service *api) handleProgress(w http.ResponseWriter, r *http.Request) {
 	if !requirePost(w, r) {
 		return
@@ -211,24 +247,56 @@ func (service *api) handleProgress(w http.ResponseWriter, r *http.Request) {
 	if !service.requireSession(w, r, request.PlayerID) {
 		return
 	}
-	state := sanitizeProgress(
+	incoming := sanitizeProgress(
 		request.CharLevels,
 		request.CharXPs,
 		request.TutorialCompleted,
 		request.TutorialSkipped,
 		request.TutorialBattlesUsed,
 	)
-	levelsJSON, err := json.Marshal(state.CharLevels)
+
+	transaction, err := service.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		log.Printf("begin player progress: %v", err)
+		writeJSON(w, http.StatusInternalServerError, progressResponse{Error: "Internal server error"})
+		return
+	}
+	defer transaction.Rollback()
+
+	var levelsJSON, xpsJSON string
+	var tutorialCompleted, tutorialSkipped, initialized bool
+	var tutorialBattlesUsed int
+	err = transaction.QueryRowContext(r.Context(),
+		`SELECT COALESCE(char_levels::text, ''), COALESCE(char_xps::text, ''),
+		        COALESCE(tutorial_completed, FALSE), COALESCE(tutorial_skipped, FALSE),
+		        COALESCE(tutorial_battles_used, 0), COALESCE(progress_initialized, FALSE)
+		 FROM players WHERE id = $1 FOR UPDATE`, request.PlayerID,
+	).Scan(&levelsJSON, &xpsJSON, &tutorialCompleted, &tutorialSkipped,
+		&tutorialBattlesUsed, &initialized)
+	if errors.Is(err, sql.ErrNoRows) {
+		writeJSON(w, http.StatusNotFound, progressResponse{Error: "Player not found"})
+		return
+	}
+	if err != nil {
+		log.Printf("load player progress: %v", err)
+		writeJSON(w, http.StatusInternalServerError, progressResponse{Error: "Internal server error"})
+		return
+	}
+
+	stored := decodeStoredProgress(levelsJSON, xpsJSON, tutorialCompleted, tutorialSkipped, tutorialBattlesUsed, initialized)
+	state := mergeProgressUpdate(stored, incoming)
+
+	encodedLevels, err := json.Marshal(state.CharLevels)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, progressResponse{Error: "Internal server error"})
 		return
 	}
-	xpsJSON, err := json.Marshal(state.CharXPs)
+	encodedXPs, err := json.Marshal(state.CharXPs)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, progressResponse{Error: "Internal server error"})
 		return
 	}
-	result, err := service.db.ExecContext(r.Context(), `
+	if _, err := transaction.ExecContext(r.Context(), `
 		UPDATE players
 		SET char_levels = $1::jsonb,
 		    char_xps = $2::jsonb,
@@ -237,14 +305,14 @@ func (service *api) handleProgress(w http.ResponseWriter, r *http.Request) {
 		    tutorial_battles_used = $5,
 		    progress_initialized = TRUE
 		WHERE id = $6
-	`, string(levelsJSON), string(xpsJSON), state.TutorialCompleted, state.TutorialSkipped, state.TutorialBattlesUsed, request.PlayerID)
-	if err != nil {
+	`, string(encodedLevels), string(encodedXPs), state.TutorialCompleted, state.TutorialSkipped, state.TutorialBattlesUsed, request.PlayerID); err != nil {
 		log.Printf("save player progress: %v", err)
 		writeJSON(w, http.StatusInternalServerError, progressResponse{Error: "Internal server error"})
 		return
 	}
-	if affected, _ := result.RowsAffected(); affected == 0 {
-		writeJSON(w, http.StatusNotFound, progressResponse{Error: "Player not found"})
+	if err := transaction.Commit(); err != nil {
+		log.Printf("commit player progress: %v", err)
+		writeJSON(w, http.StatusInternalServerError, progressResponse{Error: "Internal server error"})
 		return
 	}
 	writeJSON(w, http.StatusOK, progressResponse{

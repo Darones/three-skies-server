@@ -7,6 +7,10 @@ signal registration_completed(success: bool, player_id: int)
 signal profile_loaded(success: bool, player_id: int, sky_shards: int, unlocked_wings: Array, unlocked_weapons: Array, nickname: String, nickname_custom: bool, matches_played: int, novice: bool)
 signal purchase_completed(success: bool, purchase_type: String, item_id: int, new_shards: int)
 signal match_reward_completed(success: bool, amount: int, new_shards: int, profile: Dictionary)
+# Same event as match_reward_completed plus the exact request payload and the
+# HTTP status, so MetaProgression can keep a failed reward and retry it once on
+# the next profile/lobby without paying twice (the server is idempotent).
+signal match_reward_settled(success: bool, payload: Dictionary, response_code: int, error: String, profile: Dictionary)
 signal compensation_completed(success: bool, new_shards: int, error: String)
 signal rename_completed(success: bool, nickname: String, error: String, charged: bool, cost: int, new_shards: int)
 signal report_completed(success: bool, error: String)
@@ -17,12 +21,20 @@ signal progress_loaded(success: bool, progress: Dictionary)
 signal progress_saved(success: bool, progress: Dictionary)
 signal interstitial_recorded(success: bool, last_interstitial_at: int)
 signal account_deleted(success: bool, error: String)
+# Moderation state from the server. No UI is built here: screens subscribe.
+signal account_ban_updated(banned: bool, reason: String)
+signal warnings_updated(count: int, reason: String, at: int)
 
 const API_BASE_URL := "https://three-skies-server.relaxdev.ru"
 
 var api_base_url := API_BASE_URL
 var session_token := ""
 var last_purchase_error := ""
+var account_banned := false
+var account_ban_reason := ""
+var warning_count := 0
+var last_warning_reason := ""
+var last_warning_at := 0
 var http_request: HTTPRequest
 var http_request_busy := false
 var current_http_request: Dictionary = {}
@@ -70,9 +82,6 @@ func buy_weapon_server(player_id: int, weapon_id: int, cost: int) -> void:
 
 
 func grant_match_reward(player_id: int, amount: int, room_id: int, xp: int, character: String, bonus := false) -> void:
-	if player_id <= 0 or amount <= 0 or room_id <= 0:
-		match_reward_completed.emit(false, amount, 0, {})
-		return
 	var payload := {
 		"player_id": player_id,
 		"room_id": room_id,
@@ -82,9 +91,16 @@ func grant_match_reward(player_id: int, amount: int, room_id: int, xp: int, char
 	}
 	if bonus:
 		payload["bonus"] = true
+	if player_id <= 0 or amount <= 0 or room_id <= 0:
+		match_reward_completed.emit(false, amount, 0, {})
+		match_reward_settled.emit(false, payload, 0, "invalid_reward", {})
+		return
 	_send_post("/match_reward", payload, "match_reward")
 
 
+# Deprecated: the server answers 410 compensation_disabled (it used to pay
+# shards without proof of an interrupted match). No current screen calls this;
+# the route is kept only so an old build gets a clean machine-readable answer.
 func claim_compensation(player_id: int) -> void:
 	if player_id <= 0:
 		compensation_completed.emit(false, 0, "invalid")
@@ -220,6 +236,23 @@ func _progress_from_profile(data: Dictionary) -> Dictionary:
 	}
 
 
+# Reads the moderation fields the server puts into /profile. The ban reason
+# and warning text are stored here only; UI belongs to the screens.
+func _apply_moderation_state(data: Dictionary) -> void:
+	var banned := bool(data.get("banned", false)) or String(data.get("error", "")) == "account_banned"
+	var reason := String(data.get("ban_reason", ""))
+	if banned != account_banned or reason != account_ban_reason:
+		account_banned = banned
+		account_ban_reason = reason if banned else ""
+		print("[NET] account ban state: ", account_banned, " reason=", account_ban_reason)
+		account_ban_updated.emit(account_banned, account_ban_reason)
+	if data.has("warning_count"):
+		warning_count = maxi(0, int(data.get("warning_count", 0)))
+		last_warning_reason = String(data.get("last_warning_reason", ""))
+		last_warning_at = maxi(0, int(data.get("last_warning_at", 0)))
+		warnings_updated.emit(warning_count, last_warning_reason, last_warning_at)
+
+
 func _send_post(path: String, payload: Dictionary, request_type: String, purchase_type := "", item_id := 0) -> void:
 	http_request_queue.append({
 		"path": path,
@@ -285,6 +318,7 @@ func _on_http_request_completed(result: int, response_code: int, _headers: Packe
 		registration_completed.emit(success and player_id > 0, player_id if success else 0)
 	elif request["request_type"] == "profile":
 		var player_id := int(request["player_id"])
+		_apply_moderation_state(response if response is Dictionary else {})
 		if success and response is Dictionary:
 			var profile_token := String(response.get("session_token", ""))
 			if not profile_token.is_empty() and profile_token != session_token:
@@ -338,6 +372,7 @@ func _on_http_request_completed(result: int, response_code: int, _headers: Packe
 	elif request["request_type"] == "match_reward":
 		var awarded := int(request["payload"].get("amount", 0))
 		var new_shards := int(response.get("new_shards", 0)) if response is Dictionary else 0
+		var error_text := String(response.get("error", "")) if response is Dictionary else "Нет связи с сервером"
 		var reward_profile: Dictionary = {}
 		if success and response is Dictionary:
 			reward_profile = {
@@ -349,6 +384,7 @@ func _on_http_request_completed(result: int, response_code: int, _headers: Packe
 				"character": String(request["payload"].get("character", "")),
 			}
 		match_reward_completed.emit(success, awarded, new_shards if success else 0, reward_profile)
+		match_reward_settled.emit(success, request["payload"].duplicate(true), response_code, "" if success else error_text, reward_profile)
 	elif request["request_type"] == "compensation":
 		var error_text := String(response.get("error", "")) if response is Dictionary else "Нет связи с сервером"
 		var new_shards := int(response.get("new_shards", 0)) if response is Dictionary else 0
@@ -393,6 +429,7 @@ func _emit_http_failure(request: Dictionary) -> void:
 		purchase_completed.emit(false, String(request["purchase_type"]), int(request["item_id"]), 0)
 	elif request["request_type"] == "match_reward":
 		match_reward_completed.emit(false, int(request["payload"].get("amount", 0)), 0, {})
+		match_reward_settled.emit(false, request["payload"].duplicate(true), 0, "Нет связи с сервером", {})
 	elif request["request_type"] == "compensation":
 		compensation_completed.emit(false, 0, "Нет связи с сервером")
 	elif request["request_type"] == "rename":

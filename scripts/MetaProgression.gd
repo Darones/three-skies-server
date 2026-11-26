@@ -53,6 +53,15 @@ var unlocked_weapons: Array[int] = []
 var pending_purchase_type := ""
 var pending_purchase_id := 0
 var pending_level_shards := 0
+# Rewards the server has not confirmed yet. They survive a restart in
+# meta_save.cfg and are retried once on the next profile/lobby. /match_reward is
+# idempotent per room, so a retry can never pay the same match twice.
+var pending_match_rewards: Array = []
+var _reward_in_flight: Dictionary = {}
+# One automatic retry per pending payload per launch: a profile poll loop must
+# not turn a failing retry into a retry storm.
+var _reward_flush_attempted: Dictionary = {}
+var match_reward_retry_count := 0
 var stats_all := {
 	"matches": 0, "wins": 0, "kills": 0, "deaths": 0,
 	"damage": 0, "shells": 0, "crystals": 0, "xp": 0, "shards": 0,
@@ -91,6 +100,8 @@ func _ready() -> void:
 		NetworkClient.purchase_completed.connect(_on_purchase_completed)
 	if not NetworkClient.match_reward_completed.is_connected(_on_match_reward_completed):
 		NetworkClient.match_reward_completed.connect(_on_match_reward_completed)
+	if not NetworkClient.match_reward_settled.is_connected(_on_match_reward_settled):
+		NetworkClient.match_reward_settled.connect(_on_match_reward_settled)
 	if not NetworkClient.compensation_completed.is_connected(_on_compensation_completed):
 		NetworkClient.compensation_completed.connect(_on_compensation_completed)
 
@@ -125,12 +136,40 @@ func _load_meta() -> void:
 		tutorial_completed = bool(tutorial.get_value("tutorial", "completed", false))
 		tutorial_skipped = bool(tutorial.get_value("tutorial", "skipped", false))
 		tutorial_battles_used = maxi(0, int(tutorial.get_value("tutorial", "battles_used", 0)))
+	_load_pending_match_rewards(config)
+
+
+func _load_pending_match_rewards(config: ConfigFile) -> void:
+	pending_match_rewards.clear()
+	var stored: Variant = config.get_value("pending", "match_rewards", [])
+	if not stored is Array:
+		return
+	for item in stored:
+		if not item is Dictionary:
+			continue
+		var room_id := int(item.get("room_id", 0))
+		var amount := int(item.get("amount", 0))
+		if room_id <= 0 or amount <= 0:
+			continue
+		var bonus := bool(item.get("bonus", false))
+		pending_match_rewards.append({
+			"key": _reward_key(room_id, bonus),
+			"room_id": room_id,
+			"amount": amount,
+			"xp": maxi(0, int(item.get("xp", 0))),
+			"character": String(item.get("character", "")),
+			"bonus": bonus,
+			"attempts": maxi(0, int(item.get("attempts", 0))),
+		})
+	if not pending_match_rewards.is_empty():
+		print("[REWARD] restored pending rewards: ", pending_match_rewards.size())
 
 
 func _on_session_ready(token: String) -> void:
 	session_token = token
 	_save_meta()
 	_flush_compensation()
+	_flush_pending_match_rewards()
 
 
 func persist_local() -> void:
@@ -237,6 +276,7 @@ func _save_meta() -> void:
 	config.set_value("progression", "novice", novice)
 	config.set_value("progression", "welcome_seen", welcome_seen)
 	config.set_value("progression", "account_level", account_level)
+	config.set_value("pending", "match_rewards", pending_match_rewards)
 	# Before the first successful server save, keep the legacy local values so
 	# a failed upload does not lose them. Once the server owns progress they
 	# are not written to user:// anymore.
@@ -254,6 +294,11 @@ func reset_all() -> void:
 	session_token = ""
 	NetworkClient.session_token = ""
 	NetworkClient.last_purchase_error = ""
+	NetworkClient.account_banned = false
+	NetworkClient.account_ban_reason = ""
+	NetworkClient.warning_count = 0
+	NetworkClient.last_warning_reason = ""
+	NetworkClient.last_warning_at = 0
 	pending_compensation = 0
 	compensation_in_flight = false
 	compensation_retries = 0
@@ -279,6 +324,10 @@ func reset_all() -> void:
 	pending_purchase_type = ""
 	pending_purchase_id = 0
 	pending_level_shards = 0
+	pending_match_rewards.clear()
+	_reward_in_flight.clear()
+	_reward_flush_attempted.clear()
+	match_reward_retry_count = 0
 	stats_all = {
 		"matches": 0, "wins": 0, "kills": 0, "deaths": 0,
 		"damage": 0, "shells": 0, "crystals": 0, "xp": 0, "shards": 0,
@@ -420,8 +469,120 @@ func grant_match_reward(amount: int, bonus := false, xp := 0, character := "") -
 		_save_meta()
 		profile_updated.emit()
 		return true
+	_remember_pending_match_reward(room_id, amount, bonus, xp, character)
+	_reward_in_flight[_reward_key(room_id, bonus)] = true
 	NetworkClient.grant_match_reward(player_id, amount, room_id, xp, character, bonus)
 	return true
+
+
+func _reward_key(room_id: int, bonus: bool) -> String:
+	return "%d:%s" % [room_id, "bonus" if bonus else "base"]
+
+
+# Stores the exact payload before sending it. If the app closes or the network
+# drops before the server confirms, the next profile/lobby retries it once.
+func _remember_pending_match_reward(room_id: int, amount: int, bonus: bool, xp: int, character: String) -> void:
+	if room_id <= 0 or amount <= 0:
+		return
+	var key := _reward_key(room_id, bonus)
+	for entry in pending_match_rewards:
+		if entry is Dictionary and String(entry.get("key", "")) == key:
+			return
+	pending_match_rewards.append({
+		"key": key,
+		"room_id": room_id,
+		"amount": amount,
+		"xp": maxi(0, xp),
+		"character": character,
+		"bonus": bonus,
+		"attempts": 0,
+	})
+	_save_meta()
+
+
+func _remove_pending_match_reward(key: String) -> void:
+	var changed := false
+	for index in range(pending_match_rewards.size() - 1, -1, -1):
+		var entry: Variant = pending_match_rewards[index]
+		if entry is Dictionary and String(entry.get("key", "")) == key:
+			pending_match_rewards.remove_at(index)
+			changed = true
+	if changed:
+		_save_meta()
+
+
+# One retry per pending payload per launch, on the next profile/lobby. The
+# server claim is idempotent per room, so a retry can never pay twice.
+func _flush_pending_match_rewards() -> void:
+	if pending_match_rewards.is_empty():
+		return
+	if player_id <= 0 or session_token.is_empty():
+		return
+	var to_send: Array = []
+	var cleaned: Array = []
+	# Keep chronological order: the base reward must reach the server before
+	# the separate x2 bonus, otherwise the bonus is rejected as unclaimed.
+	for entry in pending_match_rewards:
+		if not entry is Dictionary:
+			continue
+		var room_id := int(entry.get("room_id", 0))
+		var amount := int(entry.get("amount", 0))
+		var key := String(entry.get("key", _reward_key(room_id, bool(entry.get("bonus", false)))))
+		if room_id <= 0 or amount <= 0:
+			continue
+		cleaned.append(entry)
+		if bool(_reward_in_flight.get(key, false)):
+			continue
+		if bool(_reward_flush_attempted.get(key, false)):
+			continue
+		var attempts := int(entry.get("attempts", 0)) + 1
+		entry["attempts"] = attempts
+		_reward_in_flight[key] = true
+		_reward_flush_attempted[key] = true
+		match_reward_retry_count += 1
+		print("[REWARD] retry room=%d bonus=%s amount=%d attempt=%d (total retries=%d)" % [
+			room_id, String(entry.get("bonus", false)), amount, attempts, match_reward_retry_count,
+		])
+		to_send.append(entry)
+	if cleaned.size() != pending_match_rewards.size():
+		pending_match_rewards = cleaned
+	for entry in to_send:
+		NetworkClient.grant_match_reward(
+			player_id,
+			int(entry.get("amount", 0)),
+			int(entry.get("room_id", 0)),
+			maxi(0, int(entry.get("xp", 0))),
+			String(entry.get("character", "")),
+			bool(entry.get("bonus", false))
+		)
+	_save_meta()
+
+
+func _on_match_reward_settled(success: bool, payload: Dictionary, _response_code: int, error: String, _profile: Dictionary) -> void:
+	var room_id := int(payload.get("room_id", 0))
+	var bonus := bool(payload.get("bonus", false))
+	var key := _reward_key(room_id, bonus)
+	_reward_in_flight.erase(key)
+	if success:
+		_remove_pending_match_reward(key)
+		print("[REWARD] confirmed room=%d bonus=%s" % [room_id, bonus])
+		return
+	# These answers cannot be fixed by retrying; anything else (network, 5xx)
+	# stays in meta_save.cfg for the next launch. A bonus "already claimed" may
+	# simply mean the base reward has not been paid yet, so the bonus keeps
+	# waiting for the next profile instead of being dropped.
+	var terminal_errors := [
+		"Invalid reward", "Invalid character",
+		"Conflicting reward amount", "Player not found", "invalid_reward",
+	]
+	if error == "Reward already claimed" and not bonus:
+		terminal_errors.append(error)
+	if error in terminal_errors:
+		_remove_pending_match_reward(key)
+		print("[REWARD] terminal room=%d bonus=%s error=%s; cleared" % [room_id, bonus, error])
+		return
+	_save_meta()
+	print("[REWARD] not confirmed room=%d bonus=%s error=%s; kept for next profile" % [room_id, bonus, error])
 
 
 func _on_match_reward_completed(success: bool, _amount: int, new_shards: int, profile: Dictionary) -> void:
@@ -638,6 +799,7 @@ func _on_profile_loaded(success: bool, loaded_player_id: int, server_shards: int
 		grant_match_reward(pending)
 	_save_meta()
 	_flush_compensation()
+	_flush_pending_match_rewards()
 	profile_updated.emit()
 
 

@@ -41,11 +41,6 @@ const dbMonitorInterval = 15 * time.Second
 // arbitrary amount of shards in one request. The client's reward is 1/3/5.
 const maxMatchReward = 10
 
-// A match interrupted by a server restart is compensated with a small fixed
-// payout. The cooldown keeps a client from farming it by dropping the socket.
-const compensationShards = 20
-const compensationCooldown = 10 * time.Minute
-
 // Admin grants are guarded by the same token as the stats dashboard.
 const adminToken = "239837"
 
@@ -131,9 +126,11 @@ type sessionRequest struct {
 }
 
 type sessionResponse struct {
-	Success bool   `json:"success"`
-	Token   string `json:"token,omitempty"`
-	Error   string `json:"error,omitempty"`
+	Success   bool   `json:"success"`
+	Token     string `json:"token,omitempty"`
+	Banned    bool   `json:"banned,omitempty"`
+	BanReason string `json:"ban_reason,omitempty"`
+	Error     string `json:"error,omitempty"`
 }
 
 type playerProfileResponse struct {
@@ -141,6 +138,7 @@ type playerProfileResponse struct {
 	PlayerID            int64          `json:"player_id,omitempty"`
 	Nickname            string         `json:"nickname,omitempty"`
 	NicknameCustom      bool           `json:"nickname_custom"`
+	NicknameHidden      bool           `json:"nickname_hidden"`
 	SkyShards           int            `json:"sky_shards,omitempty"`
 	Level               int            `json:"level"`
 	UnlockedWings       []int          `json:"unlocked_wings,omitempty"`
@@ -154,6 +152,11 @@ type playerProfileResponse struct {
 	TutorialBattlesUsed int            `json:"tutorial_battles_used"`
 	ProgressInitialized bool           `json:"progress_initialized"`
 	LastInterstitialAt  int64          `json:"last_interstitial_at"`
+	Banned              bool           `json:"banned,omitempty"`
+	BanReason           string         `json:"ban_reason,omitempty"`
+	WarningCount        int            `json:"warning_count"`
+	LastWarningReason   string         `json:"last_warning_reason,omitempty"`
+	LastWarningAt       int64          `json:"last_warning_at"`
 	SessionToken        string         `json:"session_token,omitempty"`
 	Error               string         `json:"error,omitempty"`
 }
@@ -911,6 +914,34 @@ func backfillPlayerMatches(ctx context.Context, db *sql.DB) error {
 	return err
 }
 
+var playerColumnMigrations = []string{
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS unlocked_weapons TEXT DEFAULT ''`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS nickname_custom BOOLEAN DEFAULT FALSE`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS session_token TEXT`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS last_compensation_at TIMESTAMPTZ`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS matches_played INTEGER DEFAULT 0`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS novice BOOLEAN DEFAULT FALSE`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS platform TEXT NOT NULL DEFAULT 'standalone'`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS external_id TEXT`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS level INTEGER DEFAULT 1`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS char_levels JSONB NOT NULL DEFAULT '{"warrior":1,"mage":1,"fairy":1}'::jsonb`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS char_xps JSONB NOT NULL DEFAULT '{"warrior":0,"mage":0,"fairy":0}'::jsonb`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS tutorial_completed BOOLEAN NOT NULL DEFAULT FALSE`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS tutorial_skipped BOOLEAN NOT NULL DEFAULT FALSE`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS tutorial_battles_used INTEGER NOT NULL DEFAULT 0`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS progress_initialized BOOLEAN NOT NULL DEFAULT FALSE`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS last_interstitial_at TIMESTAMPTZ`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS nickname_hidden BOOLEAN NOT NULL DEFAULT FALSE`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS banned BOOLEAN NOT NULL DEFAULT FALSE`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS ban_reason TEXT NOT NULL DEFAULT ''`,
+	// Warnings are additive: existing rows get 0 and no reason, and the
+	// migration is safe to run on every server start.
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS warnings INTEGER NOT NULL DEFAULT 0`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS last_warning_reason TEXT NOT NULL DEFAULT ''`,
+	`ALTER TABLE players ADD COLUMN IF NOT EXISTS last_warning_at TIMESTAMPTZ`,
+}
+
 func createPlayersTable(ctx context.Context, db *sql.DB) error {
 	_, err := db.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS players (
@@ -937,57 +968,10 @@ func createPlayersTable(ctx context.Context, db *sql.DB) error {
 	if err != nil {
 		return err
 	}
-	_, err = db.ExecContext(ctx, `ALTER TABLE players ADD COLUMN IF NOT EXISTS unlocked_weapons TEXT DEFAULT ''`)
-	if err != nil {
-		return err
-	}
-	_, err = db.ExecContext(ctx, `ALTER TABLE players ADD COLUMN IF NOT EXISTS nickname_custom BOOLEAN DEFAULT FALSE`)
-	if err != nil {
-		return err
-	}
-	_, err = db.ExecContext(ctx, `ALTER TABLE players ADD COLUMN IF NOT EXISTS session_token TEXT`)
-	if err != nil {
-		return err
-	}
-	_, err = db.ExecContext(ctx, `ALTER TABLE players ADD COLUMN IF NOT EXISTS last_compensation_at TIMESTAMPTZ`)
-	if err != nil {
-		return err
-	}
-	_, err = db.ExecContext(ctx, `ALTER TABLE players ADD COLUMN IF NOT EXISTS matches_played INTEGER DEFAULT 0`)
-	if err != nil {
-		return err
-	}
-	// Existing players keep novice=false: the migration must not push veterans
-	// into the novice pool or force the tutorial on them.
-	_, err = db.ExecContext(ctx, `ALTER TABLE players ADD COLUMN IF NOT EXISTS novice BOOLEAN DEFAULT FALSE`)
-	if err != nil {
-		return err
-	}
-	_, err = db.ExecContext(ctx, `ALTER TABLE players ADD COLUMN IF NOT EXISTS platform TEXT NOT NULL DEFAULT 'standalone'`)
-	if err != nil {
-		return err
-	}
-	_, err = db.ExecContext(ctx, `ALTER TABLE players ADD COLUMN IF NOT EXISTS external_id TEXT`)
-	if err != nil {
-		return err
-	}
-	_, err = db.ExecContext(ctx, `ALTER TABLE players ADD COLUMN IF NOT EXISTS level INTEGER DEFAULT 1`)
-	if err != nil {
-		return err
-	}
-	for _, statement := range []string{
-		`ALTER TABLE players ADD COLUMN IF NOT EXISTS char_levels JSONB NOT NULL DEFAULT '{"warrior":1,"mage":1,"fairy":1}'::jsonb`,
-		`ALTER TABLE players ADD COLUMN IF NOT EXISTS char_xps JSONB NOT NULL DEFAULT '{"warrior":0,"mage":0,"fairy":0}'::jsonb`,
-		`ALTER TABLE players ADD COLUMN IF NOT EXISTS tutorial_completed BOOLEAN NOT NULL DEFAULT FALSE`,
-		`ALTER TABLE players ADD COLUMN IF NOT EXISTS tutorial_skipped BOOLEAN NOT NULL DEFAULT FALSE`,
-		`ALTER TABLE players ADD COLUMN IF NOT EXISTS tutorial_battles_used INTEGER NOT NULL DEFAULT 0`,
-		`ALTER TABLE players ADD COLUMN IF NOT EXISTS progress_initialized BOOLEAN NOT NULL DEFAULT FALSE`,
-		`ALTER TABLE players ADD COLUMN IF NOT EXISTS last_interstitial_at TIMESTAMPTZ`,
-		`ALTER TABLE players ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ`,
-		`ALTER TABLE players ADD COLUMN IF NOT EXISTS nickname_hidden BOOLEAN NOT NULL DEFAULT FALSE`,
-		`ALTER TABLE players ADD COLUMN IF NOT EXISTS banned BOOLEAN NOT NULL DEFAULT FALSE`,
-		`ALTER TABLE players ADD COLUMN IF NOT EXISTS ban_reason TEXT NOT NULL DEFAULT ''`,
-	} {
+	// Every migration is additive and idempotent, so this is safe on each
+	// server start. Existing players keep novice=false: the migration must not
+	// push veterans into the novice pool or force the tutorial on them.
+	for _, statement := range playerColumnMigrations {
 		if _, err := db.ExecContext(ctx, statement); err != nil {
 			return err
 		}
@@ -1289,6 +1273,9 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 
 	var nickname string
 	var nicknameCustom bool
+	var nicknameHidden bool
+	var banned bool
+	var banReason string
 	var shards int
 	var level int
 	var unlockedWings string
@@ -1303,18 +1290,27 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 	var progressInitialized bool
 	var lastInterstitialAt int64
 	var storedToken string
+	var warningCount int
+	var lastWarningReason string
+	var lastWarningAt int64
 	err = service.db.QueryRowContext(r.Context(),
-		`SELECT nickname, COALESCE(nickname_custom, FALSE), sky_shards, COALESCE(level, 1),
+		`SELECT nickname, COALESCE(nickname_custom, FALSE), COALESCE(nickname_hidden, FALSE),
+		        COALESCE(banned, FALSE), COALESCE(ban_reason, ''),
+		        sky_shards, COALESCE(level, 1),
 		        COALESCE(unlocked_wings, ''), COALESCE(unlocked_weapons, ''),
 		        COALESCE(matches_played, 0), COALESCE(novice, FALSE),
 		        COALESCE(char_levels::text, ''), COALESCE(char_xps::text, ''),
 		        COALESCE(tutorial_completed, FALSE), COALESCE(tutorial_skipped, FALSE),
 		        COALESCE(tutorial_battles_used, 0), COALESCE(progress_initialized, FALSE),
 		        COALESCE(EXTRACT(EPOCH FROM last_interstitial_at)::bigint, 0),
-		        COALESCE(session_token, '')
+		        COALESCE(session_token, ''),
+		        COALESCE(warnings, 0), COALESCE(last_warning_reason, ''),
+		        COALESCE(EXTRACT(EPOCH FROM last_warning_at)::bigint, 0)
 		 FROM players WHERE id = $1`, playerID,
-	).Scan(&nickname, &nicknameCustom, &shards, &level, &unlockedWings, &unlockedWeapons, &matchesPlayed, &novice,
-		&levelsJSON, &xpsJSON, &tutorialCompleted, &tutorialSkipped, &tutorialBattlesUsed, &progressInitialized, &lastInterstitialAt, &storedToken)
+	).Scan(&nickname, &nicknameCustom, &nicknameHidden, &banned, &banReason,
+		&shards, &level, &unlockedWings, &unlockedWeapons, &matchesPlayed, &novice,
+		&levelsJSON, &xpsJSON, &tutorialCompleted, &tutorialSkipped, &tutorialBattlesUsed, &progressInitialized, &lastInterstitialAt, &storedToken,
+		&warningCount, &lastWarningReason, &lastWarningAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		writeJSON(w, http.StatusNotFound, playerProfileResponse{Error: "Player not found"})
 		return
@@ -1323,6 +1319,17 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 		log.Printf("load player profile: %v", err)
 		writeJSON(w, http.StatusInternalServerError, playerProfileResponse{Error: "Internal server error"})
 		return
+	}
+	// A banned account gets no game data and no token. The separate error code
+	// lets the client show "account banned" instead of a network retry.
+	if banned {
+		service.writeBannedProfile(w, banReason)
+		return
+	}
+	visibleNickname := publicNickname(nickname, nicknameHidden)
+	visibleNicknameCustom := nicknameCustom
+	if nicknameHidden {
+		visibleNicknameCustom = false
 	}
 	progress := decodeStoredProgress(levelsJSON, xpsJSON, tutorialCompleted, tutorialSkipped, tutorialBattlesUsed, progressInitialized)
 	sessionToken := storedToken
@@ -1333,8 +1340,9 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusOK, playerProfileResponse{
 				Success:             true,
 				PlayerID:            playerID,
-				Nickname:            nickname,
-				NicknameCustom:      nicknameCustom,
+				Nickname:            visibleNickname,
+				NicknameCustom:      visibleNicknameCustom,
+				NicknameHidden:      nicknameHidden,
 				SkyShards:           shards,
 				Level:               level,
 				UnlockedWings:       parseItemIDs(unlockedWings),
@@ -1348,6 +1356,9 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 				TutorialBattlesUsed: progress.TutorialBattlesUsed,
 				ProgressInitialized: progress.ProgressInitialized,
 				LastInterstitialAt:  lastInterstitialAt,
+				WarningCount:        warningCount,
+				LastWarningReason:   lastWarningReason,
+				LastWarningAt:       lastWarningAt,
 			})
 			return
 		}
@@ -1379,8 +1390,9 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, playerProfileResponse{
 		Success:             true,
 		PlayerID:            playerID,
-		Nickname:            nickname,
-		NicknameCustom:      nicknameCustom,
+		Nickname:            visibleNickname,
+		NicknameCustom:      visibleNicknameCustom,
+		NicknameHidden:      nicknameHidden,
 		SkyShards:           shards,
 		Level:               level,
 		UnlockedWings:       parseItemIDs(unlockedWings),
@@ -1394,6 +1406,9 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 		TutorialBattlesUsed: progress.TutorialBattlesUsed,
 		ProgressInitialized: progress.ProgressInitialized,
 		LastInterstitialAt:  lastInterstitialAt,
+		WarningCount:        warningCount,
+		LastWarningReason:   lastWarningReason,
+		LastWarningAt:       lastWarningAt,
 		SessionToken:        sessionToken,
 	})
 }
@@ -1411,7 +1426,13 @@ func (service *api) handleSession(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, sessionResponse{Error: "Invalid player ID"})
 		return
 	}
-	token, err := service.sessionTokenFor(r.Context(), request.PlayerID)
+	var token string
+	var banned bool
+	var banReason string
+	err := service.db.QueryRowContext(r.Context(),
+		`SELECT COALESCE(session_token, ''), COALESCE(banned, FALSE), COALESCE(ban_reason, '')
+		 FROM players WHERE id = $1`, request.PlayerID,
+	).Scan(&token, &banned, &banReason)
 	if errors.Is(err, sql.ErrNoRows) {
 		writeJSON(w, http.StatusNotFound, sessionResponse{Error: "Player not found"})
 		return
@@ -1419,6 +1440,10 @@ func (service *api) handleSession(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("load session token: %v", err)
 		writeJSON(w, http.StatusInternalServerError, sessionResponse{Error: "Internal server error"})
+		return
+	}
+	if banned {
+		service.writeBannedSession(w, banReason)
 		return
 	}
 	supplied := service.sessionTokenFromRequest(r)
@@ -1836,6 +1861,16 @@ func (service *api) handleBuyWeapon(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, buyWeaponResponse{Success: true, NewShards: newShards})
 }
 
+// The reward claim queries mark the match row atomically. A retry of the same
+// room finds no unclaimed row and gets "Reward already claimed", so a lost
+// response can never pay the same match twice. The bonus is a separate,
+// independently idempotent payout of the stored base values.
+const (
+	matchRewardBaseClaimQuery  = `SELECT id, won FROM matches WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = FALSE ORDER BY id LIMIT 1 FOR UPDATE`
+	matchRewardBonusClaimQuery = `SELECT id, won, COALESCE(reward_shards, 0), COALESCE(reward_xp, 0), COALESCE(reward_character, '')
+			 FROM matches WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = TRUE AND COALESCE(rewarded_bonus, FALSE) = FALSE ORDER BY id LIMIT 1 FOR UPDATE`
+)
+
 func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 	if !requirePost(w, r) {
 		return
@@ -1896,8 +1931,7 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 		var storedShards, storedXP int
 		var storedCharacter string
 		err = transaction.QueryRowContext(r.Context(),
-			`SELECT id, won, COALESCE(reward_shards, 0), COALESCE(reward_xp, 0), COALESCE(reward_character, '')
-			 FROM matches WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = TRUE AND COALESCE(rewarded_bonus, FALSE) = FALSE ORDER BY id LIMIT 1 FOR UPDATE`,
+			matchRewardBonusClaimQuery,
 			request.RoomID, request.PlayerID,
 		).Scan(&matchID, &won, &storedShards, &storedXP, &storedCharacter)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -1926,7 +1960,7 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		err = transaction.QueryRowContext(r.Context(),
-			`SELECT id, won FROM matches WHERE room_id = $1 AND player_id = $2 AND COALESCE(rewarded, FALSE) = FALSE ORDER BY id LIMIT 1 FOR UPDATE`,
+			matchRewardBaseClaimQuery,
 			request.RoomID, request.PlayerID,
 		).Scan(&matchID, &won)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -2073,64 +2107,16 @@ func (service *api) handleAccountDelete(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, accountDeleteResponse{Success: true})
 }
 
-
 func (service *api) handleCompensation(w http.ResponseWriter, r *http.Request) {
 	if !requirePost(w, r) {
 		return
 	}
-	var request compensationRequest
-	if err := decodeJSON(w, r, &request); err != nil {
-		writeJSON(w, http.StatusBadRequest, matchRewardResponse{Error: "Invalid JSON"})
-		return
-	}
-	if !service.requireSession(w, r, request.PlayerID) {
-		return
-	}
-	if request.PlayerID <= 0 || request.Reason != "match_aborted" {
-		writeJSON(w, http.StatusBadRequest, matchRewardResponse{Error: "Invalid compensation"})
-		return
-	}
-	transaction, err := service.db.BeginTx(r.Context(), nil)
-	if err != nil {
-		log.Printf("begin compensation: %v", err)
-		writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
-		return
-	}
-	defer transaction.Rollback()
-	var last sql.NullTime
-	err = transaction.QueryRowContext(r.Context(),
-		`SELECT last_compensation_at FROM players WHERE id = $1 FOR UPDATE`,
-		request.PlayerID,
-	).Scan(&last)
-	if errors.Is(err, sql.ErrNoRows) {
-		writeJSON(w, http.StatusNotFound, matchRewardResponse{Error: "Player not found"})
-		return
-	}
-	if err != nil {
-		log.Printf("claim compensation: %v", err)
-		writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
-		return
-	}
-	if last.Valid && time.Since(last.Time) < compensationCooldown {
-		writeJSON(w, http.StatusTooManyRequests, matchRewardResponse{Error: "cooldown"})
-		return
-	}
-	var newShards int
-	err = transaction.QueryRowContext(r.Context(),
-		`UPDATE players SET sky_shards = COALESCE(sky_shards, 0) + $1, last_compensation_at = NOW() WHERE id = $2 RETURNING sky_shards`,
-		compensationShards, request.PlayerID,
-	).Scan(&newShards)
-	if err != nil {
-		log.Printf("grant compensation: %v", err)
-		writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
-		return
-	}
-	if err := transaction.Commit(); err != nil {
-		log.Printf("commit compensation: %v", err)
-		writeJSON(w, http.StatusInternalServerError, matchRewardResponse{Error: "Internal server error"})
-		return
-	}
-	writeJSON(w, http.StatusOK, matchRewardResponse{Success: true, NewShards: newShards})
+	// Compensation used to pay shards on a self-reported "match_aborted" and
+	// was reachable by any token holder, without proof that a match existed.
+	// The client no longer sends it. Keep the route so an old build gets a
+	// clean, machine-readable answer instead of a network error, but never pay.
+	log.Printf("[COMPENSATION] rejected: endpoint disabled")
+	writeJSON(w, http.StatusGone, matchRewardResponse{Error: "compensation_disabled"})
 }
 
 func (service *api) handleAdminGrantShards(w http.ResponseWriter, r *http.Request) {

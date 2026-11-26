@@ -138,12 +138,21 @@ func TestModerationPlayerActionValidation(t *testing.T) {
 	t.Setenv("ADMIN_TOKEN", "s3cret")
 	service := &api{}
 
-	request := httptest.NewRequest(http.MethodPost, "/admin/moderation/players/7/action?token=s3cret", strings.NewReader(`{"action":"warn"}`))
+	request := httptest.NewRequest(http.MethodPost, "/admin/moderation/players/7/action?token=s3cret", strings.NewReader(`{"action":"dismiss"}`))
 	request.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
 	service.handleModerationPlayerAction(recorder, request)
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 for a report-only action, got %d", recorder.Code)
+	}
+
+	// warn is now a first-class player action (it increments the counter).
+	request = httptest.NewRequest(http.MethodPost, "/admin/moderation/players/7/action?token=s3cret", strings.NewReader(`{"action":"warn","reason":"Спам"}`))
+	request.Header.Set("Content-Type", "application/json")
+	recorder = httptest.NewRecorder()
+	service.handleModerationPlayerAction(recorder, request)
+	if recorder.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503 without a database for warn, got %d", recorder.Code)
 	}
 
 	request = httptest.NewRequest(http.MethodPost, "/admin/moderation/players/7/action?token=s3cret", strings.NewReader(`{"action":"unban"}`))
