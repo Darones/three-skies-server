@@ -464,6 +464,10 @@ WS из волны 2 действительно отклоняет `join`; ес�
 
 **Волна 4 (2 агента + ручная проверка): OK-вход по токену и изоляция**
 
+Шаг 1 (клиентский токен) можно делать **параллельно с волной 3**: пока
+fallback на `auth_ok_identity` жив, поведение не меняется и сломать нечего.
+Сервер, платежи и шеллы на этом шаге не трогать.
+
 1. Клиент: `scripts/platform/platform.gd` читает `local_access_token` из
    launch params, `scripts/platform/ok_adapter.gd` сначала вызывает
    `NetworkClient.auth_ok(token)`, fallback на `auth_ok_identity` только если
