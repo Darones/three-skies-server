@@ -78,7 +78,24 @@ static func _first_texture(folder: String, fallback: String) -> Texture2D:
 	return load(fallback) as Texture2D
 
 
+## The no-argument material factories below hand out one shared instance per
+## process. Every arena build (warmup viewport, match) used to allocate a fresh
+## StandardMaterial3D with identical properties; the shader was shared by the
+## engine, but the resource itself was not, so warmup and match kept separate
+## references and lifetimes. One instance = one lifetime to keep warm.
+## Materials with per-call arguments (glow/crystal) stay uncached.
+static var _floor_light_material: StandardMaterial3D = null
+static var _rock_material: StandardMaterial3D = null
+static var _plaza_material: StandardMaterial3D = null
+static var _grass_material: StandardMaterial3D = null
+static var _stone_trim_material: StandardMaterial3D = null
+static var _marble_material: StandardMaterial3D = null
+static var _gold_material: StandardMaterial3D = null
+
+
 static func floor_light_material() -> StandardMaterial3D:
+	if _floor_light_material != null:
+		return _floor_light_material
 	var mat := StandardMaterial3D.new()
 	var tex := _first_texture(SLATE_DIR, FLOOR_LIGHT_TEX)
 	if tex != null:
@@ -90,14 +107,17 @@ static func floor_light_material() -> StandardMaterial3D:
 	mat.emission_energy_multiplier = 0.35
 	mat.uv1_triplanar = true
 	mat.uv1_scale = Vector3(0.12, 0.12, 0.12)
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.cull_mode = BaseMaterial3D.CULL_BACK
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	_floor_light_material = mat
 	return mat
 
 static func floor_dark_material() -> StandardMaterial3D:
 	return floor_light_material()
 
 static func rock_material() -> StandardMaterial3D:
+	if _rock_material != null:
+		return _rock_material
 	var mat := StandardMaterial3D.new()
 	var tex := load(FLOOR_DARK_TEX) as Texture2D
 	if tex != null:
@@ -106,10 +126,13 @@ static func rock_material() -> StandardMaterial3D:
 	mat.roughness = 0.95
 	mat.uv1_triplanar = true
 	mat.uv1_scale = Vector3(0.12, 0.12, 0.12)
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.cull_mode = BaseMaterial3D.CULL_BACK
+	_rock_material = mat
 	return mat
 
 static func gold_material() -> StandardMaterial3D:
+	if _gold_material != null:
+		return _gold_material
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(1.0, 0.82, 0.42)
 	mat.metallic = 0.25
@@ -117,12 +140,16 @@ static func gold_material() -> StandardMaterial3D:
 	mat.emission_enabled = true
 	mat.emission = Color(1.0, 0.7, 0.32)
 	mat.emission_energy_multiplier = 0.18
+	_gold_material = mat
 	return mat
 
 static func marble_material() -> StandardMaterial3D:
+	if _marble_material != null:
+		return _marble_material
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.5, 0.53, 0.6)
 	mat.roughness = 0.72
+	_marble_material = mat
 	return mat
 
 static func glow_material(color: Color, energy: float) -> StandardMaterial3D:
@@ -195,6 +222,8 @@ static func build_floor_mesh(mat_light: StandardMaterial3D, mat_dark: StandardMa
 
 
 static func plaza_material() -> StandardMaterial3D:
+	if _plaza_material != null:
+		return _plaza_material
 	var mat := StandardMaterial3D.new()
 	var tex := load(FLOOR_LIGHT_TEX) as Texture2D
 	if tex != null:
@@ -203,26 +232,75 @@ static func plaza_material() -> StandardMaterial3D:
 	mat.roughness = 0.9
 	mat.uv1_triplanar = true
 	mat.uv1_scale = Vector3(0.09, 0.09, 0.09)
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.cull_mode = BaseMaterial3D.CULL_BACK
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	_plaza_material = mat
 	return mat
 
 
 static func grass_material() -> StandardMaterial3D:
+	if _grass_material != null:
+		return _grass_material
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
 	mat.roughness = 1.0
 	mat.metallic = 0.0
 	mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.cull_mode = BaseMaterial3D.CULL_BACK
+	_grass_material = mat
 	return mat
 
 
 static func stone_trim_material() -> StandardMaterial3D:
+	if _stone_trim_material != null:
+		return _stone_trim_material
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.4, 0.41, 0.37)
 	mat.roughness = 0.92
+	_stone_trim_material = mat
 	return mat
+
+
+## One source of truth for the low/medium look. Both the warmup flow and the
+## match call this, before their first drawn frame, so they compile the same
+## shader variants instead of one running high-quality passes and the other low.
+## High quality returns immediately: the desktop look is untouched.
+static func apply_quality(root: Node, quality: String) -> void:
+	if root == null or quality == "high":
+		return
+	for node in root.find_children("*", "WorldEnvironment", true, false):
+		var world_env := node as WorldEnvironment
+		if world_env == null or world_env.environment == null:
+			continue
+		var env := world_env.environment
+		env.glow_enabled = false
+		env.fog_enabled = false
+		env.ssao_enabled = false
+		env.ssil_enabled = false
+		env.volumetric_fog_enabled = false
+	for node in root.find_children("*", "DirectionalLight3D", true, false):
+		var sun := node as DirectionalLight3D
+		sun.shadow_enabled = false
+	for node in root.find_children("*", "OmniLight3D", true, false):
+		var light := node as OmniLight3D
+		light.shadow_enabled = false
+		if quality != "low":
+			continue
+		var light_name := String(light.name).to_lower()
+		var parent_name := String(light.get_parent().name).to_lower() if light.get_parent() != null else ""
+		var keep := light_name.contains("fountain") or light_name.contains("shop") or light_name.contains("altar") or light_name.contains("rim") or light_name.contains("halfglow") or parent_name.contains("base")
+		if not keep:
+			light.visible = false
+
+
+static func _device_quality() -> String:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return "high"
+	var profile := tree.root.get_node_or_null("DeviceProfile")
+	if profile != null and profile.has_method("effective_quality"):
+		return String(profile.call("effective_quality"))
+	return "high"
 
 
 static func _build_circle_mesh(radius: float, segments: int) -> ArrayMesh:
@@ -477,6 +555,13 @@ static func _ensure_forest_lighting(arena_root: Node3D) -> void:
 		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 		env.ambient_light_color = Color(0.52, 0.6, 0.74)
 		env.ambient_light_energy = 0.45
+		# Cheap radiance for low/medium: the background is already BG_COLOR, so
+		# dropping the sky removes the reflection cubemap (USE_RADIANCE_MAP)
+		# without changing the visible background. High keeps the sky and the
+		# metallic/glass reflections exactly as before.
+		if _device_quality() != "high":
+			env.sky = null
+			env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
 		env.tonemap_exposure = 0.85
 		env.fog_enabled = true
 		env.fog_light_color = Color(0.045, 0.06, 0.13)
@@ -1835,7 +1920,7 @@ static func ensure_perimeter_ridge(arena: Node3D) -> void:
 	var void_material := StandardMaterial3D.new()
 	void_material.albedo_color = Color.BLACK
 	void_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	void_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	void_material.cull_mode = BaseMaterial3D.CULL_BACK
 	void_material.disable_fog = true
 	void_backdrop.material_override = void_material
 	ridge.add_child(void_backdrop)

@@ -26,6 +26,7 @@ const WARMUP_FLOW_SCRIPT := preload("res://scripts/warmup_flow.gd")
 func _ready() -> void:
 	var target := Vector2i(1440, 734)
 	var force_mobile := false
+	var forced_quality := ""
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--layout="):
 			var parts := arg.trim_prefix("--layout=").split("x")
@@ -33,6 +34,8 @@ func _ready() -> void:
 				target = Vector2i(int(parts[0]), int(parts[1]))
 		elif arg == "--mobile":
 			force_mobile = true
+		elif arg.begins_with("--quality="):
+			forced_quality = arg.trim_prefix("--quality=")
 		elif arg == "--warmup-two-pass":
 			two_pass_policy = "on"
 		elif arg == "--warmup-single-pass":
@@ -43,8 +46,16 @@ func _ready() -> void:
 		DeviceProfile.mobile_ui = true
 		DeviceProfile.touch_controls = true
 		get_tree().root.content_scale_size = Vector2i(960, 540)
+		# A phone starts on low; a saved desktop setting must not turn the
+		# mobile two-pass probe into a high-quality run.
+		if forced_quality.is_empty():
+			forced_quality = DeviceProfile.QUALITY_LOW
 	else:
 		get_tree().root.content_scale_size = target
+	if not forced_quality.is_empty() and DeviceProfile.QUALITY_VALUES.has(forced_quality):
+		DeviceProfile.graphics_quality = forced_quality
+		DeviceProfile.quality_override = ""
+		DeviceProfile.apply_graphics_quality()
 	DisplayServer.window_set_size(target)
 	target_size = target
 	for _i in 3:
@@ -186,8 +197,10 @@ func _run_warmup() -> void:
 		"game.gd снят с инстанса (без матча/HUD)")
 	_check(bool(report.get("main_freed", false)), "инстанс Main освобождён")
 	_check(bool(report.get("main_cached", false)), "Main.tscn остаётся в кэше после прогрева")
-	_check(int(report.get("heroes_warmed", 0)) == 5,
-		"прогрето 5 моделей бойцов (%d)" % int(report.get("heroes_warmed", 0)))
+	var hero_scenes: Array = report.get("hero_scenes", [])
+	var expected_heroes := maxi(3, hero_scenes.size())
+	_check(int(report.get("heroes_warmed", 0)) == expected_heroes,
+		"прогрето %d моделей бойцов (%d)" % [expected_heroes, int(report.get("heroes_warmed", 0))])
 	_check(int(report.get("props_warmed", 0)) >= 18,
 		"прогрето оружие/предметы (%d)" % int(report.get("props_warmed", 0)))
 	_check(int(report.get("vfx_scenes_warmed", 0)) >= 10,
@@ -220,7 +233,7 @@ func _run_warmup() -> void:
 		var freed := pass1 - float(report.get("video_after_arena_free_mb", pass1))
 		print("WARMUP_TWO_PASS_DELTA pass1=%.1f pass2=%.1f arena_release=%.1f MB"
 			% [pass1, pass2, freed])
-		_check(int(report.get("heroes_warmed", 0)) == 5, "во втором проходе 5 бойцов")
+		_check(int(report.get("heroes_warmed", 0)) == expected_heroes, "во втором проходе %d бойцов" % expected_heroes)
 		_check(int(report.get("frames_rendered", 0)) >= 40, "второй проход отрисовал кадры")
 	else:
 		_check(pass2 == 0.0, "однопроходный режим без пика второго прохода")

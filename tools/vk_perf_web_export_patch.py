@@ -12,12 +12,16 @@ patch_dpr_clamp   caps window.devicePixelRatio on phones/VK before Godot boots.
                   a HUD that is drawn at 960x540. 1.5 keeps text crisp and
                   removes ~75% of the pixels. Desktop is untouched, and
                   ?dpr=native or ?dpr=<1..3> overrides it for measurements.
+patch_storage_persist  calls navigator.storage.persist() (and estimate() for
+                  diagnostics) before Godot boots so the compiled shader cache
+                  survives a reload. Inert: nothing is shown to the player.
 """
 
 import shutil
 
 PERF_MARKER = "vk_perf_diag.js"
 DPR_MARKER = "TS_DPR_CLAMP"
+STORAGE_MARKER = "TS_STORAGE_PERSIST"
 
 DPR_SCRIPT = """		<script>
 		/* TS_DPR_CLAMP: phones/VK pay DPR 2.5-4 for a 960x540 HUD. */
@@ -48,6 +52,31 @@ DPR_SCRIPT = """		<script>
 				}
 			}
 			window.__tsDpr = { native: nativeDpr, applied: applied, capped: applied < nativeDpr };
+		})();
+		</script>
+"""
+
+STORAGE_SCRIPT = """		<script>
+		/* TS_STORAGE_PERSIST: ask the browser to keep the compiled shader cache. */
+		(function () {
+			try {
+				if (navigator.storage && typeof navigator.storage.persist === 'function') {
+					navigator.storage.persist().then(function (persisted) {
+						window.__tsPersist = persisted;
+					}, function () {
+						window.__tsPersist = false;
+					});
+				}
+			} catch (e) {
+				window.__tsPersist = false;
+			}
+			try {
+				if (navigator.storage && typeof navigator.storage.estimate === 'function') {
+					navigator.storage.estimate().then(function (estimate) {
+						window.__tsStorage = { usage: estimate.usage, quota: estimate.quota };
+					}, function () {});
+				}
+			} catch (e) {}
 		})();
 		</script>
 """
@@ -88,6 +117,15 @@ def patch_dpr_clamp(out_dir, root):
         print("DPR_CLAMP patched")
 
 
+def patch_storage_persist(out_dir, root):
+    """Ask the browser to persist storage so the compiled shader cache survives
+    reloads. Inert at boot: the result is only stored on window for diagnostics
+    and nothing is shown to the player."""
+    if _insert_before_engine(out_dir, STORAGE_SCRIPT, STORAGE_MARKER):
+        print("STORAGE_PERSIST patched")
+
+
 def patch_web_shell(out_dir, root):
     patch_dpr_clamp(out_dir, root)
+    patch_storage_persist(out_dir, root)
     patch_perf_probe(out_dir, root)

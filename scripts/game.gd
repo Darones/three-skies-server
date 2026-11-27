@@ -311,6 +311,12 @@ func _ready() -> void:
 	_create_fog_of_war()
 	_create_shop_stall()
 	_create_gold_fountain()
+	# Apply the low-quality budget before the first drawn frame: the match used
+	# to render one high-quality frame (glow/fog/shadows) before this call and
+	# then re-link the low variants. The warmup flow does the same before its
+	# first draw, so both see one environment. The call after the ambient decor
+	# below catches lights added later.
+	_apply_mobile_quality()
 	# Start the first-clash warm here, not at the end of _ready: its assets are
 	# spread over timers, so it can finish while the pools and the HUD are still
 	# being built.
@@ -793,31 +799,10 @@ func _apply_mobile_quality() -> void:
 	if viewport != null and quality != DeviceProfile.QUALITY_HIGH:
 		viewport.msaa_3d = Viewport.MSAA_DISABLED
 		viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
-	if quality == DeviceProfile.QUALITY_HIGH:
-		return
-	for node in find_children("*", "WorldEnvironment", true, false):
-		var world_env := node as WorldEnvironment
-		if world_env == null or world_env.environment == null:
-			continue
-		var env := world_env.environment
-		env.glow_enabled = false
-		env.fog_enabled = false
-		env.ssao_enabled = false
-		env.ssil_enabled = false
-		env.volumetric_fog_enabled = false
-	for node in find_children("*", "DirectionalLight3D", true, false):
-		var sun := node as DirectionalLight3D
-		sun.shadow_enabled = false
-	for node in find_children("*", "OmniLight3D", true, false):
-		var light := node as OmniLight3D
-		light.shadow_enabled = false
-		if quality != DeviceProfile.QUALITY_LOW:
-			continue
-		var light_name := String(light.name).to_lower()
-		var parent_name := String(light.get_parent().name).to_lower() if light.get_parent() != null else ""
-		var keep := light_name.contains("fountain") or light_name.contains("shop") or light_name.contains("altar") or light_name.contains("rim") or light_name.contains("halfglow") or parent_name.contains("base")
-		if not keep:
-			light.visible = false
+	# Environment, sun/omni shadows and the low-quality light set live in
+	# ArenaKit so the warmup flow applies exactly the same budget before its
+	# first drawn frame. High quality returns immediately there.
+	ArenaKit.apply_quality(self, quality)
 
 
 func _soften_baked_base_rings() -> void:
@@ -858,6 +843,11 @@ func _create_base_shield_domes() -> void:
 		{"path": "Arena/Bases/LightBase", "color": Color(0.42, 0.72, 1.0, 0.012)},
 		{"path": "Arena/Bases/DarkBase", "color": Color(0.72, 0.46, 0.92, 0.012)},
 	]
+	# LIGHT_RIM_USED is a separate shader program (~1-2 s of cold linking).
+	# Low/medium never paid for it visibly, so the rim is only enabled on high.
+	# The warmup flow follows the same rule, so neither side warms the variant
+	# the other does not draw.
+	var use_rim := DeviceProfile.effective_quality() == DeviceProfile.QUALITY_HIGH
 	for shield_config in shield_configs:
 		var base := get_node_or_null(String(shield_config["path"])) as Node3D
 		if base == null or base.has_node("SpawnShieldDome"):
@@ -874,9 +864,10 @@ func _create_base_shield_domes() -> void:
 		material.albedo_color = shield_config["color"]
 		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		material.roughness = 0.9
-		material.rim_enabled = true
-		material.rim = 0.25
-		material.rim_tint = 0.35
+		if use_rim:
+			material.rim_enabled = true
+			material.rim = 0.25
+			material.rim_tint = 0.35
 		dome.material_override = material
 		dome.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		dome.position.y = 0.15

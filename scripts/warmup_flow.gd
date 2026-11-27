@@ -55,14 +55,17 @@ const TWO_PASS_TRIGGER_MB := 380.0
 ## alone is already past 320 MB has no room for that overlap.
 const TWO_PASS_MOBILE_BUDGET_MB := 320.0
 
-## Base rigs and the two cosmetic skins that HeroUnit can spawn.
-const CHARACTER_SCENES := [
+## Base rigs. Cosmetic skins are added only when the local player has one
+## equipped: warming all 5 models used to compile two paid skins that most
+## rooms never see. Remote players' skins are unknown when the search starts;
+## a rare remote skin compiles on its first spawn instead of for everyone.
+const BASE_CHARACTER_SCENES := [
 	"res://art/generated/warrior/character.tscn",
 	"res://art/generated/mage/character.tscn",
 	"res://art/generated/fairy/character.tscn",
-	"res://art/generated/warrior_barbarian/character.tscn",
-	"res://art/generated/fairy_hooded/character.tscn",
 ]
+const CLASS_KEYS := ["warrior", "mage", "fairy"]
+const SKIN_CATALOG := preload("res://scripts/skin_catalog.gd")
 
 ## External weapons, the legendary bow and the arena props game.gd adds at
 ## runtime (shop stall, crystals) — the exact assets the first frame needs.
@@ -218,6 +221,23 @@ var retain_early := false
 ## the start because a stream costs no video memory.
 var retained_resources: Array[Resource] = []
 
+## Base classes plus the local equipped skin, resolved once in start() so the
+## probe and _retain_battle_cache see exactly the same list that was warmed.
+var _hero_scenes: Array[String] = []
+
+## Lighting captured from the arena before _main is freed for the second pass.
+## The pass-2 viewport used to be a bare world (no WorldEnvironment), so the
+## fighters/weapons compiled without the arena's fog/radiance and the match had
+## to link those variants again. The second pass now reuses the same
+## Environment resource and the same sun setup as the match.
+var _pass2_environment: Environment = null
+var _pass2_sun_rotation := Vector3(-45.0, -30.0, 0.0)
+var _pass2_sun_color := Color(1.0, 0.95, 0.88)
+var _pass2_sun_energy := 1.0
+var _pass2_sun_shadow := false
+var _pass2_sun_shadow_mode := DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+var _pass2_sun_shadow_distance := 90.0
+
 var _running := false
 var _done := false
 var _progress := 0.0
@@ -267,6 +287,8 @@ func start() -> void:
 			elif arg == "--warmup-single-pass":
 				two_pass_policy = TWO_PASS_POLICY_OFF
 	report["two_pass_policy"] = two_pass_policy
+	_hero_scenes = _hero_scene_paths()
+	report["hero_scenes"] = _hero_scenes
 	_running = true
 	_started_ms = Time.get_ticks_msec()
 	_stage_started_ms = _started_ms
@@ -337,28 +359,23 @@ func _run() -> void:
 	report["main_script_stripped"] = _main.get_script() == null
 	_viewport.add_child(_main)
 	_arena = _main.get_node_or_null("Arena") as Node3D
+	# The same two calls game.gd makes on the baked arena: perimeter ridge and
+	# runtime props/materials (grass, paths, crystals, ruin columns...). They
+	# run BEFORE the first drawn frame, exactly like game.gd._ready, so the
+	# warmup never compiles the raw Main.tscn environment/quality first.
 	if _arena != null:
+		ArenaKit.ensure_perimeter_ridge(_arena)
+		ArenaKit.ensure_arena_features(_arena)
 		report["arena_children"] = _arena.get_child_count()
+	# Same low/medium budget as the match, before the first draw.
+	ArenaKit.apply_quality(_main, _quality())
 	await _render_frames(2)
 	if not _alive():
 		return
 	_emit(16.0)
 	await _pace()
-
-	# The same two calls game.gd makes on the baked arena: perimeter ridge and
-	# runtime props/materials (grass, paths, crystals, ruin columns...).
-	if _arena != null:
-		ArenaKit.ensure_perimeter_ridge(_arena)
-		await _render_frames(1)
-		if not _alive():
-			return
-		_emit(20.0, STAGE_ARENA)
-		await _pace()
-		ArenaKit.ensure_arena_features(_arena)
-		await _render_frames(2)
-		report["arena_children"] = _arena.get_child_count()
-	if not _alive():
-		return
+	_emit(20.0, STAGE_ARENA)
+	await _pace()
 	_emit(26.0)
 	await _pace()
 	if _over_budget():
@@ -495,11 +512,21 @@ func _setup_viewport(pass_two := false) -> void:
 	_camera.current = true
 	if pass_two:
 		# The arena instance (and its lighting) is gone by now; fighters and
-		# PBR shaders still need one lit draw or the lit variant stays cold.
+		# PBR shaders still need the SAME environment and sun as the match, or
+		# they compile variants the match never uses (and relink there).
+		if _pass2_environment != null:
+			var world_env := WorldEnvironment.new()
+			world_env.name = "WarmupFlowEnvironment"
+			world_env.environment = _pass2_environment
+			_viewport.add_child(world_env)
 		var light := DirectionalLight3D.new()
 		light.name = "WarmupFlowKeyLight"
-		light.rotation_degrees = Vector3(-45.0, -30.0, 0.0)
-		light.light_energy = 1.1
+		light.rotation = _pass2_sun_rotation
+		light.light_color = _pass2_sun_color
+		light.light_energy = _pass2_sun_energy
+		light.shadow_enabled = _pass2_sun_shadow
+		light.directional_shadow_mode = _pass2_sun_shadow_mode
+		light.directional_shadow_max_distance = _pass2_sun_shadow_distance
 		_viewport.add_child(light)
 		var ground := MeshInstance3D.new()
 		ground.name = "WarmupFlowGround"
@@ -515,9 +542,30 @@ func _setup_viewport(pass_two := false) -> void:
 		_viewport.add_child(ground)
 
 
+## Base rigs plus the local player's equipped skin (if any). Every room can
+## contain all three base classes, so those stay; a paid skin is warmed only
+## when the local player actually wears it.
+func _hero_scene_paths() -> Array[String]:
+	var paths: Array[String] = []
+	for path in BASE_CHARACTER_SCENES:
+		paths.append(String(path))
+	var selected := 0
+	if get_tree() != null:
+		selected = clampi(int(get_tree().get_meta("selected_class", 0)), 0, CLASS_KEYS.size() - 1)
+	var meta := get_node_or_null("/root/MetaProgression")
+	if meta != null and meta.has_method("get_equipped_skin"):
+		var skin_id := int(meta.call("get_equipped_skin", CLASS_KEYS[selected]))
+		if skin_id > 0:
+			var item: Dictionary = SKIN_CATALOG.get_item(skin_id)
+			var model := String(item.get("model", ""))
+			if not model.is_empty() and not paths.has(model):
+				paths.append(model)
+	return paths
+
+
 func _warm_characters() -> void:
 	_set_stage(STAGE_HEROES)
-	var total := CHARACTER_SCENES.size()
+	var total := _hero_scenes.size()
 	for index in total:
 		if not _alive():
 			return
@@ -525,7 +573,7 @@ func _warm_characters() -> void:
 		# stage: one model is the largest unit left here.
 		if _over_budget():
 			return
-		var path: String = CHARACTER_SCENES[index]
+		var path: String = _hero_scenes[index]
 		var packed := await _load_threaded(path)
 		if retain_early and packed is Resource:
 			_retain(packed)
@@ -606,7 +654,10 @@ func _warm_vfx() -> void:
 	await _warm_gpu_particles()
 	await _pace()
 	# Base spawn domes use the rim-lit transparent StandardMaterial variant.
-	await _warm_rim_material()
+	# Low/medium no longer enable it (game.gd), so warming it there would link
+	# a variant the match never draws. High keeps the rim and the warmup.
+	if _quality() == DeviceProfile.QUALITY_HIGH:
+		await _warm_rim_material()
 
 
 func _on_vfx_step(done: int, total: int) -> void:
@@ -934,7 +985,7 @@ func _retain_battle_cache() -> void:
 	var paths: Array[String] = []
 	for path in [MAIN_SCENE_PATH]:
 		paths.append(String(path))
-	for path in CHARACTER_SCENES:
+	for path in _hero_scenes:
 		paths.append(String(path))
 	for path in PROP_SCENES:
 		paths.append(String(path))
@@ -1032,6 +1083,7 @@ func _switch_to_second_pass() -> void:
 	# at the same time. The shared arena materials hold the big floor/rock/plaza
 	# textures, so the references drop here; the match builds fresh ones.
 	if _main != null and is_instance_valid(_main):
+		_capture_pass2_lighting()
 		_main.queue_free()
 		report["main_freed"] = true
 	_main = null
@@ -1050,6 +1102,23 @@ func _switch_to_second_pass() -> void:
 	await _render_frames(2)
 	report["two_pass_switch_ms"] = Time.get_ticks_msec() - started
 	report["two_pass_switch_s"] = snappedf(float(report["two_pass_switch_ms"]) / 1000.0, 0.01)
+
+
+## Keeps the arena's final Environment and sun settings alive for pass 2. They
+## are read before `_main` is freed; the Environment resource survives because
+## `_pass2_environment` holds a reference.
+func _capture_pass2_lighting() -> void:
+	var world_env := _main.get_node_or_null("Arena/Stage/WorldEnvironment") as WorldEnvironment
+	if world_env != null:
+		_pass2_environment = world_env.environment
+	var sun := _main.get_node_or_null("Arena/Stage/Sun") as DirectionalLight3D
+	if sun != null:
+		_pass2_sun_rotation = sun.rotation
+		_pass2_sun_color = sun.light_color
+		_pass2_sun_energy = sun.light_energy
+		_pass2_sun_shadow = sun.shadow_enabled
+		_pass2_sun_shadow_mode = sun.directional_shadow_mode
+		_pass2_sun_shadow_distance = sun.directional_shadow_max_distance
 
 
 func _finalize_pass() -> void:

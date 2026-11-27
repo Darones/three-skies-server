@@ -21,6 +21,8 @@ const LOADING_TEXT := "Загрузка профиля…"
 const ERROR_TEXT := "Профиль не загрузился\nПроверьте соединение и попробуйте ещё раз."
 const WARMUP_TITLE := "Прогрев боя…"
 const WARMUP_STAGE_TEXT := "Подготовка…"
+const FIRST_RUN_WARMUP_TITLE := "Первый запуск: подготовка графики"
+const GRAPHICS_READY_KEY := "ts_graphics_ready"
 
 const PALE := Color(0.9, 0.92, 0.98)
 const BACKDROP := Color(0.016, 0.024, 0.043)
@@ -40,6 +42,15 @@ var warmup_row: HBoxContainer
 var warmup_stage: Label
 var warmup_elapsed: Label
 var warmup_done := false
+## Test hook: forces the first-run decision when >= 0 (1 = first graphics run,
+## 0 = repeat run). -1 (default) auto-detects from localStorage on web and
+## always reports a repeat run on native builds.
+var first_run_forced := -1
+## True once the graphics-ready flag has been persisted on web. Idempotence
+## guard so set_warmup_progress(100) and finish_warming() never double-write.
+var _graphics_marked := false
+## Test-observable: number of times a graphics-ready write was attempted.
+var _graphics_mark_attempts := 0
 ## Tutorial loading reuses this card with a larger logo. Defaults keep the
 ## newcomer Welcome card exactly as it was.
 var logo_scale := 1.0
@@ -104,6 +115,8 @@ func show_warming() -> void:
 		warmup_stage.text = WARMUP_STAGE_TEXT
 	if warmup_elapsed != null:
 		warmup_elapsed.text = "0.0 с"
+	if warmup_title != null:
+		warmup_title.text = FIRST_RUN_WARMUP_TITLE if _is_first_graphics_run() else WARMUP_TITLE
 	state = State.WARMING
 	visible = true
 	_apply_state()
@@ -116,6 +129,12 @@ func set_warmup_progress(percent: float, elapsed: float, stage: String) -> void:
 		warmup_elapsed.text = "%.1f с" % maxf(0.0, elapsed)
 	if warmup_stage != null and not stage.strip_edges().is_empty():
 		warmup_stage.text = stage
+	# The real warmup finishes on the 100% progress frame (loading_screen.gd
+	# never calls finish_warming), so this is where "graphics are ready" is
+	# persisted. Tolerance absorbs float rounding; _mark_graphics_ready() is
+	# idempotent, so a later finish_warming() cannot write twice.
+	if percent >= 99.5:
+		_mark_graphics_ready()
 
 
 ## Stays on the 100% frame: lobby.gd switches to Main.tscn right after, so
@@ -126,7 +145,51 @@ func finish_warming() -> void:
 		warmup_bar.value = 100.0
 	if warmup_stage != null:
 		warmup_stage.text = "Готово"
+	_mark_graphics_ready()
 	_layout()
+
+
+## Reads the `ts_graphics_ready` localStorage flag on web. True when the flag is
+## present (a later run); false on native builds or any bridge failure.
+func _graphics_ready_flag() -> bool:
+	if not OS.has_feature("web") or not Engine.has_singleton("JavaScriptBridge"):
+		return false
+	var bridge := Engine.get_singleton("JavaScriptBridge")
+	var raw: Variant = bridge.call(
+		"eval",
+		"(function(){try{return localStorage.getItem(%s)||''}catch(e){return ''}})()" % JSON.stringify(GRAPHICS_READY_KEY),
+		true
+	)
+	return raw is String and not (raw as String).is_empty()
+
+
+## True on the very first graphics warmup (the shader cache has never been
+## persisted). The test hook `first_run_forced` overrides this when set.
+func _is_first_graphics_run() -> bool:
+	if first_run_forced >= 0:
+		return first_run_forced == 1
+	if not OS.has_feature("web"):
+		return false
+	return not _graphics_ready_flag()
+
+
+## Persist the "graphics are ready" flag on web so the next warmup keeps the
+## normal title. Called from set_warmup_progress() when it reaches 100% (the
+## real production path) and from finish_warming() as a backstop. Idempotent:
+## only the first call writes. Any storage or bridge error is swallowed.
+func _mark_graphics_ready() -> void:
+	if _graphics_marked:
+		return
+	_graphics_marked = true
+	_graphics_mark_attempts += 1
+	if not OS.has_feature("web") or not Engine.has_singleton("JavaScriptBridge"):
+		return
+	var bridge := Engine.get_singleton("JavaScriptBridge")
+	bridge.call(
+		"eval",
+		"try{localStorage.setItem(%s, '1');}catch(e){}" % JSON.stringify(GRAPHICS_READY_KEY),
+		true
+	)
 
 
 func is_warming() -> bool:
@@ -258,6 +321,7 @@ func _build() -> void:
 	warmup_title.add_theme_constant_override("shadow_offset_y", 1)
 	warmup_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	warmup_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	warmup_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	warmup_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	warmup_box.add_child(warmup_title)
 
@@ -464,6 +528,7 @@ func _layout() -> void:
 	if warmup_bar != null:
 		warmup_bar.custom_minimum_size = Vector2(bar_width, clampf(7.0 * k, 10.0, 16.0))
 		warmup_row.custom_minimum_size = Vector2(bar_width, 0.0)
+		warmup_title.custom_minimum_size = Vector2(bar_width, 0.0)
 		warmup_title.add_theme_font_size_override(
 			"font_size", clampi(int(round(20.0 * k)), 16, 28)
 		)
