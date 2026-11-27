@@ -9,10 +9,9 @@ const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const DEFAULT_SITE_URL := "https://three-skies-server.relaxdev.ru"
 const PRIVACY_PATH := "/privacy"
 const TERMS_PATH := "/terms"
-# TODO: replace with the real community group links once VK/OK groups exist.
-# Support opens the direct app link of the current platform, without
-# share/utm parameters (Platform.get_app_link).
-const SUPPORT_FALLBACK := "https://vk.com/app54906713"
+# Support opens the community group of the current platform (VK or OK), with
+# the support e-mail as the standalone fallback. See scripts/support_links.gd.
+const SUPPORT_LINKS := preload("res://scripts/support_links.gd")
 const CREDITS_SCRIPT = preload("res://credits/licenses.gd")
 const CONTROL_BINDINGS := [
 	{"action": "move_forward", "label": "Движение вперёд"},
@@ -191,6 +190,11 @@ func _build_panel() -> void:
 	support_button.add_theme_font_size_override("font_size", _fs(16))
 	support_button.pressed.connect(_open_support)
 	layout.add_child(support_button)
+	var support_contact := _make_label(_support_contact_text(), 13, Color(0.62, 0.7, 0.82))
+	support_contact.name = "SupportContact"
+	support_contact.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	support_contact.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	layout.add_child(support_contact)
 	var privacy_button := _make_button("Политика конфиденциальности", false)
 	privacy_button.name = "PrivacyButton"
 	privacy_button.custom_minimum_size = Vector2(0.0, 40.0)
@@ -717,7 +721,8 @@ func _set_status(text: String) -> void:
 
 
 func _open_support() -> void:
-	_open_external(_support_url())
+	_set_status("Открываем в браузере…")
+	SUPPORT_LINKS.open_url(SUPPORT_LINKS.support_url())
 
 
 func _open_privacy() -> void:
@@ -735,14 +740,14 @@ func _site_url() -> String:
 	return base
 
 
-func _support_url() -> String:
-	# The standalone adapter has no platform link, so it never reaches
-	# Platform.get_app_link() and falls back to the VK app page.
-	if Platform.platform_id == "vk" or Platform.platform_id == "ok":
-		var link := Platform.get_app_link()
-		if not link.is_empty():
-			return link
-	return SUPPORT_FALLBACK
+func _support_contact_text() -> String:
+	var text := "Поддержка: %s" % SUPPORT_LINKS.SUPPORT_EMAIL
+	match Platform.platform_id:
+		"vk":
+			text += " · сообщество ВКонтакте"
+		"ok":
+			text += " · сообщество в Одноклассниках"
+	return text
 
 
 func _open_external(url: String) -> void:

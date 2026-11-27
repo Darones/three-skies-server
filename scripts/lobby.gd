@@ -59,6 +59,7 @@ const LOBBY_LOGO: Texture2D = preload("res://ui/logo.png")
 const UI_CLICK_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/ui_menu/menu_selection_click.mp3")
 const SHARD_TOPUP_SCENE := preload("res://scenes/ShardTopupPanel.tscn")
 const RULES_PANEL_SCRIPT := preload("res://scripts/rules_panel.gd")
+const SUPPORT_LINKS := preload("res://scripts/support_links.gd")
 const WELCOME_OVERLAY_SCRIPT := preload("res://scripts/welcome_overlay.gd")
 const SHARD_ICON: Texture2D = preload("res://ui/icons/sky_shard.png")
 const SETTINGS_GEAR_ICON: Texture2D = preload("res://ui/icons/settings_gear.png")
@@ -1391,6 +1392,15 @@ func _build_moderation_ui() -> void:
 	ban_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	ban_hint.custom_minimum_size = Vector2(300 if DeviceProfile.mobile_ui else 490, 0)
 	ban_content.add_child(ban_hint)
+	# Real contact instead of "напишите в поддержку" with no address: opens the
+	# community group of the current platform, or the support e-mail.
+	var ban_support_button := _make_action_button("Написать в поддержку", true)
+	ban_support_button.name = "BanSupportButton"
+	ban_support_button.custom_minimum_size = Vector2(0, 46)
+	ban_support_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	ban_support_button.add_theme_font_size_override("font_size", _fs(17))
+	ban_support_button.pressed.connect(_open_support_link)
+	ban_content.add_child(ban_support_button)
 
 
 func _apply_moderation_state() -> void:
@@ -1431,6 +1441,12 @@ func _show_moderation_ban(reason: String) -> void:
 	if info_overlay != null:
 		info_overlay.visible = false
 	_close_touch_keyboard()
+
+
+func _open_support_link() -> void:
+	# A restricted player has no other way to ask for a review: open the
+	# community of the current platform, or the support e-mail on standalone.
+	SUPPORT_LINKS.open_url(SUPPORT_LINKS.support_url())
 
 
 func _on_warnings_updated(count: int, reason: String, at: int) -> void:
@@ -2619,14 +2635,14 @@ func _build_nickname_popup() -> void:
 	close_button.add_theme_font_size_override("font_size", _fs(22))
 	close_button.pressed.connect(_close_nickname_popup)
 	header.add_child(close_button)
-	var hint := _make_label("Никнейм видят все игроки. От 3 до 12 символов.", 15, Color(0.76, 0.8, 0.89))
+	var hint := _make_label("Никнейм видят все игроки. От 3 до 32 символов, без мата и ссылок.", 15, Color(0.76, 0.8, 0.89))
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	content.add_child(hint)
 	nickname_line_edit = LineEdit.new()
 	nickname_line_edit.name = "NicknamePopupInput"
 	nickname_line_edit.placeholder_text = "Введите никнейм"
-	nickname_line_edit.max_length = 12
+	nickname_line_edit.max_length = 32
 	nickname_line_edit.text = MetaProgression.player_nickname
 	nickname_line_edit.custom_minimum_size = Vector2(0, 46)
 	nickname_line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -2718,7 +2734,7 @@ func _show_nickname_keyboard() -> void:
 			return
 	if DeviceProfile.mobile_ui or DisplayServer.is_touchscreen_available():
 		if touch_keyboard != null:
-			touch_keyboard.call("open", nickname_line_edit, "СМЕНА НИКА", 12)
+			touch_keyboard.call("open", nickname_line_edit, "СМЕНА НИКА", 32)
 			return
 	if not DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
 		return
@@ -2892,8 +2908,8 @@ func _save_player_nickname() -> void:
 	if nickname_line_edit == null:
 		return
 	var nickname := nickname_line_edit.text.strip_edges()
-	if nickname.length() < 3 or nickname.length() > 12:
-		_set_nickname_status("Введите от 3 до 12 символов.", Color(1.0, 0.48, 0.42))
+	if nickname.length() < 3 or nickname.length() > 32:
+		_set_nickname_status("Введите от 3 до 32 символов.", Color(1.0, 0.48, 0.42))
 		return
 	if ProfanityFilter.contains(nickname):
 		_set_nickname_status("Ник содержит недопустимые слова.", Color(1.0, 0.48, 0.42))
@@ -2952,8 +2968,8 @@ func _localize_nickname_error(error: String) -> String:
 	match error:
 		"Nickname already taken":
 			return "этот ник уже занят, выбери другой."
-		"Nickname must be 3 to 12 characters":
-			return "ник должен быть от 3 до 12 символов."
+		"Nickname must be 3 to 12 characters", "Nickname must be 3 to 32 characters":
+			return "ник должен быть от 3 до 32 символов."
 		"Nickname contains forbidden words":
 			return "ник содержит недопустимые слова."
 		"Player not found":
@@ -3169,8 +3185,8 @@ func _build_report_form() -> void:
 	content.add_child(nickname_label)
 	report_nickname_edit = LineEdit.new()
 	report_nickname_edit.name = "ReportNickname"
-	report_nickname_edit.placeholder_text = "Ник (3–12 символов)"
-	report_nickname_edit.max_length = 12
+	report_nickname_edit.placeholder_text = "Ник (3–32 символов)"
+	report_nickname_edit.max_length = 32
 	report_nickname_edit.custom_minimum_size = Vector2(0, 42)
 	report_nickname_edit.virtual_keyboard_enabled = false
 	report_nickname_edit.add_theme_font_override("font", font)
@@ -3230,14 +3246,14 @@ func _open_report_keyboard() -> void:
 	if report_nickname_edit == null or touch_keyboard == null:
 		return
 	if DeviceProfile.mobile_ui or DisplayServer.is_touchscreen_available():
-		touch_keyboard.call("open", report_nickname_edit, "НИК ДЛЯ ЖАЛОБЫ", 12)
+		touch_keyboard.call("open", report_nickname_edit, "НИК ДЛЯ ЖАЛОБЫ", 32)
 	elif DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
 		report_nickname_edit.grab_focus()
 		DisplayServer.virtual_keyboard_show(
 			report_nickname_edit.text,
 			Rect2(),
 			DisplayServer.KEYBOARD_TYPE_DEFAULT,
-			12
+			32
 		)
 
 
@@ -3252,8 +3268,8 @@ func _close_report_form() -> void:
 
 func _submit_report() -> void:
 	var nickname := report_nickname_edit.text.strip_edges()
-	if nickname.length() < 3 or nickname.length() > 12:
-		report_status_label.text = "Введите ник от 3 до 12 символов."
+	if nickname.length() < 3 or nickname.length() > 32:
+		report_status_label.text = "Введите ник от 3 до 32 символов."
 		report_status_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.42))
 		return
 	if nickname == MetaProgression.player_nickname:

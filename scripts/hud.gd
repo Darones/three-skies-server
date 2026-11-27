@@ -35,6 +35,19 @@ class ScoreboardGlyph extends Control:
 			draw_rect(Rect2(1.0, y, 3.5, 3.5), cell)
 			draw_rect(Rect2(7.0, y, width - 8.0, 3.5), row)
 
+## Pause tile glyph: two gold bars, drawn instead of typed so the caption never
+## depends on a font that may lack the "II" shape in a VK webview.
+class PauseGlyph extends Control:
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		custom_minimum_size = Vector2(26.0, 26.0)
+
+	func _draw() -> void:
+		var bars := Color(0.97, 0.84, 0.55, 0.98)
+		var center := size * 0.5
+		draw_rect(Rect2(center.x - 11.0, center.y - 13.0, 8.0, 26.0), bars)
+		draw_rect(Rect2(center.x + 3.0, center.y - 13.0, 8.0, 26.0), bars)
+
 var game: Node
 var kill_feed_box: VBoxContainer = null
 var team_icons: Dictionary = {}
@@ -112,6 +125,8 @@ var touch_joystick: Control
 var announce_tween: Tween
 var pause_title_label: Label
 var pause_resume_button: Button
+var pause_lobby_button: Button
+var pause_button: Button
 var pause_overlay: Control
 var pause_menu_panel: Control
 var pause_settings_panel: Control
@@ -1028,6 +1043,7 @@ func _build_top(root: Control) -> void:
 
 	_build_player_panel(root)
 	_build_scoreboard_button(root)
+	_build_pause_button(root)
 
 
 func _build_focus_panel(root: Control) -> void:
@@ -1205,6 +1221,63 @@ func _build_scoreboard_button(root: Control) -> void:
 	scoreboard_button_label.add_theme_font_size_override("font_size", _fs(16))
 	scoreboard_button_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content.add_child(scoreboard_button_label)
+
+
+## Touch pause tile: a real Button in the slot right of "СЧЁТ", 64x64 with the
+## same frame. The player card stays a shortcut, but a phone player no longer
+## has to guess that the card is a button: the `pressed` signal of a BaseButton
+## is what survives the VK webview, where the card's gui_input tap did not.
+func _build_pause_button(root: Control) -> void:
+	pause_button = Button.new()
+	pause_button.name = "PauseButton"
+	# The glyph is a child Control, so the Button keeps an empty caption and
+	# the whole tile stays a single flat click target.
+	pause_button.text = ""
+	pause_button.tooltip_text = "Пауза"
+	pause_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	# Above the player card and the score tile (105) so a tap in the slot can
+	# never fall through to the card, still below the pause overlay (150).
+	pause_button.z_index = 106
+	pause_button.visible = false
+	pause_button.focus_mode = Control.FOCUS_NONE
+	# BaseButton stops the touch itself. MOUSE_FILTER_IGNORE here would make
+	# the tile invisible to the pointer, which is exactly the old bug.
+	pause_button.mouse_filter = Control.MOUSE_FILTER_STOP
+	pause_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	pause_button.add_theme_stylebox_override(
+		"normal",
+		_score_button_style(
+			Color(0.80, 0.64, 0.33, 0.92),
+			Color(0.045, 0.065, 0.105, 0.96),
+			Color(0.86, 0.68, 0.29, 0.26),
+			5
+		)
+	)
+	pause_button.add_theme_stylebox_override(
+		"hover",
+		_score_button_style(
+			Color(1.0, 0.86, 0.52, 1.0),
+			Color(0.075, 0.105, 0.165, 0.98),
+			Color(0.98, 0.80, 0.40, 0.48),
+			7
+		)
+	)
+	pause_button.add_theme_stylebox_override(
+		"pressed",
+		_score_button_style(
+			Color(1.0, 0.90, 0.62, 1.0),
+			Color(0.19, 0.145, 0.065, 0.98),
+			Color(1.0, 0.82, 0.42, 0.40),
+			4
+		)
+	)
+	pause_button.pressed.connect(_toggle_pause_menu)
+	root.add_child(pause_button)
+
+	var glyph := PauseGlyph.new()
+	glyph.name = "PauseGlyph"
+	glyph.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	pause_button.add_child(glyph)
 
 
 ## The in-battle table mirrors the results screen, but stays a compact card
@@ -1408,6 +1481,20 @@ func _update_scoreboard_layout() -> void:
 		button_x = minf(button_x, maxf(0.0, viewport_size.x - 64.0 - 6.0))
 		scoreboard_button.position = Vector2(button_x, player_panel.position.y)
 		scoreboard_button.size = Vector2(64.0, 64.0)
+		if pause_button != null and is_instance_valid(pause_button):
+			# Same 8px slot after "СЧЁТ", same row as the tile and the card.
+			# On the real 844x390 phone layout that is x=483..547 in the
+			# 1168x540 logical viewport: clear of the score tile, the card,
+			# the abilities (y>=440) and the top-right match info (x>=858).
+			# Only a viewport too narrow for both tiles falls back one row
+			# down, so the two tiles never overlap each other.
+			var pause_x := button_x + scoreboard_button.size.x + gap
+			var pause_y := player_panel.position.y
+			if pause_x + 64.0 > viewport_size.x - 6.0:
+				pause_x = button_x
+				pause_y = player_panel.position.y + scoreboard_button.size.y + gap
+			pause_button.position = Vector2(pause_x, pause_y)
+			pause_button.size = Vector2(64.0, 64.0)
 		if _mobile_ui() and announce_label != null and is_instance_valid(announce_label):
 			# Keep every combat announcement clear of the card/button band even
 			# when the baked layout moves the card down the screen. The 96px
@@ -1702,7 +1789,9 @@ func _build_pause_menu(root: Control) -> void:
 	var settings_button := _pause_action_button("Настройки", false)
 	settings_button.pressed.connect(_open_pause_settings)
 	layout.add_child(settings_button)
-	var exit_button := _pause_action_button("Выйти из игры", false)
+	var exit_button := _pause_action_button("В лобби", false)
+	exit_button.name = "PauseLobbyButton"
+	pause_lobby_button = exit_button
 	exit_button.pressed.connect(_exit_game)
 	layout.add_child(exit_button)
 
@@ -1736,6 +1825,8 @@ func _pause_action_button(text: String, primary: bool) -> Button:
 
 
 func _toggle_pause_menu() -> void:
+	if pause_overlay == null:
+		return
 	if pause_overlay.visible:
 		_resume_game()
 	else:
@@ -2787,6 +2878,15 @@ func _process(_delta: float) -> void:
 		_update_player_panel()
 		if scoreboard_button != null:
 			scoreboard_button.visible = (
+				_mobile_ui()
+				and game.state == "live"
+				and not bool(game.get("tutorial_mode"))
+			)
+		if pause_button != null:
+			# The tile is the touch answer to "кнопка паузы не реагирует": it
+			# appears in the same slot rules as "СЧЁТ" and stays out of the
+			# tutorial strip, where the stage hint already owns that row.
+			pause_button.visible = (
 				_mobile_ui()
 				and game.state == "live"
 				and not bool(game.get("tutorial_mode"))

@@ -3,13 +3,10 @@ extends Control
 signal back_requested
 
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
+const SUPPORT_LINKS := preload("res://scripts/support_links.gd")
 const GOLD := Color(0.95, 0.76, 0.38)
 const PALE := Color(0.94, 0.95, 0.99)
 const MUTED := Color(0.82, 0.85, 0.92)
-# TODO: replace with the real community group links once VK/OK groups exist.
-# For now support opens the direct app link of the current platform, without
-# share/utm parameters (Platform.get_app_link).
-const SUPPORT_FALLBACK := "https://vk.com/app54906713"
 const TAB_TITLES := ["ПРАВИЛА БОЯ", "ПРАВИЛА ИГРЫ", "МОДЕРАЦИЯ"]
 const COMBAT_SECTIONS := [
 	["ЦЕЛЬ",
@@ -26,6 +23,8 @@ const COMBAT_SECTIONS := [
 		"В первых матчах и при нехватке игроков могут быть боты. Они помечены на экране загрузки и в итогах боя. Мы не выдаём их за живых игроков."],
 ]
 const GAME_SECTIONS := [
+	["НИК",
+		"Ник — от 3 до 32 символов. Без мата и оскорблений, без выдачи себя за других игроков или администрацию игры, без рекламы и ссылок. За нарушение ник могут скрыть, а аккаунт — ограничить."],
 	["АККАУНТ",
 		"Играйте со своего аккаунта платформы. Один аккаунт — один игрок: передавать его другим нельзя. Прогресс хранится на сервере."],
 	["ПЛАТЕЖИ",
@@ -47,7 +46,7 @@ const MODERATION_SECTIONS := [
 	["МЕРЫ",
 		"Предупреждение, затем скрытие ника, затем блокировка аккаунта. Мера зависит от нарушения и повторов."],
 	["АПЕЛЛЯЦИЯ",
-		"Если вы не согласны с решением, напишите в сообщество игры: апелляцию рассмотрит модератор."],
+		"Если вы не согласны с решением, напишите в сообщество игры или на daroness@ya.ru: апелляцию рассмотрит модератор."],
 ]
 
 var mobile_layout := false
@@ -385,30 +384,12 @@ func _section(title_text: String, body_text: String, title_size: int, body_size:
 
 
 func _open_support() -> void:
-	# Direct platform app link only: no share dialogs and no utm parameters.
-	var url := _support_url()
+	# Direct community link of the platform (VK or OK); e-mail is the fallback.
+	var url := SUPPORT_LINKS.support_url()
 	if support_hint != null:
 		support_hint.text = "Если ссылка не открылась: %s" % url
 		support_hint.visible = true
-	_open_external(url)
-
-
-func _support_url() -> String:
-	if Platform.platform_id == "vk" or Platform.platform_id == "ok":
-		var link := Platform.get_app_link()
-		if not link.is_empty():
-			return link
-	return SUPPORT_FALLBACK
-
-
-func _open_external(url: String) -> void:
-	if url.is_empty():
-		return
-	if OS.has_feature("web") and Engine.has_singleton("JavaScriptBridge"):
-		var bridge := Engine.get_singleton("JavaScriptBridge")
-		bridge.call("eval", "window.open(%s,'_blank')" % JSON.stringify(url), true)
-		return
-	OS.shell_open(url)
+	SUPPORT_LINKS.open_url(url)
 
 
 func _on_back() -> void:

@@ -62,14 +62,17 @@ const AFK_TIMEOUT := 60.0
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const HEALTH_BAR_3D := preload("res://scripts/health_bar_3d.gd")
 const WorldNameLayer := preload("res://scripts/world_name_layer.gd")
-# Green fill for every HP bar: allies and enemies are told apart by the name
-# colour, the bar itself only shows how much health is left.
+# Legacy 3D bar fill. The 3D quad is kept as a hidden compatibility node
+# (lobby.gd and older probes hold health_back/health_fill); the visible bar is
+# the 2D one inside the nickname and uses the nickname colour.
 const HEALTH_FILL_COLOR := Color(0.36, 0.95, 0.52, 1.0)
-# Name colours for the screen-space nickname.
+# Name colours for the screen-space nickname and its health bar: one source for
+# both, self/ally green, enemy red.
 const NAME_COLOR_SELF := Color(0.74, 1.0, 0.72)
 const NAME_COLOR_ALLY := Color(0.6, 1.0, 0.64)
 const NAME_COLOR_ENEMY := Color(1.0, 0.46, 0.4)
-# Nickname anchor above the feet: just above the 3D HP bar (2.55 + 0.16).
+# Nickname anchor above the feet. The 2D HP bar is a child of the nickname and
+# sits a fixed 2 px under its text box.
 const NAME_TAG_HEIGHT := 2.78
 const WEAPON_MAGE_GLOW := Color(0.35, 0.78, 1.0)
 const WEAPON_WARRIOR_GLOW := Color(1.0, 0.64, 0.24)
@@ -868,11 +871,16 @@ func _vfx_audio_for_scene(vfx_scene: PackedScene) -> AudioStream:
 
 
 func _build_health_bar() -> void:
+	# Hidden compatibility node: lobby.gd hides preview_hero.health_back and
+	# older probes read health_back/health_fill, so the field must stay a real
+	# MeshInstance3D. The bar the player sees is the 2D one inside NameTag.
 	health_back = HEALTH_BAR_3D.create(HEALTH_BAR_FILL_WIDTH, 0.16, HEALTH_FILL_COLOR, 2.55)
+	health_back.name = "HealthBar3D"
 	status_root.add_child(health_back)
 	# One mesh draws background, fill and frame. Keep the old field as an
 	# alias so all visibility code works unchanged.
 	health_fill = health_back
+	health_back.visible = false
 
 
 func _build_health_label() -> void:
@@ -988,9 +996,12 @@ func set_preview_mode(enabled: bool) -> void:
 	# health bar above its head.
 	preview_mode = enabled
 	if not enabled:
+		_update_health_display()
 		return
 	if name_label != null and is_instance_valid(name_label):
 		name_label.visible = false
+		if name_label.has_method("set_health_visible"):
+			name_label.call("set_health_visible", false)
 	if name_plate != null and is_instance_valid(name_plate):
 		name_plate.visible = false
 	if health_back != null and is_instance_valid(health_back):
@@ -2695,27 +2706,48 @@ func dismiss_shop() -> void:
 		game.set_shop_open(false)
 
 
-func _update_name_color() -> void:
+## One colour source for the nickname and its HP bar: self/ally green, enemy red.
+func _name_tag_color() -> Color:
+	if name_is_player:
+		return NAME_COLOR_SELF
 	var local_team := -1
 	if game != null and is_instance_valid(game) and game.player != null and is_instance_valid(game.player):
 		local_team = int(game.player.team)
-	var is_ally := local_team < 0 or team == local_team
+	if local_team < 0 or team == local_team:
+		return NAME_COLOR_ALLY
+	return NAME_COLOR_ENEMY
+
+
+## Pushes the current health and team colour into the 2D bar that lives inside
+## the screen-space nickname. Safe no-op for a bare Label.
+func _refresh_name_health_bar() -> void:
+	if name_label == null or not is_instance_valid(name_label):
+		return
+	if not name_label.has_method("set_health"):
+		return
+	var displayed_max := maxi(1, roundi(max_health))
+	var displayed_health := clampi(roundi(health), 0, displayed_max)
+	var hp_ratio := float(displayed_health) / float(displayed_max)
+	name_label.call("set_health", hp_ratio, _name_tag_color())
+	# The bar is a child of the nickname: it is drawn exactly while the name is
+	# drawn (bush stealth, fog, distance, preview), and only a dead hero loses it.
+	name_label.call("set_health_visible", name_label.visible and not dead)
+
+
+func _update_name_color() -> void:
+	var text_color := _name_tag_color()
 	if name_label != null and is_instance_valid(name_label):
 		# Red enemy names and green ally names, both with a black outline.
-		var text_color := NAME_COLOR_ENEMY
-		if name_is_player:
-			text_color = NAME_COLOR_SELF
-		elif is_ally:
-			text_color = NAME_COLOR_ALLY
 		if name_label.get_theme_color("font_color") != text_color:
 			name_label.add_theme_color_override("font_color", text_color)
 	if health_fill != null and is_instance_valid(health_fill):
 		var fill_mat := health_fill.material_override as ShaderMaterial
 		if fill_mat != null:
-			# One green fill for every team: the nickname colour says friend or
-			# enemy, the bar only shows the remaining health.
-			if fill_mat.get_shader_parameter("fill_color") != HEALTH_FILL_COLOR:
-				fill_mat.set_shader_parameter("fill_color", HEALTH_FILL_COLOR)
+			# The hidden 3D quad mirrors the same colour, so anything that still
+			# inspects it sees the team, not a stale green.
+			if fill_mat.get_shader_parameter("fill_color") != text_color:
+				fill_mat.set_shader_parameter("fill_color", text_color)
+	_refresh_name_health_bar()
 
 
 func _update_name_visibility() -> void:
@@ -2726,6 +2758,7 @@ func _update_name_visibility() -> void:
 			name_label.visible = false
 		if name_plate != null:
 			name_plate.visible = false
+		_refresh_name_health_bar()
 		return
 	if name_label == null or not is_instance_valid(name_label) or game == null or not is_instance_valid(game):
 		return
@@ -2733,6 +2766,7 @@ func _update_name_visibility() -> void:
 		name_label.visible = true
 		if name_plate != null:
 			name_plate.visible = true
+		_refresh_name_health_bar()
 		return
 	var player_team := -1
 	if game.player != null and is_instance_valid(game.player):
@@ -2746,6 +2780,7 @@ func _update_name_visibility() -> void:
 			name_plate.visible = show_ally_name
 		if blessing_rune != null and is_instance_valid(blessing_rune):
 			blessing_rune.visible = true
+		_refresh_name_health_bar()
 		return
 	# враг: скрываем ник и баф в тумане и в кустах
 	var visible_to_enemy := not _is_bush_stealthed()
@@ -2761,6 +2796,7 @@ func _update_name_visibility() -> void:
 		name_plate.visible = visible_to_enemy
 	if blessing_rune != null and is_instance_valid(blessing_rune):
 		blessing_rune.visible = visible_to_enemy
+	_refresh_name_health_bar()
 
 
 func _refresh_bush_visibility() -> void:
@@ -2780,9 +2816,10 @@ func _refresh_bush_visibility() -> void:
 	if health_label != null:
 		health_label.visible = _health_bar_visible()
 	if health_back != null:
-		health_back.visible = _health_bar_visible()
-	if health_fill != null:
-		health_fill.visible = _health_bar_visible()
+		health_back.visible = false
+	if health_fill != null and health_fill != health_back:
+		health_fill.visible = false
+	_refresh_name_health_bar()
 
 
 func _health_bar_visible() -> bool:
@@ -2827,11 +2864,14 @@ func _update_health_display() -> void:
 	if health_label != null:
 		health_label.text = ""
 		health_label.visible = false
+	# Legacy 3D quad: the node stays alive for lobby.gd and old probes but is
+	# never drawn; the visible bar is the 2D one inside the nickname.
 	if health_back != null:
 		HEALTH_BAR_3D.set_fill(health_back, hp_ratio)
-		health_back.visible = _health_bar_visible()
+		health_back.visible = false
 	if health_fill != null and health_fill != health_back:
-		health_fill.visible = _health_bar_visible()
+		health_fill.visible = false
+	_refresh_name_health_bar()
 
 
 
@@ -3109,10 +3149,8 @@ func _die() -> void:
 	in_bush = false
 	set_shop_zone_presence(false)
 	_refresh_bush_visibility()
-	if health_back != null:
-		health_back.visible = false
-	if health_fill != null:
-		health_fill.visible = false
+	# Dead: the 2D bar inside the nickname hides, the hidden 3D node stays hidden.
+	_update_health_display()
 	if game != null:
 		game.on_hero_died(self)
 	hero_died.emit(self)
@@ -3153,10 +3191,8 @@ func _respawn() -> void:
 	set_collision_mask_value(1, true)
 	visual.visible = not occluded_from_player
 	current_anim = ""
-	if health_back != null:
-		health_back.visible = _health_bar_visible()
-	if health_fill != null:
-		health_fill.visible = _health_bar_visible()
+	# _update_health_display() above already turned the 2D nickname bar back on
+	# (dead is false now); the hidden 3D quad must never be shown again.
 	if health_label != null:
 		health_label.visible = _health_bar_visible()
 	if afk_label != null:

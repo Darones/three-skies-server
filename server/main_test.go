@@ -143,7 +143,8 @@ func TestValidNickname(t *testing.T) {
 		{"abc", true},
 		{"Игрок 1234", true},
 		{"abcdefghijkl", true},
-		{"abcdefghijklm", false},
+		{"abcdefghijklmnopqrstuvwxyz123456", true},
+		{"abcdefghijklmnopqrstuvwxyz1234567", false},
 	}
 	for _, testCase := range cases {
 		if got := validNickname(testCase.nickname); got != testCase.want {

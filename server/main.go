@@ -194,9 +194,10 @@ type renameResponse struct {
 }
 
 type reportRequest struct {
-	PlayerID int64  `json:"player_id"`
-	Nickname string `json:"nickname"`
-	Reason   string `json:"reason"`
+	PlayerID         int64  `json:"player_id"`
+	ReportedPlayerID int64  `json:"reported_player_id"`
+	Nickname         string `json:"nickname"`
+	Reason           string `json:"reason"`
 }
 
 type reportResponse struct {
@@ -1290,7 +1291,7 @@ func (service *api) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	nickname := strings.TrimSpace(request.Nickname)
 	if !validNickname(nickname) {
-		writeJSON(w, http.StatusBadRequest, registerResponse{Error: "Nickname must be 3 to 12 characters"})
+		writeJSON(w, http.StatusBadRequest, registerResponse{Error: "Nickname must be 3 to 32 characters"})
 		return
 	}
 	if containsProfanity(nickname) {
@@ -1577,7 +1578,7 @@ func (service *api) handleRename(w http.ResponseWriter, r *http.Request) {
 	}
 	nickname := strings.TrimSpace(request.Nickname)
 	if request.PlayerID <= 0 || !validNickname(nickname) {
-		writeJSON(w, http.StatusBadRequest, renameResponse{Error: "Nickname must be 3 to 12 characters"})
+		writeJSON(w, http.StatusBadRequest, renameResponse{Error: "Nickname must be 3 to 32 characters"})
 		return
 	}
 	if containsProfanity(nickname) {
@@ -1668,8 +1669,12 @@ func (service *api) handleReport(w http.ResponseWriter, r *http.Request) {
 	}
 	nickname := strings.TrimSpace(request.Nickname)
 	reason := strings.TrimSpace(request.Reason)
-	if request.PlayerID <= 0 || !validNickname(nickname) {
+	if request.PlayerID <= 0 {
 		writeJSON(w, http.StatusBadRequest, reportResponse{Error: "Invalid report"})
+		return
+	}
+	if request.ReportedPlayerID <= 0 && !validNickname(nickname) {
+		writeJSON(w, http.StatusBadRequest, reportResponse{Error: "Nickname must be 3 to 32 characters"})
 		return
 	}
 	reasonLength := utf8.RuneCountInString(reason)
@@ -1691,12 +1696,29 @@ func (service *api) handleReport(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusTooManyRequests, reportResponse{Error: "Too many reports"})
 		return
 	}
-	// Remember which player the nickname belonged to at report time, so the
-	// moderation page can target exactly that account. Nicknames are not
-	// unique: if several players match, leave it NULL and let the moderator
-	// choose by player_id.
+	// A report may target a player by id. The nickname is then read from the
+	// players table, so a rename between the match and the report does not
+	// hide the account. Without a player_id the nickname is resolved only when
+	// it is unique; if several players match, leave it NULL and let the
+	// moderator choose by player_id.
 	var reportedPlayerID sql.NullInt64
-	if err := service.db.QueryRowContext(r.Context(),
+	if request.ReportedPlayerID > 0 {
+		var targetID int64
+		err := service.db.QueryRowContext(r.Context(),
+			`SELECT id, nickname FROM players WHERE id = $1`,
+			request.ReportedPlayerID,
+		).Scan(&targetID, &nickname)
+		if errors.Is(err, sql.ErrNoRows) {
+			writeJSON(w, http.StatusNotFound, reportResponse{Error: "Reported player not found"})
+			return
+		}
+		if err != nil {
+			log.Printf("load reported player: %v", err)
+			writeJSON(w, http.StatusInternalServerError, reportResponse{Error: "Internal server error"})
+			return
+		}
+		reportedPlayerID = sql.NullInt64{Int64: targetID, Valid: true}
+	} else if err := service.db.QueryRowContext(r.Context(),
 		`SELECT CASE WHEN COUNT(*) = 1 THEN MIN(id) END
 		   FROM players
 		  WHERE LOWER(BTRIM(nickname)) = LOWER(BTRIM($1))`,
@@ -1719,7 +1741,7 @@ func (service *api) handleReport(w http.ResponseWriter, r *http.Request) {
 
 func validNickname(nickname string) bool {
 	length := utf8.RuneCountInString(nickname)
-	return length >= 3 && length <= 12
+	return length >= 3 && length <= 32
 }
 
 var profanityRoots = []string{
@@ -2125,9 +2147,11 @@ func (service *api) handleMatchReward(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleAccountDelete removes the player's profile and personal fields.
-// Match history and analytics are kept but anonymized: their player_id is
-// zeroed and session/user-agent fields are cleared, so aggregate counters stay
-// correct without leaving a link to the person.
+// Match history is kept but anonymized: its player_id is zeroed. Payment rows
+// stay for reconciliation with the platform but lose the platform user id;
+// analytics events keep only aggregate counters (player, session, user-agent
+// and payload are cleared). Reports authored by or filed against the player are
+// deleted by player id, not by nickname, because nicknames are not unique.
 func (service *api) handleAccountDelete(w http.ResponseWriter, r *http.Request) {
 	if !requirePost(w, r) {
 		return
@@ -2151,10 +2175,11 @@ func (service *api) handleAccountDelete(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	defer transaction.Rollback()
-	var nickname string
+	var platform string
+	var externalID sql.NullString
 	err = transaction.QueryRowContext(r.Context(),
-		`DELETE FROM players WHERE id = $1 RETURNING nickname`, request.PlayerID,
-	).Scan(&nickname)
+		`DELETE FROM players WHERE id = $1 RETURNING platform, external_id`, request.PlayerID,
+	).Scan(&platform, &externalID)
 	if errors.Is(err, sql.ErrNoRows) {
 		// Already deleted: deletion is idempotent.
 		writeJSON(w, http.StatusOK, accountDeleteResponse{Success: true})
@@ -2165,8 +2190,18 @@ func (service *api) handleAccountDelete(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusInternalServerError, accountDeleteResponse{Error: "Internal server error"})
 		return
 	}
+	if externalID.Valid && externalID.String != "" {
+		if _, err := transaction.ExecContext(r.Context(),
+			`UPDATE payments SET external_id = '' WHERE platform = $1 AND external_id = $2`,
+			platform, externalID.String,
+		); err != nil {
+			log.Printf("anonymize payments: %v", err)
+			writeJSON(w, http.StatusInternalServerError, accountDeleteResponse{Error: "Internal server error"})
+			return
+		}
+	}
 	if _, err := transaction.ExecContext(r.Context(),
-		`UPDATE stats_events SET player_id = 0, session_id = '', user_agent = '' WHERE player_id = $1`,
+		`UPDATE stats_events SET player_id = 0, session_id = '', user_agent = '', payload = '{}'::jsonb WHERE player_id = $1`,
 		request.PlayerID,
 	); err != nil {
 		log.Printf("anonymize stats: %v", err)
@@ -2181,7 +2216,7 @@ func (service *api) handleAccountDelete(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if _, err := transaction.ExecContext(r.Context(),
-		`DELETE FROM reports WHERE reporter_id = $1 OR reported_nickname = $2`, request.PlayerID, nickname,
+		`DELETE FROM reports WHERE reporter_id = $1 OR reported_player_id = $1`, request.PlayerID,
 	); err != nil {
 		log.Printf("delete reports: %v", err)
 		writeJSON(w, http.StatusInternalServerError, accountDeleteResponse{Error: "Internal server error"})

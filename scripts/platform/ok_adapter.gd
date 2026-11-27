@@ -87,5 +87,11 @@ func get_app_link() -> String:
 	return String(ProjectSettings.get_setting("network/ok_app_url", "https://ok.ru/game/512005268801"))
 
 
+## OK group from the moderation brief. Direct link, own platform only: VK
+## players must never be sent to the OK group or the other way round.
+func get_support_url() -> String:
+	return "https://ok.ru/group/70000062043632"
+
+
 func get_currency() -> String:
 	return "oki"

@@ -56,6 +56,12 @@ func get_app_link() -> String:
 	return ""
 
 
+## Support/community link for the current platform. Empty means "no platform
+## channel"; the UI may then fall back to its own e-mail contact.
+func get_support_url() -> String:
+	return ""
+
+
 func get_currency() -> String:
 	return ""
 

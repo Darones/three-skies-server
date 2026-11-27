@@ -5,7 +5,8 @@ extends Node3D
 ## Compares the real state (`health` / `max_health`) of the player, bots and
 ## remote bot snapshots with everything that draws it:
 ##   * HUD player panel (number text and ProgressBar value/max),
-##   * the 3D health bar above a hero (`fill_ratio` shader parameter),
+##   * the 2D health bar inside the nickname (`WorldNameLayer.NameTag`): the
+##     drawn fill width over the bar background width,
 ##   * RemotePlayer bot bars fed by server snapshots.
 ##
 ## Covers damage, heal, field regen, base heal, +max HP shop item, an
@@ -108,13 +109,13 @@ func _case_death_and_respawn() -> void:
 	player.take_damage(99999.0, null)
 	_check(player.dead, "player is dead after lethal hit")
 	_check(is_zero_approx(player.health), "player health is 0 after lethal hit")
-	_check(not _bar_visible(player), "player 3D bar hidden while dead")
+	_check(not _bar_visible(player), "player 2D bar hidden while dead")
 	await _check_hud("dead")
 	player.respawn_timer = 0.05
 	await get_tree().create_timer(0.3).timeout
 	_check(not player.dead, "player respawned")
 	_check(is_equal_approx(player.health, player.max_health), "player respawned at full HP")
-	_check(_bar_visible(player), "player 3D bar visible after respawn")
+	_check(_bar_visible(player), "player 2D bar visible after respawn")
 	_check_bar(player, "after respawn")
 	await _check_hud("after respawn")
 
@@ -158,8 +159,8 @@ func _case_field_regen() -> void:
 	)
 	await get_tree().process_frame
 	_check(
-		absf(_hero_bar_ratio(player) - expected) <= TOL,
-		"field regen 3D bar %.3f == health/max %.3f (was %.3f)" % [
+		absf(_hero_bar_ratio(player) - expected) <= _bar_tolerance(player.get("name_label")),
+		"field regen 2D bar %.3f == health/max %.3f (was %.3f)" % [
 			_hero_bar_ratio(player), expected, ratio_before
 		]
 	)
@@ -213,8 +214,8 @@ func _case_bot_field_regen() -> void:
 	)
 	await get_tree().process_frame
 	_check(
-		absf(_hero_bar_ratio(bot) - expected) <= TOL,
-		"bot field regen 3D bar %.3f == health/max %.3f" % [_hero_bar_ratio(bot), expected]
+		absf(_hero_bar_ratio(bot) - expected) <= _bar_tolerance(bot.get("name_label")),
+		"bot field regen 2D bar %.3f == health/max %.3f" % [_hero_bar_ratio(bot), expected]
 	)
 	bot.set_physics_process(true)
 
@@ -233,13 +234,19 @@ func _case_bot_death_and_respawn() -> void:
 	bot._update_health_display()
 	bot.take_damage(999999.0, null)
 	_check(bot.dead, "bot is dead after lethal hit")
-	_check(not _bar_visible(bot), "bot 3D bar hidden while dead")
+	_check(not _bar_visible(bot), "bot 2D bar hidden while dead")
 	bot.respawn_timer = 0.05
 	bot._physics_process(0.1)
 	bot.set_occluded_from_player(false)
 	_check(not bot.dead, "bot respawned")
 	_check(is_equal_approx(bot.health, bot.max_health), "bot respawned at full HP")
-	_check(_bar_visible(bot), "bot 3D bar visible after respawn")
+	# _respawn() teleports the bot to its own base, far from the player, so the
+	# enemy nickname (and now its child 2D bar) hides by distance. Bring the bot
+	# back in sight before checking that the bar came back with the respawn.
+	bot.global_position = player.global_position + Vector3(2.0, 0.0, 0.0)
+	bot.reset_physics_interpolation()
+	bot._update_name_visibility()
+	_check(_bar_visible(bot), "bot 2D bar visible after respawn")
 	_check_bar(bot, "bot after respawn")
 	bot.set_physics_process(true)
 
@@ -315,7 +322,8 @@ func _enemy_bot() -> HeroUnit:
 
 func _check_hud(label: String) -> void:
 	# The HP card must be current on the very next rendered frames, not on a
-	# 10 Hz panel tick: the 3D bar already is, and the two must not disagree.
+	# 10 Hz panel tick: the 2D nickname bar already is, and the two must not
+	# disagree.
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var bar: ProgressBar = hud.get("player_hp_bar")
@@ -358,47 +366,71 @@ func _check_bar(hero: HeroUnit, label: String) -> void:
 	var expected := 0.0
 	if hero.max_health > 0.0:
 		expected = clampf(hero.health / hero.max_health, 0.0, 1.0)
-	var got := _hero_bar_ratio(hero)
+	var tag_label = hero.get("name_label")
+	var got := _bar_ratio(tag_label)
 	_check(
-		absf(got - expected) <= TOL,
-		"%s: 3D bar %.3f == health/max %.3f (hp %.1f/%.1f)" % [
+		absf(got - expected) <= _bar_tolerance(tag_label),
+		"%s: 2D bar %.3f == health/max %.3f (hp %.1f/%.1f)" % [
 			label, got, expected, hero.health, hero.max_health
 		]
 	)
 	if hero.dead:
-		_check(not _bar_visible(hero), "%s: 3D bar hidden while dead" % label)
+		_check(not _bar_visible(hero), "%s: 2D bar hidden while dead" % label)
 
 
 func _check_remote_bar(remote: Node, label: String) -> void:
 	var expected := 0.0
 	if float(remote.get("max_health")) > 0.0:
 		expected = clampf(float(remote.get("health")) / float(remote.get("max_health")), 0.0, 1.0)
-	var bar := remote.get("_health_back") as MeshInstance3D
-	var got := _bar_ratio(bar)
+	var tag_label = remote.get("_name_label")
+	var got := _bar_ratio(tag_label)
 	_check(
-		absf(got - expected) <= TOL,
-		"%s: remote 3D bar %.3f == health/max %.3f (hp %.1f/%.1f)" % [
+		absf(got - expected) <= _bar_tolerance(tag_label),
+		"%s: remote 2D bar %.3f == health/max %.3f (hp %.1f/%.1f)" % [
 			label, got, expected, float(remote.get("health")), float(remote.get("max_health"))
 		]
 	)
 
 
 func _hero_bar_ratio(hero: HeroUnit) -> float:
-	return _bar_ratio(hero.get("health_back") as MeshInstance3D)
+	return _bar_ratio(hero.get("name_label"))
 
 
-func _bar_ratio(bar: MeshInstance3D) -> float:
-	if bar == null or not is_instance_valid(bar):
+## Ratio read back from the drawn 2D bar: the colour fill width over the bar
+## background width.
+func _bar_ratio(tag_label) -> float:
+	if tag_label == null or not is_instance_valid(tag_label):
 		return -1.0
-	var material := bar.material_override as ShaderMaterial
-	if material == null:
+	var back := tag_label.get("bar_back") as ColorRect
+	var fill := tag_label.get("bar_fill") as ColorRect
+	if back == null or fill == null or back.size.x <= 0.0:
 		return -1.0
-	return float(material.get_shader_parameter("fill_ratio"))
+	return clampf(fill.size.x / back.size.x, 0.0, 1.0)
+
+
+## A pixel bar is quantised: one pixel of a 96 px bar is ~0.01 of the ratio, so
+## a fixed 0.004 can never pass. Allow one and a half pixel of layout rounding.
+func _bar_tolerance(tag_label) -> float:
+	if tag_label != null and is_instance_valid(tag_label):
+		var back := tag_label.get("bar_back") as ColorRect
+		if back != null and back.size.x > 0.0:
+			return maxf(TOL, 1.5 / back.size.x)
+	return TOL
 
 
 func _bar_visible(hero: Node) -> bool:
-	var bar := hero.get("health_back") as MeshInstance3D
-	return bar != null and is_instance_valid(bar) and bar.visible
+	if hero == null or not is_instance_valid(hero):
+		return false
+	if hero is HeroUnit:
+		return _tag_bar_drawn((hero as HeroUnit).name_label)
+	return _tag_bar_drawn(hero.get("_name_label"))
+
+
+func _tag_bar_drawn(tag_label) -> bool:
+	if tag_label == null or not is_instance_valid(tag_label):
+		return false
+	var back := tag_label.get("bar_back") as ColorRect
+	return back != null and is_instance_valid(back) and back.is_visible_in_tree()
 
 
 func _check(condition: bool, label: String) -> void:

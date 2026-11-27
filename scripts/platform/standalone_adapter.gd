@@ -24,6 +24,14 @@ func get_currency() -> String:
 	return ""
 
 
+## Standalone has no community group, so the real support contact is the
+## e-mail. It stays non-empty on purpose: any UI that shows the adapter link
+## directly gets a working address instead of a dead button. The e-mail is the
+## same as SUPPORT_EMAIL in scripts/support_links.gd.
+func get_support_url() -> String:
+	return "mailto:daroness@ya.ru"
+
+
 func is_rewarded_available() -> bool:
 	return false
 

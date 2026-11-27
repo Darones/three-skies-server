@@ -276,10 +276,9 @@ func _refresh_bush_visuals() -> void:
 	for mesh_instance in _bush_meshes:
 		if mesh_instance != null and is_instance_valid(mesh_instance):
 			mesh_instance.transparency = 0.5 if hidden_now else 0.0
-	if _health_back != null and is_instance_valid(_health_back):
-		_health_back.visible = not dead and not hidden_now
-	if _health_fill != null and is_instance_valid(_health_fill) and _health_fill != _health_back:
-		_health_fill.visible = not dead and not hidden_now
+	# Never touch the 3D quad here: it stays hidden for good. The 2D bar is a
+	# child of the nickname, so this update hides/shows both at once.
+	_update_health_bar()
 
 
 func _collect_bush_meshes(root: Node) -> Array[MeshInstance3D]:
@@ -425,17 +424,16 @@ func _build_placeholder() -> void:
 
 func _build_name_label() -> void:
 	# Screen-space nickname above the head: 2D canvas text stays sharp while
-	# the 3D scene is rendered at 0.5 scale on low quality.
+	# the 3D scene is rendered at 0.5 scale on low quality. The HP bar is a child
+	# of this label (WorldNameLayer.NameTag), so the two can never separate.
 	var name_camera: Camera3D = null
 	if game != null and is_instance_valid(game):
 		name_camera = game.get("camera") as Camera3D
 	_name_label = WorldNameLayer.create_label(self, HeroUnit.NAME_TAG_HEIGHT, name_camera)
 	_name_label.name = "NameLabel"
 	_name_label.text = _name_tag_text()
-	_name_label.add_theme_color_override(
-		"font_color",
-		HeroUnit.NAME_COLOR_ALLY if _is_ally() else HeroUnit.NAME_COLOR_ENEMY
-	)
+	_name_label.add_theme_color_override("font_color", _name_tag_color())
+	_update_health_bar()
 
 
 func _name_tag_text() -> String:
@@ -455,6 +453,10 @@ func _name_tag_text() -> String:
 func _set_name_visible(shown: bool) -> void:
 	if _name_label != null and is_instance_valid(_name_label):
 		_name_label.visible = shown
+		if _name_label.has_method("set_health_visible"):
+			# The bar is a child of the label and also hides in the bush/death
+			# cases, so a later show/hide keeps both in the same state.
+			_name_label.call("set_health_visible", shown and not dead)
 
 
 func _is_ally() -> bool:
@@ -463,22 +465,32 @@ func _is_ally() -> bool:
 	return team == int(NetworkManager.assigned_team)
 
 
+## Same source as the nickname colour: ally/self green, enemy red.
+func _name_tag_color() -> Color:
+	return HeroUnit.NAME_COLOR_ALLY if _is_ally() else HeroUnit.NAME_COLOR_ENEMY
+
+
 func _build_health_bar() -> void:
-	# Одна зелёная заливка для всех: команду показывает цвет ника.
+	# Hidden 3D compatibility quad: older probes and bush checks read
+	# _health_back/_health_fill, so the node stays, but the visible bar is 2D.
 	_health_back = HEALTH_BAR_3D.create(HEALTH_BAR_WIDTH, 0.16, HeroUnit.HEALTH_FILL_COLOR, 2.55)
+	_health_back.name = "HealthBar3D"
 	add_child(_health_back)
 	_health_fill = _health_back
+	_health_back.visible = false
 	_update_health_bar()
 
 
 func _update_health_bar() -> void:
-	if _health_back == null:
-		return
 	var ratio := clampf(health / max_health, 0.0, 1.0) if max_health > 0.0 else 0.0
-	HEALTH_BAR_3D.set_fill(_health_back, ratio)
-	_health_back.visible = not dead and not _bush_visual_hidden
-	if _health_fill != null and _health_fill != _health_back:
-		_health_fill.visible = not dead and not _bush_visual_hidden
+	if _health_back != null and is_instance_valid(_health_back):
+		HEALTH_BAR_3D.set_fill(_health_back, ratio)
+		_health_back.visible = false
+	if _health_fill != null and is_instance_valid(_health_fill) and _health_fill != _health_back:
+		_health_fill.visible = false
+	if _name_label != null and is_instance_valid(_name_label) and _name_label.has_method("set_health"):
+		_name_label.call("set_health", ratio, _name_tag_color())
+		_name_label.call("set_health_visible", not dead and not _bush_visual_hidden)
 
 
 func take_damage(amount: float, source: Node = null, _damage_type := "physical", skill := "auto", is_crit := false) -> void:

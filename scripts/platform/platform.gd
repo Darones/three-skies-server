@@ -140,6 +140,13 @@ func get_app_link() -> String:
 	return String(adapter.get_app_link())
 
 
+func get_support_url() -> String:
+	# Support/community link of the active platform; "" when it has no channel.
+	if adapter == null:
+		return ""
+	return String(adapter.get_support_url())
+
+
 func get_currency() -> String:
 	if adapter == null:
 		return ""

@@ -2,16 +2,21 @@ extends Node3D
 
 ## Screen-space nickname probe (read-only QA tool).
 ##
-## Verifies that every nickname above a hero or a remote player is now a 2D
-## Label in scripts/world_name_layer.gd, not a Label3D:
+## Verifies that every nickname above a hero or a remote player is a 2D
+## Label in scripts/world_name_layer.gd, not a Label3D, and that the HP bar is
+## now a child of that label:
 ##   * label is a Label parented to the shared CanvasLayer (index 0, below HUD),
 ##     with the Philosopher font, a real outline and a readable size;
 ##   * the bot prefix comes from the game name: "БОТ <callsign>";
 ##   * a human name (local player, RemotePlayer guest) has no prefix;
-##   * the label follows Camera3D.unproject_position every frame;
+##   * the HP bar is one Control inside the nickname, fixed 96x7, centred with a
+##     fixed 2 px gap under the text, and drawn exactly while the name is drawn;
+##   * self and allies get a green bar, enemies a red one (heroes and remotes);
+##   * the 3D compatibility quad stays hidden for good;
+##   * the label follows Camera3D.unproject_position every frame, reading the
+##     interpolated render pose (no jitter while running, error <= 1 px);
 ##   * labels are parked off-screen (but stay `visible`) when behind the camera;
-##   * bush stealth still hides the 2D name, and the 3D HP bar keeps its green
-##     fill for both teams;
+##   * bush stealth still hides the 2D name together with its bar;
 ##   * low quality (scaling_3d_scale 0.5) does not touch canvas text.
 ##
 ## Writes screenshots for the report:
@@ -88,9 +93,10 @@ func _ready() -> void:
 
 	_checks_hero_labels()
 	_checks_remote_labels(guests)
-	_checks_hp_bar_color()
+	_checks_hp_bars(guests)
 	_checks_projection()
 	_checks_low_quality()
+	await _checks_motion(guests)
 	await _checks_offscreen()
 	await _checks_bush()
 
@@ -222,6 +228,7 @@ func _arrange_lineup(guests: Array) -> void:
 func _park_hero(unit: HeroUnit, position: Vector3) -> void:
 	unit.global_position = position
 	unit.velocity = Vector3.ZERO
+	unit.reset_physics_interpolation()
 	if unit.status_root != null and is_instance_valid(unit.status_root):
 		unit.status_root.global_position = position
 
@@ -229,6 +236,7 @@ func _park_hero(unit: HeroUnit, position: Vector3) -> void:
 func _park_remote(remote, position: Vector3) -> void:
 	remote.global_position = position
 	remote.target_position = position
+	remote.reset_physics_interpolation()
 
 
 func _checks_hero_labels() -> void:
@@ -298,31 +306,83 @@ func _checks_remote_labels(guests: Array) -> void:
 			"human guest name has no bot prefix (%s)" % label.text)
 
 
-func _checks_hp_bar_color() -> void:
+## The visible HP bar moved from the 3D quad above the head into the nickname
+## block: colour comes from the team (same source as the nickname), and the bar
+## is drawn exactly while the name is drawn.
+func _checks_hp_bars(guests: Array) -> void:
 	for hero in game.get("heroes"):
 		if hero == null or not is_instance_valid(hero) or hero is not HeroUnit:
 			continue
 		var unit := hero as HeroUnit
-		unit._update_name_color()
-		var bar := unit.health_back
-		var color := _fill_color(bar)
-		_check(color.g > 0.6 and color.r < 0.5,
-			"%s 3D HP fill is green (%s)" % [unit.display_name, color])
-	for remote in game.remote_players.values():
-		if remote == null or not is_instance_valid(remote):
-			continue
-		var color := _fill_color(remote.get("_health_back"))
-		_check(color.g > 0.6 and color.r < 0.5,
-			"remote %s 3D HP fill is green (%s)" % [remote.display_name, color])
+		var expected := HeroUnit.NAME_COLOR_SELF
+		if not unit.is_player:
+			expected = HeroUnit.NAME_COLOR_ALLY if int(unit.team) == int(player.team) else HeroUnit.NAME_COLOR_ENEMY
+		var label_visible := unit.name_label != null and is_instance_valid(unit.name_label) \
+			and unit.name_label.visible
+		_check_name_bar(
+			unit.name_label, unit.display_name, expected,
+			label_visible and not unit.dead, unit.dead)
+		_check(not _mesh_bar_visible(unit.health_back),
+			"%s 3D compatibility bar stays hidden" % unit.display_name)
+	for remote in guests:
+		var is_ally := int(remote.team) == int(player.team)
+		var color := HeroUnit.NAME_COLOR_ALLY if is_ally else HeroUnit.NAME_COLOR_ENEMY
+		_check_name_bar(
+			remote.get("_name_label"), "remote %s" % remote.display_name, color,
+			not remote.dead and not bool(remote.get("_bush_visual_hidden")),
+			bool(remote.dead))
+		_check(not _mesh_bar_visible(remote.get("_health_back")),
+			"remote %s 3D compatibility bar stays hidden" % remote.display_name)
 
 
-func _fill_color(bar) -> Color:
+func _check_name_bar(tag_label: Control, who: String, expected_color: Color,
+		visible_expected: bool, dead: bool) -> void:
+	if tag_label == null or not is_instance_valid(tag_label):
+		_check(false, "%s has a nickname label for its HP bar" % who)
+		return
+	var back := tag_label.get("bar_back") as ColorRect
+	var fill := tag_label.get("bar_fill") as ColorRect
+	_check(back != null and fill != null, "%s has a 2D HP bar inside the nickname" % who)
+	if back == null or fill == null:
+		return
+	_check(back.get_parent() == tag_label, "%s HP bar is a child of the nickname label" % who)
+	_check(absf(back.size.x - 96.0) <= 0.6 and absf(back.size.y - 7.0) <= 0.6,
+		"%s HP bar keeps the fixed 96x7 size (%s)" % [who, back.size])
+	# Both numbers below are the NameTag constants: a fixed pixel gap under the
+	# text box and a horizontal centre, independent of the nickname width.
+	var gap := back.position.y - tag_label.size.y
+	_check(absf(gap - 2.0) <= 0.6,
+		"%s HP bar keeps the fixed 2 px gap under the text (%.2f px)" % [who, gap])
+	var centre_error := absf((back.position.x + back.size.x * 0.5) - tag_label.size.x * 0.5)
+	_check(centre_error <= 0.6,
+		"%s HP bar is centred under the text (%.2f px off)" % [who, centre_error])
+	_check(fill.color == expected_color,
+		"%s HP bar colour matches the nickname source (%s)" % [who, fill.color])
+	if expected_color == HeroUnit.NAME_COLOR_ENEMY:
+		_check(_is_red(fill.color), "%s HP bar is red for an enemy" % who)
+	else:
+		_check(_is_green(fill.color), "%s HP bar is green for self/ally" % who)
+	_check(back.visible == visible_expected,
+		"%s HP bar visibility matches the health state (%s)" % [who, str(visible_expected)])
+	# The bar is a child of the label: hidden parent, hidden bar, always.
+	_check(back.is_visible_in_tree() == (tag_label.is_visible_in_tree() and back.visible and not dead),
+		"%s HP bar is drawn exactly while the nickname is drawn" % who)
+
+
+func _is_green(color: Color) -> bool:
+	# NAME_COLOR_SELF / ALLY are pale greens (red channel is high too), so the
+	# test is "green dominates", not "red is low".
+	return color.g > 0.6 and color.g > color.r
+
+
+func _is_red(color: Color) -> bool:
+	return color.r > 0.6 and color.g < 0.5
+
+
+func _mesh_bar_visible(bar) -> bool:
 	if bar == null or not is_instance_valid(bar):
-		return Color.BLACK
-	var material := bar.material_override as ShaderMaterial
-	if material == null:
-		return Color.BLACK
-	return material.get_shader_parameter("fill_color")
+		return false
+	return bool(bar.get("visible"))
 
 
 func _checks_projection() -> void:
@@ -332,7 +392,8 @@ func _checks_projection() -> void:
 		return
 	var hero := player
 	var label := hero.name_label
-	var expected := camera.unproject_position(hero.global_position + Vector3(0.0, HeroUnit.NAME_TAG_HEIGHT, 0.0))
+	var expected := camera.unproject_position(
+		hero.get_global_transform_interpolated().origin + Vector3(0.0, HeroUnit.NAME_TAG_HEIGHT, 0.0))
 	var actual := label.position + Vector2(label.size.x * 0.5, label.size.y)
 	var error := expected.distance_to(actual)
 	_check(error <= 1.5, "nickname is projected onto the head (error %.2f px)" % error)
@@ -342,10 +403,11 @@ func _checks_projection() -> void:
 	for other in game.get("heroes"):
 		if other == null or not is_instance_valid(other) or other is not HeroUnit or other == hero:
 			continue
-		if not other.name_label.visible:
+		if not other.name_label.visible or other.name_label.position.x < -1000.0:
 			continue
 		var other_expected: Vector2 = camera.unproject_position(
-			other.global_position + Vector3(0.0, HeroUnit.NAME_TAG_HEIGHT, 0.0))
+			other.get_global_transform_interpolated().origin
+				+ Vector3(0.0, HeroUnit.NAME_TAG_HEIGHT, 0.0))
 		var other_actual: Vector2 = other.name_label.position + Vector2(
 			other.name_label.size.x * 0.5, other.name_label.size.y)
 		_check(other_expected.distance_to(other_actual) <= 1.5,
@@ -366,6 +428,135 @@ func _checks_low_quality() -> void:
 		"nickname font size survives q=%s" % quality)
 
 
+## The nickname reads the interpolated render pose, so it must sit exactly on the
+## moving head and never freeze while the screen point moves. Two passes:
+## the local hero (the camera aims at it, so this is the "no jitter" test) and a
+## remote guest (visibly crossing the screen, so this is the "keeps moving" test).
+func _checks_motion(guests: Array) -> void:
+	var camera: Camera3D = game.get("camera")
+	if camera == null or not is_instance_valid(camera):
+		_check(false, "game camera exists for the shake check")
+		return
+	if player.name_label == null or not is_instance_valid(player.name_label):
+		_check(false, "local nickname exists for the shake check")
+		return
+	var lateral := camera.global_transform.basis.x
+	lateral.y = 0.0
+	if lateral.length_squared() < 0.001:
+		lateral = Vector3.RIGHT
+	lateral = lateral.normalized()
+
+	# Pass 1: the local hero, moved on a flat stretch for 60 frames.
+	player.set_physics_process(false)
+	player.velocity = Vector3.ZERO
+	player.bush_zones.clear()
+	player.in_bush = false
+	var start := player.global_position
+	player.global_position = Vector3(0.0, start.y, 6.0)
+	player.reset_physics_interpolation()
+	for _i in 8:
+		await get_tree().process_frame
+	var hero_error := 0.0
+	var hero_frames := 0
+	for i in 60:
+		await get_tree().physics_frame
+		var swing := -1.0 if i % 30 >= 15 else 1.0
+		player.global_position += lateral * (0.25 * swing)
+		await RenderingServer.frame_post_draw
+		if player.name_label.position.x < -1000.0:
+			continue
+		var expected := _expected_head_point(camera, player)
+		if expected == Vector2.INF:
+			continue
+		var actual := player.name_label.position + Vector2(
+			player.name_label.size.x * 0.5, player.name_label.size.y)
+		hero_frames += 1
+		hero_error = maxf(hero_error, expected.distance_to(actual))
+	_check(hero_frames >= 30,
+		"running hero nickname was sampled on %d of 60 frames" % hero_frames)
+	_check(hero_error <= 1.0,
+		"running hero nickname stays within 1 px of the interpolated pose (max %.2f px)" % hero_error)
+	player.global_position = start
+	player.reset_physics_interpolation()
+	player.set_physics_process(true)
+
+	# Pass 2: a remote guest crossing the screen. The camera does not follow it,
+	# so the label has to travel, and two identical frames in a row while the
+	# expected point moved would be the old physics-tick jitter.
+	if guests.is_empty():
+		_check(false, "remote guest exists for the moving nickname check")
+		return
+	var remote = guests[0]
+	var remote_label: Label = remote.get("_name_label")
+	if remote_label == null or not is_instance_valid(remote_label):
+		_check(false, "remote nickname exists for the moving nickname check")
+		return
+	var remote_start: Vector3 = remote.global_position
+	remote.set_process(false)
+	remote.bush_hidden = false
+	remote.bush_reveal_timer = 0.0
+	remote.dead = false
+	remote.global_position = remote_start
+	remote.reset_physics_interpolation()
+	for _i in 4:
+		await get_tree().process_frame
+	var max_error := 0.0
+	var moved_frames := 0
+	var consecutive_stuck := 0
+	var max_consecutive_stuck := 0
+	var prev_expected := Vector2.INF
+	var prev_actual := Vector2.INF
+	for i in 60:
+		await get_tree().physics_frame
+		# Two smooth cycles over 60 frames: always moving except at the turns.
+		var phase := (float(i) / 60.0) * TAU * 2.0
+		remote.global_position = remote_start + lateral * (sin(phase) * 1.6)
+		await RenderingServer.frame_post_draw
+		if remote_label.position.x < -1000.0:
+			continue
+		var expected := _expected_head_point(camera, remote)
+		if expected == Vector2.INF:
+			continue
+		var actual := remote_label.position + Vector2(remote_label.size.x * 0.5, remote_label.size.y)
+		max_error = maxf(max_error, expected.distance_to(actual))
+		if prev_expected != Vector2.INF:
+			var wanted := expected.distance_to(prev_expected)
+			var happened := remote_label.position.distance_to(prev_actual)
+			if wanted > 0.5:
+				moved_frames += 1
+				# One frozen frame is normal: rounding to whole pixels keeps the
+				# label on the same pixel while the sub-pixel point creeps past
+				# 0.5 px, and the sine turns around. Only two frames in a row
+				# would be the old physics-tick jitter.
+				if happened < 0.5:
+					consecutive_stuck += 1
+					max_consecutive_stuck = maxi(max_consecutive_stuck, consecutive_stuck)
+				else:
+					consecutive_stuck = 0
+		prev_expected = expected
+		prev_actual = remote_label.position
+	_check(moved_frames >= 10,
+		"moving nickname was checked on %d frames with real screen travel" % moved_frames)
+	_check(max_consecutive_stuck < 2,
+		"moving nickname never freezes for two frames in a row (max %d)" % max_consecutive_stuck)
+	_check(max_error <= 1.0,
+		"moving nickname stays within 1 px of the interpolated pose (max %.2f px)" % max_error)
+	remote.global_position = remote_start
+	remote.target_position = remote_start
+	remote.reset_physics_interpolation()
+	remote.set_process(true)
+
+
+## Screen point of a hero's nickname anchor for the current rendered frame, or
+## Vector2.INF when the point is behind the camera.
+func _expected_head_point(camera: Camera3D, node: Node3D) -> Vector2:
+	var world: Vector3 = node.get_global_transform_interpolated().origin \
+		+ Vector3(0.0, HeroUnit.NAME_TAG_HEIGHT, 0.0)
+	if camera.is_position_behind(world):
+		return Vector2.INF
+	return camera.unproject_position(world)
+
+
 func _checks_offscreen() -> void:
 	var camera: Camera3D = game.get("camera")
 	if camera == null:
@@ -378,18 +569,39 @@ func _checks_offscreen() -> void:
 	# An ally's name never depends on distance: after parking it must still be
 	# `visible`, only its screen position moves out of the viewport.
 	ally.set_physics_process(false)
+	var label := ally.name_label
+	# Baseline in a clean, bush-free, on-screen spot next to the local player:
+	# `_arrange_lineup` can leave a bot overlapping a bush Area3D, and such a
+	# leftover would hide the name and make "parking changed visible" a lie.
+	_park_hero(ally, player.global_position + Vector3(2.5, 0.0, -2.5))
 	ally.bush_zones.clear()
 	ally.in_bush = false
 	ally.bush_reveal_timer = 0.0
-	var label := ally.name_label
-	var was_visible := label.visible
-	_park_hero(ally, camera.global_position + camera.global_transform.basis.z * 30.0)
+	ally._update_name_visibility()
 	for _i in 4:
+		await get_tree().physics_frame
 		await get_tree().process_frame
+	ally.bush_zones.clear()
+	ally.in_bush = false
+	ally._update_name_visibility()
+	var was_visible := label.visible
+	var bar_was_drawn := _bar_drawn(label)
+	_check(was_visible, "ally nickname is visible before the off-screen check")
+	# Behind the camera and 8 m above the arena: high enough that no bush Area3D
+	# can pick the body up again, so parking changes the screen position only.
+	_park_hero(ally, camera.global_position + camera.global_transform.basis.z * 30.0
+		+ Vector3(0.0, 8.0, 0.0))
+	for _i in 4:
+		await get_tree().physics_frame
+		await get_tree().process_frame
+	ally.bush_zones.clear()
+	ally.in_bush = false
+	ally._update_name_visibility()
 	_check(label.position.x < -1000.0, "nickname is parked off-screen behind the camera")
 	# Parking only moves the label: whatever bush/stealth visibility it had
 	# before must stay as it is.
 	_check(label.visible == was_visible, "off-screen parking does not change visible")
+	_check(_bar_drawn(label) == bar_was_drawn, "off-screen parking moves the HP bar with the nickname")
 
 
 func _checks_bush() -> void:
@@ -407,9 +619,18 @@ func _checks_bush() -> void:
 	enemy._update_name_visibility()
 	_check(enemy.in_bush, "enemy bot is tracked inside the bush")
 	_check(not enemy.name_label.visible, "2D enemy nickname is hidden in the bush")
+	_check(not _bar_drawn(enemy.name_label), "enemy HP bar hides together with the nickname in the bush")
 	player.global_position = enemy.global_position + Vector3(1.9, 0.0, 0.0)
 	enemy._update_name_visibility()
 	_check(enemy.name_label.visible, "2D enemy nickname appears at 1.9 m")
+	_check(_bar_drawn(enemy.name_label), "enemy HP bar is drawn with the nickname at 1.9 m")
+
+
+func _bar_drawn(tag_label) -> bool:
+	if tag_label == null or not is_instance_valid(tag_label):
+		return false
+	var back := tag_label.get("bar_back") as ColorRect
+	return back != null and is_instance_valid(back) and back.is_visible_in_tree()
 
 
 func _bush_zone(index: int) -> Area3D:
@@ -444,6 +665,7 @@ func _save_shot() -> void:
 	# player to the middle of the arena and put the lineup in front of it, then
 	# let the camera lerp settle before the frame is captured.
 	player.global_position = Vector3(0.0, player.global_position.y, 10.0)
+	player.reset_physics_interpolation()
 	player.velocity = Vector3.ZERO
 	player._update_name_visibility()
 	_arrange_lineup(guests)

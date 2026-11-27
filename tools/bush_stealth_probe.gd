@@ -143,14 +143,14 @@ func _case_remote_player() -> void:
 	_check(remote.in_bush, "remote player tracked inside the bush by position")
 	_check(remote.bush_hidden, "remote player flagged as hidden while far")
 	_check(not remote._name_label.visible, "remote name hidden while far")
-	_check(not remote._health_back.visible, "remote HP bar hidden while far")
+	_check(not _tag_bar_drawn(remote._name_label), "remote HP bar hidden while far")
 	_check(_remote_transparency(remote) >= 0.49, "remote model half-faded while hidden (%.2f)" % _remote_transparency(remote))
 
 	player.global_position = remote.global_position + Vector3(1.9, 0.0, 0.0)
 	await _settle()
 	_check(not remote.is_bush_concealed(), "remote revealed when the local player is 1.9 m away")
 	_check(remote._name_label.visible, "remote name visible at 1.9 m")
-	_check(remote._health_back.visible, "remote HP bar visible at 1.9 m")
+	_check(_tag_bar_drawn(remote._name_label), "remote HP bar visible at 1.9 m")
 	_check(_remote_transparency(remote) <= 0.01, "remote model opaque at 1.9 m")
 
 	player.global_position = zone.global_position + Vector3(7.0, 0.76, 0.0)
@@ -249,6 +249,16 @@ func _remote_transparency(remote: Node) -> float:
 		if mesh != null and is_instance_valid(mesh):
 			best = maxf(best, mesh.transparency)
 	return best
+
+
+## The visible HP bar is the 2D one inside the screen-space nickname
+## (WorldNameLayer.NameTag), not the hidden 3D compatibility quad. It is a child
+## of the label, so it hides and shows exactly with the name.
+func _tag_bar_drawn(tag_label) -> bool:
+	if tag_label == null or not is_instance_valid(tag_label):
+		return false
+	var back := tag_label.get("bar_back") as ColorRect
+	return back != null and is_instance_valid(back) and back.is_visible_in_tree()
 
 
 func _check(condition: bool, label: String) -> void:

@@ -1,4 +1,5 @@
 import argparse
+import re
 import shutil
 import subprocess
 import time
@@ -168,9 +169,12 @@ def patch_splash() -> None:
     print("SPLASH patched")
 
 
-LEGAL_MARKER = "SINGLE_PCK_LEGAL"
+LEGAL_MARKER = "SINGLE_PCK_LEGAL_V2"
 LEGAL_CSS = """
-		/* SINGLE_PCK_LEGAL: 12+ and the consent line on the initial loader. */
+		/* SINGLE_PCK_LEGAL_V2: 12+ and the consent line on the initial loader.
+		   The consent line carries working /privacy and /terms links, so it must
+		   accept pointer events. The platform shells (/game-vk/, /game-ok/) are
+		   bare redirects and never get this block. */
 		#age-rating {
 			position: fixed;
 			top: 14px;
@@ -193,7 +197,7 @@ LEGAL_CSS = """
 			left: 50%;
 			bottom: 3.4%;
 			transform: translateX(-50%);
-			z-index: 6;
+			z-index: 7;
 			width: min(92%, 920px);
 			color: #ffffff;
 			font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
@@ -201,13 +205,47 @@ LEGAL_CSS = """
 			line-height: 1.25;
 			text-align: center;
 			text-shadow: 0 1px 2px #000000, 1px 0 2px #000000, -1px 0 2px #000000, 0 -1px 2px #000000;
-			pointer-events: none;
+			pointer-events: auto;
+			white-space: normal;
+			overflow: visible;
+			overflow-wrap: break-word;
+		}
+		#legal-consent a {
+			color: #f2c76e;
+			text-decoration: underline;
+			text-underline-offset: 1px;
+			pointer-events: auto;
+			-webkit-tap-highlight-color: rgba(242, 199, 110, 0.25);
+		}
+		#legal-consent a:active,
+		#legal-consent a:focus {
+			color: #ffdf9c;
+			outline: none;
+		}
+		/* Short landscape screens (844x390 in VK/OK webview): wrap the line into
+		   rows just above the bar instead of clipping it at the viewport edge. */
+		@media (max-height: 460px) {
+			#legal-consent {
+				bottom: 2%;
+				width: calc(100% - 20px);
+				font-size: 9px;
+				line-height: 1.2;
+			}
 		}
 """
 
 LEGAL_HTML = """		<div id="age-rating">12+</div>
-		<div id="legal-consent">Продолжая игру, вы подтверждаете, что вам уже есть 12 лет, и соглашаетесь с политикой конфиденциальности.</div>
+		<div id="legal-consent">Продолжая игру, вы подтверждаете, что вам уже есть 12 лет, и соглашаетесь с <a href="/privacy" target="_blank" rel="noopener noreferrer">политикой конфиденциальности</a> и <a href="/terms" target="_blank" rel="noopener noreferrer">пользовательским соглашением</a>.</div>
 """
+
+# v1 of the loader block (policy text only, pointer-events: none, no links).
+# Matched only when LEGAL_MARKER is absent, so an already upgraded page is
+# never touched by these regexes.
+LEGACY_LEGAL_CSS_RE = re.compile(r"[ \t]*/\* SINGLE_PCK_LEGAL: .*?(?=</style>)", re.S)
+LEGACY_LEGAL_DIV_RE = re.compile(
+    r'[ \t]*<div id="(?:age-rating|legal-consent)">.*?</div>[ \t]*\n?', re.S
+)
+LEGAL_SCRIPT_NEEDLE = "getElementById('legal-consent')"
 
 LEGAL_SCRIPT = """		<script>
 		(function () {
@@ -241,15 +279,23 @@ def patch_legal_overlay() -> None:
     if "</style>" not in html:
         print("LEGAL skipped: no style tag")
         return
+    if "SINGLE_PCK_LEGAL:" in html:
+        # The page still carries the v1 block (policy text only, no links).
+        # Drop it first so the loader never shows the consent line twice.
+        html = LEGACY_LEGAL_CSS_RE.sub("", html)
+        html = LEGACY_LEGAL_DIV_RE.sub("", html)
+        print("LEGAL upgraded from v1")
     html = html.replace("</style>", LEGAL_CSS + "\t\t</style>", 1)
     if '<div id="status">' in html:
         html = html.replace('<div id="status">', LEGAL_HTML + '<div id="status">', 1)
     elif "</body>" in html:
         html = html.replace("</body>", LEGAL_HTML + "\t</body>", 1)
-    if "</body>" in html:
+    # The hide/show observer is unchanged between v1 and v2: insert it only if
+    # the page has no copy yet, so a re-run never stacks a second interval.
+    if LEGAL_SCRIPT_NEEDLE not in html and "</body>" in html:
         html = html.replace("</body>", LEGAL_SCRIPT + "\t</body>", 1)
     html_path.write_text(html, encoding="utf-8", newline="")
-    print("LEGAL patched")
+    print("LEGAL patched v2")
 
 
 def copy_editor_page() -> None:

@@ -90,10 +90,15 @@ func _check_idle_state() -> void:
 		_check(ban.mouse_filter == Control.MOUSE_FILTER_STOP, "ban overlay blocks clicks")
 		var view := get_viewport().get_visible_rect().size
 		_check(ban.get_global_rect().size.x >= view.x - 1.0 and ban.get_global_rect().size.y >= view.y - 1.0, "ban overlay covers the screen")
+	# The only action on the ban card is the support contact (VK/OK
+	# moderation P0): Play/Tutorial/shop wording is checked in
+	# _check_ban_signal, so here we only pin the single support button.
 	var buttons := 0
+	var support: Button = null
 	if ban != null:
 		buttons = _count_buttons(ban)
-	_check(buttons == 0, "ban overlay has no action buttons at all")
+		support = ban.find_child("BanSupportButton", true, false) as Button
+	_check(buttons == 1 and support != null and support.text == "Написать в поддержку", "ban overlay has only the support button")
 	var reason := lobby.get("moderation_ban_reason_label") as Label
 	_check(reason != null and reason.autowrap_mode != TextServer.AUTOWRAP_OFF, "ban reason wraps on narrow screens")
 

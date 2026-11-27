@@ -108,6 +108,12 @@ func get_app_link() -> String:
 	return "https://vk.com/app54906713"
 
 
+## VK community group from the moderation brief. Direct link: no share dialog,
+## no utm, no redirect, so it opens the group itself.
+func get_support_url() -> String:
+	return "https://vk.ru/club243770009"
+
+
 func get_currency() -> String:
 	return "votes"
 
