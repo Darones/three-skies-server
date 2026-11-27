@@ -62,6 +62,8 @@ type vkAuthResponse struct {
 	TutorialBattlesUsed int            `json:"tutorial_battles_used"`
 	ProgressInitialized bool           `json:"progress_initialized"`
 	LastInterstitialAt  int64          `json:"last_interstitial_at"`
+	Banned              bool           `json:"banned,omitempty"`
+	BanReason           string         `json:"ban_reason,omitempty"`
 	Error               string         `json:"error,omitempty"`
 }
 
@@ -360,7 +362,34 @@ func authProfileResponse(profile vkProfileRow) vkAuthResponse {
 	}
 }
 
+// platformProfileBanned reads the moderation state of an existing VK/OK
+// profile before login. A missing profile is not an error: it is created on
+// first login. A database error is returned so the caller can fail closed
+// instead of handing out a session.
+func (service *api) platformProfileBanned(ctx context.Context, platform, externalID string) (bool, string, error) {
+	if service.db == nil || strings.TrimSpace(externalID) == "" {
+		return false, "", nil
+	}
+	var banned bool
+	var reason string
+	err := service.db.QueryRowContext(ctx,
+		`SELECT COALESCE(banned, FALSE), COALESCE(ban_reason, '')
+		   FROM players WHERE platform = $1 AND external_id = $2`,
+		platform, externalID,
+	).Scan(&banned, &reason)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, "", nil
+	}
+	if err != nil {
+		return false, "", err
+	}
+	return banned, reason, nil
+}
+
 func (service *api) handleVKAuth(w http.ResponseWriter, r *http.Request) {
+	// The response may carry a session token; never let a browser or proxy
+	// store it.
+	w.Header().Set("Cache-Control", "no-store")
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
 		writeJSON(w, http.StatusMethodNotAllowed, vkAuthResponse{Error: "Method not allowed"})
@@ -390,6 +419,24 @@ func (service *api) handleVKAuth(w http.ResponseWriter, r *http.Request) {
 	}
 	externalID := strings.TrimSpace(params["vk_user_id"])
 	displayName := normalizeVKDisplayName(firstNonEmpty(params["name"], params["vk_name"]))
+	// A banned account keeps its identity but gets no session or profile.
+	// The check happens before the upsert, so a ban cannot be bypassed by
+	// logging in again.
+	banned, banReason, banErr := service.platformProfileBanned(r.Context(), "vk", externalID)
+	if banErr != nil {
+		log.Printf("vk auth ban check: %v", banErr)
+		writeJSON(w, http.StatusInternalServerError, vkAuthResponse{Error: "Internal server error"})
+		return
+	}
+	if banned {
+		writeJSON(w, http.StatusForbidden, vkAuthResponse{
+			Success:   false,
+			Banned:    true,
+			BanReason: banReason,
+			Error:     accountBannedError,
+		})
+		return
+	}
 	profile, err := service.upsertVKProfile(r.Context(), externalID, displayName)
 	if errors.Is(err, sql.ErrNoRows) {
 		writeJSON(w, http.StatusInternalServerError, vkAuthResponse{Error: "Internal server error"})

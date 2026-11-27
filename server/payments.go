@@ -19,7 +19,7 @@ import (
 // Shard packs sold through VK Voices and OKi. The client sends the same
 // `shards_<n>` SKU to VKWebAppShowOrderBox; 100 shards cost 1 voice/OKi.
 const (
-	defaultOKAppID = "512005268801"
+	defaultOKAppID   = "512005268801"
 	paymentSKUPrefix = "shards_"
 	minPaymentShards = 100
 	maxPaymentShards = 10000
@@ -158,17 +158,27 @@ func isOKPayment(params map[string]string) bool {
 		strings.TrimSpace(params["method"]) == "callbacks.getCustomProductInfo"
 }
 
-// handleVKPay serves both VK payment notifications and OK's get_item request
-// (OK sends get_item to /vk/pay with site=OK; its payment callback goes to
-// /ok/pay). OK skips the VK signature, exactly as in the proven Antivirus flow.
+// handleVKPay serves VK payment notifications and OK's product catalog
+// request. OK sends get_item to /vk/pay with site=OK, while its payment
+// callback goes to /ok/pay (see docs/PLATFORM-ADAPTERS.md). The OK platform
+// sends no session token and cannot use the VK signature, so that catalog
+// request stays unsigned; it only returns item info and never grants shards.
+// Everything that can grant shards on /vk/pay requires the VK signature, so
+// site=OK/app_id/method no longer bypass it.
 func (service *api) handleVKPay(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost && r.Method != http.MethodGet {
 		paymentErrorResponse(w, 10, "Method not allowed")
 		return
 	}
 	params := paymentParams(r)
-	okPayment := isOKPayment(params)
-	if !okPayment {
+	okRequest := isOKPayment(params)
+	notificationType := strings.TrimSpace(params["notification_type"])
+	if notificationType == "" && okRequest {
+		notificationType = "get_item"
+	}
+	getItem := strings.HasPrefix(notificationType, "get_item")
+
+	if !(okRequest && getItem) {
 		secret := vkAppSecret()
 		if secret == "" {
 			log.Printf("[PAY] VK_APP_SECRET is not configured")
@@ -187,12 +197,8 @@ func (service *api) handleVKPay(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	notificationType := strings.TrimSpace(params["notification_type"])
-	if notificationType == "" && okPayment {
-		notificationType = "get_item"
-	}
 	switch {
-	case strings.HasPrefix(notificationType, "get_item"):
+	case getItem:
 		item, found := vkPaymentItem(firstPaymentValue(params, "item", "item_id"))
 		if !found {
 			paymentErrorResponse(w, 20, "Unknown item")
@@ -200,7 +206,7 @@ func (service *api) handleVKPay(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, paymentItemResponse(item))
 	case strings.HasPrefix(notificationType, "order_status_change"):
-		if !okPayment && strings.TrimSpace(params["status"]) != "chargeable" {
+		if strings.TrimSpace(params["status"]) != "chargeable" {
 			// Pending/cancelled orders are acknowledged without a grant.
 			writeJSON(w, http.StatusOK, paymentOrderResponse(firstPaymentValue(params, "order_id")))
 			return
@@ -211,12 +217,9 @@ func (service *api) handleVKPay(w http.ResponseWriter, r *http.Request) {
 			paymentErrorResponse(w, 20, "Unknown item")
 			return
 		}
+		// Only VK notifications reach this branch: OK payments go to /ok/pay.
 		platform := "vk"
 		externalID := firstPaymentValue(params, "user_id", "receiver_id")
-		if okPayment {
-			platform = "ok"
-			externalID = firstPaymentValue(params, "uid", "user_id")
-		}
 		orderID := firstPaymentValue(params, "order_id", "transaction_id")
 		newShards, granted, err := service.grantPaymentItem(
 			r.Context(), platform, externalID, orderID, item,

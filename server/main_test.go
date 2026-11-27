@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestHealthReportsDatabaseDown(t *testing.T) {
@@ -29,8 +30,8 @@ func TestHealthReportsDatabaseDown(t *testing.T) {
 	if body["status"] != "degraded" || body["database"] != "down" {
 		t.Fatalf("unexpected health body: %v", body)
 	}
-	if body["database_error"] != "connection refused" {
-		t.Fatalf("expected database error in health body, got %v", body["database_error"])
+	if _, leaked := body["database_error"]; leaked {
+		t.Fatalf("health must not expose the database error: %v", body)
 	}
 }
 
@@ -117,7 +118,7 @@ func TestDatabaseHost(t *testing.T) {
 	}
 }
 
-func TestHealthShowsDatabaseHost(t *testing.T) {
+func TestHealthHidesDatabaseHost(t *testing.T) {
 	service := &api{dbHost: "localhost"}
 	service.setDatabaseError(errors.New("connection refused"))
 
@@ -128,8 +129,11 @@ func TestHealthShowsDatabaseHost(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode health body: %v", err)
 	}
-	if body["database_host"] != "localhost" {
-		t.Fatalf("expected database_host in health, got %v", body["database_host"])
+	if _, leaked := body["database_host"]; leaked {
+		t.Fatalf("health must not expose the database host: %v", body)
+	}
+	if _, leaked := body["database_error"]; leaked {
+		t.Fatalf("health must not expose the database error: %v", body)
 	}
 }
 
@@ -327,5 +331,125 @@ func TestSkinPrices(t *testing.T) {
 		if weaponPrices[skinID] != 5000 {
 			t.Fatalf("skin %d price = %d, want 5000", skinID, weaponPrices[skinID])
 		}
+	}
+}
+
+func TestAdminTokenIsFailClosedWithoutEnvironment(t *testing.T) {
+	t.Setenv("ADMIN_TOKEN", "")
+	sentinel := adminTokenValue()
+	if sentinel == "" {
+		t.Fatal("a missing ADMIN_TOKEN must produce a non-empty random sentinel")
+	}
+	if len(sentinel) != 64 {
+		t.Fatalf("sentinel must be 32 bytes of hex, got %q", sentinel)
+	}
+	if adminTokenValid("") {
+		t.Fatal("an empty admin token must never be accepted")
+	}
+	if !adminTokenValid(sentinel) {
+		t.Fatal("the per-process sentinel must be the only accepted value")
+	}
+}
+
+func TestAdminEndpointsAreClosedWithoutAdminToken(t *testing.T) {
+	t.Setenv("ADMIN_TOKEN", "")
+	service := &api{}
+
+	// The old hardcoded default and an empty token must both fail.
+	for _, target := range []string{
+		"/admin/moderation",
+		"/admin/moderation?token=",
+		"/admin/moderation?token=239837",
+	} {
+		recorder := httptest.NewRecorder()
+		service.handleModerationPage(recorder, httptest.NewRequest(http.MethodGet, target, nil))
+		if recorder.Code != http.StatusForbidden {
+			t.Fatalf("%s without ADMIN_TOKEN = %d, want 403", target, recorder.Code)
+		}
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/admin/grant_shards", strings.NewReader(`{"player_id":1,"amount":1}`))
+	request.Header.Set("Content-Type", "application/json")
+	service.handleAdminGrantShards(recorder, request)
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("grant without ADMIN_TOKEN = %d, want 403", recorder.Code)
+	}
+}
+
+func TestCORSAndWebSocketOriginAllowlist(t *testing.T) {
+	service := &api{}
+	router := newRouter(service, newWebSocketHub(nil))
+
+	cases := []struct {
+		origin  string
+		allowed bool
+	}{
+		{"https://three-skies-server.relaxdev.ru", true},
+		{"https://vk.com", true},
+		{"https://ok.ru", true},
+		{"http://localhost:8080", true},
+		{"http://127.0.0.1:9000", true},
+		{"https://evil.example", false},
+		{"null", false},
+	}
+	for _, testCase := range cases {
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, "/health", nil)
+		request.Header.Set("Origin", testCase.origin)
+		router.ServeHTTP(recorder, request)
+		got := recorder.Header().Get("Access-Control-Allow-Origin")
+		if testCase.allowed && got != testCase.origin {
+			t.Fatalf("origin %q should be allowed, header %q", testCase.origin, got)
+		}
+		if !testCase.allowed && got != "" {
+			t.Fatalf("origin %q must not be reflected, header %q", testCase.origin, got)
+		}
+	}
+
+	// A same-host origin is allowed even without an explicit entry.
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "http://game.example/health", nil)
+	request.Header.Set("Origin", "http://game.example")
+	router.ServeHTTP(recorder, request)
+	if got := recorder.Header().Get("Access-Control-Allow-Origin"); got != "http://game.example" {
+		t.Fatalf("same-host origin was not allowed, header %q", got)
+	}
+
+	// A preflight from an unknown origin answers 204 but without CORS headers.
+	recorder = httptest.NewRecorder()
+	request = httptest.NewRequest(http.MethodOptions, "/register", nil)
+	request.Header.Set("Origin", "https://evil.example")
+	router.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("preflight status = %d, want 204", recorder.Code)
+	}
+	if got := recorder.Header().Get("Access-Control-Allow-Origin"); got != "" {
+		t.Fatalf("unknown origin got CORS headers: %q", got)
+	}
+}
+
+func TestRateLimitPOST(t *testing.T) {
+	service := &api{postLimiter: newVKRateLimiter(2, time.Minute)}
+	handler := service.rateLimitPOST(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	do := func(method string) int {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, httptest.NewRequest(method, "/register", nil))
+		return recorder.Code
+	}
+	if code := do(http.MethodPost); code != http.StatusNoContent {
+		t.Fatalf("first POST = %d", code)
+	}
+	if code := do(http.MethodPost); code != http.StatusNoContent {
+		t.Fatalf("second POST = %d", code)
+	}
+	if code := do(http.MethodPost); code != http.StatusTooManyRequests {
+		t.Fatalf("third POST = %d, want 429", code)
+	}
+	// Reads are never limited by the POST limiter.
+	if code := do(http.MethodGet); code != http.StatusNoContent {
+		t.Fatalf("GET = %d, want 204", code)
 	}
 }

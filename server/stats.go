@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha256"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
@@ -42,11 +43,43 @@ type statsStore struct {
 
 var stats = &statsStore{events: make([]statsEvent, 0, 4096)}
 
+// statsToken returns the dashboard token from the environment only: STATS_TOKEN
+// first, then ADMIN_TOKEN (the documented dashboard link uses the admin token).
+// There is deliberately no default, so when both are empty the stats endpoints
+// stay closed instead of accepting a well-known value.
 func statsToken() string {
 	if value := strings.TrimSpace(os.Getenv("STATS_TOKEN")); value != "" {
 		return value
 	}
-	return "239837"
+	return strings.TrimSpace(os.Getenv("ADMIN_TOKEN"))
+}
+
+// statsRequestAuthorized accepts the existing query token and, as an
+// alternative, X-Stats-Token or Authorization: Bearer. An empty configured
+// token denies every request (fail-closed).
+func (service *api) statsRequestAuthorized(r *http.Request) bool {
+	expected := statsToken()
+	if expected == "" {
+		return false
+	}
+	supplied := strings.TrimSpace(r.URL.Query().Get("token"))
+	if supplied == "" {
+		supplied = strings.TrimSpace(r.Header.Get("X-Stats-Token"))
+	}
+	if supplied == "" {
+		auth := strings.TrimSpace(r.Header.Get("Authorization"))
+		if len(auth) > 7 && strings.EqualFold(auth[:7], "bearer ") {
+			supplied = strings.TrimSpace(auth[7:])
+		}
+	}
+	if supplied == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(supplied), []byte(expected)) == 1
+}
+
+func statsNoStore(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", "no-store")
 }
 
 func (service *api) ensureStatsTable(ctx interface{ Done() <-chan struct{} }) {
@@ -342,7 +375,8 @@ func (service *api) loadStatsEvents(limit int) []statsEvent {
 }
 
 func (service *api) handleStatsData(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Query().Get("token") != statsToken() {
+	statsNoStore(w)
+	if !service.statsRequestAuthorized(r) {
 		writeJSON(w, http.StatusForbidden, map[string]any{"success": false, "error": "forbidden"})
 		return
 	}
@@ -351,7 +385,8 @@ func (service *api) handleStatsData(w http.ResponseWriter, r *http.Request) {
 }
 
 func (service *api) handleStatsPlayer(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Query().Get("token") != statsToken() {
+	statsNoStore(w)
+	if !service.statsRequestAuthorized(r) {
 		writeJSON(w, http.StatusForbidden, map[string]any{"success": false, "error": "forbidden"})
 		return
 	}
@@ -371,7 +406,8 @@ func (service *api) handleStatsPlayer(w http.ResponseWriter, r *http.Request) {
 }
 
 func (service *api) handleStatsReset(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Query().Get("token") != statsToken() {
+	statsNoStore(w)
+	if !service.statsRequestAuthorized(r) {
 		writeJSON(w, http.StatusForbidden, map[string]any{"success": false, "error": "forbidden"})
 		return
 	}
@@ -422,12 +458,12 @@ func (service *api) trackGamePage(next http.Handler) http.Handler {
 }
 
 func (service *api) handleStatsDashboard(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Query().Get("token") != statsToken() {
+	statsNoStore(w)
+	if !service.statsRequestAuthorized(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
 	fmt.Fprint(w, statsDashboardHTML(statsToken()))
 }
 
