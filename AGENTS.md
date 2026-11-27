@@ -128,6 +128,59 @@ OK-платежи без подписи, VK `name` без подписи, `sign`
 пользователем 26.11.2026, см. «Backlog (26.11.2026)». Геймплей, баланс и ботов
 без прямой просьбы не менять.
 
+## Сборка 27.11.2026 (вечер, шейдеры) — НЕ ЗАДЕПЛОЕНО
+
+Шейдерная оптимизация пунктов 1–4 (пункт 5, запекание, не делали). Всё лежит в
+рабочем дереве `mobile-ui`, **не закоммичено и не задеплоено**; прод — по-прежнему
+`3f23ea2` / PCK 27 872 184 б. Приёмка: `docs/qa-shader-opt-2026-11-27/`
+(`BASELINE.md`, `ITEM1-web.md`, `ITEM4-COMBINED.md`, `FINAL-ACCEPTANCE.md`).
+
+- **Состояние.** Ветка `mobile-ui`, HEAD `5be78fd` (docs-only). Изменены ровно
+  7 файлов: `scripts/arena_kit.gd`, `scripts/game.gd`, `scripts/warmup_flow.gd`,
+  `scripts/welcome_overlay.gd`, `scenes/Main.tscn`, `tools/warmup_probe.gd`,
+  `tools/vk_perf_web_export_patch.py`. `server/*.go` не менялись.
+- **Числа (844×390 mobile low, ANGLE-D3D11).** links **206 → 155** (−24.8 %),
+  link block **67.84 → 49.69 с** (−26.8 %); худший линк 2570 → ~2.2 с;
+  1440 high: **147 links / 49.88 с** (−28.6 % / −26.4 %). WarmupProbe:
+  844 low one-pass **284.5 МБ** (< 320), 1440 high **390.6 МБ** — без изменений.
+- **Что сделано.** Web: `TS_STORAGE_PERSIST` (`navigator.storage.persist()` +
+  `estimate()`), карточка «Первый запуск: подготовка графики» до
+  `ts_graphics_ready` (ставится на кадре 100 % прогрева). Готовка: единый
+  `ArenaKit.apply_quality` (low/medium) до первого кадра, один
+  Environment/Sun на второй проход, 3 базовых класса + локально надетый скин,
+  low/medium без sky/reflection (дешёвый radiance). Пункт 4: `cull_back` для
+  floor/rock/plaza/grass/void, два материала в `Main.tscn`, rim только на high,
+  кэши фабрик материалов.
+- **Откатано.** Удержание материалов (retention): дало −3.9 % links при
+  **+25.4 МБ VRAM на high** (390.6 → 416.0) — откатано полностью. Пункт 4 сам
+  по себе: −7.2 % links, но −1.0 % block (внутри шума ±10 %) — оставлен, т.к.
+  в сумме даёт 155 links и не ухудшает VRAM/картинку (high визуально не
+  изменился, rim сохранён).
+- **PCK.** `index_20261127_180838.pck`, **27 876 760** б, SHA256
+  `C4AFFA6272272D74F049C83FCEC5DB2A220BA6C238A0D3A1B0F64139577F687F`; в
+  `build/web` (под этим именем) и `server/web/index.pck` — побайтово совпадают.
+  Шелл: по одному `TS_STORAGE_PERSIST`, `TS_DPR_CLAMP`, `vk_perf_diag.js` и все
+  до `index.js`.
+- **Приёмка (27.11 вечер).** `BattleStartE2EProbe` mobile: live 0–5 с avg 6.9 /
+  max **13.94 мс**, 0 кадров >33, звук старта боя сразу после `live`
+  (задержка 0.0 мс), FAILURES=0. `FirstClashProbe` mobile low: 7.24 мс /
+  0 >33 (один разовый спайк 132 мс на t=814 мс, `pipe_compiled=0`, повтор не
+  воспроизвёлся). `HpDesyncProbe` 93/0, `NameTagProbe` 72/0,
+  `ScoreboardProbe` 77/0, `ResultsProbe` 0, `FogProbe` 0 FAIL. `go test
+  -count=3` ok (131 PASS / 0 FAIL / 1 SKIP), `go vet` чисто;
+  `gofmt -l` показывает предсуществующий `payments.go` (выравнивание в const,
+  файл не трогали). Deploy-дерево `three-skies-ads-deploy` (ветка `deploy-ads`,
+  `3f23ea2`) подготовлено: изменены только `server/web/index.html` и
+  `server/web/index.pck`, `go test`/`go vet` зелёные. Прод: `/health` ok,
+  `live_matches=0`, `/privacy` `/terms` 200, `/admin/moderation` 403,
+  `If-None-Match` → 304, отдаётся старый PCK 27 872 184 б.
+- **Осталось (только после подтверждения пользователя и при `live_matches=0`).**
+  Закоммитить и запушить исходники: `git push origin mobile-ui`; деплой из
+  `C:\myGames3D\three-skies-ads-deploy` — `git add server/web/index.html
+  server/web/index.pck`, коммит и `git push origin HEAD:main`. После деплоя
+  сверить PCK 27 876 760 б + SHA256 `C4AFFA62…687F` и наличие
+  `TS_STORAGE_PERSIST` в `/game/index.html`.
+
 ## Сборка 27.11.2026 (день, 16:47 MSK) — ЗАДЕПЛОЕНА
 
 Прод deploy **`3f23ea2`** в `origin/main`; исходники — **`3e7757d`** в
@@ -183,8 +236,10 @@ ANGLE-GL 4.5 с, тёплый запуск 0.7 с. Security P0 — по-преж
 - Поддержка: `daroness@ya.ru`
 - Разработчик: **Давлеев Андрей Вадимович, самозанятый**. Больше данных о
   разработчике не добавлять.
-- Админ-токен остаётся **`239837`** (решение пользователя). Риск: кто знает
-  токен, может начислять осколки и банить; менять только по просьбе.
+- Админ-токен: пользователь задал **`ADMIN_TOKEN`** в переменных окружения на
+  RelaxDev. В коде дефолта `239837` быть не должно — только
+  `os.Getenv("ADMIN_TOKEN")`; без переменной админка выключена (fail-closed).
+  Дашборд модерации работает с этим же `ADMIN_TOKEN`.
 - **OK-платежи не отключать** — без них не пройти модерацию. Но убрать обход
   подписи в `/vk/pay` (`site=OK`, `app_id`, `method`) и требовать
   `status=chargeable`; для OK — отдельный `/ok/pay` с проверкой сессии/uid.
@@ -231,6 +286,10 @@ ANGLE-GL 4.5 с, тёплый запуск 0.7 с. Security P0 — по-преж
 - Синхронизировать тексты UI и политики с фактическим удалением.
 
 **5. Безопасность (1.2.x)**
+- Админка/дашборд: убрать дефолтный `239837`, читать только `ADMIN_TOKEN`;
+  без переменной админка выключена (fail-closed). Токен не хранить в
+  репозитории, HTML и query-строке логов.
+- `STATS_TOKEN` — так же, без дефолта.
 - Убрать legacy-байпас `requireSession` (пустой `session_token` не пускает);
   `player 1` восстанавливать вручную.
 - OK-вход — только `local_access_token` + `fetchOKUser`; `ok_user_id` из тела
