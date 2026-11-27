@@ -40,6 +40,12 @@ func authenticate() -> bool:
 		# Never log the token itself: only which path signed the player in.
 		print("[OK] auth via local_access_token")
 		return true
+	# OK currently rejects the access-token path: the app 512005268801 is not
+	# marked EXTERNAL in the OK cabinet, so /auth/ok answers
+	# "Parameter access_token specified but application is not EXTERNAL".
+	# Keep the token request helper below for the day the cabinet is fixed, but
+	# do not call it here: calling GetAuthToken first also broke the following
+	# GetUserInfo identity response (400 invalid_ok_user).
 	var user_result := await _call_ad_bridge("VKWebAppGetUserInfo", {"use_local": true})
 	if not bool(user_result.get("ok", false)):
 		var bridge_error := String(user_result.get("error", ""))
@@ -100,6 +106,39 @@ func _token_auth_error(server_error: String) -> String:
 
 func _local_access_token() -> String:
 	return Platform.get_local_access_token()
+
+
+## OK gives the signed token to the VK Bridge, not to the launch URL:
+## VKWebAppGetAuthToken with `append_local` returns it for the OK app. Bridge
+## errors and a missing token are not fatal here: the caller falls back to the
+## bridge identity path. The token itself is never logged.
+func _request_bridge_access_token() -> String:
+	# The launcher requires app_id; `append_local` is not part of its validator
+	# and made the call fail, so only the two documented fields are sent.
+	# app_id must be a number: the bridge validator rejects a string as missing.
+	var result := await _call_ad_bridge(
+		"VKWebAppGetAuthToken",
+		{"app_id": 54906713, "scope": ""},
+		30.0
+	)
+	if not bool(result.get("ok", false)):
+		var bridge_error := String(result.get("error", ""))
+		if not bridge_error.is_empty():
+			print("[OK] bridge access token request failed: %s" % bridge_error)
+		return ""
+	var data: Variant = result.get("data", {})
+	if not data is Dictionary:
+		return ""
+	# OK wraps the answer as {type: "...", data: {...}}; VK resolves the token
+	# object directly. Accept both shapes.
+	var nested: Variant = (data as Dictionary).get("data")
+	if nested is Dictionary:
+		data = nested
+	for key in ["local_access_token", "access_token", "token"]:
+		var value := String((data as Dictionary).get(key, "")).strip_edges()
+		if not value.is_empty():
+			return value
+	return ""
 
 
 func _ok_url_param(param_name: String) -> String:

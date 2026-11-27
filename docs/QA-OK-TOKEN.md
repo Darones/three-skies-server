@@ -35,6 +35,39 @@
    - время и устройство.
    Токен и uid в отчёт не включать.
 
+## Проверка 27.11.2026 — результат
+
+Проверено на реальном OK (Яндекс.Браузер, аккаунт `Андрей Давлеев`, приложение
+512005268801):
+
+1. В launch URL **нет** `local_access_token`; клиент уходит в
+   `[OK] auth via bridge identity (no token)`.
+2. `VKWebAppGetAuthToken` запрошен через Bridge (`app_id` = 54906713, `scope`):
+   - без `app_id` — `Missing required param "app_id"`;
+   - с `app_id` — OK launcher отдаёт токен, но `/auth/ok` отвечает
+     `invalid_ok_auth`.
+3. В логах RelaxDev:
+   - сначала `ok api: PARAM_API_KEY : Application not exist` — в переменных
+     проекта не было `OK_APP_KEY`, код брал `OK_APP_ID` как application key;
+     добавлен `OK_APP_KEY=CDJKIQJGDIHBABABA` (значение из launch URL OK);
+   - после этого `ok api: PARAM : Parameter access_token specified but
+     application is not EXTERNAL`.
+4. Вывод: приложение 512005268801 в кабинете OK **не помечено как EXTERNAL**
+   (внешнее), поэтому OK API не принимает access_token. Пока это не исправлено
+   в кабинете OK, token-first путь работать не будет.
+5. Дополнительно: вызов `VKWebAppGetAuthToken` перед `VKWebAppGetUserInfo`
+   ломал старый UID-fallback (`/auth/ok` 400). Поэтому вызов токена убран из
+   `authenticate()`; метод `_request_bridge_access_token()` оставлен на будущее.
+   Сейчас вход снова идёт через `[OK] auth via bridge identity (no token)` и
+   профиль загружается.
+
+**Что нужно от кабинета OK:** перевести приложение 512005268801 в тип
+«внешнее»/разрешить access token (или уточнить у поддержки OK точную настройку).
+После этого включить `OK_STRICT_AUTH=1` и проверить снова.
+
+**Строгий режим:** `OK_STRICT_AUTH` не задан; не включать до успешного
+token-входа.
+
 ## Если токен есть, но сервер отвечает `ok_auth_not_configured`
 
 Это значит, что на RelaxDev не заданы `OK_APP_KEY` / `OK_APP_SECRET`

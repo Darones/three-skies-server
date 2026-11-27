@@ -295,7 +295,11 @@ func _call_ad_bridge(method: String, params: Dictionary, timeout := 20.0) -> Dic
 		window.vkBridge.send(%s, %s).then(function(data) {
 			done({ok: true, data: data || {}});
 		}).catch(function(err) {
-			done({ok: false, error: String(err)});
+			// Keep the bridge's error object readable: okay for VK ads, and
+			// the only way to see why OK rejected GetAuthToken.
+			var message = 'bridge_error';
+			try { message = err && err.message ? String(err.message) : JSON.stringify(err); } catch (e) {}
+			done({ok: false, error: message});
 		});
 	})();
 	""" % [seq, JSON.stringify(method), payload]
