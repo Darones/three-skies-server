@@ -91,7 +91,8 @@ body {
 }
 		
 		/* SINGLE_PCK_LEGAL_V2: 12+ and the consent line on the initial loader.
-		   The consent line carries working /privacy and /terms links, so it must
+		   The consent line carries working /privacy and /terms links (the UGC
+		   rules live on /terms) and names all three documents, so it must
 		   accept pointer events. The platform shells (/game-vk/, /game-ok/) are
 		   bare redirects and never get this block. */
 		#age-rating {
@@ -166,7 +167,7 @@ body {
 		</noscript>
 
 				<div id="age-rating">12+</div>
-		<div id="legal-consent">Продолжая игру, вы подтверждаете, что вам уже есть 12 лет, и соглашаетесь с <a href="/privacy" target="_blank" rel="noopener noreferrer">политикой конфиденциальности</a> и <a href="/terms" target="_blank" rel="noopener noreferrer">пользовательским соглашением</a>.</div>
+		<div id="legal-consent">Продолжая игру, вы подтверждаете, что вам уже есть 12 лет, и соглашаетесь с <a href="/privacy" target="_blank" rel="noopener noreferrer">политикой конфиденциальности</a>, <a href="/terms" target="_blank" rel="noopener noreferrer">пользовательским соглашением</a> и <a href="/terms" target="_blank" rel="noopener noreferrer">правилами пользовательского контента (UGC)</a>.</div>
 <div id="status">
 			<img id="status-splash" class="show-image--true fullsize--false use-filter--true" src="index_splash.jpg" alt="">
 			<progress id="status-progress"></progress>
@@ -239,7 +240,7 @@ body {
 		<script src="vk_perf_diag.js"></script>
 		<script src="index.js"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","mainPack":"index.pck","experimentalVK":false,"fileSizes":{"index.pck":27882852,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","mainPack":"index.pck","experimentalVK":false,"fileSizes":{"index.pck":27886516,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 

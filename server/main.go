@@ -1487,6 +1487,10 @@ func (service *api) handleRegister(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, registerResponse{Error: "Nickname contains forbidden words"})
 		return
 	}
+	if reservedNickname(nickname) {
+		writeJSON(w, http.StatusBadRequest, registerResponse{Error: "Nickname is reserved"})
+		return
+	}
 
 	var playerID int64
 	customNickname := !strings.HasPrefix(nickname, "Игрок ")
@@ -1707,6 +1711,10 @@ func (service *api) handleRename(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, renameResponse{Error: "Nickname contains forbidden words"})
 		return
 	}
+	if reservedNickname(nickname) {
+		writeJSON(w, http.StatusBadRequest, renameResponse{Error: "Nickname is reserved"})
+		return
+	}
 
 	tx, err := service.db.BeginTx(r.Context(), nil)
 	if err != nil {
@@ -1864,6 +1872,39 @@ func (service *api) handleReport(w http.ResponseWriter, r *http.Request) {
 func validNickname(nickname string) bool {
 	length := utf8.RuneCountInString(nickname)
 	return length >= 3 && length <= 32
+}
+
+// reservedNickname rejects names the server owns: a bot prefix followed by a
+// separator, a digit or the end of the name, and the generic/administrative
+// names. The client filters these too, but a crafted request skips the client,
+// so register and rename must enforce it on the server. Ordinary words that
+// merely start with the same letters ("Ботаник", "Bottle", "BOTplayer") stay
+// allowed. Platform names from VK/OK do not pass through those handlers.
+func reservedNickname(nickname string) bool {
+	normalized := strings.ToUpper(strings.TrimSpace(nickname))
+	if normalized == "" {
+		return false
+	}
+	for _, prefix := range []string{"БОТ", "BOT"} {
+		if !strings.HasPrefix(normalized, prefix) {
+			continue
+		}
+		rest := normalized[len(prefix):]
+		if rest == "" {
+			return true
+		}
+		next, _ := utf8.DecodeRuneInString(rest)
+		if unicode.IsDigit(next) ||
+			next == ' ' || next == '_' || next == '-' || next == '.' ||
+			next == '!' || next == '?' || next == ':' {
+			return true
+		}
+	}
+	switch normalized {
+	case "ИГРОК", "АДМИНИСТРАТОР", "МОДЕРАТОР":
+		return true
+	}
+	return false
 }
 
 var profanityRoots = []string{
