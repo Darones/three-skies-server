@@ -67,6 +67,12 @@ const WeaponCatalog = preload("res://scripts/weapon_catalog.gd")
 const SkinCatalog = preload("res://scripts/skin_catalog.gd")
 const TOUCH_SCROLL := preload("res://scripts/touch_scroll.gd")
 const NICKNAME_CHANGE_COST := 100
+# Гостевой ник: те же границы, что у сервера, плюс зарезервированные имена.
+const GUEST_NICK_MIN_LENGTH := 3
+const GUEST_NICK_MAX_LENGTH := 32
+const GUEST_NICK_MAX_ATTEMPTS := 20
+const GUEST_NICK_RESERVED := ["бот", "bot", "игрок", "администратор", "модератор"]
+const GUEST_NICK_RESERVED_PREFIXES := ["бот", "bot"]
 const NOVICE_MATCH_LIMIT := 10
 const NOVICE_STATUS_HINT := "Первые бои с новичками и лёгкими ботами"
 const SHOP_2H_SWORD_ICON: Texture2D = preload("res://ui/icons/legendary_greatsword.png")
@@ -2895,8 +2901,44 @@ func _retry_registration() -> void:
 	MetaProgression.register_player(MetaProgression.player_nickname)
 
 
+# Возвращает текст ошибки для гостевого ника или "" если ник допустим.
+# Общий и для поля ввода, и для автогенерации: одно место с правилами.
+func _guest_nickname_error(nickname: String) -> String:
+	var trimmed := nickname.strip_edges()
+	if trimmed.length() < GUEST_NICK_MIN_LENGTH or trimmed.length() > GUEST_NICK_MAX_LENGTH:
+		return "Введите от %d до %d символов." % [GUEST_NICK_MIN_LENGTH, GUEST_NICK_MAX_LENGTH]
+	if ProfanityFilter.contains(trimmed):
+		return "Ник содержит недопустимые слова."
+	var lowered := trimmed.to_lower()
+	for reserved in GUEST_NICK_RESERVED:
+		if lowered == reserved:
+			return "Этот ник зарезервирован."
+	for prefix in GUEST_NICK_RESERVED_PREFIXES:
+		# «БОТ», «БОТ 1», «BOT_1», «BOT-2», «БОТ1234» — выдать себя за бота
+		# нельзя. «Ботаник» и «Bottle» разрешены: там после префикса буква.
+		if not lowered.begins_with(prefix):
+			continue
+		var rest := lowered.substr(prefix.length())
+		if rest.is_empty() or not _is_nick_letter(rest[0]):
+			return "Ник не может начинаться с «БОТ»."
+	return ""
+
+
+# Буква (кириллица/латиница) — префикс «БОТ» режем только перед не-буквой.
+static func _is_nick_letter(ch: String) -> bool:
+	if ch.is_empty():
+		return false
+	var code := ch.unicode_at(0)
+	return (code >= 0x430 and code <= 0x44F) or code == 0x451 or (code >= 0x61 and code <= 0x7A)
+
+
 func _generate_guest_nickname() -> String:
-	return "Игрок %04d" % randi_range(1000, 9999)
+	var candidate := "Игрок %04d" % randi_range(1000, 9999)
+	for _attempt in GUEST_NICK_MAX_ATTEMPTS:
+		candidate = "Игрок %04d" % randi_range(1000, 9999)
+		if _guest_nickname_error(candidate).is_empty():
+			break
+	return candidate
 
 
 func _close_player_menu() -> void:
@@ -2914,6 +2956,12 @@ func _save_player_nickname() -> void:
 	if ProfanityFilter.contains(nickname):
 		_set_nickname_status("Ник содержит недопустимые слова.", Color(1.0, 0.48, 0.42))
 		return
+	# VK/OK: ник приходит с платформы, гостевые ограничения не применяем.
+	if not _is_platform_auth():
+		var guest_error := _guest_nickname_error(nickname)
+		if not guest_error.is_empty():
+			_set_nickname_status(guest_error, Color(1.0, 0.48, 0.42))
+			return
 	if nickname == MetaProgression.player_nickname:
 		_set_nickname_status("Ник не изменился.", Color(0.76, 0.8, 0.89))
 		return

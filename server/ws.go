@@ -739,7 +739,15 @@ func visibleJoinName(requested string, access playerMatchAccess, clientID int64)
 }
 
 func (h *wsHub) sessionAllowed(playerID int64, token string) bool {
-	if playerID <= 0 || h.db == nil {
+	if playerID <= 0 {
+		// A guest (player_id 0) never joins an online match: guests may only
+		// play the offline tutorial. Without a profile there is nothing to
+		// authenticate, so this is a hard rejection rather than a token check.
+		return false
+	}
+	if h.db == nil {
+		// Server-only/test mode: there is no database to verify tokens against,
+		// so a positive profile id is the strongest check available.
 		return true
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

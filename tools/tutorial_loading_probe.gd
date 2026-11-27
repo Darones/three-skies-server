@@ -140,10 +140,13 @@ class Watcher extends Node:
 			var keyart := card.get("_keyart") as TextureRect
 			if keyart != null and keyart.texture != null:
 				card_keyart = keyart.texture.resource_path
-			# The 12+ badge and the consent line must not exist on the card:
-			# both belong to the initial HTML loader only.
+			# The 12+ badge belongs to the initial HTML loader only; the consent
+			# line exists on Welcome and must stay hidden on the loading card.
 			card_no_age = card.find_child("WelcomeAgeRating", true, false) == null
-			card_no_legal = card.find_child("WelcomeLegal", true, false) == null
+			# Consent belongs to Welcome: on the tutorial loading card it must
+			# be invisible (the node itself may exist, hidden).
+			var legal_card := card.find_child("WelcomeLegal", true, false) as CanvasItem
+			card_no_legal = legal_card == null or not legal_card.visible
 			var warmup_box := card.get("warmup_box") as Control
 			card_warmup_hidden = warmup_box != null and not warmup_box.visible
 			var found := loading.get("found_count_label") as Control
@@ -234,7 +237,7 @@ class Watcher extends Node:
 			"фон совпадает с Welcome новичка (%s)" % card_keyart
 		)
 		_check(card_no_age, "бейджа 12+ нет на карточке Welcome")
-		_check(card_no_legal, "правовой строки нет на карточке Welcome")
+		_check(card_no_legal, "правовой строки не видно на карточке Welcome")
 		_check(card_warmup_hidden, "прогресс не нарисован на месте кнопки «Играть»")
 		_check(search_bg_hidden, "фон поиска матча скрыт")
 		_check(found_count_hidden, "нет дублирующей строки над полоской")
@@ -251,8 +254,8 @@ class Watcher extends Node:
 			"12+ не встречается в Welcome/экране обучения"
 		)
 		_check(
-			not welcome_source.contains("Продолжая игру") and not loading_source.contains("Продолжая игру"),
-			"правовая строка не повторяется в Welcome/экране обучения"
+			welcome_source.contains("Продолжая игру") and not loading_source.contains("Продолжая игру"),
+			"строка согласия есть на Welcome и не дублируется на экране загрузки"
 		)
 		var progress_line_ok := false
 		for sample in stage_samples:

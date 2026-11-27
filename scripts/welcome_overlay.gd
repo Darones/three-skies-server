@@ -2,7 +2,8 @@ class_name WelcomeOverlay
 extends Control
 
 ## Full-screen first-launch card: key art, logo and one yellow Play button.
-## The age badge and the consent line belong to the initial HTML loader only.
+## The age badge stays on the initial HTML loader; the consent line also shows
+## here as a small line under Play (no extra button).
 ## It is a view only: lobby.gd decides when it is shown (loading / welcome /
 ## error) and what Play does, so the game flow after the card never changes.
 
@@ -11,6 +12,7 @@ signal retry_pressed
 
 enum State { HIDDEN, LOADING, WELCOME, ERROR, WARMING }
 
+const SUPPORT_LINKS := preload("res://scripts/support_links.gd")
 const KEYART: Texture2D = preload("res://ui/welcome/welcome_keyart.webp")
 const LOGO: Texture2D = preload("res://ui/logo.png")
 const FONT: FontFile = preload("res://assets/fonts/Philosopher-Regular.ttf")
@@ -26,12 +28,16 @@ const GRAPHICS_READY_KEY := "ts_graphics_ready"
 
 const PALE := Color(0.9, 0.92, 0.98)
 const BACKDROP := Color(0.016, 0.024, 0.043)
+## Muted consent line: readable on the key art, never louder than Play.
+const LEGAL_TEXT_COLOR := Color(0.84, 0.88, 0.96, 1.0)
+const LEGAL_LINK_COLOR := "#f2c76e"
 
 
 var state: State = State.HIDDEN
 var welcome_logo: TextureRect
 var loading_logo: TextureRect
 var play_button: Button
+var welcome_legal: RichTextLabel
 var loading_layer: CenterContainer
 var loading_label: Label
 var retry_button: Button
@@ -94,6 +100,7 @@ func show_loading(message := LOADING_TEXT) -> void:
 func show_welcome() -> void:
 	state = State.WELCOME
 	visible = true
+	_refresh_legal_text()
 	_apply_state()
 
 
@@ -304,6 +311,28 @@ func _build() -> void:
 	play_button.pressed.connect(func() -> void: play_pressed.emit())
 	_bottom.add_child(play_button)
 
+	# Consent line: small text right under Play, no second button. The links are
+	# full URLs from SupportLinks (same host as the REST API), opened on click.
+	welcome_legal = RichTextLabel.new()
+	welcome_legal.name = "WelcomeLegal"
+	welcome_legal.bbcode_enabled = true
+	welcome_legal.fit_content = true
+	welcome_legal.scroll_active = false
+	welcome_legal.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	welcome_legal.mouse_filter = Control.MOUSE_FILTER_STOP
+	welcome_legal.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	welcome_legal.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	welcome_legal.add_theme_font_override("normal_font", FONT)
+	welcome_legal.add_theme_font_size_override("normal_font_size", 13)
+	welcome_legal.add_theme_color_override("default_color", LEGAL_TEXT_COLOR)
+	welcome_legal.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.85))
+	welcome_legal.add_theme_constant_override("shadow_offset_x", 1)
+	welcome_legal.add_theme_constant_override("shadow_offset_y", 1)
+	welcome_legal.add_theme_constant_override("line_separation", 2)
+	welcome_legal.meta_clicked.connect(_on_legal_meta_clicked)
+	welcome_legal.text = _legal_text()
+	_bottom.add_child(welcome_legal)
+
 	warmup_box = VBoxContainer.new()
 	warmup_box.name = "WelcomeWarmup"
 	warmup_box.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -418,6 +447,44 @@ func _build() -> void:
 	_apply_play_styles()
 
 
+## Consent wording: both documents are named, UGC rules are explicit. The UGC
+## link points at the user agreement, where the UGC section lives.
+func _legal_text() -> String:
+	var privacy := SUPPORT_LINKS.privacy_url()
+	var terms := SUPPORT_LINKS.terms_url()
+	return (
+		"Продолжая игру, вы соглашаетесь с [url=%s]%s[/url], [url=%s]%s[/url] и [url=%s]%s[/url]."
+		% [
+			privacy,
+			_legal_link("политикой конфиденциальности"),
+			terms,
+			_legal_link("пользовательским соглашением"),
+			terms,
+			_legal_link("правилами пользовательского контента (UGC)"),
+		]
+	)
+
+
+func _legal_link(text: String) -> String:
+	return "[color=%s][u]%s[/u][/color]" % [LEGAL_LINK_COLOR, text]
+
+
+## The profile API base is resolved after this card is built, so the text is
+## refreshed when Welcome is actually shown. Cheap and idempotent.
+func _refresh_legal_text() -> void:
+	if welcome_legal == null:
+		return
+	var text := _legal_text()
+	if welcome_legal.text != text:
+		welcome_legal.text = text
+
+
+## Links open in a new tab; SupportLinks uses the browser bridge on web, so the
+## click stays a real user gesture inside the VK/OK webview.
+func _on_legal_meta_clicked(meta: Variant) -> void:
+	SUPPORT_LINKS.open_url(String(meta))
+
+
 func _make_shade(top: bool) -> TextureRect:
 	var gradient := Gradient.new()
 	if top:
@@ -494,6 +561,10 @@ func _apply_state() -> void:
 	play_button.visible = welcome
 	play_button.disabled = not welcome
 	play_button.mouse_filter = Control.MOUSE_FILTER_STOP if welcome else Control.MOUSE_FILTER_IGNORE
+	# Consent is part of the Welcome card only: the loader, the error card and
+	# the warmup progress must not carry it.
+	if welcome_legal != null:
+		welcome_legal.visible = welcome
 	if state == State.ERROR:
 		loading_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.78))
 	else:
@@ -523,6 +594,13 @@ func _layout() -> void:
 	play_button.add_theme_font_size_override(
 		"font_size", clampi(int(round(button_height * 0.36)), 18, 34)
 	)
+
+	# Small print: 13 px minimum, never above 15, so it stays legible on
+	# 844x390 without ever competing with Play or growing on 1440.
+	if welcome_legal != null:
+		welcome_legal.add_theme_font_size_override(
+			"normal_font_size", clampi(int(round(13.0 * k)), 13, 15)
+		)
 
 	var bar_width := clampf(width * 0.42, 220.0, 520.0)
 	if warmup_bar != null:

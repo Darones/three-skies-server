@@ -348,7 +348,10 @@ func _run_overlay() -> void:
 	_check(overlay.call("state_name") == "warming", "состояние WARMING")
 	_check(keyart.visible and logo.visible, "key art и логотип видны в WARMING")
 	_check(overlay.find_child("WelcomeAgeRating", true, false) == null, "бейджа 12+ нет на карточке")
-	_check(overlay.find_child("WelcomeLegal", true, false) == null, "правовой строки нет на карточке")
+	# The consent line exists on Welcome only: during warmup it must be hidden,
+	# not necessarily absent.
+	var legal_card := overlay.find_child("WelcomeLegal", true, false) as CanvasItem
+	_check(legal_card == null or not legal_card.visible, "правовой строки не видно на карточке")
 	_check(not play.visible and play.disabled, "Play скрыт и неактивен")
 	_check(box.visible and bar.visible and stage_label.visible and elapsed_label.visible,
 		"полоска прогресса и текст этапа видны")

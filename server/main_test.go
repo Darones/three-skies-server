@@ -157,6 +157,46 @@ func TestValidNickname(t *testing.T) {
 	}
 }
 
+func TestReservedNicknames(t *testing.T) {
+	reserved := []string{
+		"БОТ", "бот", "  бот  ", "БОТ 1", "Бот_Х", "БОТ-Х", "БОТ1234",
+		"BOT", "bot", "BOT_1", "BOT-x", "BOT1", "bot.2", "БОТ!", "BOT?",
+		"Игрок", "ИГРОК", "игрок ", "Администратор", "МОДЕРАТОР",
+	}
+	for _, nickname := range reserved {
+		if !reservedNickname(nickname) {
+			t.Fatalf("reservedNickname(%q) = false, want true", nickname)
+		}
+	}
+	allowed := []string{
+		"Игрок 1234", "Игрок-7", "Админ", "Модератор 2", "Робот", "Кот",
+		"Ботаник", "Bottle", "BOTplayer",
+	}
+	for _, nickname := range allowed {
+		if reservedNickname(nickname) {
+			t.Fatalf("reservedNickname(%q) = true, want false", nickname)
+		}
+	}
+}
+
+func TestRegisterRejectsReservedNickname(t *testing.T) {
+	service := &api{} // reservation is rejected before any database access
+	request := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(`{"nickname":"БОТ 7"}`))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	service.handleRegister(recorder, request)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("reserved nickname register = %d, want 400", recorder.Code)
+	}
+	var body registerResponse
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode register response: %v", err)
+	}
+	if body.Error != "Nickname is reserved" {
+		t.Fatalf("register error = %q, want %q", body.Error, "Nickname is reserved")
+	}
+}
+
 func TestBalanceHumansLockedSplitsClassesEvenly(t *testing.T) {
 	room := &wsRoom{}
 	classes := []int{0, 0, 0, 0, 2, 1}

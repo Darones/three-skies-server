@@ -170,9 +170,13 @@ def patch_splash() -> None:
 
 
 LEGAL_MARKER = "SINGLE_PCK_LEGAL_V2"
+## Wording added in wave 2.5 (UGC rules). Present in every fresh export; a page
+## that still carries the V2 marker with the old wording is upgraded in place.
+LEGAL_UGC_PHRASE = "правилами пользовательского контента (UGC)"
 LEGAL_CSS = """
 		/* SINGLE_PCK_LEGAL_V2: 12+ and the consent line on the initial loader.
-		   The consent line carries working /privacy and /terms links, so it must
+		   The consent line carries working /privacy and /terms links (the UGC
+		   rules live on /terms) and names all three documents, so it must
 		   accept pointer events. The platform shells (/game-vk/, /game-ok/) are
 		   bare redirects and never get this block. */
 		#age-rating {
@@ -234,9 +238,11 @@ LEGAL_CSS = """
 		}
 """
 
-LEGAL_HTML = """		<div id="age-rating">12+</div>
-		<div id="legal-consent">Продолжая игру, вы подтверждаете, что вам уже есть 12 лет, и соглашаетесь с <a href="/privacy" target="_blank" rel="noopener noreferrer">политикой конфиденциальности</a> и <a href="/terms" target="_blank" rel="noopener noreferrer">пользовательским соглашением</a>.</div>
+LEGAL_CONSENT_DIV = """		<div id="legal-consent">Продолжая игру, вы подтверждаете, что вам уже есть 12 лет, и соглашаетесь с <a href="/privacy" target="_blank" rel="noopener noreferrer">политикой конфиденциальности</a>, <a href="/terms" target="_blank" rel="noopener noreferrer">пользовательским соглашением</a> и <a href="/terms" target="_blank" rel="noopener noreferrer">правилами пользовательского контента (UGC)</a>.</div>
 """
+
+LEGAL_HTML = """		<div id="age-rating">12+</div>
+""" + LEGAL_CONSENT_DIV
 
 # v1 of the loader block (policy text only, pointer-events: none, no links).
 # Matched only when LEGAL_MARKER is absent, so an already upgraded page is
@@ -245,6 +251,10 @@ LEGACY_LEGAL_CSS_RE = re.compile(r"[ \t]*/\* SINGLE_PCK_LEGAL: .*?(?=</style>)",
 LEGACY_LEGAL_DIV_RE = re.compile(
     r'[ \t]*<div id="(?:age-rating|legal-consent)">.*?</div>[ \t]*\n?', re.S
 )
+# V2 consent div without the UGC wording (build/web or server/web exported
+# before wave 2.5). Only the consent line is replaced; the CSS and the
+# hide/show script stay as they are.
+LEGAL_CONSENT_DIV_RE = re.compile(r'[ \t]*<div id="legal-consent">.*?</div>', re.S)
 LEGAL_SCRIPT_NEEDLE = "getElementById('legal-consent')"
 
 LEGAL_SCRIPT = """		<script>
@@ -275,6 +285,13 @@ def patch_legal_overlay() -> None:
     html_path = OUT_DIR / "index.html"
     html = html_path.read_text(encoding="utf-8")
     if LEGAL_MARKER in html:
+        # Already v2. A page exported before the UGC wording (still carries the
+        # same marker) is upgraded in place: only the consent div is replaced,
+        # the CSS and the hide/show script stay untouched. Re-runs are no-ops.
+        if LEGAL_UGC_PHRASE not in html and LEGAL_CONSENT_DIV_RE.search(html):
+            html = LEGAL_CONSENT_DIV_RE.sub(LEGAL_CONSENT_DIV.rstrip("\n"), html, count=1)
+            html_path.write_text(html, encoding="utf-8", newline="")
+            print("LEGAL upgraded to UGC wording")
         return
     if "</style>" not in html:
         print("LEGAL skipped: no style tag")
