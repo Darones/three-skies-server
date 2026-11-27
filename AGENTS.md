@@ -36,7 +36,7 @@ The `publish-your-game` skill has the steps; `summer ops search "publish my game
 
 # Состояние проекта «Небесные осколки» (three-skies)
 
-Обновлено: **27.11.2026, ночь**. Это память для следующих сессий: читать до любых правок.
+Обновлено: **27.11.2026, поздний вечер**. Это память для следующих сессий: читать до любых правок.
 
 ## Дедлайн VK/OK (24.11.2026)
 
@@ -94,31 +94,32 @@ fallback. В каждом вызове `subagent` указывать `model:
 `docs/VK-COMPLIANCE.md`, `docs/QA-M1.md`, `docs/QA-D1.md`, `docs/QA-M2.md`,
 затем при необходимости — общую папку `C:\myGames\_АССИСТЕНТ` (см. ниже).
 
-Текущее состояние (27.11.2026, ночь):
+Текущее состояние (27.11.2026, поздний вечер):
 
-- прод — deploy-коммит **`ab67eb2`** в `origin/main`, PCK **27 859 676**
-  байт (~26.6 МБ); `/health` ok, `live_matches=0`; `/game/`, `/privacy`,
-  `/terms` — 200; `/admin/moderation` без токена 403;
-- исходники `mobile-ui` запушены до **`738c614`** (perf: smooth warmup,
-  first-clash prewarm, desync and VK diagnostics); подробности — раздел
-  «Сборка 27.11.2026 (ночь)» ниже;
-- PCK кэшируется: `Cache-Control: no-cache` + ETag; повторный
-  запрос с `If-None-Match`/`If-Modified-Since` → **304**, 0 байт;
-- один PCK `/game/`; `/game-vk/` и `/game-ok/` — только redirect-shell'ы
-  (1017/1016 байт), PCK у них 404;
+- прод — deploy-коммит **`36fd12e`** в `origin/main`, PCK **28 547 568**
+  байт, SHA256 `E250152E…0E0A9`; `/health` ok, `live_matches=0`;
+  `/game/`, `/privacy`, `/terms` — 200; `/admin/moderation` без токена 403;
+- исходники `mobile-ui` — **`d9fff66`** (ui: use platform legal docs, drop
+  in-game policy links); предыдущие волны — `587b0cc`, `ba9ac5d`, `840ab5d`;
+- юридика: в кабинете VK/OK включены **стандартные документы** («Использовать
+  типовые документы»); свои `/privacy` и `/terms` остаются на сервере как
+  резерв, но **в игре ссылок на них больше нет**. На HTML-загрузчике только
+  «12+» (`SINGLE_PCK_LEGAL_V3`), на Welcome — обычный текст про правила и UGC,
+  в настройках — только «Поддержка / Сообщество»;
+- PCK кэшируется: `Cache-Control: no-cache` + ETag; повторный запрос с
+  `If-None-Match`/`If-Modified-Since` → **304**, 0 байт;
+- один PCK `/game/`; `/game-vk/` и `/game-ok/` — только redirect-shell'ы,
+  PCK у них 404;
 - VK- и OK-модерация **поданы одновременно 24.11**, дедлайн **4.12.2026**
   (OK — уже на рассмотрении, не «следующий шаг»); OK-покупки до одобрения не
   работают (OK: «платёжная система на профилактике»);
-- OK-вход **работает**: приложение 512005268801 открывает `/game-vk/` →
-  shell → `/game/`; платформа определяется по `vk_client=ok`/referrer
-  `ok.ru`. `VKWebAppGetUserInfo(use_local:true)` → `/auth/ok`; OK отдаёт
-  `{type, data}`, fallback — `vk_ok_user_id` из URL. `OK_APP_KEY` не нужен;
+- OK-вход: token-first через `VKWebAppGetAuthToken` с numeric `app_id` и
+  `append_local:true` → `local_access_token`; `OK_APP_KEY` добавлен в RelaxDev;
+  `OK_STRICT_AUTH=0` (строгий режим выключен до реального мобильного теста),
+  клиентский UID-fallback пока оставлен. Подробности — `docs/QA-OK-TOKEN.md`;
 - реклама VK: x2 за rewarded работает на ПК; на iPhone VK не даёт
   reward-fill (внешний фактор); интерстишиал после итогов; серверный x2;
-- юридика: страницы `/privacy` и `/terms` живут на сервере (200), ссылки на них
-  есть в настройках; на стартовом HTML остались «12+» и legal-строка, на
-  Welcome/обучении их больше нет; удаление данных — в настройках; кредиты
-  (`credits/licenses.gd`) есть.
+- удаление данных — в настройках; кредиты (`credits/licenses.gd`) есть.
 
 Ближайшие шаги: **security P0** из `docs/SECURITY-AUDIT-2026-11-26.md`
 (дефолтные `ADMIN`/`STATS` токены, legacy-профили без сессии, OK-auth по uid,
