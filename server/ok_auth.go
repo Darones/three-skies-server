@@ -57,6 +57,20 @@ func okApplicationSecret() string {
 	))
 }
 
+// okStrictAuth reports whether the legacy bridge-identity path (ok_user_id
+// without an access token) must be rejected. It is off by default: the client
+// still authenticates through VKWebAppGetUserInfo when no local_access_token is
+// available. Set OK_STRICT_AUTH=1 only after the token path is proven on a real
+// OK device.
+func okStrictAuth() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("OK_STRICT_AUTH"))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
 func okMD5(value string) string {
 	sum := md5.Sum([]byte(value))
 	return strings.ToLower(hex.EncodeToString(sum[:]))
@@ -188,6 +202,12 @@ func (service *api) handleOKAuth(w http.ResponseWriter, r *http.Request) {
 	}
 	accessToken := strings.TrimSpace(firstNonEmpty(request.LocalAccessToken, request.AccessToken))
 	if accessToken == "" {
+		// Strict mode: the unsigned bridge identity is refused outright, so no
+		// profile is created and no uid is written to the log. Off by default.
+		if okStrictAuth() {
+			writeJSON(w, http.StatusUnauthorized, vkAuthResponse{Error: "invalid_ok_auth"})
+			return
+		}
 		// VKWebAppGetUserInfo is available in OK without permissions. It gives
 		// the OK UID and display name, which is enough for a separate OK
 		// profile; no OK API key is required for this path.
