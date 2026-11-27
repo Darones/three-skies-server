@@ -2790,7 +2790,9 @@ func _update_name_visibility() -> void:
 			if other == null or not is_instance_valid(other) or other.team != player_team or other.dead:
 				continue
 			nearest = minf(nearest, global_position.distance_to(other.global_position))
-		visible_to_enemy = nearest <= 12.0
+		# Same 10 m as the body (game.gd FOG_VIEW_RADIUS): nickname and HP bar
+		# appear only where the enemy itself appears.
+		visible_to_enemy = nearest <= 10.0
 	name_label.visible = visible_to_enemy
 	if name_plate != null:
 		name_plate.visible = visible_to_enemy

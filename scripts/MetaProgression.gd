@@ -104,6 +104,13 @@ func _ready() -> void:
 		NetworkClient.match_reward_settled.connect(_on_match_reward_settled)
 	if not NetworkClient.compensation_completed.is_connected(_on_compensation_completed):
 		NetworkClient.compensation_completed.connect(_on_compensation_completed)
+	if not NetworkClient.quests_rerolled.is_connected(_on_quests_rerolled):
+		NetworkClient.quests_rerolled.connect(_on_quests_rerolled)
+	if not NetworkClient.weekly_claimed.is_connected(_on_weekly_claimed):
+		NetworkClient.weekly_claimed.connect(_on_weekly_claimed)
+	# DailyQuests is autoloaded after MetaProgression, so it does not exist yet
+	# during this _ready; connect on the next idle frame instead of at parse time.
+	call_deferred("_connect_daily_quests")
 
 
 func _load_meta() -> void:
@@ -328,6 +335,9 @@ func reset_all() -> void:
 	_reward_in_flight.clear()
 	_reward_flush_attempted.clear()
 	match_reward_retry_count = 0
+	var daily := get_node_or_null("/root/DailyQuests")
+	if daily != null and daily.has_method("clear"):
+		daily.clear()
 	stats_all = {
 		"matches": 0, "wins": 0, "kills": 0, "deaths": 0,
 		"damage": 0, "shells": 0, "crystals": 0, "xp": 0, "shards": 0,
@@ -358,7 +368,7 @@ func _load_loadout() -> void:
 			# Old saves stored only "use the legendary variant" as a bool.
 			if bool(config.get_value("weapons", String(key), false)):
 				fallback = 1 if String(key) == "warrior" else (3 if String(key) == "mage" else 2)
-		equipped_weapons[key] = clampi(int(config.get_value("equipped", String(key), fallback)), 0, 9)
+		equipped_weapons[key] = clampi(int(config.get_value("equipped", String(key), fallback)), 0, 13)
 	for key in equipped_skins.keys():
 		equipped_skins[key] = clampi(int(config.get_value("skin", String(key), 0)), 0, 2)
 
@@ -381,7 +391,7 @@ func is_weapon_enabled(character_key: String) -> bool:
 
 
 func get_equipped_weapon(character_key: String) -> int:
-	return clampi(int(equipped_weapons.get(character_key, 0)), 0, 9)
+	return clampi(int(equipped_weapons.get(character_key, 0)), 0, 13)
 
 
 func set_equipped_weapon(character_key: String, weapon_id: int) -> bool:
@@ -720,7 +730,7 @@ func buy_wing(wing_id: int, cost: int) -> bool:
 
 
 func buy_weapon(weapon_id: int, cost: int) -> bool:
-	var known_item := (weapon_id >= 1 and weapon_id <= 9) or (weapon_id >= 101 and weapon_id <= 102)
+	var known_item := (weapon_id >= 1 and weapon_id <= 13) or (weapon_id >= 101 and weapon_id <= 102)
 	if not known_item or cost <= 0 or weapon_id in unlocked_weapons:
 		return false
 	if player_id <= 0 or not profile_loaded or pending_purchase_type != "":
@@ -769,7 +779,7 @@ func _on_profile_loaded(success: bool, loaded_player_id: int, server_shards: int
 			unlocked_wings.append(parsed_wing_id)
 	for weapon_id in server_weapons:
 		var parsed_weapon_id := int(weapon_id)
-		var known_weapon := (parsed_weapon_id >= 1 and parsed_weapon_id <= 9) or (parsed_weapon_id >= 101 and parsed_weapon_id <= 102)
+		var known_weapon := (parsed_weapon_id >= 1 and parsed_weapon_id <= 13) or (parsed_weapon_id >= 101 and parsed_weapon_id <= 102)
 		if known_weapon and parsed_weapon_id not in unlocked_weapons:
 			unlocked_weapons.append(parsed_weapon_id)
 	var loadout_changed := false
@@ -820,6 +830,41 @@ func _on_purchase_completed(success: bool, purchase_type: String, item_id: int, 
 		elif purchase_type == "weapon" and item_id not in unlocked_weapons:
 			unlocked_weapons.append(item_id)
 	purchase_updated.emit(success, purchase_type, item_id, sky_shards)
+
+
+func _connect_daily_quests() -> void:
+	var daily := get_node_or_null("/root/DailyQuests")
+	if daily == null:
+		return
+	if daily.has_signal("changed") and not daily.is_connected("changed", _on_daily_quests_changed):
+		daily.connect("changed", _on_daily_quests_changed)
+
+
+func _on_daily_quests_changed() -> void:
+	# The badge lives in DailyQuests; this only refreshes the shard counter and
+	# the panels that cache profile data. DailyQuests itself blocks a forced
+	# request from inside this signal, so the chain cannot loop on the network.
+	profile_updated.emit()
+
+
+# A reroll costs shards and a weekly claim grants them; both endpoints return
+# the authoritative balance. Keep it even when the amount is unchanged.
+func _on_quests_rerolled(success: bool, _slot: int, data: Dictionary, _error: String) -> void:
+	if success:
+		_apply_quest_shards(data)
+
+
+func _on_weekly_claimed(success: bool, data: Dictionary, _error: String) -> void:
+	if success:
+		_apply_quest_shards(data)
+
+
+func _apply_quest_shards(data: Dictionary) -> void:
+	if not data.has("new_shards"):
+		return
+	sky_shards = maxi(0, int(data.get("new_shards", sky_shards)))
+	_save_meta()
+	profile_updated.emit()
 
 
 func record_match_result(won: bool, place: int, match_stats: Dictionary, xp: int, shards: int) -> void:

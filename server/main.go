@@ -175,7 +175,10 @@ type playerProfileResponse struct {
 	LastWarningReason   string         `json:"last_warning_reason,omitempty"`
 	LastWarningAt       int64          `json:"last_warning_at"`
 	SessionToken        string         `json:"session_token,omitempty"`
-	Error               string         `json:"error,omitempty"`
+	// Daily is the compact daily-quests block requested by the lobby. It is
+	// built by quests.go; a quest failure never blocks the profile itself.
+	Daily *dailySummary `json:"daily,omitempty"`
+	Error string        `json:"error,omitempty"`
 }
 
 type buyWingRequest struct {
@@ -423,6 +426,9 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	mux.HandleFunc("/register", service.handleRegister)
 	mux.HandleFunc("/session", service.handleSession)
 	mux.HandleFunc("/profile", service.handleProfile)
+	mux.HandleFunc("/quests", service.handleQuests)
+	mux.HandleFunc("/quests/reroll", service.handleQuestReroll)
+	mux.HandleFunc("/quests/weekly_claim", service.handleWeeklyClaim)
 	mux.HandleFunc("/progress", service.handleProgress)
 	mux.HandleFunc("/rename", service.handleRename)
 	mux.HandleFunc("/report", service.handleReport)
@@ -982,22 +988,24 @@ const (
 // limiter. GET, static files, the WebSocket and stats ingestion are excluded:
 // they are either read-only or already have their own pacing.
 var rateLimitedPostPaths = map[string]struct{}{
-	"/register":           {},
-	"/session":            {},
-	"/progress":           {},
-	"/rename":             {},
-	"/report":             {},
-	"/buy_wing":           {},
-	"/buy_weapon":         {},
-	"/match_reward":       {},
-	"/ad_interstitial":    {},
-	"/account/delete":     {},
-	"/compensation":       {},
-	"/admin/grant_shards": {},
-	"/auth/vk":            {},
-	"/auth/ok":            {},
-	"/vk/pay":             {},
-	"/ok/pay":             {},
+	"/register":            {},
+	"/session":             {},
+	"/progress":            {},
+	"/rename":              {},
+	"/report":              {},
+	"/buy_wing":            {},
+	"/buy_weapon":          {},
+	"/match_reward":        {},
+	"/ad_interstitial":     {},
+	"/account/delete":      {},
+	"/compensation":        {},
+	"/admin/grant_shards":  {},
+	"/auth/vk":             {},
+	"/auth/ok":             {},
+	"/vk/pay":              {},
+	"/ok/pay":              {},
+	"/quests/reroll":       {},
+	"/quests/weekly_claim": {},
 }
 
 // rateLimitPOST stops one client from hammering the mutating API. The bucket
@@ -1122,6 +1130,11 @@ func createSchema(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 	if err := createMatchesTable(ctx, db); err != nil {
+		return err
+	}
+	// Daily quests: the table set and the new `matches` columns come from
+	// quests.go, because the same schema is used by the quest endpoints.
+	if err := ensureQuestSchema(ctx, db); err != nil {
 		return err
 	}
 	if err := createPaymentsTable(ctx, db); err != nil {
@@ -1609,6 +1622,14 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	daily, dailyErr := buildDailySummary(r.Context(), service.db, playerID)
+	if dailyErr != nil {
+		// The lobby must still load when a quest table is missing or slow:
+		// the field stays nil and only the quest block disappears.
+		log.Printf("build daily summary player=%d: %v", playerID, dailyErr)
+		daily = nil
+	}
+
 	writeJSON(w, http.StatusOK, playerProfileResponse{
 		Success:             true,
 		PlayerID:            playerID,
@@ -1632,6 +1653,7 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 		LastWarningReason:   lastWarningReason,
 		LastWarningAt:       lastWarningAt,
 		SessionToken:        storedToken,
+		Daily:               daily,
 	})
 }
 

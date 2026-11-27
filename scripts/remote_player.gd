@@ -18,6 +18,11 @@ const HEALTH_BAR_3D := preload("res://scripts/health_bar_3d.gd")
 # Mirrors HeroUnit.BUSH_REVEAL_DURATION: attacking or taking a hit reveals
 # the player for three seconds.
 const BUSH_REVEAL_DURATION := 3.0
+# Enemy nicknames/HP bars appear only within the same 10 m the vision rule and
+# the fog plane use (game.gd FOG_VIEW_RADIUS, hero.gd enemy names). The timer
+# only has to keep up with the fog refresh.
+const NAME_VIEW_DISTANCE := 10.0
+const NAME_REFRESH_INTERVAL := 0.2
 
 var peer_id := 0
 var display_name := ""
@@ -57,6 +62,11 @@ var bush_reveal_timer := 0.0
 var bush_hidden := false
 var _bush_visual_hidden := false
 var _bush_meshes: Array[MeshInstance3D] = []
+# Distance/line-of-sight occlusion from the local team's viewpoint, driven by
+# game.gd exactly like HeroUnit.occluded_from_player.
+var occluded_from_player := false
+var _name_refresh_timer := 0.0
+var _placeholder_body: MeshInstance3D = null
 
 
 func setup(player_id: int, info: Dictionary) -> void:
@@ -217,6 +227,10 @@ func _process(delta: float) -> void:
 		bush_reveal_timer = maxf(0.0, bush_reveal_timer - delta)
 		if bush_reveal_timer <= 0.0:
 			_refresh_bush_visuals()
+	_name_refresh_timer -= delta
+	if _name_refresh_timer <= 0.0:
+		_name_refresh_timer = NAME_REFRESH_INTERVAL
+		_refresh_visibility()
 	if dead or not _has_target:
 		return
 	var weight := 1.0 - exp(-14.0 * delta)
@@ -272,13 +286,12 @@ func _refresh_bush_visuals() -> void:
 	if hidden_now == _bush_visual_hidden:
 		return
 	_bush_visual_hidden = hidden_now
-	_set_name_visible(not hidden_now and not dead)
 	for mesh_instance in _bush_meshes:
 		if mesh_instance != null and is_instance_valid(mesh_instance):
 			mesh_instance.transparency = 0.5 if hidden_now else 0.0
 	# Never touch the 3D quad here: it stays hidden for good. The 2D bar is a
 	# child of the nickname, so this update hides/shows both at once.
-	_update_health_bar()
+	_refresh_visibility()
 
 
 func _collect_bush_meshes(root: Node) -> Array[MeshInstance3D]:
@@ -420,6 +433,7 @@ func _build_placeholder() -> void:
 	material.albedo_color = CLASS_COLORS[hero_class]
 	body.material_override = material
 	add_child(body)
+	_placeholder_body = body
 
 
 func _build_name_label() -> void:
@@ -459,6 +473,107 @@ func _set_name_visible(shown: bool) -> void:
 			_name_label.call("set_health_visible", shown and not dead)
 
 
+## Hides the body, the nickname and the HP bar when the local team cannot see
+## this player (10 m rule, bushes, line of sight), driven by game.gd like
+## HeroUnit.set_occluded_from_player(). Death and bush fades keep priority.
+func set_occluded_from_player(occluded: bool) -> void:
+	if occluded_from_player == occluded:
+		return
+	occluded_from_player = occluded
+	_refresh_visibility()
+
+
+func is_within_view_distance(observer: Node3D, view_radius: float) -> bool:
+	if observer == null or not is_instance_valid(observer):
+		return false
+	var offset := Vector2(global_position.x - observer.global_position.x, global_position.z - observer.global_position.z)
+	return offset.length_squared() <= view_radius * view_radius
+
+
+## Same contract as HeroUnit.is_hidden_from(): the shard carrier is the match
+## objective and always visible, a teammate never counts as hidden, and an
+## observer standing in the same bush sees through the leaves.
+func is_hidden_from(observer: Node3D) -> bool:
+	if carrying or observer == null or not is_instance_valid(observer):
+		return false
+	if not _is_bush_concealed_now():
+		return false
+	var observer_team: Variant = observer.get("team")
+	if observer_team != null and int(observer_team) == team:
+		return false
+	var observer_zones: Variant = observer.get("bush_zones")
+	if observer_zones is Array:
+		var zones: Array = observer_zones
+		for zone in bush_zones:
+			if zones.has(zone):
+				return false
+	return true
+
+
+func _is_bush_concealed_now() -> bool:
+	# The bush state itself is computed by game.gd (RemotePlayer has no physics
+	# body); this is the same test the visuals use, minus carrying/dead guards
+	# that the caller already applied.
+	return bush_hidden and in_bush and bush_reveal_timer <= 0.0 and not dead
+
+
+## Single source of what the local player sees, mirroring
+## HeroUnit._update_name_visibility(): death and distance occlusion hide the
+## body; death, bushes and occlusion hide the nickname/HP bar; an enemy
+## nickname also needs a living local-team member within NAME_VIEW_DISTANCE.
+func _refresh_visibility() -> void:
+	var body_shown := not dead and not occluded_from_player
+	_set_body_visible(body_shown)
+	var name_shown := body_shown and not _bush_visual_hidden
+	if name_shown and not _is_ally() and not _has_ally_within_view():
+		name_shown = false
+	_set_name_visible(name_shown)
+	_update_health_bar()
+
+
+func _set_body_visible(shown: bool) -> void:
+	if _model_root != null and is_instance_valid(_model_root):
+		_model_root.visible = shown
+	elif _placeholder_body != null and is_instance_valid(_placeholder_body):
+		_placeholder_body.visible = shown
+
+
+func _has_ally_within_view() -> bool:
+	if game == null or not is_instance_valid(game):
+		return false
+	var player_node := game.get("player") as Node3D
+	if player_node == null or not is_instance_valid(player_node):
+		return false
+	var local_team := int(player_node.get("team"))
+	var origin := global_position
+	var heroes: Variant = game.get("heroes")
+	if heroes is Array:
+		var hero_list: Array = heroes
+		for other in hero_list:
+			if _is_vision_ally(other, local_team, origin):
+				return true
+	var remotes: Variant = game.get("remote_players")
+	if remotes is Dictionary:
+		var remote_map: Dictionary = remotes
+		for other in remote_map.values():
+			if _is_vision_ally(other, local_team, origin):
+				return true
+	return false
+
+
+func _is_vision_ally(other: Variant, local_team: int, origin: Vector3) -> bool:
+	if other == null or not is_instance_valid(other) or other == self:
+		return false
+	var other_node := other as Node3D
+	if other_node == null:
+		return false
+	if int(other.get("team")) != local_team or bool(other.get("dead")):
+		return false
+	var dx := other_node.global_position.x - origin.x
+	var dz := other_node.global_position.z - origin.z
+	return dx * dx + dz * dz <= NAME_VIEW_DISTANCE * NAME_VIEW_DISTANCE
+
+
 func _is_ally() -> bool:
 	if game != null and is_instance_valid(game) and game.player != null and is_instance_valid(game.player):
 		return team == int(game.player.team)
@@ -490,7 +605,9 @@ func _update_health_bar() -> void:
 		_health_fill.visible = false
 	if _name_label != null and is_instance_valid(_name_label) and _name_label.has_method("set_health"):
 		_name_label.call("set_health", ratio, _name_tag_color())
-		_name_label.call("set_health_visible", not dead and not _bush_visual_hidden)
+		# Same contract as HeroUnit._refresh_name_health_bar(): the bar lives in
+		# the nickname, so it is drawn exactly while the nickname is drawn.
+		_name_label.call("set_health_visible", _name_label.visible and not dead)
 
 
 func take_damage(amount: float, source: Node = null, _damage_type := "physical", skill := "auto", is_crit := false) -> void:
@@ -584,8 +701,7 @@ func apply_network_respawn(position: Vector3, rotation_y: float) -> void:
 	target_rotation = rotation_y
 	_has_target = true
 	visible = true
-	_set_name_visible(not _bush_visual_hidden)
-	_update_health_bar()
+	_refresh_visibility()
 	if _model_root != null:
 		_play_idle(_model_root)
 

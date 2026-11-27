@@ -66,22 +66,25 @@ const FOG_OF_WAR_SHADER_PATH := "res://shaders/fog_of_war.gdshader"
 const FOG_VIEW_RADIUS := 10.0
 # Visual fog of war. Enemy visibility itself is scripted (_update_enemy_visibility
 # hides enemies behind FOG_VIEW_RADIUS); the fog plane is the *look* of that rule:
-# a soft dark band that covers the floor (and the legs of distant heroes) where
-# vision ends, so a hero appearing at the vision border does not pop out of a
-# brightly lit floor. The clear hole scales with the camera distance: a fixed
-# radius is a tight vignette on a phone and a full-screen blackout on a zoomed-out
-# desktop, so it is a share of what the camera actually shows.
-const FOG_HOLE_FACTOR := 0.38
-const FOG_HOLE_MIN := 4.5
-const FOG_HOLE_MAX := 18.0
-const FOG_EDGE_FACTOR := 0.8
-const FOG_OPACITY := 0.82
-const FOG_COLOR := Color(0.2, 0.24, 0.36)
-# Fog sits a little above the floor: a ground-level plane only darkens the floor
-# and distant heroes keep floating on it in full light. At ~1.35 a hero at the
-# vision border is buried up to the chest, so it emerges from the mist instead
-# of popping in.
-const FOG_PLANE_HEIGHT := 1.5
+# a black band that covers the floor where vision ends. The hole is fixed at
+# FOG_VIEW_RADIUS with FOG_VISUAL_EDGE metres of soft border at every zoom level,
+# so what the screen shows agrees with the 10 m rule the code applies.
+# The old hole scaled with the camera distance, which made the visible border
+# disagree with the 10 m nickname/enemy rule (and with the zoom).
+const FOG_VISUAL_EDGE := 3.0
+# Pure black at 0.82 still reads as grey over a lit floor; 0.95 is nearly solid
+# and leaves just enough of the floor under it to feel like ground. Raise to
+# 1.0 for a hard blackout, lower for the old soft look.
+const FOG_OPACITY := 0.95
+const FOG_COLOR := Color(0.0, 0.0, 0.0, 1.0)
+# The plane lies on the floor. At 1.5 it cut through bushes (2.3 m tall), rocks
+# and heroes with a hard horizontal line. It has to stay above the ground
+# overlays, though: grass sits at ~0.08-0.12, the plaza at 0.15, stone pads at
+# 0.16, plaza borders at 0.17 and the crystal-base rings at 0.24, so anything
+# lower leaves bright discs (the plaza) inside the black fog. 0.28 clears all of
+# them and still slices only the very bottom of a bush: bodies are hidden by the
+# scripted 10 m rule anyway, so the visual fog only has to darken the ground.
+const FOG_PLANE_HEIGHT := 0.28
 # Landmarks farther than this are off screen anyway; keeping them out of the
 # orb list leaves the slots for nearby teammates.
 const FOG_LANDMARK_RANGE := 24.0
@@ -2404,8 +2407,8 @@ func _create_fog_of_war() -> void:
 	fog_of_war_plane.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
 	fog_of_war_material = ShaderMaterial.new()
 	fog_of_war_material.shader = fog_shader
-	fog_of_war_material.set_shader_parameter("view_radius", FOG_HOLE_MIN)
-	fog_of_war_material.set_shader_parameter("edge_softness", FOG_HOLE_MIN * FOG_EDGE_FACTOR)
+	fog_of_war_material.set_shader_parameter("view_radius", FOG_VIEW_RADIUS)
+	fog_of_war_material.set_shader_parameter("edge_softness", FOG_VISUAL_EDGE)
 	fog_of_war_material.set_shader_parameter("fog_opacity", FOG_OPACITY)
 	fog_of_war_material.set_shader_parameter("fog_color", FOG_COLOR)
 	fog_of_war_material.set_shader_parameter("arena_half_extent", Vector2(ARENA_SAFE_HALF_X, ARENA_SAFE_HALF_Z))
@@ -2435,11 +2438,12 @@ func _update_fog_of_war() -> void:
 		return
 
 	var vision_points := _fog_vision_points()
-	var hole := clampf(camera_distance * FOG_HOLE_FACTOR, FOG_HOLE_MIN, FOG_HOLE_MAX)
-	if not is_equal_approx(hole, fog_hole_radius):
-		fog_hole_radius = hole
-		fog_of_war_material.set_shader_parameter("view_radius", hole)
-		fog_of_war_material.set_shader_parameter("edge_softness", hole * FOG_EDGE_FACTOR)
+	# Fixed 10 m hole + soft border: independent of camera_distance/zoom so the
+	# visible border never disagrees with the enemy-visibility rule.
+	if not is_equal_approx(FOG_VIEW_RADIUS, fog_hole_radius):
+		fog_hole_radius = FOG_VIEW_RADIUS
+		fog_of_war_material.set_shader_parameter("view_radius", FOG_VIEW_RADIUS)
+		fog_of_war_material.set_shader_parameter("edge_softness", FOG_VISUAL_EDGE)
 	var primary_position := player.global_position
 	var ally_position_1 := Vector3(100000.0, 0.0, 100000.0)
 	var ally_position_2 := Vector3(100000.0, 0.0, 100000.0)
@@ -2560,11 +2564,21 @@ func _update_enemy_visibility() -> void:
 		return
 	var excluded_rids: Array[RID] = []
 	var vision_allies: Array[HeroUnit] = []
+	# Node3D view of the same allies, plus human teammates, so RemotePlayer
+	# targets can be checked without breaking the HeroUnit-typed API.
+	var vision_ally_nodes: Array[Node3D] = []
+	var local_team := int(player.team)
 	for hero in heroes:
 		if hero != null and is_instance_valid(hero):
 			excluded_rids.append(hero.get_rid())
 			if hero.team == player.team and not hero.dead:
 				vision_allies.append(hero)
+				vision_ally_nodes.append(hero)
+	for remote in remote_players.values():
+		if remote == null or not is_instance_valid(remote):
+			continue
+		if int(remote.get("team")) == local_team and not bool(remote.get("dead")):
+			vision_ally_nodes.append(remote as Node3D)
 	var space_state := get_world_3d().direct_space_state
 	for hero in heroes:
 		if hero == null or not is_instance_valid(hero):
@@ -2581,6 +2595,37 @@ func _update_enemy_visibility() -> void:
 				seen_by_team = true
 				break
 		hero.set_occluded_from_player(not seen_by_team)
+	# Remote players (human guests and host bots puppeted on a guest) follow the
+	# exact same rule: 10 m from any living teammate, not in a bush relative to
+	# that teammate, and a clear line of sight. RemotePlayer then hides its body,
+	# nickname and HP bar.
+	for remote in remote_players.values():
+		if remote == null or not is_instance_valid(remote):
+			continue
+		if int(remote.get("team")) == local_team or bool(remote.get("dead")):
+			remote.call("set_occluded_from_player", false)
+			continue
+		var remote_node := remote as Node3D
+		if remote_node == null:
+			continue
+		var remote_seen := false
+		var remote_target_position := remote_node.global_position + Vector3(0.0, 1.15, 0.0)
+		for ally in vision_ally_nodes:
+			if not _within_view_distance(remote_node, ally, FOG_VIEW_RADIUS):
+				continue
+			if bool(remote.call("is_hidden_from", ally)):
+				continue
+			if _has_clear_vision(space_state, ally.global_position + Vector3(0.0, 1.15, 0.0), remote_target_position, excluded_rids):
+				remote_seen = true
+				break
+		remote.call("set_occluded_from_player", not remote_seen)
+
+
+func _within_view_distance(target: Node3D, observer: Node3D, view_radius: float) -> bool:
+	if target == null or observer == null or not is_instance_valid(target) or not is_instance_valid(observer):
+		return false
+	var offset := Vector2(target.global_position.x - observer.global_position.x, target.global_position.z - observer.global_position.z)
+	return offset.length_squared() <= view_radius * view_radius
 
 
 func _has_clear_vision(space_state: PhysicsDirectSpaceState3D, from: Vector3, to: Vector3, excluded_rids: Array[RID]) -> bool:

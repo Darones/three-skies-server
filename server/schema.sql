@@ -65,6 +65,19 @@ ALTER TABLE matches ADD COLUMN IF NOT EXISTS reward_shards INTEGER DEFAULT 0;
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS reward_xp INTEGER DEFAULT 0;
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS reward_character TEXT DEFAULT '';
 
+-- Daily-quest counters. Every value is derived from server-validated match
+-- events (see ws.go); the client never reports them. No unique index on
+-- (room_id, player_id) in this wave: old deployments contain duplicates and
+-- reward idempotency is already guarded by SELECT ... FOR UPDATE.
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS duration_sec INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS kills INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS deaths INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS damage INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS crystals INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS shells INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS shop_items INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS class_key TEXT NOT NULL DEFAULT '';
+
 CREATE TABLE IF NOT EXISTS payments (
     id BIGSERIAL PRIMARY KEY,
     platform TEXT NOT NULL,
@@ -97,3 +110,50 @@ ALTER TABLE reports ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS reports_created_idx ON reports (created_at);
 CREATE INDEX IF NOT EXISTS reports_status_idx ON reports (status, created_at);
 CREATE INDEX IF NOT EXISTS reports_reported_player_idx ON reports (reported_player_id);
+
+-- Daily quests (docs/DAILY-QUESTS-SPEC.md). One row per player per quest day
+-- (04:00 MSK to 03:59 MSK); the three quest rows live in daily_quests.
+CREATE TABLE IF NOT EXISTS daily_quest_days (
+    player_id        BIGINT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    quest_day        DATE   NOT NULL,
+    seed             BIGINT NOT NULL,
+    reroll_seq       SMALLINT NOT NULL DEFAULT 0,
+    free_reroll_used BOOLEAN  NOT NULL DEFAULT FALSE,
+    paid_rerolls     SMALLINT NOT NULL DEFAULT 0,
+    completed_count  SMALLINT NOT NULL DEFAULT 0,
+    all_done_bonus   BOOLEAN  NOT NULL DEFAULT FALSE,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (player_id, quest_day)
+);
+CREATE INDEX IF NOT EXISTS daily_quest_days_day_idx ON daily_quest_days (quest_day);
+
+CREATE TABLE IF NOT EXISTS daily_quests (
+    player_id     BIGINT NOT NULL,
+    quest_day     DATE   NOT NULL,
+    slot          SMALLINT NOT NULL,
+    template_id   TEXT NOT NULL,
+    metric        TEXT NOT NULL,
+    target        INTEGER NOT NULL,
+    progress      INTEGER NOT NULL DEFAULT 0,
+    reward_shards SMALLINT NOT NULL,
+    reward_xp     SMALLINT NOT NULL,
+    rerolled      BOOLEAN NOT NULL DEFAULT FALSE,
+    completed_at  TIMESTAMPTZ,
+    PRIMARY KEY (player_id, quest_day, slot),
+    FOREIGN KEY (player_id, quest_day)
+        REFERENCES daily_quest_days (player_id, quest_day) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS daily_quests_day_idx ON daily_quests (quest_day);
+
+-- One claimed weekly reward per player per week: the primary key is the
+-- idempotency guard, so a replayed weekly_claim never pays twice.
+CREATE TABLE IF NOT EXISTS weekly_grants (
+    player_id   BIGINT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    week_start  DATE   NOT NULL,
+    tier        SMALLINT NOT NULL,
+    reward_kind TEXT NOT NULL,
+    item_id     INTEGER NOT NULL DEFAULT 0,
+    shards      INTEGER NOT NULL DEFAULT 0,
+    granted_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (player_id, week_start)
+);

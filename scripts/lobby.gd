@@ -69,6 +69,7 @@ const SETTINGS_GEAR_ICON: Texture2D = preload("res://ui/icons/settings_gear.png"
 const WeaponCatalog = preload("res://scripts/weapon_catalog.gd")
 const SkinCatalog = preload("res://scripts/skin_catalog.gd")
 const TOUCH_SCROLL := preload("res://scripts/touch_scroll.gd")
+const DAILY_QUESTS_PANEL := preload("res://scripts/daily_quests_panel.gd")
 const NICKNAME_CHANGE_COST := 100
 # Гостевой ник: те же границы, что у сервера, плюс зарезервированные имена.
 const GUEST_NICK_MIN_LENGTH := 3
@@ -76,8 +77,6 @@ const GUEST_NICK_MAX_LENGTH := 32
 const GUEST_NICK_MAX_ATTEMPTS := 20
 const GUEST_NICK_RESERVED := ["бот", "bot", "игрок", "администратор", "модератор"]
 const GUEST_NICK_RESERVED_PREFIXES := ["бот", "bot"]
-const NOVICE_MATCH_LIMIT := 10
-const NOVICE_STATUS_HINT := "Первые бои с новичками и лёгкими ботами"
 const SHOP_2H_SWORD_ICON: Texture2D = preload("res://ui/icons/legendary_greatsword.png")
 const SHOP_WAND_ICON: Texture2D = preload("res://ui/icons/gear_wand.png")
 const SHOP_STAFF_ICON: Texture2D = preload("res://ui/icons/legendary_staff.png")
@@ -220,9 +219,11 @@ var stats_tab := "all"
 var stats_tab_buttons: Dictionary = {}
 var welcome_overlay: WELCOME_OVERLAY_SCRIPT
 var welcome_wait_token := 0
-var novice_status: PanelContainer
-var novice_status_title: Label
-var novice_status_hint: Label
+var daily_quests_panel: Control
+var daily_quests_button: Button
+var daily_quests_badge: Label
+var inventory_scroll: ScrollContainer
+var _daily_quests_saved_scroll := 0
 var moderation_ban_overlay: ColorRect
 var moderation_ban_reason_label: Label
 var moderation_warning_overlay: ColorRect
@@ -231,10 +232,8 @@ var moderation_warning_ok_button: Button
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_RESIZED and lobby_logo != null:
-		_layout_lobby_logo()
-	if what == NOTIFICATION_RESIZED and novice_status != null:
-		_layout_novice_status()
+	if what == NOTIFICATION_RESIZED:
+		call_deferred("_layout_lobby_layout")
 
 
 func _ready() -> void:
@@ -251,7 +250,6 @@ func _ready() -> void:
 	_build_background()
 	_build_header()
 	_build_player_profile()
-	_build_novice_status()
 	_build_shard_shop_button()
 	_build_hero_cards()
 	_build_actions()
@@ -259,6 +257,7 @@ func _ready() -> void:
 	_build_rules_panel()
 	_build_shard_shop()
 	_build_player_menu()
+	_build_daily_quests()
 	_build_nickname_popup()
 	_build_rename_confirm()
 	_build_report_form()
@@ -349,9 +348,8 @@ func _ready() -> void:
 		get_tree().set_meta("open_rules_on_lobby", false)
 		call_deferred("_open_rules")
 	_register_ui_layout()
-	# UiLayout applies the mobile profile rect one frame after registration,
-	# so place the status plate against the real rect, not the default one.
-	call_deferred("_layout_novice_status_later")
+	_layout_lobby_layout()
+	call_deferred("_layout_lobby_layout")
 	if DeviceProfile.edit_mode and DeviceProfile.auto_battle:
 		_editor_start_battle()
 	elif DeviceProfile.edit_mode and DeviceProfile.edit_screen == "inventory":
@@ -554,30 +552,52 @@ func _layout_lobby_logo() -> void:
 	if UiLayout.has_override("lobby.logo"):
 		return
 	var viewport_size := get_viewport_rect().size
-	var card_top := viewport_size.y * 0.5 - 173.0
-	var available_height := maxf(0.0, card_top - 16.0)
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return
 	var aspect_ratio := lobby_logo.texture.get_size().x / maxf(1.0, lobby_logo.texture.get_size().y)
-	var display_height := minf(available_height, minf(200.0, viewport_size.y * 0.44))
-	var display_width := minf(500.0, minf(viewport_size.x * 0.9, display_height * aspect_ratio))
-	display_height = display_width / aspect_ratio
-	lobby_logo.visible = true
-	lobby_logo.anchor_left = 0.5
-	lobby_logo.anchor_right = 0.5
+	var display_width := 0.0
+	var top := 10.0
+	if DeviceProfile.mobile_ui:
+		# The mobile logo keeps the baked rect / old formula: the phone layout
+		# has no room for the desktop hero area.
+		var card_top := viewport_size.y * 0.5 - 173.0
+		var available_height := maxf(0.0, card_top - 16.0)
+		var display_height := minf(available_height, minf(200.0, viewport_size.y * 0.44))
+		display_width = minf(500.0, minf(viewport_size.x * 0.9, display_height * aspect_ratio))
+		top = 8.0
+	else:
+		# Approved desktop layout: min(320, W*0.22), centre X, top 10.
+		display_width = minf(320.0, viewport_size.x * 0.22)
+	var display_height := display_width / aspect_ratio
+	lobby_logo.anchor_left = 0.0
+	lobby_logo.anchor_right = 0.0
 	lobby_logo.anchor_top = 0.0
 	lobby_logo.anchor_bottom = 0.0
-	lobby_logo.offset_left = -display_width * 0.5
-	lobby_logo.offset_top = 8.0
-	lobby_logo.offset_right = display_width * 0.5
-	lobby_logo.offset_bottom = 8.0 + display_height
+	var left := (viewport_size.x - display_width) * 0.5
+	lobby_logo.offset_left = left
+	lobby_logo.offset_top = top
+	lobby_logo.offset_right = left + display_width
+	lobby_logo.offset_bottom = top + display_height
 
 
 func _build_player_profile() -> void:
 	profile_button = Button.new()
 	profile_button.name = "PlayerProfile"
-	profile_button.anchor_left = 0.02
-	profile_button.anchor_top = 0.025
-	profile_button.anchor_right = 0.265
-	profile_button.anchor_bottom = 0.16
+	if DeviceProfile.mobile_ui:
+		profile_button.anchor_left = 0.02
+		profile_button.anchor_top = 0.025
+		profile_button.anchor_right = 0.265
+		profile_button.anchor_bottom = 0.16
+	else:
+		# Desktop layout (approved mock): fixed card under the logo, 360x100.
+		profile_button.anchor_left = 0.0
+		profile_button.anchor_top = 0.0
+		profile_button.anchor_right = 0.0
+		profile_button.anchor_bottom = 0.0
+		profile_button.offset_left = 28.0
+		profile_button.offset_top = 18.0
+		profile_button.offset_right = 388.0
+		profile_button.offset_bottom = 118.0
 	profile_button.focus_mode = Control.FOCUS_NONE
 	profile_button.add_theme_stylebox_override("normal", _action_style_borderless(false))
 	profile_button.add_theme_stylebox_override("hover", _action_style_borderless(true))
@@ -690,137 +710,308 @@ func _build_player_profile() -> void:
 	xp_row.add_child(_shard_icon(14))
 
 
-## A quiet status plate under the player card: it tells a new player that the
-## first matches are gentle and how many of them are left. It is never a
-## dialog, a button or a blocking overlay, and it disappears by itself once the
-## server profile leaves the novice pool.
-## Same frame language as the selected hero card in the middle: the class
-## colour of that hero, 2 px, the card corner radius and a soft glow. The dark
-## plate and the inner padding stay, so the text size and position do not move.
-func _novice_status_style() -> StyleBoxFlat:
-	var frame_color: Color = CLASS_FRAME_COLORS.get(selected_class, GOLD)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.035, 0.05, 0.08, 0.78)
-	style.border_color = frame_color
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(16)
-	style.shadow_color = Color(frame_color.r, frame_color.g, frame_color.b, 0.32)
-	style.shadow_size = 8
-	style.shadow_offset = Vector2.ZERO
-	style.content_margin_left = 10.0
-	style.content_margin_right = 10.0
-	style.content_margin_top = 7.0
-	style.content_margin_bottom = 8.0
-	return style
+# ---------------------------------------------------------------------------
+# Ежедневные задания
 
 
-func _build_novice_status() -> void:
-	novice_status = PanelContainer.new()
-	novice_status.name = "NoviceStatus"
-	novice_status.z_index = 6
-	novice_status.visible = false
-	# A status plate, not a control: taps pass through to the lobby.
-	novice_status.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# TODO: after moderation is live this plate may become a tap target; today
-	# it stays informational only, exactly as before (26.11.2026, user request).
-	novice_status.add_theme_stylebox_override("panel", _novice_status_style())
-	add_child(novice_status)
+## Desktop: стол в лобби на месте старой плашки (x=28, top=122.4,
+## width=min(380, W*0.27)). Mobile: оверлей z=42, который
+## открывается жёлтой кнопкой из инвентаря.
+func _build_daily_quests() -> void:
+	daily_quests_panel = DAILY_QUESTS_PANEL.new() as Control
+	if DeviceProfile.mobile_ui:
+		daily_quests_panel.name = "DailyQuestsOverlay"
+		daily_quests_panel.set("mode", DAILY_QUESTS_PANEL.MODE_OVERLAY)
+		add_child(daily_quests_panel)
+	else:
+		daily_quests_panel.name = "DailyQuestsTable"
+		daily_quests_panel.set("mode", DAILY_QUESTS_PANEL.MODE_INLINE)
+		# Approved desktop layout: fixed left/top, width is computed in
+		# _layout_daily_quests_table (min(380, W*0.27)).
+		daily_quests_panel.anchor_left = 0.0
+		daily_quests_panel.anchor_right = 0.0
+		daily_quests_panel.anchor_top = 0.0
+		daily_quests_panel.anchor_bottom = 0.0
+		daily_quests_panel.offset_left = 28.0
+		daily_quests_panel.offset_right = 408.0
+		daily_quests_panel.offset_top = 122.4
+		daily_quests_panel.offset_bottom = 170.4
+		daily_quests_panel.z_index = 6
+		add_child(daily_quests_panel)
+		_layout_daily_quests_table()
+	daily_quests_panel.connect("reroll_requested", _on_daily_quest_reroll_requested)
+	daily_quests_panel.connect("weekly_claim_requested", _on_daily_quest_weekly_claimed)
+	daily_quests_panel.connect("closed", _on_daily_quests_overlay_closed)
+	daily_quests_panel.connect("data_changed", _on_daily_quests_data_changed)
+	var source := _daily_quests_source()
+	if source != null:
+		if source.has_signal("failed") and not source.is_connected("failed", Callable(self, "_on_daily_quest_failed")):
+			source.connect("failed", Callable(self, "_on_daily_quest_failed"))
+	_refresh_daily_quests()
 
-	var column := VBoxContainer.new()
-	column.name = "NoviceStatusColumn"
-	column.add_theme_constant_override("separation", 1)
-	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	novice_status.add_child(column)
 
-	novice_status_title = _make_label("", 15, GOLD)
-	novice_status_title.name = "NoviceStatusTitle"
-	novice_status_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	novice_status_title.add_theme_font_size_override("font_size", _fs(15))
-	column.add_child(novice_status_title)
-
-	novice_status_hint = _make_label(NOVICE_STATUS_HINT, 13, Color(0.72, 0.78, 0.88))
-	novice_status_hint.name = "NoviceStatusHint"
-	novice_status_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	novice_status_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	novice_status_hint.add_theme_font_size_override("font_size", _fs(13))
-	column.add_child(novice_status_hint)
-
-
-func _refresh_novice_status() -> void:
-	if novice_status == null or not is_instance_valid(novice_status):
+## Жёлтая кнопка «ЗАДАНИЯ» 235x48 сразу под `menu_level_label` в колонке
+## профиля инвентаря. Бейдж 0/3 показывает выполненные задания дня.
+func _build_daily_quests_button(parent: VBoxContainer) -> void:
+	if not DeviceProfile.mobile_ui:
 		return
-	if novice_status_title == null or novice_status_hint == null:
-		return
-	# The plate wears the frame of the hero card selected in the middle, so it
-	# follows a class switch (gold warrior, blue mage, green huntress).
-	novice_status.add_theme_stylebox_override("panel", _novice_status_style())
-	# novice is server-owned; the count is a second guard so a stale profile
-	# can never keep the plate after ten matches.
-	var show_status := MetaProgression.novice and MetaProgression.matches_played < NOVICE_MATCH_LIMIT
-	novice_status.visible = show_status
-	if not show_status:
-		return
-	var played := clampi(MetaProgression.matches_played, 0, NOVICE_MATCH_LIMIT)
-	novice_status_title.text = "НОВИЧОК · %d из %d" % [played, NOVICE_MATCH_LIMIT]
-	_layout_novice_status()
+	var scale := _mobile_design_scale()
+	daily_quests_button = Button.new()
+	daily_quests_button.name = "DailyQuestsButton"
+	daily_quests_button.text = "ЗАДАНИЯ"
+	daily_quests_button.focus_mode = Control.FOCUS_NONE
+	daily_quests_button.custom_minimum_size = Vector2(235.0, 48.0) * scale
+	daily_quests_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	daily_quests_button.add_theme_font_override("font", font)
+	daily_quests_button.add_theme_font_size_override("font_size", _fs(18))
+	daily_quests_button.add_theme_color_override("font_color", Color(0.16, 0.1, 0.02))
+	daily_quests_button.add_theme_color_override("font_hover_color", Color(0.1, 0.06, 0.01))
+	daily_quests_button.add_theme_color_override("font_pressed_color", Color(0.1, 0.06, 0.01))
+	daily_quests_button.add_theme_stylebox_override("normal", _play_button_style(false, false))
+	daily_quests_button.add_theme_stylebox_override("hover", _play_button_style(true, false))
+	daily_quests_button.add_theme_stylebox_override("pressed", _play_button_style(true, false))
+	daily_quests_button.pressed.connect(_open_daily_quests_overlay)
+	parent.add_child(daily_quests_button)
+	daily_quests_badge = _make_label("0/3", 18, Color(0.2, 0.12, 0.03))
+	daily_quests_badge.name = "DailyQuestsBadge"
+	daily_quests_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	daily_quests_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	daily_quests_button.add_child(daily_quests_badge)
+	daily_quests_badge.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	daily_quests_badge.offset_left = 0.0
+	daily_quests_badge.offset_right = -12.0
+	daily_quests_badge.offset_top = 0.0
+	daily_quests_badge.offset_bottom = 0.0
+	daily_quests_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
-## Placed under the player card on desktop. The 844x390 mobile layout keeps
-## the logo in the whole left column under the player card, so there the plate
-## goes into the free strip between the player card and the shop button.
-## Measured from the real rects, so it stays clear of cards and buttons.
-func _layout_novice_status() -> void:
-	if novice_status == null or not is_instance_valid(novice_status) or profile_button == null:
+func _open_daily_quests_overlay() -> void:
+	if daily_quests_panel == null or not is_instance_valid(daily_quests_panel):
 		return
-	if novice_status_title == null or novice_status_hint == null:
+	if inventory_scroll != null and is_instance_valid(inventory_scroll):
+		_daily_quests_saved_scroll = inventory_scroll.scroll_vertical
+	_request_daily_quests()
+	_refresh_daily_quests()
+	if daily_quests_panel.has_method("open_overlay"):
+		daily_quests_panel.call("open_overlay")
+
+
+func _on_daily_quests_overlay_closed() -> void:
+	# Оверлей рисовался поверх инвентаря: возвращаем ровно тот же скролл.
+	_restore_inventory_scroll.call_deferred()
+
+
+func _restore_inventory_scroll() -> void:
+	if inventory_scroll == null or not is_instance_valid(inventory_scroll):
 		return
+	inventory_scroll.scroll_vertical = _daily_quests_saved_scroll
+
+
+func _refresh_daily_quests() -> void:
+	if daily_quests_panel == null or not is_instance_valid(daily_quests_panel):
+		return
+	daily_quests_panel.call("refresh_from_source")
+
+
+func _on_daily_quests_data_changed(completed: int, total: int) -> void:
+	if daily_quests_badge != null and is_instance_valid(daily_quests_badge):
+		daily_quests_badge.text = "%d/%d" % [completed, total]
+
+
+func _on_daily_quest_reroll_requested(slot: int) -> void:
+	var source := _daily_quests_source()
+	if source == null:
+		return
+	if source.has_method("reroll"):
+		source.call("reroll", slot)
+	elif source.has_method("request_reroll"):
+		source.call("request_reroll", slot)
+
+
+func _on_daily_quest_weekly_claimed(item_id: int) -> void:
+	var source := _daily_quests_source()
+	if source == null:
+		return
+	if source.has_method("claim_weekly"):
+		source.call("claim_weekly", item_id)
+	elif source.has_method("request_weekly_claim"):
+		source.call("request_weekly_claim", item_id)
+
+
+func _daily_quests_source() -> Node:
+	return get_node_or_null("/root/DailyQuests")
+
+
+## /profile даёт компактный daily-блок; полный /quests (строки, дни, замены)
+## запрашивается, когда профиль уже есть на сервере.
+func _request_daily_quests() -> void:
+	var source := _daily_quests_source()
+	if source == null:
+		return
+	if source.has_method("on_lobby_entered"):
+		source.call("on_lobby_entered")
+
+
+func _on_daily_quest_failed(error: String) -> void:
+	match error:
+		"limit":
+			_show_info("Замены на сегодня закончились. Бесплатная уже использована, платных больше нет.")
+		"shards":
+			_show_info("Не хватает осколков на замену.")
+		"completed":
+			_show_info("Выполненное задание заменить нельзя.")
+		"not_claimable":
+			_show_info("Недельная награда откроется, когда все 7 дней будут закрыты.")
+		_:
+			pass
+
+
+func _mobile_design_scale() -> float:
 	var viewport_size := get_viewport_rect().size
-	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+	if viewport_size.y <= 0.0:
+		return 1.0
+	return minf(viewport_size.x / 844.0, viewport_size.y / 390.0)
+
+
+## Стол ежедневок (одобренный макет 28.11.2026): x=28, top=122.4,
+## width = min(380, W*0.27), но не уже 240. 327 больше не cap.
+func _layout_daily_quests_table() -> void:
+	if daily_quests_panel == null or not is_instance_valid(daily_quests_panel):
 		return
-	var lobby_origin := get_global_rect().position
-	var profile_rect := profile_button.get_global_rect()
-	profile_rect.position -= lobby_origin
-	var left := clampf(profile_rect.position.x, 8.0, viewport_size.x * 0.25)
-	var width := clampf(profile_rect.size.x + 110.0, 280.0, viewport_size.x * 0.32)
-	var top := profile_rect.end.y + 5.0
-	if DeviceProfile.mobile_ui and shard_shop_button != null:
-		var shop_rect := shard_shop_button.get_global_rect()
-		shop_rect.position -= lobby_origin
-		var strip_left := profile_rect.end.x + 8.0
-		var strip_width := shop_rect.position.x - strip_left - 8.0
-		if strip_width >= 240.0:
-			left = strip_left
-			width = strip_width
-			top = profile_rect.position.y
-	width = minf(width, viewport_size.x - left - 16.0)
-	var title_size := novice_status_title.get_theme_font_size("font_size")
-	var hint_size := novice_status_hint.get_theme_font_size("font_size")
-	var text_width := maxf(80.0, width - 20.0)
-	var title_height := font.get_multiline_string_size(
-		novice_status_title.text, HORIZONTAL_ALIGNMENT_LEFT, text_width, title_size
-	).y
-	var hint_height := font.get_multiline_string_size(
-		NOVICE_STATUS_HINT, HORIZONTAL_ALIGNMENT_LEFT, text_width, hint_size
-	).y
-	var height := 17.0 + title_height + hint_height
-	novice_status.anchor_left = 0.0
-	novice_status.anchor_top = 0.0
-	novice_status.anchor_right = 0.0
-	novice_status.anchor_bottom = 0.0
-	novice_status.offset_left = left
-	novice_status.offset_top = top
-	novice_status.offset_right = left + width
-	novice_status.offset_bottom = top + height
-	novice_status.custom_minimum_size = Vector2(width, height)
+	if DeviceProfile.mobile_ui:
+		return
+	var viewport_width := get_viewport_rect().size.x
+	if viewport_width <= 0.0:
+		return
+	var width := minf(380.0, viewport_width * 0.27)
+	width = clampf(width, 240.0, 380.0)
+	width = minf(width, viewport_width - 28.0 - 24.0)
+	daily_quests_panel.offset_left = 28.0
+	daily_quests_panel.offset_right = 28.0 + width
 
 
-func _layout_novice_status_later() -> void:
-	_layout_novice_status()
-	# UiLayout._capture applies the baked mobile rect on the next process frame;
-	# it connected earlier, so this one-shot runs right after it. A signal
-	# connection drops itself if the lobby is freed during a scene change.
-	if not get_tree().process_frame.is_connected(_layout_novice_status):
-		get_tree().process_frame.connect(_layout_novice_status, CONNECT_ONE_SHOT)
+## Общий layout одобренного макета 28.11.2026: логотип -> таблица ->
+## кнопки -> карточки (карточки читают уже посчитанные rect'ы).
+func _layout_lobby_layout() -> void:
+	_layout_lobby_logo()
+	_layout_daily_quests_table()
+	_layout_action_buttons()
+	_layout_hero_cards()
+
+
+## «ИГРАТЬ» 220x56 (или W*0.16), «ОБУЧЕНИЕ» 180x42 (или W*0.14).
+## Правый нижний угол: right=28, bottom=24, между кнопками 10.
+func _layout_action_buttons() -> void:
+	if DeviceProfile.mobile_ui:
+		# The phone buttons come from the baked mobile layout (ui_layout.json).
+		return
+	if play_button == null or tutorial_button == null:
+		return
+	var viewport_width := get_viewport_rect().size.x
+	if viewport_width <= 0.0:
+		return
+	var right := 28.0
+	var bottom := 24.0
+	var gap := 10.0
+	var play_size := Vector2(minf(220.0, viewport_width * 0.16), 56.0)
+	var tutorial_size := Vector2(minf(180.0, viewport_width * 0.14), 42.0)
+	for button in [play_button, tutorial_button]:
+		button.anchor_left = 1.0
+		button.anchor_top = 1.0
+		button.anchor_right = 1.0
+		button.anchor_bottom = 1.0
+	play_button.offset_right = -right
+	play_button.offset_left = -right - play_size.x
+	play_button.offset_bottom = -bottom - tutorial_size.y - gap
+	play_button.offset_top = play_button.offset_bottom - play_size.y
+	play_button.custom_minimum_size = play_size
+	tutorial_button.offset_right = -right
+	tutorial_button.offset_left = -right - tutorial_size.x
+	tutorial_button.offset_bottom = -bottom
+	tutorial_button.offset_top = -bottom - tutorial_size.y
+	tutorial_button.custom_minimum_size = tutorial_size
+
+
+## Карточки героев. Область: left = table.right + 36, right = W - 28,
+## top = логотип.bottom + 18 (и не выше магазина), bottom = «ИГРАТЬ».top - 18.
+## Центр = высота области, бока = 92%, ширина = height*0.72; группа
+## центрируется, при нехватке ширины масштабируется пропорционально.
+func _layout_hero_cards() -> void:
+	if DeviceProfile.mobile_ui:
+		return
+	if cards.size() < 3 or daily_quests_panel == null or lobby_logo == null:
+		return
+	var viewport := get_viewport_rect().size
+	if viewport.x <= 0.0 or viewport.y <= 0.0:
+		return
+	var table_right := daily_quests_panel.get_rect().end.x
+	var logo_bottom := lobby_logo.get_rect().end.y
+	var shop_bottom := 0.0
+	if shard_shop_button != null and is_instance_valid(shard_shop_button):
+		shop_bottom = shard_shop_button.get_rect().end.y
+	var play_top := viewport.y - 24.0 - 56.0
+	if play_button != null and is_instance_valid(play_button):
+		play_top = play_button.get_rect().position.y
+	var buttons_top := play_top
+	if tutorial_button != null and is_instance_valid(tutorial_button):
+		# The tutorial button sits 10 px above Play; cards must stay above both.
+		buttons_top = minf(buttons_top, tutorial_button.get_rect().position.y)
+	var area_left := table_right + 36.0
+	var area_right := viewport.x - 28.0
+	var area_top := maxf(logo_bottom + 18.0, shop_bottom + 12.0)
+	var area_bottom := buttons_top - 18.0
+	var area_w := area_right - area_left
+	var area_h := area_bottom - area_top
+	if area_w <= 120.0 or area_h <= 120.0:
+		return
+
+	var center_h := area_h
+	var center_w := center_h * 0.72
+	var side_h := center_h * 0.92
+	var side_w := side_h * 0.72
+	var gap := maxf(12.0, viewport.x * 0.012)
+	var group_w := center_w + 2.0 * side_w + 2.0 * gap
+	if group_w > area_w:
+		var scale := area_w / group_w
+		center_h *= scale
+		center_w *= scale
+		side_h *= scale
+		side_w *= scale
+		gap *= scale
+		group_w = area_w
+
+	var group_left := area_left + maxf(0.0, (area_w - group_w) * 0.5)
+	var group_center_y := area_top + (area_h - center_h) * 0.5
+	var side_y := area_top + (area_h - side_h) * 0.5
+	var left_x := group_left
+	var center_x := left_x + side_w + gap
+	var right_x := center_x + center_w + gap
+	var rects := [
+		Rect2(Vector2(left_x, side_y), Vector2(side_w, side_h)),
+		Rect2(Vector2(center_x, group_center_y), Vector2(center_w, center_h)),
+		Rect2(Vector2(right_x, side_y), Vector2(side_w, side_h)),
+	]
+	for index in mini(cards.size(), 3):
+		var card := cards[index] as Control
+		if card == null or not is_instance_valid(card):
+			continue
+		var card_rect: Rect2 = rects[index]
+		card.anchor_left = 0.0
+		card.anchor_top = 0.0
+		card.anchor_right = 0.0
+		card.anchor_bottom = 0.0
+		card.offset_left = card_rect.position.x
+		card.offset_top = card_rect.position.y
+		card.offset_right = card_rect.end.x
+		card.offset_bottom = card_rect.end.y
+		card.custom_minimum_size = Vector2.ZERO
+		if index < card_portrait_materials.size():
+			var material := card_portrait_materials[index]
+			if material != null:
+				var footer_h := 46.0 if index == 1 else 38.0
+				material.set_shader_parameter(
+					"rect_size", Vector2(card_rect.size.x, card_rect.size.y - footer_h - 8.0)
+				)
 
 
 func _build_shard_shop_button() -> void:
@@ -1928,6 +2119,8 @@ func _on_profile_updated() -> void:
 	_refresh_weapon_shop()
 	_refresh_player_profile()
 	_refresh_player_menu()
+	_refresh_daily_quests()
+	_request_daily_quests()
 	_refresh_welcome_overlay()
 
 
@@ -2186,6 +2379,7 @@ func _build_player_menu() -> void:
 	menu_level_label = _make_label("Уровень 1", 19, PALE)
 	menu_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_content.add_child(menu_level_label)
+	_build_daily_quests_button(profile_content)
 	menu_xp_bar = ProgressBar.new()
 	menu_xp_bar.name = "PlayerMenuExperienceBar"
 	menu_xp_bar.custom_minimum_size = Vector2(0, 16)
@@ -2318,7 +2512,7 @@ func _build_player_menu() -> void:
 	inventory_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	inventory_grid.add_theme_constant_override("h_separation", 8)
 	inventory_grid.add_theme_constant_override("v_separation", 8)
-	var inventory_scroll := TOUCH_SCROLL.new()
+	inventory_scroll = TOUCH_SCROLL.new()
 	inventory_scroll.name = "InventoryScroll"
 	inventory_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	inventory_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -3010,6 +3204,8 @@ func _generate_guest_nickname() -> String:
 
 
 func _close_player_menu() -> void:
+	if daily_quests_panel != null and daily_quests_panel.has_method("close_overlay"):
+		daily_quests_panel.call("close_overlay")
 	player_menu_overlay.visible = false
 	_close_nickname_popup()
 
@@ -3662,12 +3858,20 @@ func _build_actions() -> void:
 	play_button.anchor_top = 1.0
 	play_button.anchor_right = 1.0
 	play_button.anchor_bottom = 1.0
-	play_button.offset_left = -430.0
-	play_button.offset_top = -180.0
-	play_button.offset_right = -130.0
-	play_button.offset_bottom = -108.0
-	play_button.custom_minimum_size = Vector2(300.0, 72.0)
-	play_button.add_theme_font_size_override("font_size", _fs(26))
+	if DeviceProfile.mobile_ui:
+		play_button.offset_left = -430.0
+		play_button.offset_top = -180.0
+		play_button.offset_right = -130.0
+		play_button.offset_bottom = -108.0
+		play_button.custom_minimum_size = Vector2(300.0, 72.0)
+		play_button.add_theme_font_size_override("font_size", _fs(26))
+	else:
+		play_button.offset_left = -248.0
+		play_button.offset_top = -132.0
+		play_button.offset_right = -28.0
+		play_button.offset_bottom = -76.0
+		play_button.custom_minimum_size = Vector2(220.0, 56.0)
+		play_button.add_theme_font_size_override("font_size", _fs(24))
 	play_button.add_theme_color_override("font_color", Color(0.16, 0.1, 0.02))
 	play_button.add_theme_color_override("font_hover_color", Color(0.1, 0.06, 0.01))
 	play_button.add_theme_color_override("font_pressed_color", Color(0.1, 0.06, 0.01))
@@ -3685,16 +3889,25 @@ func _build_actions() -> void:
 	tutorial_button.anchor_top = 1.0
 	tutorial_button.anchor_right = 1.0
 	tutorial_button.anchor_bottom = 1.0
-	tutorial_button.offset_left = -430.0
-	tutorial_button.offset_top = -100.0
-	tutorial_button.offset_right = -130.0
-	tutorial_button.offset_bottom = -28.0
-	tutorial_button.custom_minimum_size = Vector2(300.0, 72.0)
-	tutorial_button.add_theme_font_size_override("font_size", _fs(22))
+	if DeviceProfile.mobile_ui:
+		tutorial_button.offset_left = -430.0
+		tutorial_button.offset_top = -100.0
+		tutorial_button.offset_right = -130.0
+		tutorial_button.offset_bottom = -28.0
+		tutorial_button.custom_minimum_size = Vector2(300.0, 72.0)
+		tutorial_button.add_theme_font_size_override("font_size", _fs(22))
+	else:
+		tutorial_button.offset_left = -208.0
+		tutorial_button.offset_top = -66.0
+		tutorial_button.offset_right = -28.0
+		tutorial_button.offset_bottom = -24.0
+		tutorial_button.custom_minimum_size = Vector2(180.0, 42.0)
+		tutorial_button.add_theme_font_size_override("font_size", _fs(20))
 	_apply_borderless_action_styles(tutorial_button)
 	tutorial_button.pressed.connect(_start_tutorial)
 	add_child(tutorial_button)
 	_refresh_tutorial_button()
+	_layout_action_buttons()
 
 	settings_button = _make_action_button("", false)
 	settings_button.name = "SettingsButton"
@@ -3870,9 +4083,6 @@ func _refresh_avatar() -> void:
 func _refresh_player_profile() -> void:
 	if profile_name_label == null or profile_level_label == null:
 		return
-	# The novice plate depends on the server profile (novice, matches_played),
-	# so it is refreshed with the profile on every profile_updated signal.
-	_refresh_novice_status()
 	_refresh_avatar()
 	var character_key: String = ['warrior', 'mage', 'fairy'][selected_class]
 	var character_level := int(MetaProgression.char_levels.get(character_key, 1))

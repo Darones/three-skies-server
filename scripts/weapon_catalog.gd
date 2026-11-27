@@ -104,9 +104,65 @@ const ITEMS := {
 		"glow": Color(0.0, 0.0, 0.0), "glow_energy": 0.0,
 		"description": "Тяжёлый кристалл без свечения.",
 	},
+	# 10-12 — «Небесное оружие» первого приза ежедневок (выбор за 100).
+	# 13 — лук охотницы из той же лестницы. В магазине их нет: shop_enabled
+	# false, выдача только за недельную награду, поэтому свои модели и иконки
+	# не нужны — берём ближайшие существующие и даём каждому свой цвет свечения.
+	10: {
+		"id": 10, "class": 0, "name": "Небесный меч",
+		"rarity": "Небесное", "price": 100,
+		"icon": "res://ui/shop/weapons/longsword.png",
+		"builtin": false,
+		"shop_enabled": false,
+		"model": "res://addons/low_poly_rpg_items/models/longsword_model.glb",
+		"hand": "handslot.r", "scale": 1.0,
+		"rotation": Vector3(45.6, 27.7, 60.8), "offset": Vector3(0.0, 0.0, 0.05),
+		"tip": Vector3(0.0, 0.5, 0.0), "roll": 90.0, "lean": 6.0,
+		"glow": Color(0.45, 0.78, 1.0), "glow_energy": 1.5,
+		"description": "Голубое небо по кромке клинка.",
+	},
+	11: {
+		"id": 11, "class": 1, "name": "Небесный посох",
+		"rarity": "Небесное", "price": 100,
+		"icon": "res://ui/shop/weapons/staff_wizard.png",
+		"builtin": false,
+		"shop_enabled": false,
+		"model": "res://addons/low_poly_rpg_items/models/staff_wizard_model.glb",
+		"hand": "handslot.r", "scale": 0.75,
+		"rotation": Vector3(45.0, 26.9, 60.1), "offset": Vector3(0.0, 0.0, 0.05),
+		"tip": Vector3(0.0, 0.5, 0.0), "lean": 10.0,
+		"glow": Color(0.55, 0.95, 1.0), "glow_energy": 1.6,
+		"description": "Ледяной кристалл и белый свет.",
+	},
+	12: {
+		"id": 12, "class": 2, "name": "Небесный лук",
+		"rarity": "Небесное", "price": 100,
+		"icon": "res://ui/shop/weapons/legendary_bow.png",
+		"builtin": false,
+		"shop_enabled": false,
+		"model": "res://scenes/LegendaryBow.tscn",
+		"hand": "handslot.l", "scale": 1.43,
+		"rotation": Vector3(-47.4, 6.4, -3.39), "offset": Vector3(0.06, -0.02, -0.04),
+		"tip": Vector3(0.0, 0.5, 0.0), "roll": -16.98,
+		"glow": Color(1.0, 0.9, 0.55), "glow_energy": 1.4,
+		"description": "Золотое сияние вместо фиолетового.",
+	},
+	13: {
+		"id": 13, "class": 2, "name": "Лук охотницы",
+		"rarity": "Небесное", "price": 100,
+		"icon": "res://ui/shop/weapons/short_bow.png",
+		"builtin": false,
+		"shop_enabled": false,
+		"model": "res://addons/low_poly_rpg_items/models/short_bow_model.glb",
+		"hand": "handslot.l", "scale": 1.0,
+		"rotation": Vector3(-52.83, 9.05, -15.1), "offset": Vector3(-0.6, -0.05, -0.09),
+		"tip": Vector3(0.0, 0.0, 0.5), "roll": -80.0,
+		"glow": Color(0.45, 1.0, 0.7), "glow_energy": 1.5,
+		"description": "Зелёный свет лесной охотницы.",
+	},
 }
 
-const ORDER := [1, 2, 3, 4, 5, 6, 7, 8, 9]
+const ORDER := [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 const CLASS_KEYS := ["warrior", "mage", "fairy"]
 
 # Local transform of the built-in fairy crossbows under handslot_l. Tuned in

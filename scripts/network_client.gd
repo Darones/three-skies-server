@@ -24,6 +24,13 @@ signal account_deleted(success: bool, error: String)
 # Moderation state from the server. No UI is built here: screens subscribe.
 signal account_ban_updated(banned: bool, reason: String)
 signal warnings_updated(count: int, reason: String, at: int)
+# Daily quests (docs/DAILY-QUESTS-SPEC.md). `data` is the raw JSON object so
+# DailyQuests owns normalisation; `error` is a server code or "network".
+signal quests_loaded(success: bool, data: Dictionary, error: String)
+signal quests_rerolled(success: bool, slot: int, data: Dictionary, error: String)
+signal weekly_claimed(success: bool, data: Dictionary, error: String)
+# Compact `daily` block parsed from /profile, emitted next to profile_loaded.
+signal quests_summary_loaded(daily: Dictionary)
 
 const API_BASE_URL := "https://three-skies-server.relaxdev.ru"
 
@@ -149,6 +156,45 @@ func load_player_profile(player_id: int) -> void:
 		"player_id": player_id,
 	})
 	_start_next_http_request()
+
+
+func load_quests(player_id: int) -> void:
+	if player_id <= 0:
+		quests_loaded.emit(false, {}, "invalid_player")
+		return
+	http_request_queue.append({
+		"path": "/quests?player_id=%d" % player_id,
+		"payload": {},
+		"method": HTTPClient.METHOD_GET,
+		"request_type": "quests",
+		"purchase_type": "",
+		"item_id": 0,
+		"player_id": player_id,
+	})
+	_start_next_http_request()
+
+
+func reroll_quest(player_id: int, day: String, slot: int, current_template_id: String) -> void:
+	if player_id <= 0 or day.strip_edges().is_empty() or slot < 0:
+		quests_rerolled.emit(false, slot, {}, "invalid_request")
+		return
+	_send_post("/quests/reroll", {
+		"player_id": player_id,
+		"day": day,
+		"slot": slot,
+		"current_template_id": current_template_id,
+	}, "quest_reroll")
+
+
+func claim_weekly(player_id: int, week_start: String, item_id: int) -> void:
+	if player_id <= 0 or week_start.strip_edges().is_empty():
+		weekly_claimed.emit(false, {}, "invalid_request")
+		return
+	_send_post("/quests/weekly_claim", {
+		"player_id": player_id,
+		"week_start": week_start,
+		"item_id": maxi(0, item_id),
+	}, "weekly_claim")
 
 
 func auth_vk(params: Dictionary, display_name := "", avatar := "") -> Dictionary:
@@ -344,6 +390,25 @@ func _on_http_request_completed(result: int, response_code: int, _headers: Packe
 			novice if success else false
 		)
 		progress_loaded.emit(success, _progress_from_profile(response if success and response is Dictionary else {}))
+		# The compact daily-quests block rides on /profile. It never changes
+		# profile_loaded: DailyQuests gets its own signal.
+		if success and response is Dictionary:
+			var daily_value: Variant = response.get("daily", {})
+			if daily_value is Dictionary and not daily_value.is_empty():
+				quests_summary_loaded.emit(daily_value)
+	elif request["request_type"] == "quests":
+		var quests_data: Dictionary = response if success and response is Dictionary else {}
+		var quests_error := String(response.get("error", "")) if response is Dictionary else "Нет связи с сервером"
+		quests_loaded.emit(success, quests_data, "" if success else quests_error)
+	elif request["request_type"] == "quest_reroll":
+		var reroll_slot := int(request["payload"].get("slot", 0))
+		var reroll_data: Dictionary = response if success and response is Dictionary else {}
+		var reroll_error := String(response.get("error", "")) if response is Dictionary else "Нет связи с сервером"
+		quests_rerolled.emit(success, reroll_slot, reroll_data, "" if success else reroll_error)
+	elif request["request_type"] == "weekly_claim":
+		var claim_data: Dictionary = response if success and response is Dictionary else {}
+		var claim_error := String(response.get("error", "")) if response is Dictionary else "Нет связи с сервером"
+		weekly_claimed.emit(success, claim_data, "" if success else claim_error)
 	elif request["request_type"] == "progress":
 		var saved := _progress_from_profile(response if success and response is Dictionary else {})
 		progress_saved.emit(success, saved if success else {})
@@ -413,6 +478,12 @@ func _emit_http_failure(request: Dictionary) -> void:
 		progress_loaded.emit(false, {})
 	elif request["request_type"] == "progress":
 		progress_saved.emit(false, {})
+	elif request["request_type"] == "quests":
+		quests_loaded.emit(false, {}, "Нет связи с сервером")
+	elif request["request_type"] == "quest_reroll":
+		quests_rerolled.emit(false, int(request["payload"].get("slot", 0)), {}, "Нет связи с сервером")
+	elif request["request_type"] == "weekly_claim":
+		weekly_claimed.emit(false, {}, "Нет связи с сервером")
 	elif request["request_type"] == "interstitial":
 		interstitial_recorded.emit(false, 0)
 	elif request["request_type"] == "vk_auth":
