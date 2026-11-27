@@ -169,16 +169,12 @@ def patch_splash() -> None:
     print("SPLASH patched")
 
 
-LEGAL_MARKER = "SINGLE_PCK_LEGAL_V2"
-## Wording added in wave 2.5 (UGC rules). Present in every fresh export; a page
-## that still carries the V2 marker with the old wording is upgraded in place.
-LEGAL_UGC_PHRASE = "правилами пользовательского контента (UGC)"
+LEGAL_MARKER = "SINGLE_PCK_LEGAL_V3"
 LEGAL_CSS = """
-		/* SINGLE_PCK_LEGAL_V2: 12+ and the consent line on the initial loader.
-		   The consent line carries working /privacy and /terms links (the UGC
-		   rules live on /terms) and names all three documents, so it must
-		   accept pointer events. The platform shells (/game-vk/, /game-ok/) are
-		   bare redirects and never get this block. */
+		/* SINGLE_PCK_LEGAL_V3: the 12+ badge on the initial loader. The legal
+		   documents are already provided by the VK/OK cabinet, so the loader
+		   carries no consent line and no outbound links. The platform shells
+		   (/game-vk/, /game-ok/) are bare redirects and never get this block. */
 		#age-rating {
 			position: fixed;
 			top: 14px;
@@ -192,83 +188,22 @@ LEGAL_CSS = """
 			text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 1px 0 2px rgba(0, 0, 0, 0.9);
 			pointer-events: none;
 		}
-		/* Lift the loader bar and keep the small consent line below it. */
-		#status-progress {
-			bottom: 15%;
-		}
-		#legal-consent {
-			position: fixed;
-			left: 50%;
-			bottom: 3.4%;
-			transform: translateX(-50%);
-			z-index: 7;
-			width: min(92%, 920px);
-			color: #ffffff;
-			font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
-			font-size: clamp(9px, 1.1vw, 12px);
-			line-height: 1.25;
-			text-align: center;
-			text-shadow: 0 1px 2px #000000, 1px 0 2px #000000, -1px 0 2px #000000, 0 -1px 2px #000000;
-			pointer-events: auto;
-			white-space: normal;
-			overflow: visible;
-			overflow-wrap: break-word;
-		}
-		#legal-consent a {
-			color: #f2c76e;
-			text-decoration: underline;
-			text-underline-offset: 1px;
-			pointer-events: auto;
-			-webkit-tap-highlight-color: rgba(242, 199, 110, 0.25);
-		}
-		#legal-consent a:active,
-		#legal-consent a:focus {
-			color: #ffdf9c;
-			outline: none;
-		}
-		/* Short landscape screens (844x390 in VK/OK webview): wrap the line into
-		   rows just above the bar instead of clipping it at the viewport edge. */
-		@media (max-height: 460px) {
-			#legal-consent {
-				bottom: 2%;
-				width: calc(100% - 20px);
-				font-size: 9px;
-				line-height: 1.2;
-			}
-		}
-"""
-
-LEGAL_CONSENT_DIV = """		<div id="legal-consent">Продолжая игру, вы подтверждаете, что вам уже есть 12 лет, и соглашаетесь с <a href="/privacy" target="_blank" rel="noopener noreferrer">политикой конфиденциальности</a>, <a href="/terms" target="_blank" rel="noopener noreferrer">пользовательским соглашением</a> и <a href="/terms" target="_blank" rel="noopener noreferrer">правилами пользовательского контента (UGC)</a>.</div>
 """
 
 LEGAL_HTML = """		<div id="age-rating">12+</div>
-""" + LEGAL_CONSENT_DIV
-
-# v1 of the loader block (policy text only, pointer-events: none, no links).
-# Matched only when LEGAL_MARKER is absent, so an already upgraded page is
-# never touched by these regexes.
-LEGACY_LEGAL_CSS_RE = re.compile(r"[ \t]*/\* SINGLE_PCK_LEGAL: .*?(?=</style>)", re.S)
-LEGACY_LEGAL_DIV_RE = re.compile(
-    r'[ \t]*<div id="(?:age-rating|legal-consent)">.*?</div>[ \t]*\n?', re.S
-)
-# V2 consent div without the UGC wording (build/web or server/web exported
-# before wave 2.5). Only the consent line is replaced; the CSS and the
-# hide/show script stay as they are.
-LEGAL_CONSENT_DIV_RE = re.compile(r'[ \t]*<div id="legal-consent">.*?</div>', re.S)
-LEGAL_SCRIPT_NEEDLE = "getElementById('legal-consent')"
+"""
+LEGAL_SCRIPT_NEEDLE = "getElementById('age-rating')"
 
 LEGAL_SCRIPT = """		<script>
 		(function () {
 			function sync() {
 				var status = document.getElementById('status');
 				var age = document.getElementById('age-rating');
-				var legal = document.getElementById('legal-consent');
 				var hidden = true;
 				if (status) {
 					hidden = status.hidden || getComputedStyle(status).display === 'none';
 				}
 				if (age) age.style.display = hidden ? 'none' : '';
-				if (legal) legal.style.display = hidden ? 'none' : '';
 			}
 			var status = document.getElementById('status');
 			if (status && window.MutationObserver) {
@@ -285,34 +220,22 @@ def patch_legal_overlay() -> None:
     html_path = OUT_DIR / "index.html"
     html = html_path.read_text(encoding="utf-8")
     if LEGAL_MARKER in html:
-        # Already v2. A page exported before the UGC wording (still carries the
-        # same marker) is upgraded in place: only the consent div is replaced,
-        # the CSS and the hide/show script stay untouched. Re-runs are no-ops.
-        if LEGAL_UGC_PHRASE not in html and LEGAL_CONSENT_DIV_RE.search(html):
-            html = LEGAL_CONSENT_DIV_RE.sub(LEGAL_CONSENT_DIV.rstrip("\n"), html, count=1)
-            html_path.write_text(html, encoding="utf-8", newline="")
-            print("LEGAL upgraded to UGC wording")
+        # Already v3: only the 12+ badge, no consent line. Re-runs are no-ops.
         return
     if "</style>" not in html:
         print("LEGAL skipped: no style tag")
         return
-    if "SINGLE_PCK_LEGAL:" in html:
-        # The page still carries the v1 block (policy text only, no links).
-        # Drop it first so the loader never shows the consent line twice.
-        html = LEGACY_LEGAL_CSS_RE.sub("", html)
-        html = LEGACY_LEGAL_DIV_RE.sub("", html)
-        print("LEGAL upgraded from v1")
     html = html.replace("</style>", LEGAL_CSS + "\t\t</style>", 1)
     if '<div id="status">' in html:
         html = html.replace('<div id="status">', LEGAL_HTML + '<div id="status">', 1)
     elif "</body>" in html:
         html = html.replace("</body>", LEGAL_HTML + "\t</body>", 1)
-    # The hide/show observer is unchanged between v1 and v2: insert it only if
-    # the page has no copy yet, so a re-run never stacks a second interval.
+    # Insert the hide/show observer only if the page has no copy yet, so a
+    # re-run never stacks a second interval.
     if LEGAL_SCRIPT_NEEDLE not in html and "</body>" in html:
         html = html.replace("</body>", LEGAL_SCRIPT + "\t</body>", 1)
     html_path.write_text(html, encoding="utf-8", newline="")
-    print("LEGAL patched v2")
+    print("LEGAL patched v3")
 
 
 WEB_META_MARKER = "TS_WEB_META_V1"

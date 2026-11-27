@@ -15,11 +15,6 @@ const OK_COMMUNITY_URL := "https://ok.ru/group/70000062043632"
 const SUPPORT_EMAIL := "daroness@ya.ru"
 const OPERATOR_NAME := "Давлеев Андрей Вадимович"
 const OPERATOR_STATUS := "самозанятый"
-## Same origin as the game server: /privacy and /terms are served there
-## (the welcome consent line and the loader link to these pages).
-const DEFAULT_SITE_URL := "https://three-skies-server.relaxdev.ru"
-const PRIVACY_PATH := "/privacy"
-const TERMS_PATH := "/terms"
 
 
 static func community_url() -> String:
@@ -39,37 +34,6 @@ static func support_url() -> String:
 	if not community.is_empty():
 		return community
 	return "mailto:" + SUPPORT_EMAIL
-
-
-## Public site origin (no trailing slash). Comes from the same REST base the
-## game already talks to, so /privacy and /terms can never point at another
-## host than the API that serves them.
-static func site_url() -> String:
-	# Same access pattern as _platform_id(): a static helper may run before a
-	# scene exists, so the autoload is looked up through the tree instead of
-	# being referenced directly.
-	var base := ""
-	var tree := Engine.get_main_loop() as SceneTree
-	if tree != null:
-		var network := tree.root.get_node_or_null("NetworkClient")
-		if network != null:
-			var value: Variant = network.get("api_base_url")
-			if value != null:
-				base = String(value)
-	base = base.strip_edges().trim_suffix("/")
-	if base.is_empty():
-		base = DEFAULT_SITE_URL
-	return base
-
-
-## Full URL of the privacy policy page (opens in a new browser tab).
-static func privacy_url() -> String:
-	return site_url() + PRIVACY_PATH
-
-
-## Full URL of the user agreement page (also carries the UGC rules).
-static func terms_url() -> String:
-	return site_url() + TERMS_PATH
 
 
 static func open_url(url: String) -> void:

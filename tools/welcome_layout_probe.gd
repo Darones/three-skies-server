@@ -60,10 +60,11 @@ func _ready() -> void:
 	if legal is RichTextLabel:
 		legal_text = (legal as RichTextLabel).text
 		legal_lines = (legal as RichTextLabel).get_line_count()
-	var legal_links := (
-		legal_text.contains("/privacy")
-		and legal_text.contains("/terms")
-		and legal_text.contains("UGC")
+	var legal_plain := (
+		legal_text.contains("UGC")
+		and not legal_text.contains("http")
+		and not legal_text.contains("/privacy")
+		and not legal_text.contains("/terms")
 	)
 	# Landscape/desktop: the consent line must stay one or two rows. Narrow
 	# portrait screens legitimately wrap into three or four.
@@ -76,7 +77,7 @@ func _ready() -> void:
 		" visible=", legal_visible,
 		" inside=", legal_inside,
 		" clear_of_play=", legal_clear,
-		" links=", legal_links,
+		" plain=", legal_plain,
 		" lines=", legal_lines,
 		" chars=", legal_text.length(),
 		" font=", legal_font
@@ -88,7 +89,7 @@ func _ready() -> void:
 	var legal_in_warming := legal != null and legal.visible
 	print("WELCOME legal_hidden_in_warming=", not legal_in_warming)
 	var legal_ok := (
-		legal_inside and legal_clear and legal_links
+		legal_inside and legal_clear and legal_plain
 		and legal_lines_ok and not legal_in_warming
 	)
 	print("WELCOME LEGAL_RESULT=", "PASS" if legal_ok else "FAIL")

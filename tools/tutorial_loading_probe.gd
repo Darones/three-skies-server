@@ -244,11 +244,15 @@ class Watcher extends Node:
 		_check(title_seen == "ЗАГРУЗКА ОБУЧЕНИЯ", "заголовок «ЗАГРУЗКА ОБУЧЕНИЯ» (%s)" % title_seen)
 		var html_source := FileAccess.get_file_as_string("res://tools/web_export.py")
 		var html_age := html_source.contains('id="age-rating"') and html_source.contains("12+")
-		var html_legal := html_source.contains('id="legal-consent"') and html_source.contains("Продолжая игру")
+		var html_legal := (
+			not html_source.contains("legal-consent")
+			and not html_source.contains("/privacy")
+			and not html_source.contains("/terms")
+		)
 		var welcome_source := FileAccess.get_file_as_string("res://scripts/welcome_overlay.gd")
 		var loading_source := FileAccess.get_file_as_string("res://scripts/loading_screen.gd")
 		_check(html_age, "12+ есть на стартовом HTML-загрузчике (#age-rating)")
-		_check(html_legal, "правовая строка есть на стартовом HTML-загрузчике (#legal-consent)")
+		_check(html_legal, "на стартовом HTML-загрузчике нет юр-ссылок")
 		_check(
 			not welcome_source.contains("12+") and not loading_source.contains("12+"),
 			"12+ не встречается в Welcome/экране обучения"

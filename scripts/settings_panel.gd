@@ -5,10 +5,6 @@ signal back_requested
 const SETTINGS_PATH := "user://settings.cfg"
 const LEGACY_SETTINGS_PATH := "user://game_settings.cfg"
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
-# Legal pages are served by the game server next to /health (server/legal.go).
-const DEFAULT_SITE_URL := "https://three-skies-server.relaxdev.ru"
-const PRIVACY_PATH := "/privacy"
-const TERMS_PATH := "/terms"
 # Support opens the community group of the current platform (VK or OK), with
 # the support e-mail as the standalone fallback. See scripts/support_links.gd.
 const SUPPORT_LINKS := preload("res://scripts/support_links.gd")
@@ -195,18 +191,6 @@ func _build_panel() -> void:
 	support_contact.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	support_contact.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	layout.add_child(support_contact)
-	var privacy_button := _make_button("Политика конфиденциальности", false)
-	privacy_button.name = "PrivacyButton"
-	privacy_button.custom_minimum_size = Vector2(0.0, 40.0)
-	privacy_button.add_theme_font_size_override("font_size", _fs(16))
-	privacy_button.pressed.connect(_open_privacy)
-	layout.add_child(privacy_button)
-	var terms_button := _make_button("Пользовательское соглашение", false)
-	terms_button.name = "TermsButton"
-	terms_button.custom_minimum_size = Vector2(0.0, 40.0)
-	terms_button.add_theme_font_size_override("font_size", _fs(16))
-	terms_button.pressed.connect(_open_terms)
-	layout.add_child(terms_button)
 
 	status_label = _make_label("", 13, Color(0.76, 0.8, 0.89))
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -728,21 +712,6 @@ func _open_support() -> void:
 	SUPPORT_LINKS.open_url(SUPPORT_LINKS.support_url())
 
 
-func _open_privacy() -> void:
-	_open_external(_site_url() + PRIVACY_PATH)
-
-
-func _open_terms() -> void:
-	_open_external(_site_url() + TERMS_PATH)
-
-
-func _site_url() -> String:
-	var base := String(NetworkClient.api_base_url).strip_edges().trim_suffix("/")
-	if base.is_empty():
-		base = DEFAULT_SITE_URL
-	return base
-
-
 func _support_contact_text() -> String:
 	var text := "Поддержка: %s" % SUPPORT_LINKS.SUPPORT_EMAIL
 	match Platform.platform_id:
@@ -751,19 +720,6 @@ func _support_contact_text() -> String:
 		"ok":
 			text += " · сообщество в Одноклассниках"
 	return text
-
-
-func _open_external(url: String) -> void:
-	if url.is_empty():
-		return
-	# Short status only: a full URL would be clipped by the fixed-width label.
-	_set_status("Открываем в браузере…")
-	if OS.has_feature("web") and Engine.has_singleton("JavaScriptBridge"):
-		var bridge := Engine.get_singleton("JavaScriptBridge")
-		# Open on the user's click so the browser treats it as a real gesture.
-		bridge.call("eval", "window.open(%s,'_blank')" % JSON.stringify(url), true)
-		return
-	OS.shell_open(url)
 
 
 func _on_back_pressed() -> void:
