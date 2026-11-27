@@ -147,18 +147,21 @@ type wsRoom struct {
 	novice        bool
 	botDifficulty string
 	startsAt      time.Time
-	fillTimer     *time.Timer
-	finishTimer   *time.Timer
-	matchEndsAt   time.Time
-	resultSaved   bool
-	score         [2]int
-	suddenDeath   bool
-	lastDelivery  [2]time.Time
-	shell         *wsShellState
-	shellDiedAt   time.Time
-	shellSpawnID  int64
-	lastShellHit  map[int64]time.Time
-	crystal       *wsCrystalState
+	// startedAt is when the room went live; the match result stores the real
+	// duration from it for the daily quests. Zero until the match starts.
+	startedAt    time.Time
+	fillTimer    *time.Timer
+	finishTimer  *time.Timer
+	matchEndsAt  time.Time
+	resultSaved  bool
+	score        [2]int
+	suddenDeath  bool
+	lastDelivery [2]time.Time
+	shell        *wsShellState
+	shellDiedAt  time.Time
+	shellSpawnID int64
+	lastShellHit map[int64]time.Time
+	crystal      *wsCrystalState
 }
 
 type wsBot struct {
@@ -228,6 +231,19 @@ type wsClient struct {
 	bought         map[string]bool
 	coinTokens     float64
 	lastCoin       time.Time
+
+	// Per-match daily-quest counters. They are written only inside the
+	// existing validated event branches (confirmed damage/death, shard
+	// delivery, shell death, shop) and read once when the result is saved.
+	// No combat formula, HP value or reward reads them.
+	killsDealt        int
+	deaths            int
+	damageDealt       float64
+	crystalsDelivered int
+	shellsDestroyed   int
+	shopItems         int
+	durationSec       int
+	classKey          string
 }
 
 type wsIncoming struct {
@@ -302,6 +318,47 @@ type wsCrystalState struct {
 type matchResultPlayer struct {
 	playerID int64
 	team     int
+	// Counters below come from the validated match events only. They are
+	// stored in `matches` and feed applyQuestProgress.
+	kills       int
+	deaths      int
+	damage      int
+	crystals    int
+	shells      int
+	shopItems   int
+	durationSec int
+	classKey    string
+}
+
+// matchStats is the per-player input of applyQuestProgress (quests.go). The
+// only way to build it is from a saved match result, so a quest can never move
+// on a client-reported number.
+type matchStats struct {
+	kills       int
+	deaths      int
+	damage      int
+	crystals    int
+	shells      int
+	shopItems   int
+	durationSec int
+	classKey    string
+	won         bool
+}
+
+// stats converts one saved match result into quest progress input. won is the
+// server's own comparison of the player's team with the winning team.
+func (player matchResultPlayer) stats(won bool) matchStats {
+	return matchStats{
+		kills:       player.kills,
+		deaths:      player.deaths,
+		damage:      player.damage,
+		crystals:    player.crystals,
+		shells:      player.shells,
+		shopItems:   player.shopItems,
+		durationSec: player.durationSec,
+		classKey:    player.classKey,
+		won:         won,
+	}
 }
 
 type wsMatchPlayer struct {
@@ -922,6 +979,20 @@ func clampClass(value int) int {
 	return value
 }
 
+// resetQuestCounters clears the per-match daily-quest counters when a match
+// starts, so a second match in the same room never inherits the first one.
+// Nothing else is touched: HP, gold and purchases are reset by their own lines.
+func (client *wsClient) resetQuestCounters() {
+	client.killsDealt = 0
+	client.deaths = 0
+	client.damageDealt = 0
+	client.crystalsDelivered = 0
+	client.shellsDestroyed = 0
+	client.shopItems = 0
+	client.durationSec = 0
+	client.classKey = ""
+}
+
 func balanceHumansLocked(room *wsRoom) {
 	humans := make([]*wsClient, 0, roomSlots)
 	for index := 0; index < roomSlots; index++ {
@@ -1080,6 +1151,7 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 			player.bought = nil
 			player.coinTokens = 0
 			player.lastCoin = time.Time{}
+			player.resetQuestCounters()
 			player.maxHP, player.attackDamage = statsForClient(player)
 			if player.hp <= 0 || player.hp > player.maxHP {
 				player.hp = player.maxHP
@@ -1142,7 +1214,8 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 	}
 	roomID := room.id
 	room.finishTimer = time.AfterFunc(matchLength, func() { h.finishMatchByTimeout(roomID) })
-	room.matchEndsAt = time.Now().Add(matchLength)
+	room.startedAt = time.Now()
+	room.matchEndsAt = room.startedAt.Add(matchLength)
 	return wsOutgoing{
 		Type:            "match_start",
 		RoomID:          room.id,
@@ -1829,7 +1902,17 @@ func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
 		damage *= 1.0 - damageReductionFor(target.client)
 	}
 	stun := stunForSkill(skill)
+	hpBefore := target.hp
 	died := target.applyDamage(damage)
+	// Daily quests count the damage the server actually applied: an overkill
+	// hit cannot inflate the metric, and only a validated hit reaches here.
+	if source.client != nil && damage > 0 {
+		applied := math.Min(damage, math.Max(0, hpBefore))
+		source.client.damageDealt += applied
+	}
+	if died && target.client != nil {
+		target.client.deaths++
+	}
 	targetTick := int64(0)
 	if target.client != nil {
 		target.client.lastDamaged = time.Now()
@@ -1853,6 +1936,7 @@ func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
 	}
 	if died && source.client != nil {
 		source.client.gold += 50
+		source.client.killsDealt++
 		source.client.sendJSON(wsOutgoing{Type: "gold", Gold: source.client.gold})
 	}
 	sourceID := source.id
@@ -2010,6 +2094,9 @@ func (h *wsHub) handleShellAttack(client *wsClient, message wsIncoming) {
 	if died {
 		room.shellDiedAt = time.Now()
 		teamGoldLocked(room, source.team, 100)
+		if source.client != nil {
+			source.client.shellsDestroyed++
+		}
 		if room.crystal == nil || room.crystal.State == "none" {
 			room.crystal = &wsCrystalState{State: "ground", X: shell.X, Y: 0.5, Z: shell.Z, GroundSince: time.Now()}
 			c := *room.crystal
@@ -2434,6 +2521,11 @@ func (h *wsHub) handleCrystalDeliver(client *wsClient, message wsIncoming) {
 	}
 	room.score[team]++
 	teamGoldLocked(room, team, 100)
+	// The carrier can be a bot (host-simulated); only a real client earns a
+	// daily-quest delivery, which is why the counter lives on wsClient.
+	if carrier := findRoomPlayerLocked(room, sourceID); carrier != nil {
+		carrier.crystalsDelivered++
+	}
 	score0, score1 := room.score[0], room.score[1]
 	winner := -1
 	var players []matchResultPlayer
@@ -2615,6 +2707,10 @@ func (h *wsHub) finishMatchLocked(room *wsRoom) []matchResultPlayer {
 		room.finishTimer = nil
 	}
 	players := make([]matchResultPlayer, 0, room.humanCount)
+	durationSec := 0
+	if !room.startedAt.IsZero() {
+		durationSec = int(time.Since(room.startedAt).Seconds())
+	}
 	for index := 0; index < roomSlots; index++ {
 		player := room.players[index]
 		if player == nil {
@@ -2624,7 +2720,23 @@ func (h *wsHub) finishMatchLocked(room *wsRoom) []matchResultPlayer {
 		if playerID <= 0 {
 			playerID = player.id
 		}
-		players = append(players, matchResultPlayer{playerID: playerID, team: player.team})
+		// The shop metric is the number of distinct items bought in this
+		// match: the server owns the purchases, so the count cannot be faked.
+		player.shopItems = len(player.bought)
+		player.durationSec = durationSec
+		player.classKey = classNames[clampClass(player.class)]
+		players = append(players, matchResultPlayer{
+			playerID:    playerID,
+			team:        player.team,
+			kills:       player.killsDealt,
+			deaths:      player.deaths,
+			damage:      int(math.Round(player.damageDealt)),
+			crystals:    player.crystalsDelivered,
+			shells:      player.shellsDestroyed,
+			shopItems:   player.shopItems,
+			durationSec: player.durationSec,
+			classKey:    player.classKey,
+		})
 	}
 	return players
 }
@@ -2973,22 +3085,59 @@ func (h *wsHub) saveMatch(roomID int64, players []matchResultPlayer, winningTeam
 		return
 	}
 	defer transaction.Rollback()
+	// A repeated finish of the same room must not pay twice: the match row is
+	// the idempotency key here (the unique index is deliberately not added in
+	// this wave because old rows already contain duplicates).
+	inserted := make([]matchResultPlayer, 0, len(players))
 	for _, player := range players {
+		if player.playerID > 0 {
+			var exists bool
+			if err := transaction.QueryRowContext(ctx,
+				`SELECT EXISTS(SELECT 1 FROM matches WHERE room_id = $1 AND player_id = $2)`,
+				roomID, player.playerID,
+			).Scan(&exists); err != nil {
+				log.Printf("check match result: %v", err)
+				return
+			}
+			if exists {
+				log.Printf("match result already saved room=%d player=%d", roomID, player.playerID)
+				continue
+			}
+		}
 		_, err := transaction.ExecContext(ctx,
-			`INSERT INTO matches (room_id, player_id, team, won) VALUES ($1, $2, $3, $4)`,
+			`INSERT INTO matches (room_id, player_id, team, won,
+			                      duration_sec, kills, deaths, damage,
+			                      crystals, shells, shop_items, class_key)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
 			roomID,
 			player.playerID,
 			player.team,
 			player.team == winningTeam,
+			player.durationSec,
+			player.kills,
+			player.deaths,
+			player.damage,
+			player.crystals,
+			player.shells,
+			player.shopItems,
+			player.classKey,
 		)
 		if err != nil {
 			log.Printf("save match result: %v", err)
 			return
 		}
+		inserted = append(inserted, player)
 	}
-	for _, player := range players {
+	for _, player := range inserted {
 		if player.playerID <= 0 {
 			continue
+		}
+		// Quest progress comes from the same validated result and shares
+		// the transaction, so a failed match save never pays a quest and a
+		// quest error rolls the match row back instead of splitting them.
+		if err := applyQuestProgress(transaction, player.playerID, player.stats(player.team == winningTeam)); err != nil {
+			log.Printf("apply quest progress player=%d: %v", player.playerID, err)
+			return
 		}
 		var matchesPlayed, wins int
 		if err := transaction.QueryRowContext(ctx, `
