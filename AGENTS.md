@@ -332,10 +332,17 @@ PCK **27 876 760** б. Приёмка: `docs/qa-shader-opt-2026-11-27/`
 - CORS и WS origin — allowlist; `/health` без `database_host/error`;
   `Cache-Control: no-store` для токенов; TTL/ротация сессий.
 
-**6. Изоляция OK**
-- `/game-ok/` без VK-строк (`vk_client`, `vk_user_id/sign`) и без VK Bridge.
-- `/game/` грузит VK Bridge только для VK.
-- `/game-vk/` без `ok.ru` и `vk_client=ok`.
+**6. Изоляция OK — волна 2, вместе с OK-входом по access token**
+- В волне 1 **не трогать** VK Bridge и шеллы: OK-вход сейчас идёт через
+  `VKWebAppGetUserInfo`, а OK-приложение открывает `/game-vk/`, где шелл
+  определяет OK по `referrer ok.ru` и добавляет `vk_client=ok`. Любая чистка
+  сломает вход.
+- В волне 2: сначала OK-вход через `local_access_token` + `fetchOKUser`
+  (сервер), затем `/game-ok/` без VK-строк и без VK Bridge, `/game/` грузит
+  Bridge только для VK, `/game-vk/` без `ok.ru`/`vk_client=ok`.
+- Fallback, если OK не даёт access token: Bridge оставить, убрать только
+  VK-параметры (`vk_user_id/sign`) и VK-брендинг из URL/шеллов. Рабочий вход
+  важнее формальной чистки.
 - Юр-ссылки OK — на разрешённом домене, не на RelaxDev.
 
 ### P1 — риски
@@ -393,23 +400,28 @@ PCK **27 876 760** б. Приёмка: `docs/qa-shader-opt-2026-11-27/`
 2. Юридика/оператор + UGC — `server/legal.go`, `server/main.go`
    (report/ник 3–32), `server/moderation.go`.
 3. Веб-оболочка — `tools/web_export.py` / `tools/vk_perf_web_export_patch.py`:
-   ссылки на политику и условия, 12+, OK/VK-строки.
+   **только** ссылки на политику и условия в строке согласия и 12+. Шеллы и
+   VK Bridge в волне 1 не трогать (на них держится OK-вход).
 4. HP/ники — `scripts/world_name_layer.gd`, `scripts/hero.gd`,
    `scripts/remote_player.gd`.
 5. Пауза — `scripts/hud.gd`, `scripts/game.gd` (только пауза).
-6. Платформенные адаптеры — `scripts/platform/*.gd`: OK без VK, VK Bridge
-   только на VK.
+6. Платформенные адаптеры — `scripts/platform/*.gd`: **только** безопасная
+   часть (ссылка поддержки по платформе, без изменения VK-вызовов). Изоляцию
+   OK не делать до волны 2.
 
 **Гейт волны 1:** `godot_console --headless --quit`; `NonCombatUiProbe`
 844/1440; `TutorialLayoutProbe`; `NameTagProbe`; `HpDesyncProbe`; проба паузы;
 `go test -count=1 ./...`; `go vet ./...`.
 
-**Волна 2 (2 агента):** безопасность — `server/main.go` + `server/ws.go`;
-`server/ok_auth.go` + `server/payments.go` + `server/stats.go`.
+**Волна 2 (3 агента):** безопасность — `server/main.go` + `server/ws.go`;
+`server/ok_auth.go` + `server/payments.go` + `server/stats.go`; изоляция OK —
+`tools/web_export.py` + `scripts/platform/*.gd` (только после того, как
+OK-вход заработал через access token).
 
 **Гейт волны 2:** `go test -count=3 ./...`, `go vet`, проверки: админка без
 `ADMIN_TOKEN` → 403/выключена, legacy-профиль не захватывается, OK-вход только
-по access token, OK-платёж не начисляет чужому uid, забаненный не входит.
+по access token, OK-платёж не начисляет чужому uid, забаненный не входит;
+OK-вход после чистки шеллов по-прежнему работает.
 
 **Волна 3:** QA, сборка PCK, деплой, проверка прода.
 
