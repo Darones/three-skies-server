@@ -90,11 +90,10 @@ body {
 	z-index: 1;
 }
 		
-		/* SINGLE_PCK_LEGAL_V2: 12+ and the consent line on the initial loader.
-		   The consent line carries working /privacy and /terms links (the UGC
-		   rules live on /terms) and names all three documents, so it must
-		   accept pointer events. The platform shells (/game-vk/, /game-ok/) are
-		   bare redirects and never get this block. */
+		/* SINGLE_PCK_LEGAL_V3: the 12+ badge on the initial loader. The legal
+		   documents are already provided by the VK/OK cabinet, so the loader
+		   carries no consent line and no outbound links. The platform shells
+		   (/game-vk/, /game-ok/) are bare redirects and never get this block. */
 		#age-rating {
 			position: fixed;
 			top: 14px;
@@ -107,50 +106,6 @@ body {
 			line-height: 1;
 			text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 1px 0 2px rgba(0, 0, 0, 0.9);
 			pointer-events: none;
-		}
-		/* Lift the loader bar and keep the small consent line below it. */
-		#status-progress {
-			bottom: 15%;
-		}
-		#legal-consent {
-			position: fixed;
-			left: 50%;
-			bottom: 3.4%;
-			transform: translateX(-50%);
-			z-index: 7;
-			width: min(92%, 920px);
-			color: #ffffff;
-			font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
-			font-size: clamp(9px, 1.1vw, 12px);
-			line-height: 1.25;
-			text-align: center;
-			text-shadow: 0 1px 2px #000000, 1px 0 2px #000000, -1px 0 2px #000000, 0 -1px 2px #000000;
-			pointer-events: auto;
-			white-space: normal;
-			overflow: visible;
-			overflow-wrap: break-word;
-		}
-		#legal-consent a {
-			color: #f2c76e;
-			text-decoration: underline;
-			text-underline-offset: 1px;
-			pointer-events: auto;
-			-webkit-tap-highlight-color: rgba(242, 199, 110, 0.25);
-		}
-		#legal-consent a:active,
-		#legal-consent a:focus {
-			color: #ffdf9c;
-			outline: none;
-		}
-		/* Short landscape screens (844x390 in VK/OK webview): wrap the line into
-		   rows just above the bar instead of clipping it at the viewport edge. */
-		@media (max-height: 460px) {
-			#legal-consent {
-				bottom: 2%;
-				width: calc(100% - 20px);
-				font-size: 9px;
-				line-height: 1.2;
-			}
 		}
 		</style>
 
@@ -186,7 +141,6 @@ body {
 		</noscript>
 
 				<div id="age-rating">12+</div>
-		<div id="legal-consent">Продолжая игру, вы подтверждаете, что вам уже есть 12 лет, и соглашаетесь с <a href="/privacy" target="_blank" rel="noopener noreferrer">политикой конфиденциальности</a>, <a href="/terms" target="_blank" rel="noopener noreferrer">пользовательским соглашением</a> и <a href="/terms" target="_blank" rel="noopener noreferrer">правилами пользовательского контента (UGC)</a>.</div>
 <div id="status">
 			<img id="status-splash" class="show-image--true fullsize--false use-filter--true" src="index_splash.jpg" alt="">
 			<progress id="status-progress"></progress>
@@ -259,7 +213,7 @@ body {
 		<script src="vk_perf_diag.js"></script>
 		<script src="index.js"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","mainPack":"index.pck","experimentalVK":false,"fileSizes":{"index.pck":28550128,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","mainPack":"index.pck","experimentalVK":false,"fileSizes":{"index.pck":28547568,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
@@ -538,13 +492,11 @@ const engine = new Engine(GODOT_CONFIG);
 			function sync() {
 				var status = document.getElementById('status');
 				var age = document.getElementById('age-rating');
-				var legal = document.getElementById('legal-consent');
 				var hidden = true;
 				if (status) {
 					hidden = status.hidden || getComputedStyle(status).display === 'none';
 				}
 				if (age) age.style.display = hidden ? 'none' : '';
-				if (legal) legal.style.display = hidden ? 'none' : '';
 			}
 			var status = document.getElementById('status');
 			if (status && window.MutationObserver) {
