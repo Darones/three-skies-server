@@ -12,6 +12,7 @@ import (
 	"io"
 	"log"
 	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -41,14 +42,29 @@ const dbMonitorInterval = 15 * time.Second
 // arbitrary amount of shards in one request. The client's reward is 1/3/5.
 const maxMatchReward = 10
 
-// Admin grants are guarded by the same token as the stats dashboard.
-const adminToken = "239837"
+// Admin grants are guarded by the same token as the moderation dashboard.
+// ADMIN_TOKEN is the only source: there is no built-in default, so without the
+// environment variable every admin endpoint stays closed (fail-closed). When
+// the variable is missing a random per-process placeholder is returned, so an
+// empty header or query parameter can never match.
+var adminTokenSentinel = newAdminTokenSentinel()
+
+func newAdminTokenSentinel() string {
+	buffer := make([]byte, 32)
+	if _, err := rand.Read(buffer); err != nil {
+		// CSPRNG failure is practically impossible; keep the sentinel empty so
+		// the adminTokenValid empty check still rejects every request.
+		log.Printf("admin token: random sentinel failed: %v", err)
+		return ""
+	}
+	return hex.EncodeToString(buffer)
+}
 
 func adminTokenValue() string {
 	if value := strings.TrimSpace(os.Getenv("ADMIN_TOKEN")); value != "" {
 		return value
 	}
-	return adminToken
+	return adminTokenSentinel
 }
 
 const sessionHeader = "X-Session-Token"
@@ -87,6 +103,7 @@ type api struct {
 	dbError       atomic.Value
 	hub           *wsHub
 	vkAuthLimiter *vkRateLimiter
+	postLimiter   *vkRateLimiter
 }
 
 func (service *api) setDatabaseReady() {
@@ -392,6 +409,9 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 	if service.vkAuthLimiter == nil {
 		service.vkAuthLimiter = newVKRateLimiter(vkAuthRateLimit, vkAuthRateWindow)
 	}
+	if service.postLimiter == nil {
+		service.postLimiter = newVKRateLimiter(postRateLimit, postRateWindow)
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", service.handleHealth)
 	mux.HandleFunc("/rules", service.handleRules)
@@ -444,7 +464,7 @@ func newRouter(service *api, hub *wsHub) http.Handler {
 		mux.Handle("/game-ok/", service.trackGamePage(http.StripPrefix("/game-ok/", staticGameHandlerWithFallback(okDir, gameDir, gameOKOrigins()))))
 		go prefetchGamePack(okDir, gameOKOrigins())
 	}
-	return cors(legalRoutes(databaseGate(mux, service)))
+	return cors(legalRoutes(databaseGate(service.rateLimitPOST(mux), service)))
 }
 
 // gameWebDir returns the directory with the exported HTML5 build, or "" when
@@ -841,19 +861,163 @@ func gzipFile(src, dst string) error {
 	return os.Rename(part, dst)
 }
 
-// cors lets the browser client run from another origin (local test server,
-// static hosting, a store page) while the API stays on its own domain.
+// publicOriginAllowlist is the fixed set of cross-origin callers: our own
+// public host, the platform pages that frame the game, and local test servers
+// (localhost/127.0.0.1 are accepted on any port). Same-host requests are
+// always allowed even when they are not listed here.
+var publicOriginAllowlist = []string{
+	"https://three-skies-server.relaxdev.ru",
+	"https://vk.com",
+	"https://www.vk.com",
+	"https://m.vk.com",
+	"https://ok.ru",
+	"https://www.ok.ru",
+}
+
+// allowedOrigins is the fixed list plus the optional ALLOWED_ORIGINS
+// environment variable (comma-separated). It is read per call so a deployment
+// can extend the list without a rebuild.
+func allowedOrigins() []string {
+	return append(append([]string{}, publicOriginAllowlist...), originsFromEnv("ALLOWED_ORIGINS")...)
+}
+
+// originAllowed decides whether a browser Origin may read the API or open the
+// game WebSocket. An empty Origin is allowed: same-origin requests and Go's
+// httptest clients do not send one. Everything else must be a known host, a
+// local test origin, or the same host as the request.
+func originAllowed(r *http.Request, origin string) bool {
+	origin = strings.TrimSpace(origin)
+	if origin == "" {
+		return true
+	}
+	parsed, err := url.Parse(origin)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return false
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return false
+	}
+	host := strings.ToLower(parsed.Hostname())
+	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+		return true
+	}
+	for _, allowed := range allowedOrigins() {
+		allowedURL, err := url.Parse(allowed)
+		if err != nil || allowedURL.Scheme == "" || allowedURL.Host == "" {
+			continue
+		}
+		if strings.EqualFold(allowedURL.Scheme, scheme) && strings.EqualFold(allowedURL.Host, parsed.Host) {
+			return true
+		}
+	}
+	return sameHostOrigin(r, parsed)
+}
+
+// sameHostOrigin compares the Origin with the Host the request actually
+// reached, normalising the default ports. Behind RelaxDev's proxy the public
+// scheme comes from X-Forwarded-Proto.
+func sameHostOrigin(r *http.Request, origin *url.URL) bool {
+	requestHost := strings.TrimSpace(r.Host)
+	if requestHost == "" {
+		return false
+	}
+	requestScheme := "http"
+	if r.TLS != nil {
+		requestScheme = "https"
+	}
+	if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")); forwarded != "" {
+		requestScheme = strings.ToLower(strings.TrimSpace(strings.Split(forwarded, ",")[0]))
+	}
+	return canonicalHost(origin.Host, origin.Scheme) == canonicalHost(requestHost, requestScheme)
+}
+
+func canonicalHost(hostPort, scheme string) string {
+	hostPort = strings.ToLower(strings.TrimSpace(hostPort))
+	scheme = strings.ToLower(strings.TrimSpace(scheme))
+	if host, port, err := net.SplitHostPort(hostPort); err == nil {
+		if (scheme == "https" && port == "443") || (scheme == "http" && port == "80") {
+			return host
+		}
+		return net.JoinHostPort(host, port)
+	}
+	return strings.TrimSuffix(strings.TrimPrefix(hostPort, "["), "]")
+}
+
+// checkWebSocketOrigin is the Upgrader hook: the browser WebSocket handshake
+// must come from an allowed origin, the same list CORS uses.
+func checkWebSocketOrigin(r *http.Request) bool {
+	return originAllowed(r, r.Header.Get("Origin"))
+}
+
+// cors lets the browser client run from an allowed origin while the API stays
+// on its own domain. An unknown Origin gets no CORS headers at all, so the
+// browser blocks the response. OPTIONS still answers 204 so a preflight never
+// turns into a server error.
 func cors(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if origin := r.Header.Get("Origin"); origin != "" {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Add("Vary", "Origin")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Session-Token, X-Claim-Session")
-			w.Header().Set("Access-Control-Max-Age", "86400")
+			if originAllowed(r, origin) {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Session-Token, X-Claim-Session")
+				w.Header().Set("Access-Control-Max-Age", "86400")
+			}
 		}
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+const (
+	postRateLimit  = 120
+	postRateWindow = time.Minute
+)
+
+// rateLimitedPostPaths are the state-changing endpoints covered by the per-IP
+// limiter. GET, static files, the WebSocket and stats ingestion are excluded:
+// they are either read-only or already have their own pacing.
+var rateLimitedPostPaths = map[string]struct{}{
+	"/register":           {},
+	"/session":            {},
+	"/progress":           {},
+	"/rename":             {},
+	"/report":             {},
+	"/buy_wing":           {},
+	"/buy_weapon":         {},
+	"/match_reward":       {},
+	"/ad_interstitial":    {},
+	"/account/delete":     {},
+	"/compensation":       {},
+	"/admin/grant_shards": {},
+	"/auth/vk":            {},
+	"/auth/ok":            {},
+	"/vk/pay":             {},
+	"/ok/pay":             {},
+}
+
+// rateLimitPOST stops one client from hammering the mutating API. The bucket
+// is the closest-proxy IP, the same one the auth limiter uses.
+func (service *api) rateLimitPOST(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if _, limited := rateLimitedPostPaths[r.URL.Path]; !limited {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if !service.postLimiter.allow(vkClientIP(r)) {
+			w.Header().Set("Retry-After", "60")
+			writeJSON(w, http.StatusTooManyRequests, map[string]any{
+				"success": false,
+				"error":   "rate_limited",
+			})
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -908,19 +1072,16 @@ func (service *api) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"database":       "ok",
 		"uptime_seconds": int(time.Since(startedAt).Seconds()),
 	}
-	if service.dbHost != "" {
-		response["database_host"] = service.dbHost
-	}
 	if service.hub != nil {
 		response["live_matches"] = service.hub.liveMatchCount()
 		response["online_players"] = service.hub.connectedClientCount()
 	}
 	if !service.dbReady.Load() {
+		// The public health check says only that the database is down. The
+		// host and the driver error stay in the logs: they help an attacker
+		// map the backend and are not needed by monitoring.
 		response["status"] = "degraded"
 		response["database"] = "down"
-		if message := service.lastDatabaseError(); message != "" {
-			response["database_error"] = message
-		}
 	}
 	writeJSON(w, http.StatusOK, response)
 }
@@ -1266,20 +1427,48 @@ func (service *api) sessionValid(ctx context.Context, playerID int64, token stri
 	return err == nil && exists
 }
 
+// requireSession accepts a request only with the player's own session token.
+// There is no legacy bypass: an empty or wrong token is a 401 even for an
+// account that never claimed one (such accounts are restored manually). A
+// valid token on a banned account is a 403 with the ban reason and no data.
 func (service *api) requireSession(w http.ResponseWriter, r *http.Request, playerID int64) bool {
-	if service.sessionValid(r.Context(), playerID, service.sessionTokenFromRequest(r)) {
-		return true
+	token := service.sessionTokenFromRequest(r)
+	if service.db == nil || playerID <= 0 || token == "" {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid session"})
+		return false
 	}
-	// Legacy migration: an account that never claimed a token may keep using
-	// the old API. Once the new client claims it, the token is mandatory.
-	if token, err := service.sessionTokenFor(r.Context(), playerID); err == nil && token == "" {
-		return true
+	var banned bool
+	var banReason string
+	err := service.db.QueryRowContext(r.Context(),
+		`SELECT COALESCE(banned, FALSE), COALESCE(ban_reason, '')
+		   FROM players
+		  WHERE id = $1 AND session_token = $2 AND session_token <> ''`,
+		playerID, token,
+	).Scan(&banned, &banReason)
+	if errors.Is(err, sql.ErrNoRows) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid session"})
+		return false
 	}
-	writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid session"})
-	return false
+	if err != nil {
+		log.Printf("session check: %v", err)
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "Database unavailable"})
+		return false
+	}
+	if banned {
+		// The client switches to the ban screen on error=account_banned.
+		writeJSON(w, http.StatusForbidden, map[string]any{
+			"success":    false,
+			"error":      accountBannedError,
+			"banned":     true,
+			"ban_reason": banReason,
+		})
+		return false
+	}
+	return true
 }
 
 func (service *api) handleRegister(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	if !requirePost(w, r) {
 		return
 	}
@@ -1331,6 +1520,7 @@ func (service *api) handleRegister(w http.ResponseWriter, r *http.Request) {
 }
 
 func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)
 		writeJSON(w, http.StatusMethodNotAllowed, playerProfileResponse{Error: "Method not allowed"})
@@ -1403,57 +1593,14 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 		visibleNicknameCustom = false
 	}
 	progress := decodeStoredProgress(levelsJSON, xpsJSON, tutorialCompleted, tutorialSkipped, tutorialBattlesUsed, progressInitialized)
-	sessionToken := storedToken
-	if sessionToken == "" {
-		// Only the new client asks to claim a session. An old client keeps a
-		// tokenless read-only profile so it is not locked out mid-update.
-		if strings.TrimSpace(r.Header.Get("X-Claim-Session")) != "1" {
-			writeJSON(w, http.StatusOK, playerProfileResponse{
-				Success:             true,
-				PlayerID:            playerID,
-				Nickname:            visibleNickname,
-				NicknameCustom:      visibleNicknameCustom,
-				NicknameHidden:      nicknameHidden,
-				SkyShards:           shards,
-				Level:               level,
-				UnlockedWings:       parseItemIDs(unlockedWings),
-				UnlockedWeapons:     parseItemIDs(unlockedWeapons),
-				MatchesPlayed:       matchesPlayed,
-				Novice:              novice,
-				CharLevels:          progress.CharLevels,
-				CharXPs:             progress.CharXPs,
-				TutorialCompleted:   progress.TutorialCompleted,
-				TutorialSkipped:     progress.TutorialSkipped,
-				TutorialBattlesUsed: progress.TutorialBattlesUsed,
-				ProgressInitialized: progress.ProgressInitialized,
-				LastInterstitialAt:  lastInterstitialAt,
-				WarningCount:        warningCount,
-				LastWarningReason:   lastWarningReason,
-				LastWarningAt:       lastWarningAt,
-			})
-			return
-		}
-		newToken, tokenErr := newSessionToken()
-		if tokenErr != nil {
-			log.Printf("generate session token: %v", tokenErr)
-			writeJSON(w, http.StatusInternalServerError, playerProfileResponse{Error: "Internal server error"})
-			return
-		}
-		if _, err := service.db.ExecContext(r.Context(),
-			`UPDATE players SET session_token = $1 WHERE id = $2 AND COALESCE(session_token, '') = ''`,
-			newToken, playerID,
-		); err != nil {
-			log.Printf("claim session token: %v", err)
-			writeJSON(w, http.StatusInternalServerError, playerProfileResponse{Error: "Internal server error"})
-			return
-		}
-		// Re-read: a concurrent request may have claimed it first.
-		if token, tokenErr := service.sessionTokenFor(r.Context(), playerID); tokenErr == nil {
-			sessionToken = token
-		} else {
-			sessionToken = newToken
-		}
-	} else if !service.sessionValid(r.Context(), playerID, service.sessionTokenFromRequest(r)) {
+	if storedToken == "" {
+		// No legacy claim and no tokenless profile read: otherwise anyone who
+		// knows a player_id could read the profile and mint its session token.
+		// Accounts that never claimed a token are restored manually.
+		writeJSON(w, http.StatusUnauthorized, playerProfileResponse{Error: "Invalid session"})
+		return
+	}
+	if !service.sessionValid(r.Context(), playerID, service.sessionTokenFromRequest(r)) {
 		writeJSON(w, http.StatusUnauthorized, playerProfileResponse{Error: "Invalid session"})
 		return
 	}
@@ -1480,11 +1627,12 @@ func (service *api) handleProfile(w http.ResponseWriter, r *http.Request) {
 		WarningCount:        warningCount,
 		LastWarningReason:   lastWarningReason,
 		LastWarningAt:       lastWarningAt,
-		SessionToken:        sessionToken,
+		SessionToken:        storedToken,
 	})
 }
 
 func (service *api) handleSession(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	if !requirePost(w, r) {
 		return
 	}
@@ -1518,40 +1666,14 @@ func (service *api) handleSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	supplied := service.sessionTokenFromRequest(r)
-	if token != "" {
-		if supplied != token {
-			writeJSON(w, http.StatusUnauthorized, sessionResponse{Error: "Invalid session"})
-			return
-		}
-		service.touchPlayerLastSeen(r.Context(), request.PlayerID)
-		writeJSON(w, http.StatusOK, sessionResponse{Success: true, Token: token})
-		return
-	}
-	newToken, tokenErr := newSessionToken()
-	if tokenErr != nil {
-		log.Printf("generate session token: %v", tokenErr)
-		writeJSON(w, http.StatusInternalServerError, sessionResponse{Error: "Internal server error"})
-		return
-	}
-	result, err := service.db.ExecContext(r.Context(),
-		`UPDATE players SET session_token = $1 WHERE id = $2 AND COALESCE(session_token, '') = ''`,
-		newToken, request.PlayerID,
-	)
-	if err != nil {
-		log.Printf("claim session token: %v", err)
-		writeJSON(w, http.StatusInternalServerError, sessionResponse{Error: "Internal server error"})
-		return
-	}
-	if affected, _ := result.RowsAffected(); affected == 0 {
-		if raced, raceErr := service.sessionTokenFor(r.Context(), request.PlayerID); raceErr == nil && raced != "" {
-			writeJSON(w, http.StatusOK, sessionResponse{Success: true, Token: raced})
-			return
-		}
-		writeJSON(w, http.StatusConflict, sessionResponse{Error: "Session already claimed"})
+	if token == "" || supplied != token {
+		// No legacy claim: a player_id alone must never mint a session.
+		// Accounts without a token are restored manually.
+		writeJSON(w, http.StatusUnauthorized, sessionResponse{Error: "Invalid session"})
 		return
 	}
 	service.touchPlayerLastSeen(r.Context(), request.PlayerID)
-	writeJSON(w, http.StatusOK, sessionResponse{Success: true, Token: newToken})
+	writeJSON(w, http.StatusOK, sessionResponse{Success: true, Token: token})
 }
 
 // touchPlayerLastSeen records a launch for the moderation page ("последний
@@ -2247,7 +2369,7 @@ func (service *api) handleAdminGrantShards(w http.ResponseWriter, r *http.Reques
 	if !requirePost(w, r) {
 		return
 	}
-	if r.Header.Get("X-Admin-Token") != adminTokenValue() {
+	if !adminTokenValid(strings.TrimSpace(r.Header.Get("X-Admin-Token"))) {
 		writeJSON(w, http.StatusForbidden, adminGrantResponse{Error: "Forbidden"})
 		return
 	}

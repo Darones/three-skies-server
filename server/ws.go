@@ -122,7 +122,10 @@ func noviceAfterMatches(matches, wins int, current bool) bool {
 var wsUpgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin:     func(r *http.Request) bool { return true },
+	// The handshake must come from an allowed origin (same host, the public
+	// host, VK/OK pages or a local test server); an empty Origin is allowed for
+	// same-origin and non-browser clients.
+	CheckOrigin: checkWebSocketOrigin,
 }
 
 type wsHub struct {
@@ -751,8 +754,9 @@ func (h *wsHub) sessionAllowed(playerID int64, token string) bool {
 		return true
 	}
 	if stored == "" {
-		// Legacy account that has not claimed a token yet.
-		return true
+		// No legacy bypass: an account without a token cannot join a match.
+		// Such profiles are restored manually, after which they have a token.
+		return false
 	}
 	return strings.TrimSpace(token) == stored
 }
