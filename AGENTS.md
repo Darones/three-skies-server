@@ -322,12 +322,14 @@ PCK **27 876 760** б. Приёмка: `docs/qa-shader-opt-2026-11-27/`
 - `STATS_TOKEN` — так же, без дефолта.
 - Убрать legacy-байпас `requireSession` (пустой `session_token` не пускает);
   `player 1` восстанавливать вручную.
-- OK-вход: основной путь `local_access_token` + `fetchOKUser`. `ok_user_id`
-  из тела принимать **только** если `OK_APP_KEY`/`OK_APP_SECRET` не заданы
-  (`errOKNotConfigured`); при заданных ключах — 401. Это переходный режим:
-  дыра закрывается только после получения ключей OK, до этого — известный
-  риск. `fetchOKUser` сверяет uid из ответа OK с запрошенным. Клиент перевести
-  на access token, когда ключи появятся.
+- OK-вход: ключи `OK_APP_KEY`/`OK_APP_SECRET` **уже заданы** (проверка
+  27.11: `/auth/ok` с фиктивным токеном → 401 `invalid_ok_auth`, не 503).
+  Но клиент **не отправляет** access token: `NetworkClient.auth_ok()` не
+  вызывается, `ok_adapter.gd` использует `auth_ok_identity`/`ok_user_id`.
+  Поэтому в волне 2 `ok_auth.go` **не трогать** — иначе OK-вход сломается.
+  Отдельная задача: взять `local_access_token` из launch params (`platform.gd`
+  уже ищет его в URL) → `auth_ok`; проверить на реальном OK; после этого
+  убрать fallback `ok_user_id` (вариант A).
 - OK-платежи **не отключать и не менять начисление**. В волне 2: убрать обход
   подписи в `/vk/pay` (`site=OK`, `app_id`, `method`) и требовать `chargeable`,
   если поле есть. `/ok/pay` не трогать, кроме привязки к уже существующей
@@ -425,10 +427,9 @@ PCK **27 876 760** б. Приёмка: `docs/qa-shader-opt-2026-11-27/`
 `go test -count=1 ./...`; `go vet ./...`.
 
 **Волна 2 (3 агента):** безопасность — `server/main.go` + `server/ws.go`;
-`server/ok_auth.go` + `server/payments.go` + `server/stats.go` (в
-`payments.go` — только подпись/`chargeable`, без товаров, цен и начислений);
-изоляция OK — `tools/web_export.py` + `scripts/platform/*.gd` (только после
-того, как OK-вход заработал через access token).
+`server/payments.go` + `server/stats.go` (в `payments.go` — только
+подпись/`chargeable`, без товаров, цен и начислений; `ok_auth.go` не трогать);
+изоляция OK — только после клиентского access-token пути, отдельной задачей.
 
 **Гейт волны 2:** `go test -count=3 ./...`, `go vet`, проверки: админка без
 `ADMIN_TOKEN` → 403/выключена, legacy-профиль не захватывается, OK-вход только
