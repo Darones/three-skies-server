@@ -128,17 +128,18 @@ OK-платежи без подписи, VK `name` без подписи, `sign`
 пользователем 26.11.2026, см. «Backlog (26.11.2026)». Геймплей, баланс и ботов
 без прямой просьбы не менять.
 
-## Сборка 27.11.2026 (вечер, шейдеры) — НЕ ЗАДЕПЛОЕНО
+## Сборка 27.11.2026 (вечер, шейдеры) — ЗАДЕПЛОЕНА
 
-Шейдерная оптимизация пунктов 1–4 (пункт 5, запекание, не делали). Всё лежит в
-рабочем дереве `mobile-ui`, **не закоммичено и не задеплоено**; прод — по-прежнему
-`3f23ea2` / PCK 27 872 184 б. Приёмка: `docs/qa-shader-opt-2026-11-27/`
+Шейдерная оптимизация пунктов 1–4 (пункт 5, запекание, не делали). Исходники
+закоммичены (`mobile-ui` **`10985a9`**), деплой — **`d8c2703`** в `origin/main`,
+PCK **27 876 760** б. Приёмка: `docs/qa-shader-opt-2026-11-27/`
 (`BASELINE.md`, `ITEM1-web.md`, `ITEM4-COMBINED.md`, `FINAL-ACCEPTANCE.md`).
 
-- **Состояние.** Ветка `mobile-ui`, HEAD `5be78fd` (docs-only). Изменены ровно
-  7 файлов: `scripts/arena_kit.gd`, `scripts/game.gd`, `scripts/warmup_flow.gd`,
-  `scripts/welcome_overlay.gd`, `scenes/Main.tscn`, `tools/warmup_probe.gd`,
-  `tools/vk_perf_web_export_patch.py`. `server/*.go` не менялись.
+- **Состояние.** Ветка `mobile-ui`, HEAD `10985a9` (после docs-only `75ea3d9`).
+  Закоммичены ровно 7 файлов: `scripts/arena_kit.gd`, `scripts/game.gd`,
+  `scripts/warmup_flow.gd`, `scripts/welcome_overlay.gd`, `scenes/Main.tscn`,
+  `tools/warmup_probe.gd`, `tools/vk_perf_web_export_patch.py`.
+  `server/*.go` не менялись.
 - **Числа (844×390 mobile low, ANGLE-D3D11).** links **206 → 155** (−24.8 %),
   link block **67.84 → 49.69 с** (−26.8 %); худший линк 2570 → ~2.2 с;
   1440 high: **147 links / 49.88 с** (−28.6 % / −26.4 %). WarmupProbe:
@@ -169,17 +170,18 @@ OK-платежи без подписи, VK `name` без подписи, `sign`
   `ScoreboardProbe` 77/0, `ResultsProbe` 0, `FogProbe` 0 FAIL. `go test
   -count=3` ok (131 PASS / 0 FAIL / 1 SKIP), `go vet` чисто;
   `gofmt -l` показывает предсуществующий `payments.go` (выравнивание в const,
-  файл не трогали). Deploy-дерево `three-skies-ads-deploy` (ветка `deploy-ads`,
-  `3f23ea2`) подготовлено: изменены только `server/web/index.html` и
-  `server/web/index.pck`, `go test`/`go vet` зелёные. Прод: `/health` ok,
-  `live_matches=0`, `/privacy` `/terms` 200, `/admin/moderation` 403,
-  `If-None-Match` → 304, отдаётся старый PCK 27 872 184 б.
-- **Осталось (только после подтверждения пользователя и при `live_matches=0`).**
-  Закоммитить и запушить исходники: `git push origin mobile-ui`; деплой из
-  `C:\myGames3D\three-skies-ads-deploy` — `git add server/web/index.html
-  server/web/index.pck`, коммит и `git push origin HEAD:main`. После деплоя
-  сверить PCK 27 876 760 б + SHA256 `C4AFFA62…687F` и наличие
-  `TS_STORAGE_PERSIST` в `/game/index.html`.
+  файл не трогали). Deploy-дерево `three-skies-ads-deploy` — **`d8c2703`**
+  (`deploy-ads`), запушено в `main`; `go test`/`go vet` зелёные.
+- **Прод после деплоя.** PCK **27 876 760** б, SHA256
+  `C4AFFA6272272D74F049C83FCEC5DB2A220BA6C238A0D3A1B0F64139577F687F`;
+  `/health` ok, `live_matches=0`; `/privacy`, `/terms` 200;
+  `/admin/moderation` без токена 403; `/game/` 200;
+  `If-None-Match`/`If-Modified-Since` → **304**; `TS_STORAGE_PERSIST` в
+  `/game/index.html` есть, `fileSizes.index.pck=27876760`.
+  Прод-прогон CDP `?mobile=1&tutorial=1&perf=1`: **155 links / 50.1 с**,
+  `LIGHT_RIM_USED=0`, `USE_RADIANCE_MAP=51`, `[Tutorial] warmup done`.
+- **Дальше.** Реальные устройства VK/OK/iPhone/Android; security P0;
+  retention материалов не повторять без нового бюджета VRAM (high 390.6 МБ).
 
 ## Сборка 27.11.2026 (день, 16:47 MSK) — ЗАДЕПЛОЕНА
 
