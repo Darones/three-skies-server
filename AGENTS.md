@@ -446,7 +446,37 @@ WS из волны 2 действительно отклоняет `join`; ес�
 (12+/ссылки/согласие); проверка гостевого ника (мат/«БОТ»/20+ символов);
 `go test -count=1`.
 
-**Волна 3:** QA, сборка PCK, деплой, проверка прода.
+**Волна 3 (3 агента): P1-полировка**
+
+1. Обучение и колодец — `scripts/tutorial_controller.gd` (убрать тур из трёх
+   подсказок), `scripts/game.gd` (3D-надпись «ФОНТАН» → «Золотой колодец»).
+2. Веб-мета и иконки — `tools/web_export.py` + ассеты: `lang="ru"`,
+   `meta description`/`og:*`, рабочие favicon и apple-touch-icon вместо пустого
+   серого квадрата.
+3. Мобильный UI — `scripts/results_screen.gd` (баннер «×2» после ответа
+   сервера; обрезание таблицы на 844), `scripts/rules_panel.gd` (обрезание
+   текста шторкой), `scripts/settings_panel.gd` (контраст «Удалить данные»),
+   `scripts/lobby.gd` (ellipsis для длинного ника).
+
+**Гейт волны 3:** parse; `NonCombatUiProbe` 844/1440; `ResultsProbe` 844/1440;
+`ScoreboardProbe`; `TutorialLayoutProbe`; `ShopSkinProbe`; скриншоты до/после;
+`go test -count=1`; деплой.
+
+**Волна 4 (2 агента + ручная проверка): OK-вход по токену и изоляция**
+
+1. Клиент: `scripts/platform/platform.gd` читает `local_access_token` из
+   launch params, `scripts/platform/ok_adapter.gd` сначала вызывает
+   `NetworkClient.auth_ok(token)`, fallback на `auth_ok_identity` только если
+   токена нет.
+2. Ручная проверка на реальном OK: вход работает, uid совпадает.
+3. После успеха: серверный строгий режим (убрать fallback `ok_user_id`),
+   изоляция OK (шеллы без VK-строк, VK-шелл без `ok.ru`, Bridge только VK).
+
+**Гейт волны 4:** OK-вход на реальном устройстве; в OK-шелле нет `vk_*`;
+`go test -count=3`; деплой.
+
+**Волна 5:** реальные устройства VK/OK/iPhone/Android, кабинеты (12+,
+URL политики/условий/поддержки, данные разработчика), финальный QA и подача.
 
 ### Порядок и приёмка
 
