@@ -324,8 +324,12 @@ PCK **27 876 760** б. Приёмка: `docs/qa-shader-opt-2026-11-27/`
   `player 1` восстанавливать вручную.
 - OK-вход — только `local_access_token` + `fetchOKUser`; `ok_user_id` из тела
   не принимать, клиент перевести на этот путь.
-- OK-платежи оставить, но: отдельный `/ok/pay` с проверкой сессии и uid,
-  проверка товара/суммы/`chargeable`; из `/vk/pay` убрать обход подписи.
+- OK-платежи **не отключать и не менять начисление**. В волне 2: убрать обход
+  подписи в `/vk/pay` (`site=OK`, `app_id`, `method`) и требовать `chargeable`,
+  если поле есть. `/ok/pay` не трогать, кроме привязки к уже существующей
+  сессии. Товары, цены, начисления, магазин и x2 — не трогать. Если OK-клиент
+  ходит через `/vk/pay?site=OK`, обход не удалять, а привязать к сессии и
+  остановиться с вопросом.
 - Бан проверять в `requireSession` и при `/auth/vk`, `/auth/ok`; отзывать
   сессии; запретить удаление профиля и перерегистрацию забаненному.
 - Rate-limit на все изменяющие endpoints.
@@ -414,9 +418,10 @@ PCK **27 876 760** б. Приёмка: `docs/qa-shader-opt-2026-11-27/`
 `go test -count=1 ./...`; `go vet ./...`.
 
 **Волна 2 (3 агента):** безопасность — `server/main.go` + `server/ws.go`;
-`server/ok_auth.go` + `server/payments.go` + `server/stats.go`; изоляция OK —
-`tools/web_export.py` + `scripts/platform/*.gd` (только после того, как
-OK-вход заработал через access token).
+`server/ok_auth.go` + `server/payments.go` + `server/stats.go` (в
+`payments.go` — только подпись/`chargeable`, без товаров, цен и начислений);
+изоляция OK — `tools/web_export.py` + `scripts/platform/*.gd` (только после
+того, как OK-вход заработал через access token).
 
 **Гейт волны 2:** `go test -count=3 ./...`, `go vet`, проверки: админка без
 `ADMIN_TOKEN` → 403/выключена, legacy-профиль не захватывается, OK-вход только
