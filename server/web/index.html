@@ -90,7 +90,10 @@ body {
 	z-index: 1;
 }
 		
-		/* SINGLE_PCK_LEGAL: 12+ and the consent line on the initial loader. */
+		/* SINGLE_PCK_LEGAL_V2: 12+ and the consent line on the initial loader.
+		   The consent line carries working /privacy and /terms links, so it must
+		   accept pointer events. The platform shells (/game-vk/, /game-ok/) are
+		   bare redirects and never get this block. */
 		#age-rating {
 			position: fixed;
 			top: 14px;
@@ -113,7 +116,7 @@ body {
 			left: 50%;
 			bottom: 3.4%;
 			transform: translateX(-50%);
-			z-index: 6;
+			z-index: 7;
 			width: min(92%, 920px);
 			color: #ffffff;
 			font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
@@ -121,7 +124,32 @@ body {
 			line-height: 1.25;
 			text-align: center;
 			text-shadow: 0 1px 2px #000000, 1px 0 2px #000000, -1px 0 2px #000000, 0 -1px 2px #000000;
-			pointer-events: none;
+			pointer-events: auto;
+			white-space: normal;
+			overflow: visible;
+			overflow-wrap: break-word;
+		}
+		#legal-consent a {
+			color: #f2c76e;
+			text-decoration: underline;
+			text-underline-offset: 1px;
+			pointer-events: auto;
+			-webkit-tap-highlight-color: rgba(242, 199, 110, 0.25);
+		}
+		#legal-consent a:active,
+		#legal-consent a:focus {
+			color: #ffdf9c;
+			outline: none;
+		}
+		/* Short landscape screens (844x390 in VK/OK webview): wrap the line into
+		   rows just above the bar instead of clipping it at the viewport edge. */
+		@media (max-height: 460px) {
+			#legal-consent {
+				bottom: 2%;
+				width: calc(100% - 20px);
+				font-size: 9px;
+				line-height: 1.2;
+			}
 		}
 		</style>
 		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
@@ -138,7 +166,7 @@ body {
 		</noscript>
 
 				<div id="age-rating">12+</div>
-		<div id="legal-consent">Продолжая игру, вы подтверждаете, что вам уже есть 12 лет, и соглашаетесь с политикой конфиденциальности.</div>
+		<div id="legal-consent">Продолжая игру, вы подтверждаете, что вам уже есть 12 лет, и соглашаетесь с <a href="/privacy" target="_blank" rel="noopener noreferrer">политикой конфиденциальности</a> и <a href="/terms" target="_blank" rel="noopener noreferrer">пользовательским соглашением</a>.</div>
 <div id="status">
 			<img id="status-splash" class="show-image--true fullsize--false use-filter--true" src="index_splash.jpg" alt="">
 			<progress id="status-progress"></progress>
@@ -211,7 +239,7 @@ body {
 		<script src="vk_perf_diag.js"></script>
 		<script src="index.js"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","mainPack":"index.pck","experimentalVK":false,"fileSizes":{"index.pck":27876760,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","mainPack":"index.pck","experimentalVK":false,"fileSizes":{"index.pck":27882852,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
