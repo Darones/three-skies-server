@@ -364,6 +364,45 @@ OK-платежи без подписи, VK `name` без подписи, `sign`
   из одной точки с фиксированным отступом; вместе скрывать в кустах/тумане/за
   камерой. Обновить `NameTagProbe`, `HpDesyncProbe`.
 
+### Оркестрация: 6 суб-агентов, только DeepSeek Flash
+
+- Все суб-агенты — строго **`opencode-go/deepseek-v4.1-flash`**; модель
+  указывать явно в каждом вызове. Другие модели не использовать.
+- 6 агентов в волне, у каждого свои файлы, пересечений нет. Агенты **не
+  коммитят, не пушат, PCK не собирают и Godot-пробы не запускают** — это
+  делает оркестратор на гейте.
+- После каждой волны — гейт: parse, профильные пробы, `go test`/`go vet`.
+  Только после 0 FAIL запускается следующая волна.
+- Если агент не закончил — следующую волну по тем же файлам не начинать.
+
+**Волна 1 (6 агентов):**
+
+1. Поддержка/сообщество — `scripts/settings_panel.gd`,
+   `scripts/rules_panel.gd`, `scripts/lobby.gd` (бан-карточка), новый
+   `scripts/support_links.gd`.
+2. Юридика/оператор + UGC — `server/legal.go`, `server/main.go`
+   (report/ник 3–32), `server/moderation.go`.
+3. Веб-оболочка — `tools/web_export.py` / `tools/vk_perf_web_export_patch.py`:
+   ссылки на политику и условия, 12+, OK/VK-строки.
+4. HP/ники — `scripts/world_name_layer.gd`, `scripts/hero.gd`,
+   `scripts/remote_player.gd`.
+5. Пауза — `scripts/hud.gd`, `scripts/game.gd` (только пауза).
+6. Платформенные адаптеры — `scripts/platform/*.gd`: OK без VK, VK Bridge
+   только на VK.
+
+**Гейт волны 1:** `godot_console --headless --quit`; `NonCombatUiProbe`
+844/1440; `TutorialLayoutProbe`; `NameTagProbe`; `HpDesyncProbe`; проба паузы;
+`go test -count=1 ./...`; `go vet ./...`.
+
+**Волна 2 (2 агента):** безопасность — `server/main.go` + `server/ws.go`;
+`server/ok_auth.go` + `server/payments.go` + `server/stats.go`.
+
+**Гейт волны 2:** `go test -count=3 ./...`, `go vet`, проверки: админка без
+`ADMIN_TOKEN` → 403/выключена, legacy-профиль не захватывается, OK-вход только
+по access token, OK-платёж не начисляет чужому uid, забаненный не входит.
+
+**Волна 3:** QA, сборка PCK, деплой, проверка прода.
+
 ### Порядок и приёмка
 
 1–2 день: поддержка/оператор, согласие, UGC. 3–4: безопасность. 5: удаление,
