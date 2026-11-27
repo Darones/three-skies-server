@@ -52,8 +52,11 @@ const SKILL_DESCRIPTIONS := [
 ]
 const SAVE_PATH := "user://lobby.cfg"
 # The platform bridge can swallow the sign-in promise (OK mobile webview does),
-# so the entry screen stops waiting on its own and offers «Повторить».
-const VK_AUTH_TIMEOUT := 12.0
+# so the entry screen stops waiting on its own and offers «Повторить». Desktop
+# keeps the old, longer token budget: its bridge request may legitimately take
+# longer than the short mobile identity-first path.
+const VK_AUTH_TIMEOUT_MOBILE := 12.0
+const VK_AUTH_TIMEOUT_DESKTOP := 60.0
 
 const GOLD := Color(0.95, 0.76, 0.38)
 const PALE := Color(0.9, 0.92, 0.98)
@@ -1855,7 +1858,8 @@ func _start_vk_auth() -> void:
 func _run_vk_auth_watchdog(attempt: int) -> void:
 	if get_tree() == null:
 		return
-	await get_tree().create_timer(VK_AUTH_TIMEOUT).timeout
+	var timeout := VK_AUTH_TIMEOUT_MOBILE if DeviceProfile.mobile_ui else VK_AUTH_TIMEOUT_DESKTOP
+	await get_tree().create_timer(timeout).timeout
 	if attempt != vk_auth_attempt or not vk_auth_in_progress:
 		return
 	vk_auth_attempt += 1

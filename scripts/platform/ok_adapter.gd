@@ -12,10 +12,17 @@ var _ok_user_id := ""
 # new attempt alone.
 var _ok_auth_seq := 0
 
-# Every bridge answer for sign-in is bounded well under the entry screen
-# watchdog: in the OK mobile webview VKWebAppGetAuthToken can simply never
-# answer, and a long wait reads as "the game is stuck".
-const OK_AUTH_BRIDGE_TIMEOUT := 12.0
+# Every bridge answer for sign-in is bounded. Mobile is short because the OK
+# webview may never answer VKWebAppGetAuthToken; desktop keeps the old 30 s
+# budget, where the token request can legitimately take longer.
+const OK_AUTH_BRIDGE_TIMEOUT_MOBILE := 12.0
+const OK_AUTH_BRIDGE_TIMEOUT_DESKTOP := 30.0
+
+
+func _auth_bridge_timeout() -> float:
+	if OS.has_feature("web_android") or OS.has_feature("web_ios") or DeviceProfile.mobile_ui:
+		return OK_AUTH_BRIDGE_TIMEOUT_MOBILE
+	return OK_AUTH_BRIDGE_TIMEOUT_DESKTOP
 
 
 func _init() -> void:
@@ -94,7 +101,7 @@ func authenticate() -> bool:
 		print("[OK] bridge local_access_token rejected: %s; falling back to identity" % String(bridge_auth.get("error", "")))
 		_last_error = ""
 	var user_result := await _call_ad_bridge(
-		"VKWebAppGetUserInfo", {"use_local": true}, OK_AUTH_BRIDGE_TIMEOUT
+		"VKWebAppGetUserInfo", {"use_local": true}, _auth_bridge_timeout()
 	)
 	if seq != _ok_auth_seq:
 		return false
@@ -154,7 +161,7 @@ func _try_mobile_identity(seq: int) -> bool:
 		_last_error = ""
 		return false
 	var user_result := await _call_ad_bridge(
-		"VKWebAppGetUserInfo", {"use_local": true}, OK_AUTH_BRIDGE_TIMEOUT
+		"VKWebAppGetUserInfo", {"use_local": true}, _auth_bridge_timeout()
 	)
 	if seq != _ok_auth_seq:
 		return false
@@ -264,7 +271,7 @@ func _request_bridge_access_token() -> String:
 	var result := await _call_ad_bridge(
 		"VKWebAppGetAuthToken",
 		{"app_id": 54906713, "scope": "", "append_local": true},
-		OK_AUTH_BRIDGE_TIMEOUT
+		_auth_bridge_timeout()
 	)
 	if not bool(result.get("ok", false)):
 		var bridge_error := String(result.get("error", ""))
