@@ -37,36 +37,30 @@
 
 ## Проверка 27.11.2026 — результат
 
-Проверено на реальном OK (Яндекс.Браузер, аккаунт `Андрей Давлеев`, приложение
+Проверено на реальном OK (Яндекс.Браузер, аккаунт «Андрей Давлеев», приложение
 512005268801):
 
 1. В launch URL **нет** `local_access_token`; клиент уходит в
    `[OK] auth via bridge identity (no token)`.
-2. `VKWebAppGetAuthToken` запрошен через Bridge (`app_id` = 54906713, `scope`):
+2. `VKWebAppGetAuthToken` через Bridge:
    - без `app_id` — `Missing required param "app_id"`;
-   - с `app_id` — OK launcher отдаёт токен, но `/auth/ok` отвечает
-     `invalid_ok_auth`.
-3. В логах RelaxDev:
-   - сначала `ok api: PARAM_API_KEY : Application not exist` — в переменных
-     проекта не было `OK_APP_KEY`, код брал `OK_APP_ID` как application key;
-     добавлен `OK_APP_KEY=CDJKIQJGDIHBABABA` (значение из launch URL OK);
-   - после этого `ok api: PARAM : Parameter access_token specified but
-     application is not EXTERNAL`.
-4. Вывод: приложение 512005268801 в кабинете OK **не помечено как EXTERNAL**
-   (внешнее), поэтому OK API не принимает access_token. Пока это не исправлено
-   в кабинете OK, token-first путь работать не будет.
-5. Дополнительно: вызов `VKWebAppGetAuthToken` перед `VKWebAppGetUserInfo`
-   ломал старый UID-fallback (`/auth/ok` 400). Поэтому вызов токена убран из
-   `authenticate()`; метод `_request_bridge_access_token()` оставлен на будущее.
-   Сейчас вход снова идёт через `[OK] auth via bridge identity (no token)` и
-   профиль загружается.
+   - `app_id` строкой — ошибка;
+   - `app_id` числом + `append_local: true` — OK launcher возвращает
+     `local_access_token`, `/auth/ok` принимает его, в консоли
+     **`[OK] auth via bridge local_access_token`**. Это рабочий путь.
+3. `OK_APP_KEY`: в переменных RelaxDev его не было, код брал `OK_APP_ID` как
+   application key → `ok api: PARAM_API_KEY : Application not exist`.
+   Добавлен `OK_APP_KEY=CDJKIQJGDIHBABABA` (значение из launch URL OK).
+4. Ошибка `application is not EXTERNAL` была не настройкой кабинета, а
+   следствием того, что в OK API отправлялся обычный VK access token без
+   `append_local`. С `append_local: true` возвращается именно
+   `local_access_token`, и OK API его принимает. **Никакой настройки
+   «EXTERNAL» в кабинете нет и не требуется.**
+5. Профиль после token-входа загрузился, ник/осколки/лобби на месте.
 
-**Что нужно от кабинета OK:** перевести приложение 512005268801 в тип
-«внешнее»/разрешить access token (или уточнить у поддержки OK точную настройку).
-После этого включить `OK_STRICT_AUTH=1` и проверить снова.
-
-**Строгий режим:** `OK_STRICT_AUTH` не задан; не включать до успешного
-token-входа.
+**Текущее состояние:** token-first работает; временный fallback на
+`auth_ok_identity` оставлен, `OK_STRICT_AUTH` не задан. После проверки на
+мобильном OK можно включить `OK_STRICT_AUTH=1` и убрать fallback.
 
 ## Если токен есть, но сервер отвечает `ok_auth_not_configured`
 

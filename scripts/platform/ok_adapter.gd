@@ -40,12 +40,24 @@ func authenticate() -> bool:
 		# Never log the token itself: only which path signed the player in.
 		print("[OK] auth via local_access_token")
 		return true
-	# OK currently rejects the access-token path: the app 512005268801 is not
-	# marked EXTERNAL in the OK cabinet, so /auth/ok answers
-	# "Parameter access_token specified but application is not EXTERNAL".
-	# Keep the token request helper below for the day the cabinet is fixed, but
-	# do not call it here: calling GetAuthToken first also broke the following
-	# GetUserInfo identity response (400 invalid_ok_user).
+	# The OK launcher does not put `local_access_token` in the URL. Per the VK
+	# docs for OK, VKWebAppGetAuthToken with append_local:true returns it in
+	# `local_access_token`; the server then verifies it through the OK API.
+	var bridge_token := await _request_bridge_access_token()
+	if not bridge_token.is_empty():
+		var bridge_auth: Dictionary = await NetworkClient.auth_ok(bridge_token)
+		if _apply_auth(bridge_auth):
+			if _ok_user_id.is_empty():
+				_ok_user_id = _ok_user_id_from_url()
+			_authenticated = true
+			_auth_in_progress = false
+			_refresh_ad_availability()
+			print("[OK] auth via bridge local_access_token")
+			return true
+		# TEMPORARY: keep the working UID fallback until the OK cabinet/token
+		# path is confirmed. Remove after a successful live token login.
+		print("[OK] bridge local_access_token rejected: %s; falling back to identity" % String(bridge_auth.get("error", "")))
+		_last_error = ""
 	var user_result := await _call_ad_bridge("VKWebAppGetUserInfo", {"use_local": true})
 	if not bool(user_result.get("ok", false)):
 		var bridge_error := String(user_result.get("error", ""))
@@ -118,7 +130,7 @@ func _request_bridge_access_token() -> String:
 	# app_id must be a number: the bridge validator rejects a string as missing.
 	var result := await _call_ad_bridge(
 		"VKWebAppGetAuthToken",
-		{"app_id": 54906713, "scope": ""},
+		{"app_id": 54906713, "scope": "", "append_local": true},
 		30.0
 	)
 	if not bool(result.get("ok", false)):
