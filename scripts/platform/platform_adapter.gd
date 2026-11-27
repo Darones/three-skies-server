@@ -15,6 +15,14 @@ func initialize(_host: Node) -> void:
 	pass
 
 
+## Cancels an in-flight authenticate(). A platform SDK promise may never settle
+## (the OK mobile webview does exactly that), so the entry screen needs a way to
+## stop waiting and allow a retry. Adapters that can be interrupted override
+## this; the base implementation does nothing.
+func abort_auth() -> void:
+	pass
+
+
 func is_ready() -> bool:
 	return true
 

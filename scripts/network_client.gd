@@ -162,10 +162,11 @@ func auth_vk(params: Dictionary, display_name := "", avatar := "") -> Dictionary
 	_vk_auth_waiting = true
 	_vk_auth_result = {}
 	_send_post("/auth/vk", payload, "vk_auth")
-	var waited := 0.0
-	while _vk_auth_waiting and waited < 15.0:
+	# Wall clock, not accumulated frames: 0.05 s per await stretches far past
+	# 15 s when the tab is backgrounded or the frame rate drops.
+	var started_ms := Time.get_ticks_msec()
+	while _vk_auth_waiting and Time.get_ticks_msec() - started_ms < 15000:
 		await get_tree().create_timer(0.05).timeout
-		waited += 0.05
 	if _vk_auth_waiting:
 		_vk_auth_waiting = false
 		return {"success": false, "profile": {}, "error": "timeout"}
@@ -178,10 +179,9 @@ func auth_ok(local_access_token: String) -> Dictionary:
 	_ok_auth_waiting = true
 	_ok_auth_result = {}
 	_send_post("/auth/ok", {"local_access_token": local_access_token}, "ok_auth")
-	var waited := 0.0
-	while _ok_auth_waiting and waited < 15.0:
+	var started_ms := Time.get_ticks_msec()
+	while _ok_auth_waiting and Time.get_ticks_msec() - started_ms < 15000:
 		await get_tree().create_timer(0.05).timeout
-		waited += 0.05
 	if _ok_auth_waiting:
 		_ok_auth_waiting = false
 		return {"success": false, "profile": {}, "error": "timeout"}
@@ -198,10 +198,9 @@ func auth_ok_identity(ok_user_id: String, name: String, avatar: String) -> Dicti
 		"name": name,
 		"avatar": avatar,
 	}, "ok_auth")
-	var waited := 0.0
-	while _ok_auth_waiting and waited < 15.0:
+	var started_ms := Time.get_ticks_msec()
+	while _ok_auth_waiting and Time.get_ticks_msec() - started_ms < 15000:
 		await get_tree().create_timer(0.05).timeout
-		waited += 0.05
 	if _ok_auth_waiting:
 		_ok_auth_waiting = false
 		return {"success": false, "profile": {}, "error": "timeout"}

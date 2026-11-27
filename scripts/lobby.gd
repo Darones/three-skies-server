@@ -51,6 +51,9 @@ const SKILL_DESCRIPTIONS := [
 	],
 ]
 const SAVE_PATH := "user://lobby.cfg"
+# The platform bridge can swallow the sign-in promise (OK mobile webview does),
+# so the entry screen stops waiting on its own and offers «Повторить».
+const VK_AUTH_TIMEOUT := 12.0
 
 const GOLD := Color(0.95, 0.76, 0.38)
 const PALE := Color(0.9, 0.92, 0.98)
@@ -193,6 +196,9 @@ var vk_auth_overlay: ColorRect
 var vk_auth_status_label: Label
 var vk_auth_retry_button: Button
 var vk_auth_in_progress := false
+# Increments on every sign-in attempt. A late answer from an older attempt is
+# dropped instead of overwriting the state of the current one.
+var vk_auth_attempt := 0
 var nickname_popup_overlay: ColorRect
 var nickname_popup_status_label: Label
 var nickname_popup_cost_label: Label
@@ -1630,8 +1636,22 @@ func _start_vk_auth() -> void:
 	if not _is_platform_auth() or vk_auth_in_progress:
 		return
 	vk_auth_in_progress = true
+	vk_auth_attempt += 1
+	var attempt := vk_auth_attempt
 	_show_vk_auth_waiting()
+	# OK only: its bridge promise can hang forever and its adapter can be
+	# aborted. VK keeps its own bounded waits and must not change.
+	if _is_ok_platform():
+		_run_vk_auth_watchdog(attempt)
 	var authenticated: bool = await Platform.authenticate()
+	# A watchdog timeout or a retry already moved on: the late answer belongs to
+	# an abandoned attempt and must not reopen or override the screen.
+	if attempt != vk_auth_attempt:
+		# Except a late success: an authenticated player must not stay on
+		# "platform did not answer". A running retry keeps its own outcome.
+		if Platform.is_authenticated() and not vk_auth_in_progress:
+			_on_vk_auth_success()
+		return
 	vk_auth_in_progress = false
 	if authenticated:
 		_on_vk_auth_success()
@@ -1639,9 +1659,28 @@ func _start_vk_auth() -> void:
 		_on_vk_auth_failed(Platform.get_auth_error())
 
 
+## Guarantees the overlay never hangs on a bridge promise that never settles.
+## The attempt number makes this a no-op once the player retried or signed in.
+func _run_vk_auth_watchdog(attempt: int) -> void:
+	if get_tree() == null:
+		return
+	await get_tree().create_timer(VK_AUTH_TIMEOUT).timeout
+	if attempt != vk_auth_attempt or not vk_auth_in_progress:
+		return
+	vk_auth_attempt += 1
+	vk_auth_in_progress = false
+	Platform.abort_auth()
+	_on_vk_auth_failed("ok_bridge_timeout")
+
+
 func _on_vk_auth_retry_pressed() -> void:
 	if vk_auth_in_progress:
 		return
+	# Drop whatever the previous attempt is still waiting for, so the new one
+	# is not rejected by the adapter's "auth already in progress" guard.
+	Platform.abort_auth()
+	vk_auth_attempt += 1
+	vk_auth_in_progress = false
 	_start_vk_auth()
 
 
@@ -1652,6 +1691,8 @@ func _on_vk_auth_failed(error: String) -> void:
 	match error:
 		"vk_bridge_unavailable", "ok_bridge_unavailable":
 			message = "Нет связи с платформой. Открой игру заново и нажми «Повторить»."
+		"ok_bridge_timeout":
+			message = "Платформа не ответила. Нажми «Повторить»."
 		"vk_missing_params":
 			message = "Платформа не передала данные для входа. Перезапусти игру на платформе."
 		"vk_invalid_auth", "ok_auth_denied", "invalid_ok_auth":

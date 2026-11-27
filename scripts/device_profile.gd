@@ -16,6 +16,8 @@ const QUALITY_MEDIUM := "medium"
 const QUALITY_HIGH := "high"
 const QUALITY_VALUES := [QUALITY_LOW, QUALITY_MEDIUM, QUALITY_HIGH]
 
+const PHONE_PROBE_JS := "(function(){try{var ua=navigator.userAgent||'';var touch=(navigator.maxTouchPoints||0)>0;var coarse=false;try{coarse=!!(window.matchMedia&&window.matchMedia('(pointer: coarse)').matches);}catch(e){}var uaPhone=/Android|iPhone|iPad|iPod|Mobi|Windows Phone/i.test(ua);var small=Math.min(screen.width||0,screen.height||0)<=900;return uaPhone||(touch&&coarse&&small);}catch(e){return false;}})()"
+
 var mobile_ui := false
 var is_vk := false
 var touch_controls := false
@@ -33,6 +35,7 @@ var min_zoom_distance := 12.0
 var max_zoom_distance := 42.0
 
 var _screenshot_path := ""
+var _web_phone := false
 var _screenshot_delay := 6.0
 var _capture_started := false
 var _quality_saved := false
@@ -46,6 +49,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_load_display_settings()
 	var args := OS.get_cmdline_user_args()
+	var url_search := ""
 	for arg in args:
 		if arg == "--mobile" or arg == "--touch":
 			mobile_ui = true
@@ -72,6 +76,8 @@ func _ready() -> void:
 	if OS.has_feature("web") and Engine.has_singleton("JavaScriptBridge"):
 		var bridge := Engine.get_singleton("JavaScriptBridge")
 		var search := str(bridge.call("eval", "window.location.search", true))
+		url_search = search
+		_web_phone = bool(bridge.call("eval", PHONE_PROBE_JS, true))
 		var vk_probe: Variant = bridge.call(
 			"eval",
 			"(typeof window.vkBridge !== 'undefined') || /(^|[?&])vk_/.test(window.location.search)",
@@ -104,12 +110,21 @@ func _ready() -> void:
 				quality_value = quality_value.substr(0, amp)
 			quality_override = quality_value
 
+	var force_desktop := url_search.contains("mobile=0") or url_search.contains("desktop=1")
 	if OS.has_feature("mobile"):
 		mobile_ui = true
 		touch_controls = true
-	elif OS.has_feature("web") and DisplayServer.is_touchscreen_available():
+	elif OS.has_feature("web") and not force_desktop and (
+			_web_phone
+			or OS.has_feature("web_android") or OS.has_feature("web_ios")
+			or DisplayServer.is_touchscreen_available()):
 		mobile_ui = true
 		touch_controls = true
+
+	print("[DeviceProfile] mobile_ui=%s web_phone=%s web_android=%s web_ios=%s touchscreen=%s" % [
+		mobile_ui, _web_phone, OS.has_feature("web_android"),
+		OS.has_feature("web_ios"), DisplayServer.is_touchscreen_available(),
+	])
 
 	if device == "a56":
 		mobile_ui = true

@@ -128,6 +128,14 @@ func authenticate() -> bool:
 	return await adapter.authenticate()
 
 
+## Stops waiting for the current sign-in attempt. Used by the entry screen
+## watchdog: a bridge promise that never settles must not block the retry
+## button. Adapters without an override stay as they are.
+func abort_auth() -> void:
+	if adapter != null and adapter.has_method("abort_auth"):
+		adapter.abort_auth()
+
+
 func is_authenticated() -> bool:
 	return adapter != null and adapter.is_authenticated()
 

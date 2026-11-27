@@ -33,6 +33,10 @@ var _interstitial_available := false
 # VK reward video plus loading, and still bounds a stuck bridge.
 const REWARDED_SHOW_TIMEOUT := 120.0
 const INTERSTITIAL_SHOW_TIMEOUT := 90.0
+# A concurrent show (the results screen and the availability refresh) may wait
+# for the slot, but never forever: three seconds is far longer than the check
+# call and short enough that a leaked _ad_busy cannot freeze the game.
+const AD_BUSY_WAIT_MS := 3000
 
 
 func _init() -> void:
@@ -259,9 +263,31 @@ func _refresh_ad_availability() -> void:
 	print("[Ads] availability reward=%s interstitial=%s" % [_rewarded_available, _interstitial_available])
 
 
+## Single exit for every bridge request: no path may leave `_ad_busy` true and
+## freeze every later ad (and the OK GetAuthToken) on the busy loop. Bumping the
+## sequence orphans the promise of this request, so its late answer cannot be
+## read as the result of the next one.
+func _finish_bridge() -> void:
+	_ad_busy = false
+	_ad_ready = false
+	_ad_result = {}
+	_ad_request_seq += 1
+
+
+## Called by the entry screen before restarting the platform sign-in: the old
+## await chain is abandoned, so its flag must not block a new attempt.
+func abort_auth() -> void:
+	_auth_in_progress = false
+
+
 func _call_ad_bridge(method: String, params: Dictionary, timeout := 20.0) -> Dictionary:
+	# Wall-clock budget for the slot: Time.get_ticks_msec() keeps running while
+	# the tab is backgrounded and at a low frame rate, unlike a frame counter.
+	var busy_started := Time.get_ticks_msec()
 	while _ad_busy:
 		if _host == null or _host.get_tree() == null:
+			return {"ok": false, "error": "busy"}
+		if Time.get_ticks_msec() - busy_started >= AD_BUSY_WAIT_MS:
 			return {"ok": false, "error": "busy"}
 		await _host.get_tree().create_timer(0.05).timeout
 	if not OS.has_feature("web") or not Engine.has_singleton("JavaScriptBridge"):
@@ -281,13 +307,28 @@ func _call_ad_bridge(method: String, params: Dictionary, timeout := 20.0) -> Dic
 	_ad_ready = false
 	_ad_result = {}
 	var payload := JSON.stringify(params)
+	var timeout_ms := maxi(1000, int(timeout * 1000.0))
 	var script := """
 	(function(){
 		var seq = %d;
+		var settled = false;
+		var timer = null;
 		function done(result) {
+			// The bridge promise and the timeout may both fire: only the first
+			// answer counts, the second is dropped.
+			if (settled) return;
+			settled = true;
+			if (timer !== null) {
+				try { clearTimeout(timer); } catch (e) {}
+				timer = null;
+			}
 			result.seq = seq;
 			try { window.__tsVKAdCB(JSON.stringify(result)); } catch (e) {}
 		}
+		// A stopped requestAnimationFrame or a suspended tab never runs the
+		// promise continuation, so the request would stay pending forever.
+		// This wall-clock timer settles it exactly like a bridge rejection.
+		timer = setTimeout(function() { done({ok: false, error: 'js_timeout'}); }, %d);
 		if (typeof window.vkBridge === 'undefined' || !window.vkBridge || !window.vkBridge.send) {
 			done({ok: false, error: 'bridge_unavailable'});
 			return;
@@ -302,19 +343,25 @@ func _call_ad_bridge(method: String, params: Dictionary, timeout := 20.0) -> Dic
 			done({ok: false, error: message});
 		});
 	})();
-	""" % [seq, JSON.stringify(method), payload]
-	bridge.call("eval", script, true)
-	var waited := 0.0
-	while not _ad_ready and waited < timeout:
+	""" % [seq, timeout_ms, JSON.stringify(method), payload]
+	# JavaScriptBridge.eval reports a hard failure as false; an undefined result
+	# comes back as null and is a normal success.
+	var eval_result: Variant = bridge.call("eval", script, true)
+	if eval_result is bool and not bool(eval_result):
+		_finish_bridge()
+		return {"ok": false, "error": "bridge_unavailable"}
+	var started := Time.get_ticks_msec()
+	while not _ad_ready and Time.get_ticks_msec() - started < timeout_ms:
 		if _host == null or _host.get_tree() == null:
-			break
+			_finish_bridge()
+			return {"ok": false, "error": "timeout"}
 		await _host.get_tree().create_timer(0.05).timeout
-		waited += 0.05
 	if not _ad_ready:
-		_ad_busy = false
+		_finish_bridge()
 		return {"ok": false, "error": "timeout"}
-	_ad_busy = false
-	return _ad_result
+	var result := _ad_result
+	_finish_bridge()
+	return result
 
 
 func _on_ad_js(args: Array) -> void:
