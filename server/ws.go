@@ -43,6 +43,12 @@ var classBaseHP = []float64{1050.0, 1000.0, 950.0}
 var classBaseDamage = []float64{44.0, 39.0, 60.0}
 var classAttackRange = []float64{3.5, 9.0, 11.0}
 
+// mageUltDamageCap is the hard ceiling for one lightning-storm tick. The client
+// rolls 70 x 0.75-1.25 x 2 outgoing (105-175) and doubles a 10% crit
+// (210-350), then clips the crit to 250; the server must allow exactly that and
+// nothing above it. Regular attacks are untouched.
+const mageUltDamageCap = 250.0
+
 // Bot difficulty profiles mirror HeroUnit.BOT_PROFILES on the client. The
 // server owns bot HP and validates damage, so the same multipliers must be
 // applied here or bot_states would pull the client HP back to another value.
@@ -153,15 +159,17 @@ type wsRoom struct {
 }
 
 type wsBot struct {
-	id             int64
-	name           string
-	class          int
-	team           int
-	x              float64
-	y              float64
-	z              float64
-	rotation       float64
-	maxHP          float64
+	id       int64
+	name     string
+	class    int
+	team     int
+	x        float64
+	y        float64
+	z        float64
+	rotation float64
+	maxHP    float64
+	// baseMaxHP is the spawn max HP, before any host-side purchase.
+	baseMaxHP      float64
 	hp             float64
 	hpTick         int64
 	attackDamage   float64
@@ -493,7 +501,7 @@ func (h *wsHub) removeClient(client *wsClient) {
 		slot := roomSlotOf(room, client)
 		if slot >= 0 {
 			if room.state == "live" {
-				room.bots[slot] = botFromClient(client, slot)
+				room.bots[slot] = botFromClient(room.id, client, slot)
 				botRoster = &wsOutgoing{Type: "bot_roster", RoomID: room.id, Bots: botSnapshotsLocked(room)}
 			}
 			room.players[slot] = nil
@@ -574,7 +582,25 @@ func (h *wsHub) removeClient(client *wsClient) {
 	}
 }
 
-func botFromClient(client *wsClient, slot int) *wsBot {
+// botNickname is the single server-side name for every bot. The suffix depends
+// only on the room and the slot, so one bot keeps exactly one name for the whole
+// match: match_start, bot_roster, the kill feed and the results all read it from
+// the same field. The client used to replace server names that began with
+// "Игрок" with its own random callsign, so the host and every guest saw a
+// different bot name in the kill feed; a "БОТ %04d" name is used verbatim.
+func botNickname(roomID int64, slot int) string {
+	suffix := (roomID*37 + int64(slot)*211) % 9000
+	if suffix < 0 {
+		suffix = -suffix
+	}
+	return fmt.Sprintf("БОТ %04d", 1000+suffix)
+}
+
+// botFromClient turns a disconnected player's slot into a bot. A real nickname
+// is kept (the ally keeps its identity), but a generated "Игрок N" placeholder
+// is never carried into the bot world: bots always use botNickname, so the
+// client cannot swap the name for a callsign of its own.
+func botFromClient(roomID int64, client *wsClient, slot int) *wsBot {
 	class := clampClass(client.class)
 	maxHP := client.maxHP
 	if maxHP <= 0 {
@@ -612,9 +638,9 @@ func botFromClient(client *wsClient, slot int) *wsBot {
 	if y <= 0 {
 		y = 0.76
 	}
-	name := client.name
-	if name == "" {
-		name = fmt.Sprintf("Игрок %d", client.id)
+	name := strings.TrimSpace(client.name)
+	if name == "" || strings.HasPrefix(name, "Игрок ") {
+		name = botNickname(roomID, slot)
 	}
 	var deadSince time.Time
 	if !alive {
@@ -630,6 +656,7 @@ func botFromClient(client *wsClient, slot int) *wsBot {
 		z:            z,
 		rotation:     rotation,
 		maxHP:        maxHP,
+		baseMaxHP:    maxHP,
 		hp:           hp,
 		attackDamage: damage,
 		alive:        alive,
@@ -1060,7 +1087,7 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 			continue
 		}
 		botID := -int64(slot + 1)
-		botName := fmt.Sprintf("Игрок %04d", 1000+int((room.id*37+int64(slot)*211)%9000))
+		botName := botNickname(room.id, slot)
 		botZ := 27.5
 		botRotation := 0.0
 		if team == 1 {
@@ -1079,6 +1106,7 @@ func (h *wsHub) startRoomLocked(room *wsRoom) (wsOutgoing, []*wsClient) {
 			z:            botZ,
 			rotation:     botRotation,
 			maxHP:        botMaxHP,
+			baseMaxHP:    botMaxHP,
 			hp:           botMaxHP,
 			attackDamage: botDamage,
 			alive:        true,
@@ -1462,6 +1490,57 @@ func (h *wsHub) relayDeath(client *wsClient) {
 	}
 }
 
+// Respawn timing is a client rule: scripts/game.gd respawn_delay_for waits
+// 15 s plus 8 s scaled by the gold earned in the match (clamped to 2000), so a
+// rich player waits longer. The server mirrors the same curve using the wallet,
+// which is never larger than the gold the client has earned, so the gate can
+// only ever be less strict than the client's own timer; it exists to reject a
+// packet that arrived before any legal timer could finish.
+const (
+	respawnBaseDelay = 15.0
+	respawnGoldBonus = 8.0
+	respawnGoldScale = 2000.0
+	// respawnDelaySlack absorbs the death packet's travel time (the client's
+	// timer starts before the server sees the death) so a legitimate respawn is
+	// never dropped, which would leave the hero dead on every other screen.
+	respawnDelaySlack = 1 * time.Second
+)
+
+func respawnDelayFor(gold int) time.Duration {
+	ratio := 0.0
+	if gold > 0 {
+		ratio = math.Min(float64(gold)/respawnGoldScale, 1.0)
+	}
+	return time.Duration((respawnBaseDelay + respawnGoldBonus*ratio) * float64(time.Second))
+}
+
+// botLifeAmuletMaxHP is the max HP a life amulet adds on the client. A bot whose
+// max HP grew by that much spent 400 gold, which is the only bot purchase the
+// server can observe.
+const botLifeAmuletMaxHP = 150.0
+
+// botRespawnDelayFor estimates how long the host keeps a dead bot down. Bots
+// keep their own wallet on the host, and bot_states carries no gold, so the
+// server cannot read "gold earned"; it uses the same 15 s + 8 s curve as the
+// client with a deliberate lower bound:
+//   - no visible purchase: 0 gold, i.e. the 15 s floor of the curve;
+//   - a life amulet in the bot's max HP: at least the 400 gold it cost (16.6 s).
+//
+// Guessing low is the safe direction. The restore below also waits for the
+// host's alive flag, so an estimate below the host's own timer can never wake a
+// bot the host still keeps dead; an estimate above it would leave the bot
+// frozen (untargetable, unable to attack) until the server caught up.
+func botRespawnDelayFor(bot *wsBot) time.Duration {
+	if bot == nil {
+		return respawnDelayFor(0)
+	}
+	earned := 0
+	if bot.maxHP >= bot.baseMaxHP+botLifeAmuletMaxHP-0.5 {
+		earned = matchItemPrices["life_amulet"]
+	}
+	return respawnDelayFor(earned)
+}
+
 func (h *wsHub) relayRespawn(client *wsClient, message wsIncoming) {
 	if !finite(message.X) || !finite(message.Y) || !finite(message.Z) || !finite(message.Rotation) {
 		return
@@ -1479,7 +1558,13 @@ func (h *wsHub) relayRespawn(client *wsClient, message wsIncoming) {
 		return
 	}
 	deadFor := time.Since(client.diedAt)
-	if client.diedAt.IsZero() || deadFor < 6*time.Second {
+	// The client owns the respawn timer (15 s + 8 s scaled by gold, see
+	// respawnDelayFor). The server still refuses a respawn that arrives sooner
+	// than that timer could have finished, so a modified client cannot skip the
+	// wait. The slack covers the death packet's travel time: the client starts
+	// its timer the moment it dies, the server starts counting when the packet
+	// arrives.
+	if client.diedAt.IsZero() || deadFor < respawnDelayFor(client.gold)-respawnDelaySlack {
 		h.mu.Unlock()
 		return
 	}
@@ -1618,9 +1703,12 @@ func (h *wsHub) relayBotStates(client *wsClient, message wsIncoming) {
 			}
 			bot.lastRegen = now
 		}
-		if !bot.alive && state.Alive && !bot.deadSince.IsZero() && now.Sub(bot.deadSince) >= 1500*time.Millisecond {
+		if !bot.alive && state.Alive && !bot.deadSince.IsZero() && now.Sub(bot.deadSince) >= botRespawnDelayFor(bot) {
 			// The host's respawn timer won. The server restores the bot and
-			// broadcasts the new HP to every client.
+			// broadcasts the new HP to every client. The gate matches the
+			// client's 15-23 s curve: a flat 1.5 s here used to race the host,
+			// so the server declared the bot alive while the host still had it
+			// dead (and re-killed it on the next snapshot).
 			bot.hp = bot.maxHP
 			bot.alive = true
 			bot.deadSince = time.Time{}
@@ -1719,6 +1807,11 @@ func (h *wsHub) handleAttackIntent(client *wsClient, message wsIncoming) {
 		cap := math.Max(base*2.0*2.6, 1.0)
 		damage = math.Min(message.Amount, cap)
 		damage = math.Round(damage*100) / 100
+	}
+	// The storm has its own ceiling: a forged 800-damage crit tick must not
+	// pass even though the generic 2.6x roll cap would allow ~284.
+	if skill == "ult_lightning_storm" && damage > mageUltDamageCap {
+		damage = mageUltDamageCap
 	}
 	if target.client != nil {
 		damage *= 1.0 - damageReductionFor(target.client)
@@ -3069,12 +3162,12 @@ func calculateDamageFor(attackDamage float64, class int, skill string) float64 {
 	case "root":
 		multiplier = 0.8
 	case "ult_lightning_storm":
-		// The storm ticks at MAGE_STORM_DAMAGE (100) x 0.75-1.25 x 2 outgoing
-		// on the client, i.e. 150-250 per tick (300-500 on an ultimate crit).
-		// A 0.4 multiplier here computed 10.4 and the 2.6x cap clamped every
-		// network tick to ~54. 2.0 makes the server base 78 and the cap ~406,
-		// so a normal tick arrives in full and only the strongest crits clip.
-		multiplier = 2.0
+		// The storm ticks at MAGE_STORM_DAMAGE (70) x 0.75-1.25 x 2 outgoing
+		// on the client, i.e. 105-175 per normal tick (210-350 on an ultimate
+		// crit, clipped to 250). 1.4 keeps the server base at 54.6 for the
+		// client's 39 mage damage and its 70 damage tick, so a normal tick
+		// arrives in full and the hard cap below stops a forged crit.
+		multiplier = 1.4
 	}
 	damage := math.Round(base*multiplier*100) / 100
 	if damage < 1 {

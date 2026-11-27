@@ -35,6 +35,38 @@ func readUntilType(t *testing.T, conn *websocket.Conn, messageType string) wsOut
 	}
 }
 
+// joinPair joins two dialled clients in a deterministic order: the host finishes
+// its join (and therefore becomes the room host and team 0) before the second
+// client joins. Writing both joins at once left the role to whichever read pump
+// ran first, and the server then correctly rejected host-only packets
+// (bot_states, shell_state, world_damage) from the other client, so the test
+// timed out on a legal packet instead of on the behaviour under test.
+func joinPair(t *testing.T, host, guest *websocket.Conn, hostPlayerID, guestPlayerID int) (wsOutgoing, wsOutgoing) {
+	t.Helper()
+	if err := host.WriteJSON(map[string]any{
+		"type": "join", "name": "Host", "class": 0, "class_name": "warrior", "player_id": hostPlayerID,
+	}); err != nil {
+		t.Fatalf("host join: %v", err)
+	}
+	hostJoined := readUntilType(t, host, "room_joined")
+	if hostJoined.ID == 0 || hostJoined.HostID != hostJoined.ID {
+		t.Fatalf("first join did not become the room host: %+v", hostJoined)
+	}
+	if err := guest.WriteJSON(map[string]any{
+		"type": "join", "name": "Guest", "class": 1, "class_name": "mage", "player_id": guestPlayerID,
+	}); err != nil {
+		t.Fatalf("guest join: %v", err)
+	}
+	guestJoined := readUntilType(t, guest, "room_joined")
+	if guestJoined.RoomID != hostJoined.RoomID {
+		t.Fatalf("clients did not share a room: %+v %+v", hostJoined, guestJoined)
+	}
+	if guestJoined.HostID != hostJoined.ID {
+		t.Fatalf("guest sees host %d, the host is %d", guestJoined.HostID, hostJoined.ID)
+	}
+	return hostJoined, guestJoined
+}
+
 func TestWebSocketBotSyncAndServerValidation(t *testing.T) {
 	hub := newWebSocketHub(nil)
 	server := httptest.NewServer(http.HandlerFunc(hub.handleWebSocket))
@@ -48,25 +80,19 @@ func TestWebSocketBotSyncAndServerValidation(t *testing.T) {
 		t.Fatalf("expected protocol 4, got host=%d guest=%d", hostWelcome.Protocol, guestWelcome.Protocol)
 	}
 
-	if err := host.WriteJSON(map[string]any{
-		"type": "join", "name": "Host", "class": 0, "class_name": "warrior", "player_id": 101,
-	}); err != nil {
-		t.Fatalf("host join: %v", err)
-	}
-	if err := guest.WriteJSON(map[string]any{
-		"type": "join", "name": "Guest", "class": 1, "class_name": "mage", "player_id": 102,
-	}); err != nil {
-		t.Fatalf("guest join: %v", err)
-	}
-	hostJoined := readUntilType(t, host, "room_joined")
-	guestJoined := readUntilType(t, guest, "room_joined")
-	if hostJoined.RoomID == 0 || hostJoined.RoomID != guestJoined.RoomID {
-		t.Fatalf("clients did not share a room: %+v %+v", hostJoined, guestJoined)
+	// The server makes the first processed join the room host, so the join order
+	// must be deterministic: host-only packets are checked against that id.
+	hostJoined, _ := joinPair(t, host, guest, 101, 102)
+	if hostJoined.ID != hostWelcome.ID {
+		t.Fatalf("room_joined id %d != welcome id %d", hostJoined.ID, hostWelcome.ID)
 	}
 
 	hub.startRoom(hostJoined.RoomID)
 	hostStart := readUntilType(t, host, "match_start")
 	guestStart := readUntilType(t, guest, "match_start")
+	if hostStart.HostID != hostJoined.ID || guestStart.HostID != hostJoined.ID {
+		t.Fatalf("server host %d is not the client that joined first (%d)", hostStart.HostID, hostJoined.ID)
+	}
 	if len(hostStart.MatchPlayers) != roomSlots || len(guestStart.MatchPlayers) != roomSlots {
 		t.Fatalf("expected %d match players", roomSlots)
 	}
@@ -309,21 +335,18 @@ func TestHumanCarrierDropsCrystalOnDeath(t *testing.T) {
 	hostWelcome := readUntilType(t, host, "welcome")
 	guestWelcome := readUntilType(t, guest, "welcome")
 
-	if err := host.WriteJSON(map[string]any{
-		"type": "join", "name": "Host", "class": 0, "class_name": "warrior", "player_id": 201,
-	}); err != nil {
-		t.Fatalf("host join: %v", err)
+	// Same deterministic order as the first integration test: the host must be
+	// the client the server made hostID, because shell_state is host-only.
+	hostJoined, _ := joinPair(t, host, guest, 201, 202)
+	if hostJoined.ID != hostWelcome.ID {
+		t.Fatalf("room_joined id %d != welcome id %d", hostJoined.ID, hostWelcome.ID)
 	}
-	if err := guest.WriteJSON(map[string]any{
-		"type": "join", "name": "Guest", "class": 1, "class_name": "mage", "player_id": 202,
-	}); err != nil {
-		t.Fatalf("guest join: %v", err)
-	}
-	hostJoined := readUntilType(t, host, "room_joined")
-	_ = readUntilType(t, guest, "room_joined")
 	hub.startRoom(hostJoined.RoomID)
-	_ = readUntilType(t, host, "match_start")
+	hostStart := readUntilType(t, host, "match_start")
 	_ = readUntilType(t, guest, "match_start")
+	if hostStart.HostID != hostJoined.ID {
+		t.Fatalf("server host %d is not the client that joined first (%d)", hostStart.HostID, hostJoined.ID)
+	}
 
 	if err := host.WriteJSON(map[string]any{"type": "shell_state", "shell": map[string]any{
 		"alive": true, "x": 0.0, "y": 0.45, "z": 0.0, "phase": "active",

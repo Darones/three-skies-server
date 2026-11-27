@@ -96,7 +96,9 @@ func TestHPTickOrderingContract(t *testing.T) {
 	}
 
 	// 6. Respawn outranks the death, and the next state outranks the respawn.
-	second.diedAt = time.Now().Add(-7 * time.Second)
+	//    The server enforces the client's respawn timer (15 s + gold bonus), so
+	//    the death has to be older than that for the packet to be legal.
+	second.diedAt = time.Now().Add(-16 * time.Second)
 	hub.relayRespawn(second, wsIncoming{X: 0, Y: 0.76, Z: 28, Rotation: 0})
 	messages = collectMessages(t, first)
 	respawn := findMessage(messages, "respawn")
