@@ -1144,9 +1144,12 @@ func _create_gold_fountain() -> void:
 	var title := Label3D.new()
 	title.name = "FountainTitle"
 	title.font = UI_FONT
-	title.text = "ФОНТАН"
+	title.text = "Золотой колодец"
 	title.position = Vector3(0.0, 4.9, 0.0)
-	title.font_size = 88
+	# The longer name ("Золотой колодец", 15 glyphs instead of 6) is set in a
+	# smaller size so the billboard stays about as wide as the well base
+	# instead of hanging far over the arena.
+	title.font_size = 64
 	title.pixel_size = 0.006
 	title.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	title.modulate = Color(1.0, 0.84, 0.38)
@@ -2045,7 +2048,8 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 			hud.call("set_tutorial_skip_visible", true)
 			tutorial_controller.call("begin")
 			# Warm during the welcome card, not before it: the card is already
-			# on screen and the duel is still a click plus the UI tour away.
+			# on screen and the player still has to run to the arena center
+			# before the duel starts.
 			if not battle_prewarmed:
 				call_deferred("_warm_tutorial_assets")
 		else:

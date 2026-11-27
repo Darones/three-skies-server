@@ -156,9 +156,12 @@ func _build() -> void:
 	var content_margin := MarginContainer.new()
 	content_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content_margin.add_theme_constant_override("margin_left", 2)
-	content_margin.add_theme_constant_override("margin_right", 2)
+	# The vertical scrollbar draws over the right edge of the text, and the
+	# 44 px fade covers the bottom of the scroll on a phone. Reserve both, so
+	# the last line of every tab can be scrolled out from under them.
+	content_margin.add_theme_constant_override("margin_right", 16 if mobile_layout else 6)
 	content_margin.add_theme_constant_override("margin_top", 8)
-	content_margin.add_theme_constant_override("margin_bottom", 8)
+	content_margin.add_theme_constant_override("margin_bottom", 50 if mobile_layout else 34)
 	scroll.add_child(content_margin)
 
 	var content := VBoxContainer.new()

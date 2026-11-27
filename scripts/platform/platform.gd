@@ -35,6 +35,34 @@ func _web_location() -> Dictionary:
 	}
 
 
+## Reads one parameter out of a URL query or hash fragment ("a=1&b=2").
+func _url_param(source: String, param_name: String) -> String:
+	var text := source.strip_edges().trim_prefix("?").trim_prefix("#")
+	var question := text.find("?")
+	if question >= 0:
+		# Hash routers keep their query after a second "?".
+		text = text.substr(question + 1)
+	var prefix := param_name + "="
+	for pair in text.split("&", false):
+		if pair.begins_with(prefix):
+			return pair.substr(prefix.length()).uri_decode().strip_edges()
+	return ""
+
+
+## OK marks the player with a signed `local_access_token` in the launch URL,
+## in the query or in the hash. The server verifies it through the OK API; the
+## client only passes it on. Empty means "no OK token", so the caller keeps its
+## own fallback path.
+func get_local_access_token() -> String:
+	var location := _web_location()
+	if location.is_empty():
+		return ""
+	var token := _url_param(String(location["search"]), "local_access_token")
+	if token.is_empty():
+		token = _url_param(String(location["hash"]), "local_access_token")
+	return token
+
+
 func _url_platform_hint() -> String:
 	# One PCK serves every platform: the adapter is chosen at runtime from the
 	# launcher URL, not from export feature tags. OK is checked first because

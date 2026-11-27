@@ -218,7 +218,10 @@ func _build_panel() -> void:
 	root.add_child(close_button)
 
 	# Footer: deliberately tiny and low-contrast so these rare actions are
-	# not pressed by accident. Placed below the Back button.
+	# not pressed by accident. Placed below the Back button. The red still
+	# has to pass AA on the near-black panel: the old 0.86/0.24/0.22 sat at
+	# ~4.4:1, so both destructive links are a step lighter (~5.5:1) while
+	# staying clearly red against the pale body text.
 	var footer := VBoxContainer.new()
 	footer.name = "SettingsFooter"
 	footer.add_theme_constant_override("separation", 2)
@@ -228,11 +231,11 @@ func _build_panel() -> void:
 	credits_link.name = "CreditsButton"
 	credits_link.pressed.connect(_open_credits)
 	footer.add_child(credits_link)
-	var reset_link := _make_flat_link("Сбросить общий прогресс", Color(0.78, 0.36, 0.32), 16 if mobile_layout else 15)
+	var reset_link := _make_flat_link("Сбросить общий прогресс", Color(0.86, 0.4, 0.36), 16 if mobile_layout else 15)
 	reset_link.name = "ResetProgressButton"
 	reset_link.pressed.connect(_confirm_reset_progress)
 	footer.add_child(reset_link)
-	var delete_link := _make_flat_link("Удалить данные", Color(0.86, 0.24, 0.22), 16 if mobile_layout else 15)
+	var delete_link := _make_flat_link("Удалить данные", Color(0.94, 0.33, 0.3), 16 if mobile_layout else 15)
 	delete_link.name = "DeleteAccountButton"
 	delete_link.pressed.connect(_confirm_delete_account)
 	footer.add_child(delete_link)

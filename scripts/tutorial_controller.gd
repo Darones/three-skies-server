@@ -15,7 +15,8 @@ const FINAL_WAVE_RELEASE := 1.5
 # next stage starts on its own after this delay (owner: no "К фонтану"/"В бой").
 const CARD_ADVANCE_DELAY := 2.2
 # The welcome plate is not a timed splash: it stays until stage 1/3 is done,
-# while the UI tour and the duel run behind it. No "Продолжить" button.
+# while the run to the arena center and the duel go on behind it. No
+# "Продолжить" button.
 const WELCOME_CARD_TITLE := "Добро пожаловать!"
 const SHELL_TELEGRAPH_TIME := 2.0
 const SHELL_SOFT_CAP_TIME := 25.0
@@ -56,8 +57,8 @@ func begin() -> void:
 	_point_to(Vector3.ZERO, OBJECTIVE_GOLD)
 	var controls_hint := "Двигайся джойстиком слева, навыки — кнопки справа." if _uses_touch_controls() else "Двигайся клавишами WASD, навыки — 1, 2 и 3."
 	# The welcome plate is a notice, not a dialog: no button and no timed
-	# splash. It stays on screen while the UI tour and the duel run, and the
-	# "Этап 1/3 пройден" card replaces it when the duel ends.
+	# splash. It stays on screen while the player runs to the arena center
+	# and fights the duel, and the "Этап 1/3 пройден" card replaces it.
 	game.hud.call(
 		"show_tutorial_card",
 		WELCOME_CARD_TITLE,
@@ -238,11 +239,18 @@ func on_delivery() -> void:
 func _continue_intro() -> void:
 	if stage != "welcome":
 		return
-	stage = "ui_tour"
-	# The welcome plate stays visible on purpose: the tour highlights move
-	# around it and the duel starts under it. _finish_duel replaces it.
+	# The welcome plate stays visible on purpose: the run-to-center hint and
+	# the duel start under it, and _finish_duel replaces the plate. There is
+	# no UI tour any more (P1): after the welcome card the tutorial goes
+	# straight to the "run to the arena center" hint.
 	_clear_target()
-	_run_ui_tour()
+	_begin_run_to_center()
+
+
+func _begin_run_to_center() -> void:
+	stage = "reach_center"
+	_point_to(Vector3.ZERO, OBJECTIVE_GOLD)
+	game.hud.call("show_tutorial_hint", "Беги вперёд — к центру арены")
 
 
 func _auto_advance(expected_stage: String, action: Callable, delay := CARD_ADVANCE_DELAY) -> void:
@@ -257,25 +265,6 @@ func _auto_advance(expected_stage: String, action: Callable, delay := CARD_ADVAN
 		return
 	if action.is_valid():
 		action.call()
-
-
-func _run_ui_tour() -> void:
-	game.hud.call("show_ui_highlight", "minimap", "Это миникарта: на ней видно союзников, врагов и осколок.")
-	await get_tree().create_timer(3.4).timeout
-	if not is_inside_tree() or stage != "ui_tour":
-		return
-	game.hud.call("show_ui_highlight", "skills", "Это ваши скиллы — кнопки 1, 2 и 3 справа.")
-	await get_tree().create_timer(3.4).timeout
-	if not is_inside_tree() or stage != "ui_tour":
-		return
-	game.hud.call("show_ui_highlight", "avatar", "Это меню: звук и настройки. Пауза в онлайне недоступна.")
-	await get_tree().create_timer(4.0).timeout
-	if not is_inside_tree() or stage != "ui_tour":
-		return
-	game.hud.call("hide_ui_highlight")
-	stage = "reach_center"
-	_point_to(Vector3.ZERO, OBJECTIVE_GOLD)
-	game.hud.call("show_tutorial_hint", "Беги вперёд — к центру арены")
 
 
 func _show_fountain_card() -> void:

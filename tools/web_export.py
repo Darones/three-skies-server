@@ -315,6 +315,117 @@ def patch_legal_overlay() -> None:
     print("LEGAL patched v2")
 
 
+WEB_META_MARKER = "TS_WEB_META_V1"
+WEB_GAME_URL = "https://three-skies-server.relaxdev.ru/game/"
+WEB_IMAGE_URL = WEB_GAME_URL + "og-image.jpg"
+# Icon files live in ui/ next to logo.png and splash.jpg. The exporter copies
+# them under their own names, so /game/favicon.png and friends stay stable.
+ICON_ASSETS = (
+    "favicon.png",
+    "apple-touch-icon.png",
+    "favicon.ico",
+    "og-image.jpg",
+)
+META_DESCRIPTION = (
+    "«Небесные осколки» — бесплатная командная игра 3v3 за Оболочку: "
+    "собирайте небесные осколки, качайте героя и ведите команду к победе. "
+    "Играется в браузере на компьютере и телефоне."
+)
+OG_DESCRIPTION = (
+    "Командная игра 3v3 за Оболочку: собирайте небесные осколки и ведите "
+    "команду к победе. Бесплатно в браузере."
+)
+WEB_META_BLOCK = f"""\t\t<!-- {WEB_META_MARKER}:start
+\t\t     Language, description, Open Graph and real icons. Written by
+\t\t     tools/web_export.py after the export; a re-run replaces this block. -->
+\t\t<meta name="description" content="{META_DESCRIPTION}">
+\t\t<meta name="theme-color" content="#070a12">
+\t\t<meta property="og:site_name" content="Небесные осколки">
+\t\t<meta property="og:type" content="website">
+\t\t<meta property="og:locale" content="ru_RU">
+\t\t<meta property="og:title" content="Небесные осколки">
+\t\t<meta property="og:description" content="{OG_DESCRIPTION}">
+\t\t<meta property="og:url" content="{WEB_GAME_URL}">
+\t\t<meta property="og:image" content="{WEB_IMAGE_URL}">
+\t\t<meta property="og:image:type" content="image/jpeg">
+\t\t<meta property="og:image:width" content="1200">
+\t\t<meta property="og:image:height" content="630">
+\t\t<meta property="og:image:alt" content="Небесные осколки: герои 3v3 у небесного осколка">
+\t\t<meta name="twitter:card" content="summary_large_image">
+\t\t<link rel="icon" type="image/png" sizes="64x64" href="/game/favicon.png">
+\t\t<link rel="icon" type="image/x-icon" sizes="32x32" href="/game/favicon.ico">
+\t\t<link rel="apple-touch-icon" sizes="180x180" href="/game/apple-touch-icon.png">
+\t\t<!-- {WEB_META_MARKER}:end -->
+"""
+WEB_META_BLOCK_RE = re.compile(
+    r"[ \t]*<!--\s*TS_WEB_META_V1:start\b.*?<!--\s*TS_WEB_META_V1:end\s*-->[ \t]*\r?\n?",
+    re.S,
+)
+# Godot exports a placeholder icon pair (index.icon.png / index.apple-touch-icon.png)
+# that renders as an empty grey square. Both are dropped when our links go in.
+GD_PLACEHOLDER_ICONS_RE = re.compile(
+    r"[ \t]*<link\b[^>]*(?:index\.icon\.png|index\.apple-touch-icon\.png)[^>]*>[ \t]*\r?\n?",
+    re.I,
+)
+
+
+def _set_html_lang(html: str, lang: str) -> str:
+    """Force the <html> language attribute, adding it when the export has none."""
+    match = re.search(r"<html\b[^>]*>", html, re.I)
+    if not match:
+        return html
+    tag = match.group(0)
+    if re.search(r"\blang\s*=", tag, re.I):
+        tag = re.sub(
+            r"\blang\s*=\s*([\"'])[^\"']*\1", f'lang="{lang}"', tag, count=1, flags=re.I
+        )
+    else:
+        tag = tag[:-1].rstrip() + f' lang="{lang}">'
+    return html[: match.start()] + tag + html[match.end() :]
+
+
+def patch_meta_and_icons() -> None:
+    """Icons, `<html lang="ru">`, description and Open Graph for the export.
+
+    VK/OK moderation and link previews read the head of /game/index.html: it
+    used to say lang="en", had no description and showed Godot's empty grey
+    placeholder icon. The icons are copied from ui/ as-is, so a rebuild never
+    needs Pillow. Runs after export and before prepare_server_web, which is
+    what puts the files into server/web. Every step is idempotent: our block
+    carries start/end markers and is replaced, never stacked.
+    """
+    for name in ICON_ASSETS:
+        source = ROOT / "ui" / name
+        if not source.exists():
+            print("META_ICON missing", name)
+            continue
+        shutil.copy2(source, OUT_DIR / name)
+
+    html_path = OUT_DIR / "index.html"
+    if not html_path.exists():
+        print("META skipped: no index.html")
+        return
+    html = html_path.read_text(encoding="utf-8")
+    html = _set_html_lang(html, "ru")
+    html = GD_PLACEHOLDER_ICONS_RE.sub("", html)
+    html = WEB_META_BLOCK_RE.sub("", html)
+    close = html.rfind("</head>")
+    if close == -1:
+        print("META skipped: no </head>")
+        html_path.write_text(html, encoding="utf-8", newline="")
+        return
+    # Insert at the start of the </head> line so the block keeps its indent
+    # even when the export puts </head> on a whitespace-only line.
+    line_start = html.rfind("\n", 0, close) + 1
+    if html[line_start:close].strip():
+        line_start, tail = close, ""
+    else:
+        tail = html[line_start:close]
+    html = html[:line_start] + WEB_META_BLOCK + tail + html[close:]
+    print("META patched")
+    html_path.write_text(html, encoding="utf-8", newline="")
+
+
 def copy_editor_page() -> None:
     editor = ROOT / "ui_editor.html"
     if not editor.exists():
@@ -499,6 +610,9 @@ def main() -> None:
     patch_web_shell(OUT_DIR, ROOT)
     copy_editor_page()
     copy_payment_icon()
+    # Meta, Open Graph and the real icons must be in place before
+    # prepare_server_web copies build/web to server/web.
+    patch_meta_and_icons()
 
     packs = sorted(OUT_DIR.glob("index_*.pck"))
     if len(packs) != 1:

@@ -22,14 +22,19 @@ func _ready() -> void:
 	if tutorial == null:
 		_finish()
 		return
-	# Welcome plate: no splash timer, no "Продолжить". The tour starts at once
-	# and the plate stays until the duel is won.
+	# Welcome plate: no splash timer, no "Продолжить", no UI tour. The run to
+	# the arena center starts at once and the plate stays until the duel is won.
 	var welcome_msec := Time.get_ticks_msec()
 	var card_overlay: Control = game.hud.get("tutorial_overlay")
 	var card_panel: Control = game.hud.get("tutorial_card_panel")
 	var card_title: Label = game.hud.get("tutorial_title")
 	var card_button: Control = game.hud.get("tutorial_primary_button")
-	_check(String(tutorial.get("stage")) == "ui_tour", "welcome starts the UI tour immediately")
+	_check(String(tutorial.get("stage")) == "reach_center", "welcome starts the run-to-center stage immediately")
+	_check(
+		game.hud.get("tutorial_hint").text == "Беги вперёд — к центру арены"
+		and game.hud.get("tutorial_hint").visible,
+		"welcome card is followed by the run-to-center hint"
+	)
 	_check(card_overlay.visible, "welcome plate is visible")
 	_check(card_title.text == "Добро пожаловать!", "welcome plate keeps its title")
 	_check(not card_button.visible, "welcome plate has no continue button")
@@ -41,11 +46,16 @@ func _ready() -> void:
 	_check(game.hud.get("tutorial_skip_button") != null and game.hud.get("tutorial_skip_button").visible, "skip button visible")
 	_check(game.hud.find_child("MobilePauseButton", true, false) == null, "old HUD pause button is gone")
 
-	# Longer than the old 2.2 s auto-hide: the plate and the tour both survive.
+	# Longer than the old 2.2 s auto-hide: the plate stays while the player
+	# has not reached the center yet; there is no UI tour and no highlight.
 	await get_tree().create_timer(2.6).timeout
-	_check(String(tutorial.get("stage")) == "ui_tour", "tour does not auto-advance the welcome plate")
+	_check(String(tutorial.get("stage")) == "reach_center", "run-to-center stage waits for the player")
 	_check(card_overlay.visible and card_title.text == "Добро пожаловать!", "welcome plate is still there after 2.6s")
-	_check(game.hud.get("focus_panel").visible, "minimap highlight runs under the welcome plate")
+	_check(not game.hud.get("focus_panel").visible, "no UI tour highlight under the welcome plate")
+	_check(
+		game.hud.get("tutorial_hint").text == "Беги вперёд — к центру арены",
+		"run-to-center hint stays under the welcome plate"
+	)
 
 	tutorial.set("stage", "reach_center")
 	game.player.global_position = Vector3(0.0, 0.76, 0.0)

@@ -626,11 +626,27 @@ func _build_player_profile() -> void:
 	info.add_theme_constant_override("separation", 1)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(info)
+	# A 32-character platform nick used to widen the label and push the card
+	# layout. The label lives in a clipping holder, so its minimum size cannot
+	# grow the profile card; it trims with an ellipsis and keeps the full nick
+	# in the tooltip.
+	var name_holder := Control.new()
+	name_holder.name = "ProfileNameHolder"
+	name_holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_holder.custom_minimum_size = Vector2(0, _fs(24) + 4)
+	name_holder.clip_contents = true
+	name_holder.mouse_filter = Control.MOUSE_FILTER_PASS
+	name_holder.tooltip_text = "Игрок"
+	info.add_child(name_holder)
 	profile_name_label = _make_label("Игрок", 24, PALE)
-	profile_name_label.add_theme_font_size_override("font_size", _fs(24))
+	profile_name_label.name = "ProfileName"
+	profile_name_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	profile_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_name_label.clip_text = true
-	info.add_child(profile_name_label)
+	profile_name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	profile_name_label.mouse_filter = Control.MOUSE_FILTER_PASS
+	profile_name_label.tooltip_text = "Игрок"
+	name_holder.add_child(profile_name_label)
 	profile_level_label = _make_label("Уровень 1", 16, Color(0.7, 0.75, 0.84))
 	profile_level_label.add_theme_font_size_override("font_size", _fs(16))
 	profile_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -2078,12 +2094,23 @@ func _build_player_menu() -> void:
 	var nickname_row := HBoxContainer.new()
 	nickname_row.add_theme_constant_override("separation", 6)
 	profile_content.add_child(nickname_row)
+	# The holder caps the label width: a long nick is ellipsized inside it and
+	# the «Сменить ник» button keeps its fixed width on the right.
+	var nickname_holder := Control.new()
+	nickname_holder.name = "NicknameHolder"
+	nickname_holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nickname_holder.clip_contents = true
+	nickname_holder.mouse_filter = Control.MOUSE_FILTER_PASS
+	nickname_row.add_child(nickname_holder)
 	nickname_display_label = _make_label(MetaProgression.player_nickname, 18, PALE)
 	nickname_display_label.name = "NicknameDisplay"
+	nickname_display_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	nickname_display_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	nickname_display_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	nickname_display_label.clip_text = true
-	nickname_row.add_child(nickname_display_label)
+	nickname_display_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	nickname_display_label.mouse_filter = Control.MOUSE_FILTER_PASS
+	nickname_display_label.tooltip_text = MetaProgression.player_nickname
+	nickname_holder.add_child(nickname_display_label)
 	nickname_change_button = _make_action_button("Сменить ник", false)
 	nickname_change_button.name = "NicknameChangeButton"
 	nickname_change_button.custom_minimum_size = Vector2(110, 40) if DeviceProfile.mobile_ui else Vector2(140, 42)
@@ -3366,6 +3393,7 @@ func _refresh_player_menu() -> void:
 		return
 	if nickname_display_label != null:
 		nickname_display_label.text = MetaProgression.player_nickname
+		nickname_display_label.tooltip_text = MetaProgression.player_nickname
 	if nickname_line_edit != null and nickname_popup_overlay != null and nickname_popup_overlay.visible and not nickname_line_edit.has_focus():
 		nickname_line_edit.text = MetaProgression.player_nickname
 	if nickname_cost_label != null:
@@ -3812,6 +3840,10 @@ func _refresh_player_profile() -> void:
 	if nickname.is_empty():
 		nickname = "Игрок"
 	profile_name_label.text = nickname
+	profile_name_label.tooltip_text = nickname
+	var name_holder := profile_name_label.get_parent()
+	if name_holder is Control:
+		(name_holder as Control).tooltip_text = nickname
 	profile_level_label.text = '%s · Уровень %d' % [_hero_display_name(), character_level]
 	profile_name_label.add_theme_color_override('font_color', PALE)
 	profile_level_label.add_theme_color_override('font_color', Color(0.7, 0.75, 0.84))

@@ -42,6 +42,10 @@ var reward_room := 0
 var base_reward_settled := false
 var base_reward_ok := false
 var pending_bonus := false
+# The «×2» plate is a claim that the server paid the bonus, so it is held
+# until match_reward_settled confirms the bonus request. Offline matches have
+# no server to ask and show it right away.
+var bonus_banner_pending := false
 var ad_in_progress := false
 var leaving_results := false
 var replay_button: Button
@@ -74,12 +78,20 @@ func _build_players_table(parent: VBoxContainer) -> void:
 		parent.add_child(empty_label)
 		return
 
+	# On an 844x390 phone the fixed columns used to squeeze the name and push
+	# the last one under the scrollbar. Mobile keeps narrower У/С, УРОН and
+	# ОСК. columns; the name cell takes the reclaimed width.
+	var columns := _player_column_widths()
 	var header := HBoxContainer.new()
+	header.name = "PlayersHeader"
 	header.add_theme_constant_override("separation", 6)
-	header.add_child(_table_cell("ИГРОК", 12, Color(0.55, 0.58, 0.66), 0.0, HORIZONTAL_ALIGNMENT_LEFT))
-	header.add_child(_table_cell("У/С", 12, Color(0.55, 0.58, 0.66), 58.0, HORIZONTAL_ALIGNMENT_CENTER))
-	header.add_child(_table_cell("УРОН", 12, Color(0.55, 0.58, 0.66), 74.0, HORIZONTAL_ALIGNMENT_RIGHT))
-	header.add_child(_table_cell("ОСК.", 12, Color(0.55, 0.58, 0.66), 52.0, HORIZONTAL_ALIGNMENT_RIGHT))
+	var name_header := _table_cell("ИГРОК", 12, Color(0.55, 0.58, 0.66), 0.0, HORIZONTAL_ALIGNMENT_LEFT)
+	name_header.clip_text = true
+	name_header.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	header.add_child(name_header)
+	header.add_child(_table_cell("У/С", 12, Color(0.55, 0.58, 0.66), columns[0], HORIZONTAL_ALIGNMENT_CENTER))
+	header.add_child(_table_cell("УРОН", 12, Color(0.55, 0.58, 0.66), columns[1], HORIZONTAL_ALIGNMENT_RIGHT))
+	header.add_child(_table_cell("ОСК.", 12, Color(0.55, 0.58, 0.66), columns[2], HORIZONTAL_ALIGNMENT_RIGHT))
 	parent.add_child(header)
 	parent.add_child(_thin_divider())
 
@@ -98,6 +110,7 @@ func _build_players_table(parent: VBoxContainer) -> void:
 
 
 func _make_player_row(entry: Dictionary, best_damage: int) -> Control:
+	var columns := _player_column_widths()
 	var is_self := bool(entry.get("is_player", false))
 	var row_panel := PanelContainer.new()
 	var style := StyleBoxFlat.new()
@@ -106,7 +119,7 @@ func _make_player_row(entry: Dictionary, best_damage: int) -> Control:
 	style.content_margin_left = 6.0
 	style.content_margin_right = 6.0
 	# Desktop has the room: taller rows read better and fill the panel.
-	var row_pad := 5.0 if DeviceProfile.mobile_ui else 9.0
+	var row_pad := 3.0 if DeviceProfile.mobile_ui else 9.0
 	style.content_margin_top = row_pad
 	style.content_margin_bottom = row_pad
 	row_panel.add_theme_stylebox_override("panel", style)
@@ -122,11 +135,21 @@ func _make_player_row(entry: Dictionary, best_damage: int) -> Control:
 		name_text = "* " + name_text
 	var name_cell := _table_cell(name_text, 14, GOLD if is_self else PALE, 0.0, HORIZONTAL_ALIGNMENT_LEFT)
 	name_cell.clip_text = true
+	# A 32-character nick must trim with an ellipsis instead of a hard cut.
+	name_cell.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	row.add_child(name_cell)
-	row.add_child(_table_cell("%d/%d" % [int(entry.get("kills", 0)), int(entry.get("deaths", 0))], 14, Color(0.8, 0.85, 0.95), 58.0, HORIZONTAL_ALIGNMENT_CENTER))
-	row.add_child(_table_cell(str(damage), 14, Color(1.0, 0.8, 0.5), 74.0, HORIZONTAL_ALIGNMENT_RIGHT))
-	row.add_child(_table_cell(str(int(entry.get("crystals", 0))), 14, Color(0.43, 0.84, 1.0), 52.0, HORIZONTAL_ALIGNMENT_RIGHT))
+	row.add_child(_table_cell("%d/%d" % [int(entry.get("kills", 0)), int(entry.get("deaths", 0))], 14, Color(0.8, 0.85, 0.95), columns[0], HORIZONTAL_ALIGNMENT_CENTER))
+	row.add_child(_table_cell(str(damage), 14, Color(1.0, 0.8, 0.5), columns[1], HORIZONTAL_ALIGNMENT_RIGHT))
+	row.add_child(_table_cell(str(int(entry.get("crystals", 0))), 14, Color(0.43, 0.84, 1.0), columns[2], HORIZONTAL_ALIGNMENT_RIGHT))
 	return row_panel
+
+
+## Fixed column widths of the players table. Mobile trades a few pixels of
+## У/С, УРОН and ОСК. for the name column, so a 3v3 table reads on 844x390.
+func _player_column_widths() -> Array:
+	if DeviceProfile.mobile_ui:
+		return [52.0, 58.0, 46.0]
+	return [58.0, 74.0, 52.0]
 
 
 func _table_cell(text: String, font_size: int, color: Color, width: float, align: int) -> Label:
@@ -150,7 +173,7 @@ func _make_tab_button(text: String, active: bool) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(0.0, 38.0)
+	button.custom_minimum_size = Vector2(0.0, 34.0 if DeviceProfile.mobile_ui else 38.0)
 	button.add_theme_font_override("font", font)
 	button.add_theme_font_size_override("font_size", _fs(18))
 	button.add_theme_color_override("font_color", GOLD if active else Color(0.6, 0.63, 0.71))
@@ -364,7 +387,7 @@ func _build_content() -> void:
 	# The lobby button now lives at the bottom of the left column, so the
 	# content can use the strip it used to reserve for the button. That extra
 	# height is what lets the players table show a full 3v3 without scrolling.
-	content.anchor_bottom = 0.945 if mobile else 0.94
+	content.anchor_bottom = 0.96 if mobile else 0.94
 	content.add_theme_constant_override("separation", 16 if mobile else 30)
 	add_child(content)
 
@@ -433,14 +456,14 @@ func _build_content() -> void:
 	skin_label.name = "HeroSkin"
 	portrait_content.add_child(skin_label)
 
-	var stats_panel := _make_panel(Color(0.3, 0.32, 0.38, 0.9))
+	var stats_panel := _make_panel(Color(0.3, 0.32, 0.38, 0.9), 11.0 if mobile else -1.0)
 	stats_panel.name = "StatisticsPanel"
 	stats_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stats_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(stats_panel)
 	var panel_box := VBoxContainer.new()
 	panel_box.name = "StatsPanelBox"
-	panel_box.add_theme_constant_override("separation", 8)
+	panel_box.add_theme_constant_override("separation", 6 if mobile else 8)
 	stats_panel.add_child(panel_box)
 
 	var tab_row := HBoxContainer.new()
@@ -465,7 +488,10 @@ func _build_content() -> void:
 	var stats_margin := MarginContainer.new()
 	stats_margin.name = "StatsMargin"
 	stats_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	stats_margin.add_theme_constant_override("margin_right", 18)
+	stats_margin.add_theme_constant_override("margin_right", 22 if mobile else 18)
+	# Breathing room at the bottom: at max scroll the last row must not sit
+	# flush against the clipped edge.
+	stats_margin.add_theme_constant_override("margin_bottom", 10 if mobile else 4)
 	stats_scroll.add_child(stats_margin)
 	var stats_content := VBoxContainer.new()
 	stats_content.name = "StatsContent"
@@ -506,7 +532,7 @@ func _build_content() -> void:
 
 	double_reward_button = _make_button("", true)
 	double_reward_button.name = "DoubleRewardsButton"
-	double_reward_button.custom_minimum_size = Vector2(300.0 if DeviceProfile.mobile_ui else 420.0, 40.0)
+	double_reward_button.custom_minimum_size = Vector2(300.0 if DeviceProfile.mobile_ui else 420.0, 36.0 if DeviceProfile.mobile_ui else 40.0)
 	double_reward_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	double_reward_button.add_theme_font_size_override("font_size", _fs(16))
 	double_reward_button.add_theme_color_override("font_color", Color(0.18, 0.11, 0.02))
@@ -545,12 +571,13 @@ func _build_content() -> void:
 	var players_margin := MarginContainer.new()
 	players_margin.name = "PlayersMargin"
 	players_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	players_margin.add_theme_constant_override("margin_right", 18)
+	players_margin.add_theme_constant_override("margin_right", 22 if mobile else 18)
+	players_margin.add_theme_constant_override("margin_bottom", 10 if mobile else 4)
 	players_scroll.add_child(players_margin)
 	var players_body := VBoxContainer.new()
 	players_body.name = "PlayersContent"
 	players_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	players_body.add_theme_constant_override("separation", 4)
+	players_body.add_theme_constant_override("separation", 3 if mobile else 4)
 	players_margin.add_child(players_body)
 	_build_players_table(players_body)
 	_refresh_reward_ui()
@@ -597,7 +624,11 @@ func _update_players_scroll_mode() -> void:
 	var body := players_scroll.get_node_or_null("PlayersMargin/PlayersContent") as Control
 	if body == null:
 		return
-	var content_height := body.get_combined_minimum_size().y
+	# Measure the margin wrapper, not just the rows: its bottom padding is part
+	# of the content that has to fit, and on desktop the table only barely
+	# clears the viewport.
+	var wrapper := players_scroll.get_node_or_null("PlayersMargin") as Control
+	var content_height := (wrapper if wrapper != null else body).get_combined_minimum_size().y
 	var fits := content_height <= players_scroll.size.y + 0.5
 	# On desktop a full 3v3 fits, so the table is simply a plain list with no
 	# scrollbar. A phone in landscape can still overflow; scrolling stays
@@ -667,22 +698,23 @@ func _build_buttons() -> void:
 		add_child(lobby_button)
 
 
-func _make_panel(border_color: Color) -> PanelContainer:
+func _make_panel(border_color: Color, padding := -1.0) -> PanelContainer:
 	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", _panel_style(border_color, Color(0.025, 0.03, 0.05, 0.88)))
+	panel.add_theme_stylebox_override("panel", _panel_style(border_color, Color(0.025, 0.03, 0.05, 0.88), padding))
 	return panel
 
 
-func _panel_style(border_color: Color, fill_color: Color) -> StyleBoxFlat:
+func _panel_style(border_color: Color, fill_color: Color, padding := -1.0) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = fill_color
 	style.border_color = border_color
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(11)
-	style.content_margin_left = 16.0
-	style.content_margin_right = 16.0
-	style.content_margin_top = 15.0
-	style.content_margin_bottom = 15.0
+	var pad := 15.0 if padding < 0.0 else padding
+	style.content_margin_left = pad + 1.0
+	style.content_margin_right = pad + 1.0
+	style.content_margin_top = pad
+	style.content_margin_bottom = pad
 	style.shadow_color = Color(0.0, 0.0, 0.0, 0.28)
 	style.shadow_size = 10
 	style.shadow_offset = Vector2(0.0, 4.0)
@@ -848,6 +880,9 @@ func _on_rewarded_ad_completed() -> void:
 		# with «Reward already claimed», so the banner said x2 while nothing
 		# was paid. Hold the bonus until the base answer arrives.
 		pending_bonus = true
+		# The «×2» plate is shown by _on_results_reward_settled only after the
+		# server confirms the bonus, never on the local doubling alone.
+		bonus_banner_pending = true
 		if base_reward_settled:
 			_send_ad_bonus()
 		else:
@@ -858,13 +893,22 @@ func _on_rewarded_ad_completed() -> void:
 	MetaProgression.add_reward_delta(final_xp - previous_xp, final_shards - previous_shards)
 	rewards_doubled = true
 	_refresh_reward_ui()
-	_play_reward_fanfare()
+	# An offline match has no server to ask, so it celebrates immediately; an
+	# online match waits for the bonus confirmation (see _celebrate_x2).
+	if not server_match:
+		_celebrate_x2()
 	# The level-up banner is shown once, in the lobby. Showing it here, again
 	# after the ad and again in the lobby was three notices for one level.
-	_show_reward_banner("×2  НАГРАДЫ УДВОЕНЫ", 2.2)
 	if ad_button_pulse_tween != null and ad_button_pulse_tween.is_running():
 		ad_button_pulse_tween.kill()
 		double_reward_button.scale = Vector2.ONE
+
+
+## The visual «×2» is a promise that the reward was paid: the banner, its
+## fanfare and the plate are one step, run only when the payout is settled.
+func _celebrate_x2() -> void:
+	_play_reward_fanfare()
+	_show_reward_banner("×2  НАГРАДЫ УДВОЕНЫ", 2.2)
 
 
 func _results_room_id() -> int:
@@ -896,9 +940,14 @@ func _on_results_reward_settled(success: bool, payload: Dictionary, _code: int, 
 	if bool(payload.get("bonus", false)):
 		if success:
 			print("[Ads] x2 bonus confirmed room=%d" % room_id)
+			# Now, and only now, the «×2» plate may claim the payout.
+			if bonus_banner_pending:
+				bonus_banner_pending = false
+				_celebrate_x2()
 		else:
 			# MetaProgression keeps a rejected bonus in its outbox and retries
-			# it after the base reward, so the x2 is not lost here.
+			# it after the base reward, so the x2 is not lost here. The banner
+			# stays hidden: the server did not pay the bonus.
 			print("[Ads] x2 bonus not confirmed room=%d error=%s (kept for retry)" % [room_id, error])
 		return
 	base_reward_settled = true
