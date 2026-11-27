@@ -460,7 +460,9 @@ ANGLE-GL 4.5 с, тёплый запуск 0.7 с. Security P0 — по-преж
 
 **Читать до любых работ с сервером/платежами:** `docs/SECURITY-AUDIT-2026-11-26.md`.
 Кратко:
-- **P0:** дефолтные `ADMIN_TOKEN`/`STATS_TOKEN` = `239837` работают на проде;
+- **P0 (аудит 26.11, историческая запись):** дефолтные
+  `ADMIN_TOKEN`/`STATS_TOKEN` = `239837` работали на проде; актуальная задача —
+  только env `ADMIN_TOKEN`, дефолта в коде быть не должно;
   legacy-профили без `session_token` можно захватить/удалить
   (`requireSession`); `/auth/ok` принимает `ok_user_id` без проверки;
   `/ok/pay` и `site=OK` в `/vk/pay` не проверяют подпись; VK `name` не
@@ -801,7 +803,7 @@ PCK 50 399 388. Боевая таблица: `0686a19`; deploy `c0a3eea`, PCK 50
 - **Смена ника:** на вебе пробуем системную клавиатуру через HTML-поле;
   наша экранная клавиатура остаётся фолбэком.
 - **Статистика:** серверные `/stats/event`, `/stats/data`, `/stats/dashboard`,
-  `/stats/player`, `/stats/reset` (токен 239837). Клиентский автолоад `Stats`
+  `/stats/player`, `/stats/reset` (токен `ADMIN_TOKEN`). Клиентский автолоад `Stats`
   шлёт session_start, heartbeat, match_start, match_end. Площадка (VK/OK,
   iOS/Android/Desktop) и мусорный трафик (боты ВК, краулеры, превью) считаются
   отдельно. Проверено живым клиентом: session_start с классом и платформой.
