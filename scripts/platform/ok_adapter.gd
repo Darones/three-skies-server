@@ -135,7 +135,7 @@ func authenticate() -> bool:
 ## (`logged_user_id`), then from VKWebAppGetUserInfo(use_local: true) with a
 ## bounded wait. Returns false so the caller keeps the token path as is.
 func _try_mobile_identity(seq: int) -> bool:
-	var mobile_web := OS.has_feature("web_android") or OS.has_feature("web_ios")
+	var mobile_web := OS.has_feature("web_android") or OS.has_feature("web_ios") or DeviceProfile.mobile_ui
 	if not mobile_web:
 		return false
 	var uid := _ok_user_id_from_url()

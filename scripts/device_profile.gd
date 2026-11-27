@@ -16,7 +16,7 @@ const QUALITY_MEDIUM := "medium"
 const QUALITY_HIGH := "high"
 const QUALITY_VALUES := [QUALITY_LOW, QUALITY_MEDIUM, QUALITY_HIGH]
 
-const PHONE_PROBE_JS := "(function(){try{var ua=navigator.userAgent||'';var touch=(navigator.maxTouchPoints||0)>0;var coarse=false;try{coarse=!!(window.matchMedia&&window.matchMedia('(pointer: coarse)').matches);}catch(e){}var uaPhone=/Android|iPhone|iPad|iPod|Mobi|Windows Phone/i.test(ua);var small=Math.min(screen.width||0,screen.height||0)<=900;return uaPhone||(touch&&coarse&&small);}catch(e){return false;}})()"
+const PHONE_PROBE_JS := "(function(){try{var ua=navigator.userAgent||'';var touch=(navigator.maxTouchPoints||0)>0;var coarse=false;try{coarse=!!(window.matchMedia&&window.matchMedia('(pointer: coarse)').matches);}catch(e){}var uaPhone=/Android|iPhone|iPad|iPod|Mobi|Windows Phone/i.test(ua);var narrow=(window.innerWidth||0)<=900;return uaPhone||narrow||(touch&&coarse);}catch(e){return false;}})()"
 
 var mobile_ui := false
 var is_vk := false
