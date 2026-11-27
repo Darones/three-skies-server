@@ -37,6 +37,8 @@ func authenticate() -> bool:
 		_authenticated = true
 		_auth_in_progress = false
 		_refresh_ad_availability()
+		# Never log the token itself: only which path signed the player in.
+		print("[OK] auth via local_access_token")
 		return true
 	var user_result := await _call_ad_bridge("VKWebAppGetUserInfo", {"use_local": true})
 	if not bool(user_result.get("ok", false)):
@@ -75,6 +77,7 @@ func authenticate() -> bool:
 	_authenticated = true
 	_auth_in_progress = false
 	_refresh_ad_availability()
+	print("[OK] auth via bridge identity (no token)")
 	return true
 
 
