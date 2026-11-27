@@ -61,6 +61,16 @@ const BOT_PROFILES := {
 const AFK_TIMEOUT := 60.0
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const HEALTH_BAR_3D := preload("res://scripts/health_bar_3d.gd")
+const WorldNameLayer := preload("res://scripts/world_name_layer.gd")
+# Green fill for every HP bar: allies and enemies are told apart by the name
+# colour, the bar itself only shows how much health is left.
+const HEALTH_FILL_COLOR := Color(0.36, 0.95, 0.52, 1.0)
+# Name colours for the screen-space nickname.
+const NAME_COLOR_SELF := Color(0.74, 1.0, 0.72)
+const NAME_COLOR_ALLY := Color(0.6, 1.0, 0.64)
+const NAME_COLOR_ENEMY := Color(1.0, 0.46, 0.4)
+# Nickname anchor above the feet: just above the 3D HP bar (2.55 + 0.16).
+const NAME_TAG_HEIGHT := 2.78
 const WEAPON_MAGE_GLOW := Color(0.35, 0.78, 1.0)
 const WEAPON_WARRIOR_GLOW := Color(1.0, 0.64, 0.24)
 const WEAPON_FAIRY_GLOW := Color(0.55, 1.0, 0.62)
@@ -126,7 +136,12 @@ const FAIRY_ULT_RADIUS := 5.0
 const FAIRY_ULT_DAMAGE := 75.0
 const FAIRY_ULT_SLOW := 0.3
 const FAIRY_ULT_SLOW_DURATION := 2.0
-const MAGE_STORM_DAMAGE := 100.0
+const MAGE_STORM_DAMAGE := 70.0
+# Storm tick contract (option 5A): 70 base rolls 52.5-87.5 non-crit and
+# 105-175 on the 10% x2 ultimate crit. The x2 outgoing hit (HERO_OUTGOING_*)
+# puts a normal network tick at 105-175 and a crit at 210-350, so server/ws.go
+# keeps classBaseDamage[1]=39, ult_lightning_storm multiplier 1.4 (=54.6) and
+# clips the storm to mageUltDamageCap = 250.
 const FAIRY_CRIT_CAST_TIME := 1.0
 const FAIRY_CRIT_MULTIPLIER := 3.0
 const CRIT_CAST_COLOR := Color(1.0, 0.16, 0.1)
@@ -323,7 +338,10 @@ var combat_audio_players: Dictionary = {}
 var health_back: MeshInstance3D
 var health_fill: MeshInstance3D
 var health_label: Label3D
-var name_label: Label3D
+# Screen-space nickname (see scripts/world_name_layer.gd). It lives in a shared
+# CanvasLayer, not under this node, so it must not be treated as a child.
+var name_label: Label
+var name_is_player := false
 var stun_label: Label3D
 var stun_ring: MeshInstance3D
 var name_plate: Sprite3D
@@ -850,8 +868,7 @@ func _vfx_audio_for_scene(vfx_scene: PackedScene) -> AudioStream:
 
 
 func _build_health_bar() -> void:
-	var bar_color := Color(0.36, 0.95, 0.52, 1.0)
-	health_back = HEALTH_BAR_3D.create(HEALTH_BAR_FILL_WIDTH, 0.16, bar_color, 2.55)
+	health_back = HEALTH_BAR_3D.create(HEALTH_BAR_FILL_WIDTH, 0.16, HEALTH_FILL_COLOR, 2.55)
 	status_root.add_child(health_back)
 	# One mesh draws background, fill and frame. Keep the old field as an
 	# alias so all visibility code works unchanged.
@@ -879,21 +896,44 @@ func _build_health_label() -> void:
 
 
 func _build_name_label() -> void:
-	# A clean readable name with a black outline instead of a dark plate.
+	# Ник — 2D-надпись над головой (screen-space), а не Label3D: 3D-текст
+	# проходил через 3D-конвейер и на низком качестве (scaling_3d_scale 0.5)
+	# мылился. Канвасный Label рисуется в полном разрешении при любом q.
 	name_plate = null
-	name_label = Label3D.new()
+	name_is_player = is_player
+	var name_camera: Camera3D = null
+	if game != null and is_instance_valid(game):
+		name_camera = game.get("camera") as Camera3D
+	name_label = WorldNameLayer.create_label(self, NAME_TAG_HEIGHT, name_camera)
 	name_label.name = "NameLabel"
-	name_label.text = display_name
-	name_label.font = ThemeDB.fallback_font
-	name_label.font_size = 56
-	name_label.pixel_size = 0.0055
-	name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	name_label.no_depth_test = true
-	name_label.modulate = Color(0.62, 1.0, 0.62)
-	name_label.outline_size = 10
-	name_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)
-	name_label.position = Vector3(0.0, 3.02, 0.0)
-	status_root.add_child(name_label)
+	# Цвет и видимость решает _update_name_visibility() на первом же кадре:
+	# при setup() локальный игрок ещё не назначен, иначе враг мигнул бы зелёным.
+	name_label.visible = false
+	_refresh_name_text()
+	_update_name_color()
+
+
+func _name_tag_text() -> String:
+	# Боты подписаны как «БОТ <номер>». Готовое имя приходит из game/server
+	# (_next_bot_callsign, normalize_bot_name): префикс не дублируем и своих
+	# кличек не придумываем.
+	var text := display_name.strip_edges()
+	if text.is_empty():
+		return ""
+	if name_is_player or tutorial_dummy:
+		return text
+	var upper := text.to_upper()
+	if upper.begins_with("БОТ") or upper.begins_with("BOT"):
+		return text
+	return "БОТ %s" % text
+
+
+func _refresh_name_text() -> void:
+	if name_label == null or not is_instance_valid(name_label):
+		return
+	var wanted := _name_tag_text()
+	if name_label.text != wanted:
+		name_label.text = wanted
 
 
 func _build_stun_indicator() -> void:
@@ -940,8 +980,7 @@ func set_display_name(value: String) -> void:
 	if trimmed.is_empty():
 		return
 	display_name = trimmed
-	if name_label != null and is_instance_valid(name_label):
-		name_label.text = display_name
+	_refresh_name_text()
 
 
 func set_preview_mode(enabled: bool) -> void:
@@ -2663,23 +2702,32 @@ func _update_name_color() -> void:
 	var is_ally := local_team < 0 or team == local_team
 	if name_label != null and is_instance_valid(name_label):
 		# Red enemy names and green ally names, both with a black outline.
-		name_label.modulate = Color(0.62, 1.0, 0.62) if is_ally else Color(1.0, 0.32, 0.28)
+		var text_color := NAME_COLOR_ENEMY
+		if name_is_player:
+			text_color = NAME_COLOR_SELF
+		elif is_ally:
+			text_color = NAME_COLOR_ALLY
+		if name_label.get_theme_color("font_color") != text_color:
+			name_label.add_theme_color_override("font_color", text_color)
 	if health_fill != null and is_instance_valid(health_fill):
 		var fill_mat := health_fill.material_override as ShaderMaterial
 		if fill_mat != null:
-			var bar_color := Color(0.36, 0.95, 0.52) if is_ally else Color(1.0, 0.3, 0.26)
-			fill_mat.set_shader_parameter("fill_color", bar_color)
+			# One green fill for every team: the nickname colour says friend or
+			# enemy, the bar only shows the remaining health.
+			if fill_mat.get_shader_parameter("fill_color") != HEALTH_FILL_COLOR:
+				fill_mat.set_shader_parameter("fill_color", HEALTH_FILL_COLOR)
 
 
 func _update_name_visibility() -> void:
 	_update_name_color()
+	_refresh_name_text()
 	if preview_mode:
-		if name_label != null:
+		if name_label != null and is_instance_valid(name_label):
 			name_label.visible = false
 		if name_plate != null:
 			name_plate.visible = false
 		return
-	if name_label == null or game == null or not is_instance_valid(game):
+	if name_label == null or not is_instance_valid(name_label) or game == null or not is_instance_valid(game):
 		return
 	if is_player:
 		name_label.visible = true

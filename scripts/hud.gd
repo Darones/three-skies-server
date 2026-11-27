@@ -1525,6 +1525,13 @@ func _scoreboard_name_reportable(nickname: String) -> bool:
 	return clean != String(MetaProgression.player_nickname).strip_edges()
 
 
+## Bot names already arrive as "БОТ 1234" from game/server, so the scoreboard
+## must not stack a second prefix ("БОТ · БОТ 1234"). Mirrors hero.gd.
+func _has_bot_prefix(name_text: String) -> bool:
+	var upper := name_text.strip_edges().to_upper()
+	return upper.begins_with("БОТ") or upper.begins_with("BOT")
+
+
 func _make_scoreboard_cell(text: String, font_size: int, color: Color, width: float, align: int, expand := false) -> Label:
 	var label := _make_label(text, font_size, color)
 	label.horizontal_alignment = align
@@ -1554,7 +1561,7 @@ func _make_scoreboard_row(entry: Dictionary) -> Control:
 	row_panel.add_child(row)
 
 	var name_text := String(entry.get("name", "Игрок"))
-	if bool(entry.get("is_bot", false)):
+	if bool(entry.get("is_bot", false)) and not _has_bot_prefix(name_text):
 		name_text = "БОТ · " + name_text
 	if is_self:
 		name_text = "* " + name_text

@@ -1,6 +1,13 @@
 extends Node3D
 
 const MATCH_LENGTH := 600.0
+# Respawn in normal and network matches is linear in the gold the player (or
+# the bot) earned during the match: 0g -> 15s, 1000g -> 19s, 1500g -> 21s,
+# 2000g+ -> 23s. Only the tutorial keeps the old flat pacing below.
+const RESPAWN_BASE_SECONDS := 15.0
+const RESPAWN_GOLD_DELAY_SECONDS := 8.0
+const RESPAWN_GOLD_FULL := 2000.0
+# Tutorial pacing (unchanged): 8s + 1s per 200 gold, capped at 16s.
 const RESPAWN_TIME := 8.0
 const RESPAWN_GOLD_STEP := 200
 const RESPAWN_MAX_SECONDS := 16.0
@@ -39,12 +46,7 @@ const SHOP_INTERACTION_RADIUS := 5.0
 const CRYSTAL_SCENE: PackedScene = preload("res://assets/models/detail-crystal.glb")
 const CRYSTAL_MODEL_SCALE := 2.7
 const CRYSTAL_EMISSION_COLOR := Color(0.16, 0.68, 1.0)
-const BOT_CALLSIGNS := [
-	"Тёмный Лис", "Северный Ветер", "Тихий Шторм", "Искра", "Каменный Путь",
-	"Звёздный След", "Сумрачный Клинок", "Белый Ворон", "Летний Дождь",
-	"Холодный Рассвет", "Лунная Тень", "Стальной Волк", "Ветер Перемен",
-	"Пепел", "Огненный Лис", "Ночная Птица",
-]
+const BOT_NAME_PREFIX := "БОТ"
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 # First-clash assets. WarmupFlow draws them in its own World3D (separate
 # environment/fog/shadow state), which was not enough on Compatibility: the
@@ -62,7 +64,35 @@ const FIRST_CLASH_WARM_VFX := [
 const CLOUD_WALL_SHADER: Shader = preload("res://shaders/cloud_wall.gdshader")
 const FOG_OF_WAR_SHADER_PATH := "res://shaders/fog_of_war.gdshader"
 const FOG_VIEW_RADIUS := 10.0
-const FOG_OF_WAR_VISUAL := false
+# Visual fog of war. Enemy visibility itself is scripted (_update_enemy_visibility
+# hides enemies behind FOG_VIEW_RADIUS); the fog plane is the *look* of that rule:
+# a soft dark band that covers the floor (and the legs of distant heroes) where
+# vision ends, so a hero appearing at the vision border does not pop out of a
+# brightly lit floor. The clear hole scales with the camera distance: a fixed
+# radius is a tight vignette on a phone and a full-screen blackout on a zoomed-out
+# desktop, so it is a share of what the camera actually shows.
+const FOG_HOLE_FACTOR := 0.38
+const FOG_HOLE_MIN := 4.5
+const FOG_HOLE_MAX := 18.0
+const FOG_EDGE_FACTOR := 0.8
+const FOG_OPACITY := 0.82
+const FOG_COLOR := Color(0.2, 0.24, 0.36)
+# Fog sits a little above the floor: a ground-level plane only darkens the floor
+# and distant heroes keep floating on it in full light. At ~1.35 a hero at the
+# vision border is buried up to the chest, so it emerges from the mist instead
+# of popping in.
+const FOG_PLANE_HEIGHT := 1.5
+# Landmarks farther than this are off screen anyway; keeping them out of the
+# orb list leaves the slots for nearby teammates.
+const FOG_LANDMARK_RANGE := 24.0
+# A teammate only gets its own hole while it is really next to the player.
+const FOG_ALLY_HOLE_RANGE := 11.0
+# Damage numbers: outgoing (player -> enemy) is 1.37x the old 64 and warm gold;
+# incoming stays red and smaller, so hits read at a glance on a phone.
+const DAMAGE_NUMBER_OUT_SIZE := 88
+const DAMAGE_NUMBER_OUT_CRIT_SIZE := 104
+const DAMAGE_NUMBER_IN_SIZE := 52
+const DAMAGE_NUMBER_IN_CRIT_SIZE := 58
 const SHOP_STALL_SCENE: PackedScene = preload("res://assets/shop_stall/3d_4f92fe433b084100af7a1d7f_1790958942025.glb")
 const TUTORIAL_CONTROLLER_SCRIPT: Script = preload("res://scripts/tutorial_controller.gd")
 const REMOTE_PLAYER_SCRIPT: Script = preload("res://scripts/remote_player.gd")
@@ -112,6 +142,8 @@ var camera: Camera3D
 var hud: Node
 var fog_of_war_plane: MeshInstance3D
 var fog_of_war_material: ShaderMaterial
+var fog_warm_frames := 0
+var fog_hole_radius := -1.0
 var heroes: Array[HeroUnit] = []
 var player: HeroUnit = null
 var shell: SkyShell = null
@@ -242,6 +274,9 @@ func _ready() -> void:
 	var configured_players: Variant = get_tree().get_meta("network_match_players", [])
 	network_match_players = configured_players if configured_players is Array else []
 	bot_difficulty = "easy" if tutorial_mode else (NetworkManager.bot_difficulty if network_play else "normal")
+	battle_prewarmed = bool(get_tree().get_meta("battle_prewarmed", false))
+	if battle_prewarmed:
+		get_tree().set_meta("battle_prewarmed", false)
 	camera = get_node_or_null("Camera3D") as Camera3D
 	if camera == null:
 		camera = Camera3D.new()
@@ -255,6 +290,13 @@ func _ready() -> void:
 	min_zoom_distance = DeviceProfile.min_zoom_distance
 	max_zoom_distance = DeviceProfile.max_zoom_distance
 	camera_pos = camera.global_position
+	# The scene used to open everything in one Main._ready frame: arena, decor,
+	# VFX pools and HUD. That single frame was 350-390 ms (several seconds on a
+	# phone) and owned the main thread long enough that the browser could not
+	# start the match audio. The three blocks below are independent, so the two
+	# boundaries between them get their own frame; the arena itself stays in one
+	# piece on purpose, because on the Compatibility renderer a first draw per
+	# piece costs more compile frames than one bigger setup frame.
 	if get_node_or_null("Arena") == null:
 		var arena := Node3D.new()
 		arena.name = "Arena"
@@ -269,15 +311,24 @@ func _ready() -> void:
 	_create_fog_of_war()
 	_create_shop_stall()
 	_create_gold_fountain()
+	# Start the first-clash warm here, not at the end of _ready: its assets are
+	# spread over timers, so it can finish while the pools and the HUD are still
+	# being built.
+	if not tutorial_mode:
+		_start_first_clash_warm()
+	await get_tree().process_frame
 	if arena_root != null:
-		_create_ambient_decor(arena_root)
+		await _create_ambient_decor(arena_root)
 	_apply_mobile_quality()
 	_setup_audio()
+	await get_tree().process_frame
 	_prepare_effect_pools()
+	await get_tree().process_frame
 	hud = preload("res://scripts/hud.gd").new()
 	hud.name = "HUD"
 	hud.game = self
 	add_child(hud)
+	await get_tree().process_frame
 	var bushes_root := get_node_or_null("Arena/Bushes")
 	if bushes_root != null:
 		for bush_node in bushes_root.get_children():
@@ -286,13 +337,8 @@ func _ready() -> void:
 				bush_zones.append(bush)
 				bush.body_entered.connect(_on_bush_body_entered.bind(bush))
 				bush.body_exited.connect(_on_bush_body_exited.bind(bush))
-	battle_prewarmed = bool(get_tree().get_meta("battle_prewarmed", false))
-	if battle_prewarmed:
-		get_tree().set_meta("battle_prewarmed", false)
 	if not battle_prewarmed and (DeviceProfile.mobile_ui or OS.has_feature("web")):
 		await _warm_battle_world()
-	if not tutorial_mode:
-		_start_first_clash_warm()
 	if get_tree().has_meta("selected_class"):
 		var selected_class := int(get_tree().get_meta("selected_class"))
 		if selected_class >= 0 and selected_class <= 2:
@@ -425,6 +471,11 @@ func _warm_first_clash_world() -> void:
 	# depth-test flag of the damage-number Label3D), so the first hit still
 	# froze for 45-80 ms. Everything here is invisible from the match camera
 	# (y = -100) and is freed before the match starts.
+	#
+	# A prewarmed phone/web session already drew the hit scenes in this same
+	# renderer, but the E2E run shows the first real hit still compiles there
+	# (123 ms frame right after "live"), so the pass stays; the per-effect timer
+	# below is what keeps it from bunching into one stall.
 	if _clash_warm_done:
 		_clash_warm_running = false
 		return
@@ -449,7 +500,22 @@ func _warm_first_clash_world() -> void:
 	for _frame in 2:
 		await get_tree().process_frame
 
+	var warm_index := 0
 	for path in FIRST_CLASH_WARM_VFX:
+		# The match can go live while this runs (start_match no longer waits for
+		# the warm). A further scene would then instantiate and compile inside the
+		# first seconds of the fight, which is exactly what this warm exists to
+		# prevent, so stop there: the first hit scene below is already warm and
+		# the remaining ones belong to ultimates that come much later.
+		if state == "live":
+			break
+		# One effect per quiet frame: six instantiates + draws in back-to-back
+		# frames were a 50-80 ms stall each on a phone. The first (most common)
+		# hit scene still runs immediately, so the match can reach "live" right
+		# away; the rest fill in behind the class-select panel.
+		if warm_index > 0:
+			await get_tree().create_timer(0.15).timeout
+		warm_index += 1
 		var packed := load(path) as PackedScene
 		if packed == null:
 			continue
@@ -489,7 +555,15 @@ func _warm_first_clash_world() -> void:
 	# Damage / heal / crit numbers: the same Label3D configuration damage_number
 	# and heal_number use. no_depth_test and outline_size are part of the
 	# pipeline state, so the warm must match them exactly.
-	for probe in [[64, "0123456789"], [76, "0123456789"], [56, "+0123456789"]]:
+	for probe in [
+		[DAMAGE_NUMBER_IN_SIZE, "0123456789"],
+		[DAMAGE_NUMBER_IN_CRIT_SIZE, "0123456789"],
+		[64, "0123456789"],
+		[76, "0123456789"],
+		[DAMAGE_NUMBER_OUT_SIZE, "0123456789"],
+		[DAMAGE_NUMBER_OUT_CRIT_SIZE, "0123456789"],
+		[56, "+0123456789"],
+	]:
 		var label := Label3D.new()
 		label.text = String(probe[1])
 		label.font = UI_FONT
@@ -547,6 +621,14 @@ func _warm_first_clash_world() -> void:
 	# projectiles and the per-cast lightning/crack meshes are all invisible
 	# until the first skill, so their pipelines were never drawn. Show the real
 	# pool nodes once at y=-100 (no gameplay state touched), then hide them.
+	#
+	# Only while the match is not live yet: the warm may now outlive "live"
+	# (start_match no longer waits for it), and hiding a pool node that a real
+	# skill is playing, or resetting the earthquake timer of a real ultimate,
+	# would break the fight it is supposed to protect.
+	if state == "live":
+		_finish_first_clash_warm(warm_viewport, started)
+		return
 	for entry in burst_pool:
 		var burst_node := entry["node"] as CPUParticles3D
 		if burst_node == null:
@@ -609,6 +691,12 @@ func _warm_first_clash_world() -> void:
 		hud.call("_team_icon", 0)
 		hud.call("_team_icon", 1)
 
+	_finish_first_clash_warm(warm_viewport, started)
+
+
+## Shared tail of the first-clash warm: drop the warm viewport, mark the warm
+## done and report its cost.
+func _finish_first_clash_warm(warm_viewport: SubViewport, started: int) -> void:
 	if is_instance_valid(warm_viewport):
 		warm_viewport.queue_free()
 	_clash_warm_done = true
@@ -971,6 +1059,9 @@ func _create_ambient_decor(arena_root: Node3D) -> void:
 	_create_fireflies(decor, Vector3(37.0, 0.0, 0.0), 5.0, Color(1.0, 0.85, 0.45))
 	_create_fireflies(decor, Vector3(0.0, 0.0, 0.0), 4.5, Color(0.55, 0.85, 1.0))
 	_create_fireflies(decor, Vector3(0.0, 0.0, 10.0), 3.5, Color(0.5, 0.8, 1.0))
+	# Six GPUParticles3D cost ~12 ms each to set up; hand the frame back
+	# halfway so the scene open never blocks the browser audio thread for long.
+	await get_tree().process_frame
 	_create_fireflies(decor, Vector3(0.0, 0.0, -10.0), 3.5, Color(0.75, 0.55, 1.0))
 	_create_fireflies(decor, Vector3(-24.0, 0.0, 12.0), 3.0, Color(1.0, 0.8, 0.4))
 	_create_fireflies(decor, Vector3(24.0, 0.0, -12.0), 3.0, Color(0.7, 0.6, 1.0))
@@ -1899,10 +1990,20 @@ func start_match(player_class: int, requested_team: int = -1) -> void:
 	# exist), but the match is not live yet: the class-select panel still
 	# covers the screen while the real-world clash warm finishes. This keeps
 	# the first hit from compiling its pipeline mid-fight.
-	if _clash_warm_running and not _clash_warm_done:
-		var warm_deadline := Time.get_ticks_msec() + 10000
-		while _clash_warm_running and not _clash_warm_done and Time.get_ticks_msec() < warm_deadline:
-			await get_tree().process_frame
+	#
+	# It does NOT wait for that warm any more. The warm runs one asset per frame
+	# on its own, everything it touches is drawn at y = -100, and waiting for it
+	# kept the match out of "live" for up to 10 s: the panel was gone, the scene
+	# looked frozen and the match_start cue could not start.
+	# It does not block the match for 10 s any more: the warm finishes behind the
+	# class-select panel in ~1.2 s and the panel is up for far longer than that
+	# for a real player (a class has to be tapped). This wait only matters when
+	# something starts the match the same instant the scene opens; there it keeps
+	# the first fight from compiling its pipelines, so the first 5 s after "live"
+	# stay clean.
+	var clash_warm_deadline := Time.get_ticks_msec() + 400
+	while _clash_warm_running and not _clash_warm_done and Time.get_ticks_msec() < clash_warm_deadline:
+		await get_tree().process_frame
 	var needs_shader_warmup := (DeviceProfile.mobile_ui or OS.has_feature("web")) and not battle_prewarmed
 	if needs_shader_warmup and not tutorial_mode:
 		# Warm the freshly spawned hero models and every hit VFX while the
@@ -1972,8 +2073,8 @@ func _spawn_network_bots(light_spots: Array[Vector3], dark_spots: Array[Vector3]
 		next_index[bot_team] += 1
 		var bot := _spawn_hero(bot_class, bot_team, false, spots[spot_index], bot_difficulty)
 		bot.network_id = int(entry.get("id", 0))
-		var bot_name := String(entry.get("name", "")).strip_edges()
-		if bot_name.is_empty() or bot_name.begins_with("Игрок"):
+		var bot_name := normalize_bot_name(String(entry.get("name", "")))
+		if bot_name.is_empty():
 			bot_name = _next_bot_callsign()
 		if not bot_name.is_empty():
 			bot.set_display_name(bot_name)
@@ -2004,16 +2105,41 @@ func _spawn_hero(cls: int, team: int, is_player: bool, pos: Vector3, difficulty 
 	return h
 
 
+## Bots are shown as "БОТ 1234" everywhere (name plate, kill feed, scoreboard,
+## results) - the same label the matchmaking search shows. Nicknames like
+## "Искра" are never used in a battle.
 func _next_bot_callsign() -> String:
-	var available: Array[String] = []
-	for callsign in BOT_CALLSIGNS:
-		if not used_bot_callsigns.has(String(callsign)):
-			available.append(String(callsign))
-	if available.is_empty():
-		return "Путник%d" % (used_bot_callsigns.size() + 1)
-	var callsign := available[randi_range(0, available.size() - 1)]
-	used_bot_callsigns.append(callsign)
-	return callsign
+	for _attempt in 64:
+		var number := randi_range(1000, 9999)
+		var callsign := "%s %04d" % [BOT_NAME_PREFIX, number]
+		if not used_bot_callsigns.has(callsign):
+			used_bot_callsigns.append(callsign)
+			return callsign
+	var fallback := "%s %04d" % [BOT_NAME_PREFIX, 1000 + used_bot_callsigns.size()]
+	used_bot_callsigns.append(fallback)
+	return fallback
+
+
+## Accepts the server/search name and returns the name to display, or "" when a
+## fresh local callsign must be generated. "БОТ 0421" is kept as "БОТ 0421"
+## (one prefix, one number), "Игрок 3" and empty names are dropped.
+func normalize_bot_name(raw: String) -> String:
+	var value := raw.strip_edges()
+	if value.is_empty():
+		return ""
+	var upper := value.to_upper()
+	if upper.begins_with(BOT_NAME_PREFIX) or upper.begins_with("BOT"):
+		var digits := ""
+		for index in value.length():
+			var character := value[index]
+			if character >= "0" and character <= "9":
+				digits += character
+		if digits.length() >= 3:
+			return "%s %s" % [BOT_NAME_PREFIX, digits.substr(0, 4)]
+		return value
+	if upper.begins_with("ИГРОК") or upper.begins_with("ПУТНИК"):
+		return ""
+	return value
 
 
 func clamp_to_arena(position: Vector3) -> Vector3:
@@ -2099,10 +2225,26 @@ func award_gold(amount: int) -> void:
 
 
 func respawn_delay_for(hero: HeroUnit) -> float:
-	if hero != player:
-		return RESPAWN_TIME
-	var bonus_seconds := floori(float(gold_earned_this_match) / float(RESPAWN_GOLD_STEP))
-	return minf(RESPAWN_MAX_SECONDS, RESPAWN_TIME + float(bonus_seconds))
+	if tutorial_mode:
+		# Tutorial keeps its old pacing; its bots never respawn at all.
+		if hero != player:
+			return RESPAWN_TIME
+		var bonus_seconds := floori(float(gold_earned_this_match) / float(RESPAWN_GOLD_STEP))
+		return minf(RESPAWN_MAX_SECONDS, RESPAWN_TIME + float(bonus_seconds))
+	var earned := match_gold_earned_for(hero)
+	var share := clampf(float(earned) / RESPAWN_GOLD_FULL, 0.0, 1.0)
+	return RESPAWN_BASE_SECONDS + RESPAWN_GOLD_DELAY_SECONDS * share
+
+
+## Gold the hero earned this match, spent or not. Bots track no separate
+## "earned" counter, but bot_gold only ever grows by rewards and shrinks by
+## shop purchases that also add to match_gold_spent, so wallet + spent is exact.
+func match_gold_earned_for(hero: HeroUnit) -> int:
+	if hero == null or not is_instance_valid(hero):
+		return 0
+	if hero == player:
+		return maxi(0, gold_earned_this_match)
+	return maxi(0, int(hero.bot_gold) + int(hero.match_gold_spent))
 
 
 func set_shop_open(open: bool) -> void:
@@ -2242,14 +2384,9 @@ func _process(delta: float) -> void:
 
 
 func _create_fog_of_war() -> void:
-	if not FOG_OF_WAR_VISUAL:
-		# Visual fog is an expensive full-arena overdraw pass. Enemy visibility
-		# is scripted, so turning the plane off does not change gameplay.
-		return
-	if DeviceProfile.mobile_ui:
-		# Full-arena transparent shader plane; one of the most expensive
-		# overdraw passes on phone GPUs. Enemy visibility is scripted, so
-		# skipping the visual fog does not change gameplay.
+	if tutorial_mode:
+		# The tutorial is a guided, always-lit duel: fog would only hide the
+		# dummy the step asks the player to hit.
 		return
 	var arena := get_node_or_null("Arena") as Node3D
 	if arena == null or arena.get_node_or_null("FogOfWar") != null:
@@ -2263,48 +2400,106 @@ func _create_fog_of_war() -> void:
 	var plane_mesh := PlaneMesh.new()
 	plane_mesh.size = Vector2(ARENA_SAFE_HALF_X * 2.0, ARENA_SAFE_HALF_Z * 2.0)
 	fog_of_war_plane.mesh = plane_mesh
-	fog_of_war_plane.position = Vector3(0.0, 0.35, 0.0)
+	fog_of_war_plane.position = Vector3(0.0, FOG_PLANE_HEIGHT, 0.0)
 	fog_of_war_plane.visible = false
+	# One unshaded transparent pass, no shadow and no GI: the same shader runs
+	# on low/mobile and on the Compatibility renderer, it is not a high-only
+	# extra.
+	fog_of_war_plane.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	fog_of_war_plane.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
 	fog_of_war_material = ShaderMaterial.new()
 	fog_of_war_material.shader = fog_shader
-	fog_of_war_material.set_shader_parameter("view_radius", FOG_VIEW_RADIUS)
+	fog_of_war_material.set_shader_parameter("view_radius", FOG_HOLE_MIN)
+	fog_of_war_material.set_shader_parameter("edge_softness", FOG_HOLE_MIN * FOG_EDGE_FACTOR)
+	fog_of_war_material.set_shader_parameter("fog_opacity", FOG_OPACITY)
+	fog_of_war_material.set_shader_parameter("fog_color", FOG_COLOR)
 	fog_of_war_material.set_shader_parameter("arena_half_extent", Vector2(ARENA_SAFE_HALF_X, ARENA_SAFE_HALF_Z))
 	fog_of_war_plane.material_override = fog_of_war_material
 	arena.add_child(fog_of_war_plane)
+	# Two frames while the class-select panel still covers the screen compile
+	# the fog pipeline, so the first live frame does not pay for it.
+	fog_warm_frames = 2
 
 
 func _update_fog_of_war() -> void:
-	if not FOG_OF_WAR_VISUAL:
-		return
 	if fog_of_war_plane == null or fog_of_war_material == null:
 		return
-	fog_of_war_plane.visible = state == "live"
-	if state != "live":
+	if fog_warm_frames > 0:
+		fog_warm_frames -= 1
+		fog_of_war_plane.visible = true
+		if fog_warm_frames == 0:
+			fog_of_war_plane.visible = state == "live"
 		return
-	if player == null or not is_instance_valid(player):
+	if state != "live" or player == null or not is_instance_valid(player):
+		fog_of_war_plane.visible = false
+		return
+	# Dead: the camera pans away from the corpse to watch the fight, so a fog
+	# centred on the corpse would black out the whole arena.
+	fog_of_war_plane.visible = not player.dead
+	if player.dead:
 		return
 
-	var vision_positions: Array[Vector3] = []
-	for ally in heroes:
-		if ally == null or not is_instance_valid(ally) or ally.dead or ally.team != player.team:
-			continue
-		vision_positions.append(ally.global_position)
-		if vision_positions.size() >= 3:
-			break
-
+	var vision_points := _fog_vision_points()
+	var hole := clampf(camera_distance * FOG_HOLE_FACTOR, FOG_HOLE_MIN, FOG_HOLE_MAX)
+	if not is_equal_approx(hole, fog_hole_radius):
+		fog_hole_radius = hole
+		fog_of_war_material.set_shader_parameter("view_radius", hole)
+		fog_of_war_material.set_shader_parameter("edge_softness", hole * FOG_EDGE_FACTOR)
 	var primary_position := player.global_position
 	var ally_position_1 := Vector3(100000.0, 0.0, 100000.0)
 	var ally_position_2 := Vector3(100000.0, 0.0, 100000.0)
-	if not vision_positions.is_empty():
-		primary_position = vision_positions[0]
-	if vision_positions.size() > 1:
-		ally_position_1 = vision_positions[1]
-	if vision_positions.size() > 2:
-		ally_position_2 = vision_positions[2]
+	if not vision_points.is_empty():
+		primary_position = vision_points[0]
+	if vision_points.size() > 1:
+		ally_position_1 = vision_points[1]
+	if vision_points.size() > 2:
+		ally_position_2 = vision_points[2]
 	fog_of_war_material.set_shader_parameter("player_position", primary_position)
 	fog_of_war_material.set_shader_parameter("ally_position_1", ally_position_1)
 	fog_of_war_material.set_shader_parameter("ally_position_2", ally_position_2)
-	fog_of_war_material.set_shader_parameter("vision_count", vision_positions.size())
+	fog_of_war_material.set_shader_parameter("vision_count", vision_points.size())
+
+
+## Vision holes for the fog plane, most important first: the player, the shard,
+## the nearest base, then teammates standing right next to the player. The shard
+## and the bases are the match landmarks and must never be swallowed by the fog.
+## Only close teammates get a hole: a hole around a distant ally painted random
+## bright patches into the distance and made the fog look broken.
+func _fog_vision_points() -> Array[Vector3]:
+	var points: Array[Vector3] = []
+	points.append(player.global_position)
+	var player_position := player.global_position
+	if crystal_node != null and is_instance_valid(crystal_node):
+		var crystal_position := crystal_node.global_position
+		if Vector2(crystal_position.x - player_position.x, crystal_position.z - player_position.z).length() <= FOG_LANDMARK_RANGE:
+			points.append(crystal_position)
+	var base_center := Vector3(0.0, 0.0, BASE_POSITION_Z if player_position.z >= 0.0 else -BASE_POSITION_Z)
+	if Vector2(base_center.x - player_position.x, base_center.z - player_position.z).length() <= FOG_LANDMARK_RANGE:
+		points.append(base_center)
+	if points.size() >= 3:
+		return points
+	var nearest: Array[Vector3] = []
+	var nearest_distances: Array[float] = []
+	for ally in heroes:
+		if ally == null or not is_instance_valid(ally) or ally == player or ally.dead:
+			continue
+		if ally.team != player.team:
+			continue
+		var ally_position := ally.global_position
+		var distance := Vector2(ally_position.x - player_position.x, ally_position.z - player_position.z).length()
+		if distance > FOG_ALLY_HOLE_RANGE:
+			continue
+		nearest.append(ally_position)
+		nearest_distances.append(distance)
+	while points.size() < 3 and not nearest.is_empty():
+		var best_index := 0
+		for index in range(1, nearest.size()):
+			if nearest_distances[index] < nearest_distances[best_index]:
+				best_index = index
+		points.append(nearest[best_index])
+		nearest.remove_at(best_index)
+		nearest_distances.remove_at(best_index)
+	return points
 
 
 func _clamp_death_camera(position: Vector3) -> Vector3:
@@ -3974,6 +4169,7 @@ func _acquire_number_label() -> Label3D:
 				(old_tween as Tween).kill()
 			node.visible = true
 			node.modulate.a = 1.0
+			node.scale = Vector3.ONE
 			return node
 	var label := Label3D.new()
 	label.font = UI_FONT
@@ -3990,29 +4186,55 @@ func _release_number_label(label: Label3D) -> void:
 		return
 	label.visible = false
 	label.modulate.a = 1.0
+	label.scale = Vector3.ONE
 	if number_label_pool.size() < 32:
 		number_label_pool.append(label)
 	else:
 		label.queue_free()
 
 
-func damage_number(pos: Vector3, amount: float, _team: int, is_shell := false, is_crit := false) -> void:
+func damage_number(pos: Vector3, amount: float, team: int, is_shell := false, is_crit := false) -> void:
 	var profiler_start := Time.get_ticks_usec() if CombatProfiler.enabled else 0
 	var label := _acquire_number_label()
 	label.text = str(int(round(amount)))
-	label.font_size = 76 if is_crit else 64
+	# Damage the local player deals to enemies is the number the player is
+	# actually reading mid-fight: large, warm gold, thrown high and held longer.
+	# Incoming damage is small and red so the two never get confused.
+	var outgoing := player != null and is_instance_valid(player) and team != player.team
+	var rise := 1.1
+	var duration := 0.7
 	if is_shell:
+		label.font_size = 76 if is_crit else 64
 		label.modulate = Color(0.85, 0.9, 1.0)
+	elif outgoing:
+		label.font_size = DAMAGE_NUMBER_OUT_CRIT_SIZE if is_crit else DAMAGE_NUMBER_OUT_SIZE
+		label.modulate = Color(1.0, 0.72, 0.26) if is_crit else Color(1.0, 0.85, 0.34)
+		rise = 2.1
+		duration = 1.05
 	elif is_crit:
-		label.modulate = Color(1.0, 0.25, 0.2)
+		label.font_size = DAMAGE_NUMBER_IN_CRIT_SIZE
+		label.modulate = Color(1.0, 0.3, 0.26)
+		rise = 1.0
+		duration = 0.62
 	else:
-		label.modulate = Color(1.0, 0.92, 0.65)
+		label.font_size = DAMAGE_NUMBER_IN_SIZE
+		label.modulate = Color(1.0, 0.42, 0.36)
+		rise = 0.85
+		duration = 0.55
 	label.outline_modulate = Color(0.05, 0.03, 0.08, 0.9)
 	label.global_position = pos + Vector3(randf_range(-0.3, 0.3), 0.0, randf_range(-0.3, 0.3))
+	var target := label.global_position + Vector3(0.0, rise, 0.0)
 	var tween := create_tween()
 	label.set_meta("number_tween", tween)
-	tween.tween_property(label, "global_position", label.global_position + Vector3(0.0, 1.1, 0.0), 0.7)
-	tween.parallel().tween_property(label, "modulate:a", 0.0, 0.7)
+	if outgoing:
+		# A short pop sells the hit without a second tween on the pooled label.
+		label.scale = Vector3.ONE * 1.18
+		tween.tween_property(label, "scale", Vector3.ONE, 0.18).set_ease(Tween.EASE_OUT)
+		tween.parallel().tween_property(label, "global_position", target, duration)
+		tween.parallel().tween_property(label, "modulate:a", 0.0, duration).set_delay(duration * 0.45)
+	else:
+		tween.tween_property(label, "global_position", target, duration)
+		tween.parallel().tween_property(label, "modulate:a", 0.0, duration)
 	tween.tween_callback(_release_number_label.bind(label))
 	if CombatProfiler.enabled:
 		CombatProfiler.mark("number", "%.0f crit=%s %.1fms" % [amount, str(is_crit), (Time.get_ticks_usec() - profiler_start) / 1000.0])
@@ -4600,8 +4822,8 @@ func _spawn_network_bot_from_info(info: Dictionary) -> HeroUnit:
 		pos = Vector3(0.0, 0.76, 28.0 if bot_team == 0 else -28.0)
 	var bot := _spawn_hero(bot_class, bot_team, false, pos)
 	bot.network_id = bot_id
-	var bot_name := String(info.get("name", "")).strip_edges()
-	if bot_name.is_empty() or bot_name.begins_with("Игрок"):
+	var bot_name := normalize_bot_name(String(info.get("name", "")))
+	if bot_name.is_empty():
 		bot_name = _next_bot_callsign()
 	bot.set_display_name(bot_name)
 	var max_hp := maxf(float(info.get("max_hp", bot.max_health)), 1.0)

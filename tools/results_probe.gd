@@ -102,10 +102,27 @@ func _ready() -> void:
 		else:
 			_check(path.contains("keyart"), "ordinary class keeps its key art (%s)" % path)
 	var badge := scene.find_child("LegendBadge", true, false)
-	if legendary:
-		_check(badge != null and badge.visible, "«ЛЕГЕНДА» caption is under the portrait")
-	else:
-		_check(badge == null or not badge.visible, "no «ЛЕГЕНДА» caption for an ordinary class")
+	# The owner removed the tiny gold «ЛЕГЕНДА» caption: the skin card itself
+	# carries the look. The probe now guards the removal — no badge node and no
+	# caption text anywhere on the screen, for legendary and ordinary skins.
+	_check(badge == null, "no LegendBadge node under the portrait")
+	var captions := _legend_caption_labels(scene)
+	_check(captions.is_empty(), "no «ЛЕГЕНДА» caption text on the results screen")
+
+	# Bot names arrive already prefixed from game/server. The table row must not
+	# add a second "БОТ · " ("БОТ · БОТ 1234") and must still prefix bare names.
+	var callsign_row := scene.call("_make_player_row",
+		{"name": "БОТ 1234", "team": 0, "is_bot": true, "damage": 10}, 0) as Control
+	var callsign_labels := _all_labels(callsign_row)
+	var callsign_name := callsign_labels[0].text if not callsign_labels.is_empty() else ""
+	_check(callsign_name.count("БОТ") == 1,
+		"bot callsign keeps a single БОТ in the results table (%s)" % callsign_name)
+	var bare_row := scene.call("_make_player_row",
+		{"name": "Тест", "team": 0, "is_bot": true, "damage": 10}, 0) as Control
+	var bare_labels := _all_labels(bare_row)
+	var bare_name := bare_labels[0].text if not bare_labels.is_empty() else ""
+	_check(bare_name == "БОТ · Тест",
+		"unprefixed bot still gets the results prefix (%s)" % bare_name)
 
 	var lobby_button := scene.find_child("MenuButton", true, false) as Button
 	_check(lobby_button != null and lobby_button.visible, "lobby button exists")
@@ -185,3 +202,26 @@ func _check(condition: bool, label: String) -> void:
 	else:
 		failures += 1
 		print("FAIL: ", label)
+
+
+## The caption is gone from the game (owner: "its almost invisible"). Match the
+## exact caption only: "ЛЕГЕНДАРНОЕ" is a weapon rarity and must not count.
+func _legend_caption_labels(node: Node) -> Array[Label]:
+	var found: Array[Label] = []
+	for label in _all_labels(node):
+		if _is_legend_caption(label.text):
+			found.append(label)
+	return found
+
+
+func _all_labels(node: Node) -> Array[Label]:
+	var labels: Array[Label] = []
+	if node is Label:
+		labels.append(node as Label)
+	for child in node.get_children():
+		labels.append_array(_all_labels(child))
+	return labels
+
+
+func _is_legend_caption(text: String) -> bool:
+	return text.replace("◆", " ").strip_edges().to_upper() == "ЛЕГЕНДА"

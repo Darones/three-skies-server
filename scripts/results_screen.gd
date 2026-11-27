@@ -116,7 +116,7 @@ func _make_player_row(entry: Dictionary, best_damage: int) -> Control:
 
 	var damage := int(entry.get("damage", 0))
 	var name_text := String(entry.get("name", ">"))
-	if bool(entry.get("is_bot", false)):
+	if bool(entry.get("is_bot", false)) and not _has_bot_prefix(name_text):
 		name_text = "БОТ · " + name_text
 	if damage > 0 and damage == best_damage:
 		name_text = "* " + name_text
@@ -425,9 +425,6 @@ func _build_content() -> void:
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	portrait_frame.add_child(portrait)
 
-	if legendary_skin:
-		portrait_content.add_child(_make_legend_badge())
-
 	var hero_name := _make_label(_get_player_character_name(), 18 if mobile else 24, PALE)
 	hero_name.name = "HeroName"
 	portrait_content.add_child(hero_name)
@@ -570,31 +567,15 @@ func _is_legendary_skin(item: Dictionary) -> bool:
 	return not String(item.get("card", "")).is_empty()
 
 
-func _make_legend_badge() -> Control:
-	var row := HBoxContainer.new()
-	row.name = "LegendBadge"
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 8)
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(_legend_rule())
-	var label := _make_bold_label("ЛЕГЕНДА", 12, Color(GOLD.r, GOLD.g, GOLD.b, 0.95))
-	label.name = "LegendLabel"
-	row.add_child(label)
-	row.add_child(_legend_rule())
-	return row
-
-
-func _legend_rule() -> ColorRect:
-	var rule := ColorRect.new()
-	rule.custom_minimum_size = Vector2(26.0, 1.0)
-	rule.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	rule.color = Color(GOLD.r, GOLD.g, GOLD.b, 0.45)
-	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return rule
-
-
 func _on_results_resized() -> void:
 	_schedule_players_fit()
+
+
+## Bot names already arrive as "БОТ 1234" from game/server, so the results
+## table must not stack a second prefix ("БОТ · БОТ 1234"). Mirrors hero.gd.
+func _has_bot_prefix(name_text: String) -> bool:
+	var upper := name_text.strip_edges().to_upper()
+	return upper.begins_with("БОТ") or upper.begins_with("BOT")
 
 
 func _schedule_players_fit() -> void:

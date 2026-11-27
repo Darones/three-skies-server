@@ -379,7 +379,7 @@ func _finish_duel(_timed_out := false) -> void:
 	# The "Этап 1/3 пройден" card replaces the welcome plate; the duel hint on
 	# the top strip must go with it, or both messages contradict each other.
 	game.hud.call("show_tutorial_hint", "")
-	var body := "Дуэль пройдена. Дальше — фонтан и лавка: собери золото и купи улучшение."
+	var body := "Дуэль пройдена. Дальше — Золотой колодец и лавка: собери золото и купи улучшение."
 	game.hud.call("show_tutorial_card", "Этап 1/3 пройден", body, "", Callable())
 	_auto_advance("duel_done", Callable(self, "_begin_fountain"))
 
@@ -388,7 +388,7 @@ func _begin_fountain() -> void:
 	game.hud.call("hide_tutorial_card")
 	stage = "go_fountain"
 	_point_to(_fountain_position(), OBJECTIVE_GOLD)
-	game.hud.call("show_tutorial_hint", "Сходи к фонтану и собери %d монет" % COINS_TO_COLLECT)
+	game.hud.call("show_tutorial_hint", "Сходи к Золотому колодцу и собери %d монет" % COINS_TO_COLLECT)
 
 
 func _start_team_fight_intro() -> void:

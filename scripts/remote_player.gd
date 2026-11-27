@@ -1,6 +1,7 @@
 extends Node3D
 
 const FONT: FontFile = preload("res://assets/fonts/Philosopher-Regular.ttf")
+const WorldNameLayer := preload("res://scripts/world_name_layer.gd")
 const MODEL_DIRS := [
 	"res://art/generated/warrior",
 	"res://art/generated/mage",
@@ -43,7 +44,7 @@ var _last_state_msec := 0
 var _attack_lock_msec := 0
 var last_damage_msec := 0
 var last_heal_msec := 0
-var _name_label: Label3D = null
+var _name_label: Label = null
 var _health_back: MeshInstance3D = null
 var _health_fill: MeshInstance3D = null
 var _model_root: Node3D = null
@@ -93,7 +94,7 @@ func update_info(info: Dictionary) -> void:
 	if not updated_name.is_empty() and updated_name != display_name:
 		display_name = updated_name
 		if _name_label != null and is_instance_valid(_name_label):
-			_name_label.text = display_name
+			_name_label.text = _name_tag_text()
 
 
 func apply_stats(stats_max_hp: float, stats_hp: float, stats_attack_damage: float) -> void:
@@ -271,8 +272,7 @@ func _refresh_bush_visuals() -> void:
 	if hidden_now == _bush_visual_hidden:
 		return
 	_bush_visual_hidden = hidden_now
-	if _name_label != null and is_instance_valid(_name_label):
-		_name_label.visible = not hidden_now
+	_set_name_visible(not hidden_now and not dead)
 	for mesh_instance in _bush_meshes:
 		if mesh_instance != null and is_instance_valid(mesh_instance):
 			mesh_instance.transparency = 0.5 if hidden_now else 0.0
@@ -424,19 +424,37 @@ func _build_placeholder() -> void:
 
 
 func _build_name_label() -> void:
-	_name_label = Label3D.new()
+	# Screen-space nickname above the head: 2D canvas text stays sharp while
+	# the 3D scene is rendered at 0.5 scale on low quality.
+	var name_camera: Camera3D = null
+	if game != null and is_instance_valid(game):
+		name_camera = game.get("camera") as Camera3D
+	_name_label = WorldNameLayer.create_label(self, HeroUnit.NAME_TAG_HEIGHT, name_camera)
 	_name_label.name = "NameLabel"
-	_name_label.text = display_name
-	_name_label.font = ThemeDB.fallback_font
-	_name_label.font_size = 56
-	_name_label.pixel_size = 0.0055
-	_name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_name_label.no_depth_test = true
-	_name_label.modulate = Color(0.62, 1.0, 0.62) if _is_ally() else Color(1.0, 0.32, 0.28)
-	_name_label.outline_size = 10
-	_name_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)
-	_name_label.position = Vector3(0.0, 3.02, 0.0)
-	add_child(_name_label)
+	_name_label.text = _name_tag_text()
+	_name_label.add_theme_color_override(
+		"font_color",
+		HeroUnit.NAME_COLOR_ALLY if _is_ally() else HeroUnit.NAME_COLOR_ENEMY
+	)
+
+
+func _name_tag_text() -> String:
+	# Боты подписаны как «БОТ <номер>»; имя приходит с сервера в info["name"].
+	# Готовый префикс не дублируем.
+	var text := display_name.strip_edges()
+	if text.is_empty():
+		return ""
+	if not is_bot:
+		return text
+	var upper := text.to_upper()
+	if upper.begins_with("БОТ") or upper.begins_with("BOT"):
+		return text
+	return "БОТ %s" % text
+
+
+func _set_name_visible(shown: bool) -> void:
+	if _name_label != null and is_instance_valid(_name_label):
+		_name_label.visible = shown
 
 
 func _is_ally() -> bool:
@@ -446,8 +464,8 @@ func _is_ally() -> bool:
 
 
 func _build_health_bar() -> void:
-	var bar_color := Color(0.36, 0.95, 0.52, 1.0) if _is_ally() else Color(1.0, 0.3, 0.26, 1.0)
-	_health_back = HEALTH_BAR_3D.create(HEALTH_BAR_WIDTH, 0.16, bar_color, 2.55)
+	# Одна зелёная заливка для всех: команду показывает цвет ника.
+	_health_back = HEALTH_BAR_3D.create(HEALTH_BAR_WIDTH, 0.16, HeroUnit.HEALTH_FILL_COLOR, 2.55)
 	add_child(_health_back)
 	_health_fill = _health_back
 	_update_health_bar()
@@ -537,6 +555,7 @@ func apply_network_death() -> void:
 	match_deaths += 1
 	health = 0.0
 	_update_health_bar()
+	_set_name_visible(false)
 	if game != null and game.has_method("burst"):
 		game.call("burst", global_position + Vector3(0.0, 1.0, 0.0), Color(1.0, 0.45, 0.4), 20)
 	visible = false
@@ -553,6 +572,7 @@ func apply_network_respawn(position: Vector3, rotation_y: float) -> void:
 	target_rotation = rotation_y
 	_has_target = true
 	visible = true
+	_set_name_visible(not _bush_visual_hidden)
 	_update_health_bar()
 	if _model_root != null:
 		_play_idle(_model_root)

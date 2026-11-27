@@ -2,8 +2,9 @@ extends Node3D
 
 ## Shop/skin QA probe (26.11.2026).
 ##
-## Checks the enlarged shop cards, the 2D skin card in the lobby avatar and the
-## gold ЛЕГЕНДА caption. Prints geometry for every card and saves frames:
+## Checks the enlarged shop cards and the 2D skin card in the lobby avatar, and
+## guards that the removed gold ЛЕГЕНДА caption stays gone. Prints geometry for
+## every card and saves frames:
 ##   godot_console --path . tools/ShopSkinProbe.tscn -- --layout=1440x734
 ##   godot_console --path . tools/ShopSkinProbe.tscn -- --layout=844x390 --mobile
 
@@ -47,8 +48,8 @@ func _ready() -> void:
 	MetaProgression.char_levels = {"warrior": 7, "mage": 5, "fairy": 4}
 	MetaProgression.unlocked_weapons.assign([1, 2, 3, 4, 5, 6, 7, 8, 9, 101, 102])
 	MetaProgression.equipped_weapons = {"warrior": 4, "mage": 3, "fairy": 2}
-	# Fairy wears the hunter skin so the lobby avatar must show its card plus the
-	# gold ЛЕГЕНДА caption.
+	# Fairy wears the hunter skin so the lobby avatar must show its card; the
+	# gold ЛЕГЕНДА caption was removed and must not come back.
 	MetaProgression.equipped_skins = {"warrior": 1, "mage": 0, "fairy": 2}
 
 	lobby = (load("res://scenes/Lobby.tscn") as PackedScene).instantiate() as Control
@@ -80,7 +81,6 @@ func _ready() -> void:
 
 func _check_lobby_avatar() -> void:
 	var avatar := lobby.get("avatar") as TextureRect
-	var legend := lobby.get("avatar_legend_label") as Label
 	_check(avatar != null and avatar.texture != null, "lobby avatar has a texture")
 	if avatar != null:
 		var tex := avatar.texture
@@ -94,11 +94,10 @@ func _check_lobby_avatar() -> void:
 			var rect := frame.get_global_rect()
 			var area := avatar.get_parent_control().get_global_rect()
 			_check(rect.encloses(area), "skin card fits inside the avatar plate")
-	_check(legend != null and legend.visible, "ЛЕГЕНДА caption is visible for a legendary skin")
-	if legend != null:
-		print("AVATAR_LEGEND rect=", legend.get_global_rect(),
-			" min=", legend.get_combined_minimum_size(), " text=", legend.text)
-		_check(legend.text == "ЛЕГЕНДА", "caption reads ЛЕГЕНДА")
+		# The card art alone marks a legendary skin now: the caption lived in
+		# the avatar stack, so the check runs even if the plate layout changes.
+		_check(_legend_caption_labels(avatar.get_parent()).is_empty(),
+			"no ЛЕГЕНДА caption on the lobby avatar")
 
 
 func _report_cards(hero_index: int) -> void:
@@ -134,8 +133,39 @@ func _report_cards(hero_index: int) -> void:
 				"card %d image stays inside the card" % index)
 			_check(image_rect.size.x >= 0.82 * card_rect.size.x,
 				"card %d image uses at least 82%% of the card width" % index)
+		# No «ЛЕГЕНДА» tag on the art, and the skin line stays a plain "Скин".
+		_check(_legend_caption_labels(card).is_empty(),
+			"card %d has no ЛЕГЕНДА caption" % index)
+		for label in _all_labels(card):
+			var text := label.text.strip_edges()
+			if text.begins_with("Скин"):
+				_check(not text.to_lower().contains("легенд"),
+					"card %d skin line names no tier" % index)
 		index += 1
 	_check(index == 3, "three cards per row on tab %d" % hero_index)
+
+
+func _all_labels(node: Node) -> Array[Label]:
+	var labels: Array[Label] = []
+	if node is Label:
+		labels.append(node as Label)
+	for child in node.get_children():
+		labels.append_array(_all_labels(child))
+	return labels
+
+
+## The caption is gone from the game (owner: "its almost invisible"). Match the
+## exact caption only: "ЛЕГЕНДАРНОЕ" is a weapon rarity and must not count.
+func _legend_caption_labels(node: Node) -> Array[Label]:
+	var found: Array[Label] = []
+	for label in _all_labels(node):
+		if _is_legend_caption(label.text):
+			found.append(label)
+	return found
+
+
+func _is_legend_caption(text: String) -> bool:
+	return text.replace("◆", " ").strip_edges().to_upper() == "ЛЕГЕНДА"
 
 
 func _shot(screen_name: String) -> void:

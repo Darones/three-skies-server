@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"math"
+	"regexp"
 	"testing"
 	"time"
 )
@@ -323,6 +324,7 @@ func TestStaleBotStateCannotResurrect(t *testing.T) {
 		hasState:     true,
 		alive:        true,
 		maxHP:        450,
+		baseMaxHP:    450,
 		hp:           450,
 		attackDamage: 30,
 		lastAttacks:  make(map[string]time.Time),
@@ -342,14 +344,51 @@ func TestStaleBotStateCannotResurrect(t *testing.T) {
 		t.Fatalf("stale packet resurrected bot: alive=%v hp=%v", bot.alive, bot.hp)
 	}
 
+	// A snapshot from 14 s after the death is still early: bots wait on the
+	// client's 15-23 s respawn timer, not on a flat 1.5 s server delay.
 	hub.mu.Lock()
-	bot.deadSince = time.Now().Add(-2 * time.Second)
+	bot.deadSince = time.Now().Add(-14 * time.Second)
+	hub.mu.Unlock()
+	hub.relayBotStates(host, wsIncoming{Bots: []wsBotSnapshot{{
+		ID: -3, MaxHP: 450, HP: 450, Alive: true,
+	}}})
+	if bot.alive {
+		t.Fatal("bot was resurrected before the client's 15 s respawn floor")
+	}
+
+	hub.mu.Lock()
+	bot.deadSince = time.Now().Add(-16 * time.Second)
 	hub.mu.Unlock()
 	hub.relayBotStates(host, wsIncoming{Bots: []wsBotSnapshot{{
 		ID: -3, MaxHP: 450, HP: 450, Alive: true,
 	}}})
 	if !bot.alive || bot.hp != 450 {
 		t.Fatalf("legit respawn was rejected: alive=%v hp=%v", bot.alive, bot.hp)
+	}
+}
+
+func TestBotRespawnDelayMatchesClientCurve(t *testing.T) {
+	// Bots respawn on the host with the same 15-23 s curve as players. The
+	// server cannot read a bot's earned gold (bot_states has no gold and the
+	// host owns bot income), so it floors at 15 s and only adds the one spend
+	// it can prove: the +150 max HP life amulet costs 400 gold.
+	for _, testCase := range []struct {
+		name string
+		bot  *wsBot
+		want time.Duration
+	}{
+		{"no purchases", &wsBot{class: 1, maxHP: 1000, baseMaxHP: 1000}, 15 * time.Second},
+		{"life amulet", &wsBot{class: 1, maxHP: 1150, baseMaxHP: 1000}, 16*time.Second + 600*time.Millisecond},
+		{"difficulty max HP is not a purchase", &wsBot{class: 0, maxHP: 1155, baseMaxHP: 1155}, 15 * time.Second},
+		{"nil bot", nil, 15 * time.Second},
+	} {
+		got := botRespawnDelayFor(testCase.bot)
+		if got < 15*time.Second || got > 23*time.Second {
+			t.Fatalf("%s: bot respawn delay %v is outside the client's 15-23 s window", testCase.name, got)
+		}
+		if got != testCase.want {
+			t.Fatalf("%s: bot respawn delay = %v, want %v", testCase.name, got, testCase.want)
+		}
 	}
 }
 
@@ -807,22 +846,23 @@ func TestAoESkillAllowsMultipleTargetsInOneCast(t *testing.T) {
 }
 
 func TestMageStormDamageMatchesClientFormula(t *testing.T) {
-	// client CLASS_DATA Mage damage (39) and the storm tick contract:
-	// 100 x 0.75-1.25 x 2 outgoing = 150-250 per tick; an ultimate crit
-	// (10%) doubles it to 300-500.
+	// The mage keeps its 39 class base damage (client CLASS_DATA). The storm
+	// tick drops from 100 to 70 on the client: 70 x 0.75-1.25 x 2 outgoing =
+	// 105-175 per normal tick, a 10% crit doubles it to 210-350, and the crit
+	// is clipped to 250. The server must allow the whole normal range and stop
+	// at the same 250 ceiling.
 	if classBaseDamage[1] != 39.0 {
 		t.Fatalf("mage base damage must be 39 (+50%% of 26), got %v", classBaseDamage[1])
 	}
+	if auto := calculateDamageFor(0, 1, "auto"); auto != 39.0 {
+		t.Fatalf("mage auto attack = %v, want the unchanged 39 base damage", auto)
+	}
 	base := calculateDamageFor(0, 1, "ult_lightning_storm")
-	if base != 78.0 {
-		t.Fatalf("mage ult server base = %v, want 78 (39 x 2.0)", base)
+	if math.Abs(base-54.6) > 0.001 {
+		t.Fatalf("mage ult server base = %v, want 54.6 (39 x 1.4)", base)
 	}
-	cap := base * 2.0 * 2.6
-	if cap < 250.0 {
-		t.Fatalf("storm cap %.1f is below the client's largest normal tick (250)", cap)
-	}
-	if cap < 300.0 {
-		t.Fatalf("storm cap %.1f is below the client's lowest ultimate crit (300)", cap)
+	if base*2.0 > mageUltDamageCap {
+		t.Fatalf("unsolicited storm tick %.1f is already above the cap %.1f", base*2.0, mageUltDamageCap)
 	}
 
 	hub := newWebSocketHub(nil)
@@ -833,19 +873,150 @@ func TestMageStormDamageMatchesClientFormula(t *testing.T) {
 	first.class = 1
 	first.maxHP, first.attackDamage = statsForClient(first)
 
-	// A normal tick arrives at full strength instead of being clamped to ~54.
-	before := second.hp
-	hub.handleAttackIntent(first, wsIncoming{TargetID: second.id, Skill: "ult_lightning_storm", Amount: 220})
-	if applied := before - second.hp; applied != 220.0 {
-		t.Fatalf("normal storm tick applied %v, want 220", applied)
+	// Every normal tick (105-175) arrives at full strength.
+	for _, normal := range []float64{105, 175} {
+		first.lastAttacks["ult_lightning_storm"] = time.Time{}
+		second.hp = second.maxHP
+		before := second.hp
+		hub.handleAttackIntent(first, wsIncoming{TargetID: second.id, Skill: "ult_lightning_storm", Amount: normal})
+		if applied := before - second.hp; math.Abs(applied-normal) > 0.01 {
+			t.Fatalf("normal storm tick %.0f applied %v, want it in full", normal, applied)
+		}
 	}
 
-	// A crit tick above the cap is clamped to the cap, not to 54.
-	first.lastAttacks["ult_lightning_storm"] = time.Time{}
-	before = second.hp
-	hub.handleAttackIntent(first, wsIncoming{TargetID: second.id, Skill: "ult_lightning_storm", Amount: 500})
-	if applied := before - second.hp; math.Abs(applied-cap) > 0.01 {
-		t.Fatalf("crit storm tick applied %v, want the cap %v", applied, cap)
+	// The strongest crit (350) and a forged tick (500) both stop at 250.
+	for _, crit := range []float64{350, 500} {
+		first.lastAttacks["ult_lightning_storm"] = time.Time{}
+		second.hp = second.maxHP
+		before := second.hp
+		hub.handleAttackIntent(first, wsIncoming{TargetID: second.id, Skill: "ult_lightning_storm", Amount: crit})
+		if applied := before - second.hp; math.Abs(applied-mageUltDamageCap) > 0.01 {
+			t.Fatalf("crit storm tick %.0f applied %v, want the hard cap %.1f", crit, applied, mageUltDamageCap)
+		}
+	}
+
+	// A bot mage uses its own scaled attack damage and stays under the cap.
+	bot := &wsBot{id: -1, class: 1, team: 0, alive: true, hp: 1000, maxHP: 1000, x: 0, z: 0, hasState: true,
+		attackDamage: classBaseDamage[1] * 0.6, lastAttacks: make(map[string]time.Time)}
+	room.bots[1] = bot
+	before := second.hp
+	hub.handleAttackIntent(first, wsIncoming{SourceID: bot.id, TargetID: second.id, Skill: "ult_lightning_storm", Amount: 500})
+	if applied := before - second.hp; applied <= 0 || applied > mageUltDamageCap {
+		t.Fatalf("bot mage storm tick applied %v, want 0 < damage <= %.1f", applied, mageUltDamageCap)
+	}
+}
+
+func TestBotNamesUseServerFormat(t *testing.T) {
+	botPattern := regexp.MustCompile(`^БОТ [0-9]{4}$`)
+	hub := newWebSocketHub(nil)
+	room := &wsRoom{id: 7, state: "waiting", humanCount: 1, hostID: 1}
+	human := newTestClient(1, 0, 0, 0)
+	human.name = "Даронес"
+	room.players[0] = human
+	message, _ := hub.startRoomLocked(room)
+	if room.finishTimer != nil {
+		defer room.finishTimer.Stop()
+	}
+
+	filled := make(map[string]bool, roomSlots)
+	bots := 0
+	for _, player := range message.MatchPlayers {
+		if !player.Bot {
+			continue
+		}
+		bots++
+		if !botPattern.MatchString(player.Name) {
+			t.Fatalf("bot name %q does not match the server format БОТ 0000", player.Name)
+		}
+		if filled[player.Name] {
+			t.Fatalf("duplicate bot name %q in one match", player.Name)
+		}
+		filled[player.Name] = true
+		if snapshot := room.bots[player.Slot]; snapshot == nil || snapshot.name != player.Name {
+			t.Fatalf("slot %d roster name %v differs from match_start %q", player.Slot, snapshot, player.Name)
+		}
+	}
+	if bots != roomSlots-1 {
+		t.Fatalf("filled %d bot slots, want %d", bots, roomSlots-1)
+	}
+
+	// The same names come back on every roster read and are deterministic for
+	// the room+slot: a bot may not be renamed in the middle of a match.
+	for _, snapshot := range botSnapshotsLocked(room) {
+		if !filled[snapshot.Name] {
+			t.Fatalf("roster bot %q was never announced in match_start", snapshot.Name)
+		}
+	}
+	if botNickname(7, 0) != botNickname(7, 0) {
+		t.Fatal("bot nickname is not stable for one room slot")
+	}
+	if botNickname(7, 0) == botNickname(7, 1) {
+		t.Fatal("two slots of one room share a bot nickname")
+	}
+	if botNickname(7, 0) == botNickname(8, 0) {
+		t.Fatal("two rooms share a bot nickname")
+	}
+
+	// A disconnected player becomes a bot: a generated "Игрок N" placeholder
+	// must never leak into the bot roster, a real nickname is kept.
+	nameless := newTestClient(2, 0, 0, 0)
+	nameless.name = "Игрок 42"
+	if bot := botFromClient(7, nameless, 4); !botPattern.MatchString(bot.name) {
+		t.Fatalf("placeholder name became bot name %q", bot.name)
+	}
+	if bot := botFromClient(7, human, 0); bot.name != "Даронес" {
+		t.Fatalf("a real nickname was replaced on disconnect: %q", bot.name)
+	}
+}
+
+func TestRespawnDelayMatchesClientFormula(t *testing.T) {
+	// The client waits 15 s + 8 s scaled by the gold in the wallet.
+	for _, testCase := range []struct {
+		gold int
+		want time.Duration
+	}{
+		{-100, 15 * time.Second},
+		{0, 15 * time.Second},
+		{1000, 19 * time.Second},
+		{2000, 23 * time.Second},
+		{999999, 23 * time.Second},
+	} {
+		if got := respawnDelayFor(testCase.gold); got != testCase.want {
+			t.Fatalf("respawnDelayFor(%d) = %v, want %v", testCase.gold, got, testCase.want)
+		}
+	}
+
+	hub := newWebSocketHub(nil)
+	client := newTestClient(1, 0, 0, 0)
+	room := newTestRoom(client)
+	hub.rooms[room.id] = room
+	hub.clients[client.id] = client
+	die := func(gold int, deadFor time.Duration) {
+		client.alive = false
+		client.hp = 0
+		client.gold = gold
+		client.diedAt = time.Now().Add(-deadFor)
+	}
+	respawn := func() bool {
+		hub.relayRespawn(client, wsIncoming{X: 0, Y: 0.76, Z: 20, Rotation: 0})
+		return client.alive
+	}
+
+	die(0, 5*time.Second)
+	if respawn() {
+		t.Fatal("respawn after 5 s was accepted, the client waits 15 s")
+	}
+	die(0, 15*time.Second)
+	if !respawn() {
+		t.Fatal("a 15 s respawn with no gold was rejected")
+	}
+	die(2000, 15*time.Second)
+	if respawn() {
+		t.Fatal("a rich player respawned after 15 s, the client waits 23 s")
+	}
+	die(2000, 23*time.Second)
+	if !respawn() {
+		t.Fatal("a 23 s respawn with full gold was rejected")
 	}
 }
 

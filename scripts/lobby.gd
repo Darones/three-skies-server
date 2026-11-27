@@ -90,7 +90,6 @@ var card_footers: Array[Panel] = []
 var card_portrait_materials: Array[ShaderMaterial] = []
 var cards: Array[Control] = []
 var avatar: TextureRect
-var avatar_legend_label: Label
 var profile_name_label: Label
 var profile_level_label: Label
 var profile_xp_label: Label
@@ -615,17 +614,6 @@ func _build_player_profile() -> void:
 	avatar.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	avatar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	avatar_stack.add_child(avatar)
-	# A small gold caption for a legendary skin, pinned to the bottom of the
-	# portrait so it never takes height away from the name and XP bar.
-	avatar_legend_label = _make_label("ЛЕГЕНДА", 10, GOLD)
-	avatar_legend_label.name = "AvatarLegend"
-	avatar_legend_label.add_theme_font_size_override("font_size", 9 if DeviceProfile.mobile_ui else 10)
-	avatar_legend_label.add_theme_color_override("font_outline_color", Color(0.06, 0.04, 0.01, 0.95))
-	avatar_legend_label.add_theme_constant_override("outline_size", 4)
-	avatar_legend_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	avatar_legend_label.offset_top = -16.0
-	avatar_legend_label.visible = false
-	avatar_stack.add_child(avatar_legend_label)
 
 	var info := VBoxContainer.new()
 	info.add_theme_constant_override("separation", 1)
@@ -1111,18 +1099,6 @@ func _make_shop_card(item: Dictionary) -> Control:
 	)
 	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	preview_stack.add_child(preview)
-	if is_legend_skin:
-		var tier_tag := _make_label("◆ ЛЕГЕНДА ◆", 13, Color(0.82, 0.60, 1.0))
-		tier_tag.name = "ShopCardTier"
-		tier_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		tier_tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		tier_tag.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-		tier_tag.offset_top = -32.0
-		tier_tag.offset_bottom = -2.0
-		tier_tag.add_theme_color_override("font_outline_color", Color(0.28, 0.07, 0.52, 0.95))
-		tier_tag.add_theme_constant_override("outline_size", 4)
-		tier_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		preview_stack.add_child(tier_tag)
 
 	var name_label := _make_label(String(item["name"]), 15 if mobile else 19, PALE)
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -1130,8 +1106,6 @@ func _make_shop_card(item: Dictionary) -> Control:
 	content.add_child(name_label)
 	var rarity := String(item.get("rarity", "Оружие"))
 	var type_name := "Крылья" if String(item["type"]) == "wing" else ("Скин" if String(item["type"]) == "skin" else "Оружие · %s" % rarity)
-	if is_legend_skin:
-		type_name = "Скин · %s" % String(item["tier"])
 	var type_color := GOLD if rarity == "Легендарное" else (Color(0.8, 0.55, 1.0) if String(item["type"]) == "skin" else (Color(1.0, 0.55, 0.4) if rarity == "Редкое" else Color(0.62, 0.68, 0.78)))
 	content.add_child(_make_label(type_name, 10 if mobile else 12, type_color))
 
@@ -1535,10 +1509,6 @@ func _is_platform_auth() -> bool:
 	return _is_vk_platform() or _is_ok_platform()
 
 
-func _platform_display_name() -> String:
-	return "OK" if _is_ok_platform() else "VK"
-
-
 func _build_welcome_overlay() -> void:
 	welcome_overlay = WELCOME_OVERLAY_SCRIPT.new()
 	welcome_overlay.name = "WelcomeOverlay"
@@ -1584,10 +1554,10 @@ func _build_vk_auth_overlay() -> void:
 	var ornament := _make_label("*", 30, GOLD)
 	ornament.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	content.add_child(ornament)
-	var title := _make_label("ВХОД ЧЕРЕЗ " + _platform_display_name(), 26, GOLD)
+	var title := _make_label("ВХОД НА ПЛАТФОРМУ", 26, GOLD)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	content.add_child(title)
-	vk_auth_status_label = _make_label("Получаем данные %s…" % _platform_display_name(), 18, PALE)
+	vk_auth_status_label = _make_label("Получаем данные аккаунта платформы…", 18, PALE)
 	vk_auth_status_label.name = "VKAuthStatus"
 	vk_auth_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vk_auth_status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -1613,7 +1583,7 @@ func _show_vk_auth_waiting() -> void:
 	if vk_auth_overlay == null:
 		return
 	vk_auth_overlay.visible = true
-	vk_auth_status_label.text = "Проверяем вход через %s…" % _platform_display_name()
+	vk_auth_status_label.text = "Проверяем вход через платформу…"
 	vk_auth_status_label.add_theme_color_override("font_color", PALE)
 	vk_auth_retry_button.visible = false
 
@@ -1640,26 +1610,20 @@ func _on_vk_auth_retry_pressed() -> void:
 func _on_vk_auth_failed(error: String) -> void:
 	if vk_auth_overlay == null:
 		return
-	var message := "Не удалось войти через %s. Попробуй ещё раз." % _platform_display_name()
+	var message := "Не удалось войти через платформу. Попробуй ещё раз."
 	match error:
 		"vk_bridge_unavailable", "ok_bridge_unavailable":
-			message = "%s Bridge недоступен. Открой игру внутри %s и нажми «Повторить»." % [_platform_display_name(), _platform_display_name()]
+			message = "Нет связи с платформой. Открой игру заново и нажми «Повторить»."
 		"vk_missing_params":
-			message = "%s не передал данные для входа. Перезапусти игру из %s." % [_platform_display_name(), _platform_display_name()]
-		"vk_invalid_auth":
-			message = "%s не подтвердил вход. Перезапусти игру из %s." % [_platform_display_name(), _platform_display_name()]
+			message = "Платформа не передала данные для входа. Перезапусти игру на платформе."
+		"vk_invalid_auth", "ok_auth_denied", "invalid_ok_auth":
+			message = "Платформа не подтвердила вход. Перезапусти игру на платформе."
 		"vk_rate_limited":
 			message = "Слишком много попыток входа. Подожди минуту и повтори."
-		"vk_network_timeout", "vk_auth_failed":
+		"vk_network_timeout", "vk_auth_failed", "ok_auth_failed":
 			message = "Сервер не ответил. Проверь соединение и нажми «Повторить»."
-		"vk_server_not_configured":
-			message = "Вход через %s временно недоступен. Повтори позже." % _platform_display_name()
-		"ok_app_id_not_configured", "ok_auth_not_configured":
-			message = "Вход через OK временно недоступен. Повтори позже."
-		"ok_auth_denied", "invalid_ok_auth":
-			message = "OK не подтвердил вход. Перезапусти игру из OK."
-		"ok_auth_failed":
-			message = "Сервер не ответил. Проверь соединение и нажми «Повторить»."
+		"vk_server_not_configured", "ok_app_id_not_configured", "ok_auth_not_configured":
+			message = "Вход через платформу временно недоступен. Повтори позже."
 	vk_auth_overlay.visible = true
 	vk_auth_status_label.text = message
 	vk_auth_status_label.add_theme_color_override("font_color", Color(1.0, 0.62, 0.55))
@@ -3342,7 +3306,7 @@ func _refresh_player_menu() -> void:
 		nickname_line_edit.text = MetaProgression.player_nickname
 	if nickname_cost_label != null:
 		if _is_platform_auth():
-			nickname_cost_label.text = "Ник из профиля %s" % _platform_display_name()
+			nickname_cost_label.text = "Ник из профиля платформы"
 			nickname_cost_label.add_theme_color_override("font_color", Color(0.62, 0.7, 0.82))
 			if nickname_cost_icon != null:
 				nickname_cost_icon.visible = false
@@ -3742,14 +3706,12 @@ func _refresh_selection() -> void:
 func _refresh_avatar() -> void:
 	# The lobby avatar shows the same 2D skin card the shop sells
 	# (SkinCatalog.card), not the small square icon and never the 3D model, so
-	# the chosen skin is visible everywhere outside the match. A legendary skin
-	# also gets the small gold caption over its portrait.
+	# the chosen skin is visible everywhere outside the match.
 	if avatar == null or not is_instance_valid(avatar):
 		return
 	var character_key: String = ["warrior", "mage", "fairy"][selected_class]
 	var skin := SkinCatalog.get_item(MetaProgression.get_equipped_skin(character_key))
 	var source: Texture2D = null
-	var is_legend := false
 	var is_card_art := false
 	if not skin.is_empty():
 		var card_path := String(skin.get("card", ""))
@@ -3760,7 +3722,6 @@ func _refresh_avatar() -> void:
 			var icon_path := String(skin.get("icon", ""))
 			if not icon_path.is_empty():
 				source = load(icon_path) as Texture2D
-		is_legend = not String(skin.get("tier", "")).is_empty()
 	if source == null:
 		source = load(HERO_FACE[selected_class]) as Texture2D
 	if source != null:
@@ -3771,8 +3732,6 @@ func _refresh_avatar() -> void:
 		TextureRect.STRETCH_KEEP_ASPECT_COVERED if is_card_art
 		else TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	)
-	if avatar_legend_label != null and is_instance_valid(avatar_legend_label):
-		avatar_legend_label.visible = is_legend
 
 
 func _refresh_player_profile() -> void:

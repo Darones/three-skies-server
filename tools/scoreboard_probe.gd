@@ -174,6 +174,29 @@ func _run_match() -> void:
 		"reportable": false,
 	}) as Control
 	_check(_find_button(bot_row, "!") == null, "bot row has no report button")
+	# Bot names arrive already prefixed from game/server: the row must not add
+	# a second "БОТ · " ("БОТ · БОТ 1234").
+	var bot_texts := _label_texts(bot_row)
+	var bot_row_name := str(bot_texts[0]) if bot_texts.size() > 0 else ""
+	_check(not bot_row_name.contains("БОТ · БОТ"),
+		"prefixed bot name is not prefixed twice (%s)" % bot_row_name)
+	var callsign_row := hud.call("_make_scoreboard_row", {
+		"name": "БОТ 1234", "team": 0, "kills": 0, "deaths": 0,
+		"crystals": 0, "score": 0, "is_bot": true, "is_self": false,
+		"reportable": false,
+	}) as Control
+	var callsign_texts := _label_texts(callsign_row)
+	var callsign_name := str(callsign_texts[0]) if callsign_texts.size() > 0 else ""
+	_check(callsign_name.count("БОТ") == 1,
+		"bot callsign keeps a single БОТ (%s)" % callsign_name)
+	var bare_bot := hud.call("_make_scoreboard_row", {
+		"name": "Тест", "team": 0, "kills": 0, "deaths": 0,
+		"crystals": 0, "score": 0, "is_bot": true, "is_self": false,
+		"reportable": false,
+	}) as Control
+	var bare_texts := _label_texts(bare_bot)
+	var bare_name := str(bare_texts[0]) if bare_texts.size() > 0 else ""
+	_check(bare_name == "БОТ · Тест", "unprefixed bot name still gets the prefix (%s)" % bare_name)
 	_check(bool(hud.call("_scoreboard_name_reportable", REPORT_NICK)), "human nickname is reportable")
 	_check(not bool(hud.call("_scoreboard_name_reportable", String(MetaProgression.player_nickname))), "own nickname is not reportable")
 	_check(not bool(hud.call("_scoreboard_name_reportable", "БА")), "short nickname is not reportable")

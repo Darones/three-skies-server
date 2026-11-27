@@ -24,6 +24,12 @@ const NETWORK_WAIT_SECONDS := 30.0
 const SLOTS_PER_TEAM := 3
 const SIMULATED_TARGET := 4
 const FONT: FontFile = preload('res://assets/fonts/Philosopher-Regular.ttf')
+const BATTLE_AUDIO := preload('res://scripts/audio_preloader.gd')
+## How long the preloaded battle assets stay referenced after the match opens.
+## Main._ready and start_match spawn the fighters in the first ~1.5 s; after
+## that the match scene holds its own references and the extra ones only cost
+## RAM. The keeper drops them on its own, so a cancelled match cannot leak.
+const BATTLE_ASSET_KEEP_SECONDS := 8.0
 var team_slots: Array = [[], []]
 class SpinnerRing extends Control:
 	func _ready() -> void:
@@ -81,6 +87,33 @@ var tutorial_warmup_token := 0
 var welcome_card: WelcomeOverlay
 var title_label: Label
 var versus_label: Label
+## Holds the warmup's loaded resources through the scene switch (see
+## BattleAssetKeeper). One keeper per transition.
+var asset_keeper: Node = null
+
+
+## Lives on the SceneTree root, so it survives `change_scene_to_packed`.
+## ResourceLoader's cache is weak: a resource is dropped as soon as nothing
+## references it, and the loading screen (and the warmup flow) are freed by the
+## scene change. Without this the match re-read the fighter models from the pack
+## in one ~320 ms spawn frame and the battle audio in its first frame.
+class BattleAssetKeeper extends Node:
+	var held: Array = []
+	var keep_seconds := 8.0
+	var started_ms := 0
+
+	func _ready() -> void:
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		started_ms = Time.get_ticks_msec()
+
+	func _process(_delta: float) -> void:
+		if Time.get_ticks_msec() - started_ms < int(keep_seconds * 1000.0):
+			return
+		held.clear()
+		queue_free()
+
+	func held_count() -> int:
+		return held.size()
 
 func _ready() -> void:
 	randomize()
@@ -182,6 +215,9 @@ func _on_battle_warmup_finished() -> void:
 	var report: Dictionary = {}
 	if warmup_flow != null and is_instance_valid(warmup_flow):
 		report = warmup_flow.get('report') as Dictionary
+		# Keep what the flow loaded: Main and the warmup instance are freed by
+		# the scene change, and the loader cache is weak (see BattleAssetKeeper).
+		_keep_battle_assets(warmup_flow.get('retained_resources'))
 		warmup_flow.queue_free()
 		warmup_flow = null
 	warmup_failed = bool(report.get('failed', false))
@@ -205,10 +241,41 @@ func _mark_warmup_status(percent_text: String, stage_text: String) -> void:
 func _cancel_battle_warmup() -> void:
 	warmup_active = false
 	if warmup_flow != null and is_instance_valid(warmup_flow):
+		# Whatever the flow already loaded is still worth keeping: the match is
+		# opened right after a cancelled warmup on purpose.
+		_keep_battle_assets(warmup_flow.get('retained_resources'))
 		warmup_flow.queue_free()
 		warmup_flow = null
 	if is_instance_valid(warmup_panel):
 		warmup_panel.visible = false
+
+
+## Hands resources the warmup loaded to a node on the SceneTree root that
+## outlives this screen. ResourceLoader's cache is a weak cache: the loading
+## screen and the warmup flow are freed by `change_scene_to_packed`, so without
+## this the match re-reads the fighter models (one ~320 ms frame: 118 + 93 + 86
+## ms for the three classes) and the battle audio from the pack.
+func _keep_battle_assets(resources: Variant) -> void:
+	if not (resources is Array) or (resources as Array).is_empty():
+		return
+	# A/B hook for tools/BattleStartE2EProbe.tscn: the pre-fix behaviour, where
+	# the loader cache drops everything with the loading screen.
+	if OS.get_cmdline_user_args().has('--no-keep-battle-assets'):
+		return
+	var list: Array = resources as Array
+	if asset_keeper != null and is_instance_valid(asset_keeper):
+		var held: Array = asset_keeper.get('held') as Array
+		for resource in list:
+			if resource != null:
+				held.append(resource)
+		return
+	var keeper := BattleAssetKeeper.new()
+	keeper.name = 'BattleAssetKeeper'
+	keeper.keep_seconds = BATTLE_ASSET_KEEP_SECONDS
+	keeper.held = list.duplicate()
+	get_tree().root.add_child(keeper)
+	asset_keeper = keeper
+	print('[LoadingScreen] battle assets kept=%d keep=%.0fs' % [keeper.held_count(), keeper.keep_seconds])
 
 
 ## Tutorial: the lesson has its own loading screen, opened by lobby.gd right
@@ -305,6 +372,7 @@ func _on_tutorial_warmup_finished() -> void:
 	var report: Dictionary = {}
 	if warmup_flow != null and is_instance_valid(warmup_flow):
 		report = warmup_flow.get('report') as Dictionary
+		_keep_battle_assets(warmup_flow.get('retained_resources'))
 		warmup_flow.queue_free()
 		warmup_flow = null
 	warmup_failed = bool(report.get('failed', false))
@@ -560,6 +628,7 @@ func _start_match_scene_loading() -> void:
 	if match_load_requested or match_scene != null or load_failed:
 		return
 	match_load_requested = true
+	_prefetch_battle_audio()
 	# WarmupFlow has already loaded Main.tscn once. If it is still in the
 	# resource cache, take that PackedScene instead of reading the scene a
 	# second time; otherwise load it now, sequentially — never in parallel
@@ -574,6 +643,16 @@ func _start_match_scene_loading() -> void:
 	if request_error != OK and request_error != ERR_BUSY:
 		load_failed = true
 	_poll_match_scene_load()
+
+## Battle audio for the paths that skip WarmupFlow (direct tutorial entry,
+## probes, editor previews). The warmup stage preloads and keeps the same list
+## itself; here it is only requested, which already takes the read off the
+## match's first frame.
+func _prefetch_battle_audio() -> void:
+	if warmup_flow != null or warmup_active:
+		return
+	for path in BATTLE_AUDIO.stream_paths():
+		ResourceLoader.load_threaded_request(String(path))
 
 func _poll_match_scene_load() -> void:
 	# Nothing to poll until a threaded request exists: asking for the status
@@ -634,11 +713,21 @@ func _set_slot_player(team_index: int, slot_index: int, player_number: int, clas
 func _set_slot_entry(team_index: int, slot_index: int, player_name: String, class_index: int, is_bot: bool) -> void:
 	var slot: Dictionary = team_slots[team_index][slot_index]
 	slot['state'] = 'bot' if is_bot else 'player'
-	slot['name'].text = ('БОТ · ' + player_name) if is_bot else player_name
+	# Bot names already arrive as "БОТ 1234" from game/server: never stack a
+	# second prefix ("БОТ · БОТ 1234"). Mirrors hero.gd.
+	var slot_name := player_name
+	if is_bot and not _has_bot_prefix(slot_name):
+		slot_name = 'БОТ · ' + player_name
+	slot['name'].text = slot_name
 	slot['portrait'].texture = _class_portrait(class_index)
 	slot['portrait'].visible = true
 	slot['spinner'].visible = false
 	slot['panel'].add_theme_stylebox_override('panel', _slot_style(team_index, not is_bot))
+
+
+func _has_bot_prefix(name_text: String) -> bool:
+	var upper := name_text.strip_edges().to_upper()
+	return upper.begins_with('БОТ') or upper.begins_with('BOT')
 
 
 func _class_portrait(index: int) -> Texture2D:

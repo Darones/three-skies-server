@@ -26,6 +26,13 @@ func _ready() -> void:
 	for _i in 14:
 		await get_tree().process_frame
 	game.call("start_match", HeroUnit.Cls.WARRIOR, 0)
+	# start_match now opens the match behind the class-select panel and may wait
+	# briefly for the first-clash warm (bounded, ~1.2 s at most) instead of
+	# blocking for up to 10 s. Wait for the real state: the remote/bush checks
+	# below only run from game._process while the match is live.
+	var live_deadline := Time.get_ticks_msec() + 5000
+	while String(game.get("state")) != "live" and Time.get_ticks_msec() < live_deadline:
+		await get_tree().process_frame
 	for _i in 6:
 		await get_tree().process_frame
 	player = game.get("player") as HeroUnit

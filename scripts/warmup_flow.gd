@@ -17,8 +17,10 @@ extends Node
 ##
 ## Safety: Main.tscn is instantiated with its game.gd script removed, so no
 ## match starts, no HUD is created, no network connection is opened and no
-## music plays. The instance is freed at the end; only the resource cache
-## (meshes, textures, materials) stays warm for the real scene load.
+## music plays. The instance is freed at the end; the resources the flow loaded
+## (Main, the fighter models, the arena props, the battle audio) are handed to
+## the loading screen's keeper instead, so Main finds them in the loader cache
+## and does not read them from the pack again in its first frames.
 ##
 ## API:
 ##   var flow := WarmupFlow.new()
@@ -39,7 +41,9 @@ signal progress_changed(percent: float, elapsed: float, stage: String)
 signal finished
 
 const MAIN_SCENE_PATH := "res://scenes/Main.tscn"
+const GAME_SCRIPT_PATH := "res://scripts/game.gd"
 const VFX_PRELOADER := preload("res://scripts/vfx_preloader.gd")
+const BATTLE_AUDIO := preload("res://scripts/audio_preloader.gd")
 
 const TWO_PASS_POLICY_AUTO := "auto"
 const TWO_PASS_POLICY_ON := "on"
@@ -99,6 +103,8 @@ const CANVAS_SHADERS := [
 ]
 
 const STAGE_LOAD := "Загрузка арены"
+const STAGE_AUDIO := "Звук боя"
+const STAGE_CACHE := "Кэш боя"
 const STAGE_INSTANCE := "Инстанс арены"
 const STAGE_ARENA := "Материалы арены"
 const STAGE_HEROES := "Бойцы и скины"
@@ -150,6 +156,9 @@ var report := {
 	"props_warmed": 0,
 	"vfx_scenes_warmed": 0,
 	"sounds_warmed": 0,
+	"audio_preloaded": 0,
+	"retained_resources": 0,
+	"retain_ms": 0,
 	"shaders_warmed": 0,
 	"frames_rendered": 0,
 	"main_freed": false,
@@ -192,6 +201,23 @@ var report := {
 ## --warmup-two-pass / --warmup-single-pass args override it before start().
 var two_pass_policy := TWO_PASS_POLICY_AUTO
 
+## A/B probe hook: retain the fighter/prop scenes as they are loaded (the
+## behaviour that broke the mobile two-pass budget). Off by default.
+var retain_early := false
+
+## Resources the flow loaded and keeps referenced for the match. The loader
+## cache alone does not keep a resource alive: as soon as the warmed instance is
+## freed, Main has to read the same character/prop scenes from the pack again —
+## measured as one ~320 ms frame inside start_match (118 + 93 + 86 ms for the
+## three classes) right at the start of the match.
+##
+## The list is filled at the very END of the flow (see `_retain_battle_cache`),
+## never while the flow still draws: a retained scene whose textures were drawn
+## keeps them in video memory, which raised the mobile two-pass peak above the
+## arena pass (338.7 MB vs 320.2). Audio is the exception — it is retained at
+## the start because a stream costs no video memory.
+var retained_resources: Array[Resource] = []
+
 var _running := false
 var _done := false
 var _progress := 0.0
@@ -233,6 +259,7 @@ var _truncated := false
 func start() -> void:
 	if _running or _done:
 		return
+	retain_early = OS.get_cmdline_user_args().has("--warmup-retain-early")
 	if two_pass_policy == TWO_PASS_POLICY_AUTO:
 		for arg in OS.get_cmdline_user_args():
 			if arg == "--warmup-two-pass":
@@ -275,6 +302,19 @@ func _run() -> void:
 		_fail("Main.tscn не загрузился")
 		return
 	_emit(8.0)
+	await _pace()
+
+	# Battle audio, while the search screen is still up: game.gd loads the
+	# theme, the ambience and every SFX synchronously in Main._ready, inside the
+	# scene-switch frame. Preloading here makes those calls cache hits. Audio
+	# streams carry no video memory, so keeping them costs nothing for the
+	# two-pass VRAM budget — this is the only thing retained during the flow.
+	_set_stage(STAGE_AUDIO)
+	_emit(8.5)
+	await _warm_audio()
+	if not _alive():
+		return
+	_emit(10.0)
 	await _pace()
 	if _over_budget():
 		await _finish_truncated()
@@ -388,18 +428,27 @@ func _run() -> void:
 	await _render_final_views()
 	if not _alive():
 		return
-	var reload_started := Time.get_ticks_msec()
-	var cached_main := load(MAIN_SCENE_PATH)
-	report["reload_ms"] = Time.get_ticks_msec() - reload_started
-	report["main_cached"] = cached_main != null
+	# Free the arena and the second-pass viewport BEFORE refilling the loader
+	# cache: the cache tail allocates the fighter/prop textures' video memory
+	# (measured +42 MB on Forward+), and it must not do that while the arena is
+	# still resident. That is the "second pass first, keeper after" order — with
+	# it the two-pass peak stays at the pass-2 drawing peak (295 MB) instead of
+	# 337 MB.
+	_cleanup()
+	await _render_frames(2)
+	if not is_inside_tree():
+		return
+	_set_stage(STAGE_CACHE)
+	await _retain_battle_cache()
+	if not _alive():
+		return
 	_emit(99.0)
 
 	report["elapsed"] = _elapsed()
 	_record_metrics()
 	_emit(100.0, STAGE_DONE)
-	_cleanup()
-	# Give the viewport and the stripped arena two frames to actually leave
-	# the tree before lobby.gd switches scenes.
+	# Give the freed viewport and arena two more frames to leave the tree before
+	# the loading screen switches scenes.
 	await _render_frames(2)
 	if not is_inside_tree():
 		return
@@ -478,6 +527,8 @@ func _warm_characters() -> void:
 			return
 		var path: String = CHARACTER_SCENES[index]
 		var packed := await _load_threaded(path)
+		if retain_early and packed is Resource:
+			_retain(packed)
 		if packed is PackedScene:
 			var model := (packed as PackedScene).instantiate() as Node3D
 			if model != null:
@@ -504,6 +555,8 @@ func _warm_props() -> void:
 		if _over_budget():
 			return
 		var packed := await _load_threaded(PROP_SCENES[index])
+		if retain_early and packed is Resource:
+			_retain(packed)
 		if packed is PackedScene:
 			var prop := (packed as PackedScene).instantiate() as Node3D
 			if prop != null:
@@ -806,6 +859,115 @@ func _load_threaded(path: String) -> Resource:
 	return null
 
 
+## Keeps a loaded resource referenced for the match (see `retained_resources`).
+func _retain(resource: Resource) -> void:
+	if resource == null or retained_resources.has(resource):
+		return
+	retained_resources.append(resource)
+	report["retained_resources"] = retained_resources.size()
+
+
+## Battle music, arena ambience and every game SFX, loaded while the search
+## screen is still up. game.gd reads them with a synchronous `load()` inside
+## Main._ready; after this they are loader cache hits there, and the first
+## `play()` does not wait for a cold stream.
+func _warm_audio() -> void:
+	var paths: Array = BATTLE_AUDIO.stream_paths()
+	if paths.is_empty():
+		return
+	for path in paths:
+		var request_error := ResourceLoader.load_threaded_request(String(path))
+		if request_error != OK and request_error != ERR_BUSY:
+			continue
+	var deadline := Time.get_ticks_msec() + 5000
+	while true:
+		if not _alive():
+			return
+		var pending := 0
+		for path in paths:
+			if ResourceLoader.load_threaded_get_status(String(path)) == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+				pending += 1
+		if pending == 0:
+			break
+		if Time.get_ticks_msec() > deadline:
+			push_warning("[WarmupFlow] прогрев звука не успел за 5 с")
+			break
+		await get_tree().process_frame
+	var loaded := 0
+	for path in paths:
+		if ResourceLoader.load_threaded_get_status(String(path)) != ResourceLoader.THREAD_LOAD_LOADED:
+			continue
+		var stream := ResourceLoader.load_threaded_get(String(path)) as Resource
+		if stream == null:
+			continue
+		_retain(stream)
+		loaded += 1
+	report["audio_preloaded"] = loaded
+
+
+## Refills the loader cache for the match after the last draw of the flow.
+##
+## Order matters: everything here is *loaded* but never drawn again, so it
+## allocates RAM only. Retaining the fighter/prop scenes before the second pass
+## would keep their textures resident in VRAM once pass 2 draws them — measured
+## as pass2 338.7 MB on top of pass1 320.2 MB on mobile, which broke the
+## two-pass budget. Audio is retained earlier (START of the flow) because a
+## stream never touches video memory.
+func _retain_battle_cache() -> void:
+	# Two-pass exists to keep the arena and the fighter set out of video memory
+	# at the same time, so the second pass must stay under the arena peak. The
+	# cache tail loads the fighter/prop scenes and their textures become video
+	# memory (measured +42 MB on Forward+), which pushed pass2 to 337 MB against
+	# a 320 MB pass1. VRAM comes first on two-pass: only the audio is kept
+	# (retained at the start of the flow, a stream costs no video memory) and
+	# the match loads the scenes itself, exactly as before this change.
+	if _two_pass:
+		report["cache_tail_skipped"] = "two_pass"
+		report["retained_resources"] = retained_resources.size()
+		report["main_cached"] = ResourceLoader.has_cached(MAIN_SCENE_PATH)
+		return
+	# A/B hook: measure the flow without the cache tail.
+	if OS.get_cmdline_user_args().has("--warmup-no-cache"):
+		report["main_cached"] = ResourceLoader.has_cached(MAIN_SCENE_PATH)
+		return
+	var started := Time.get_ticks_msec()
+	var paths: Array[String] = []
+	for path in [MAIN_SCENE_PATH]:
+		paths.append(String(path))
+	for path in CHARACTER_SCENES:
+		paths.append(String(path))
+	for path in PROP_SCENES:
+		paths.append(String(path))
+	for path in _game_const_paths("FIRST_CLASH_WARM_VFX"):
+		paths.append(path)
+	for path in paths:
+		if not _alive():
+			return
+		if _over_budget():
+			return
+		var resource := await _load_threaded(path)
+		if resource != null:
+			_retain(resource)
+	report["main_cached"] = ResourceLoader.has_cached(MAIN_SCENE_PATH)
+	report["retain_ms"] = Time.get_ticks_msec() - started
+
+
+## A constant array of resource paths from game.gd (defensive: a game.gd that
+## fails to parse or a renamed constant just means "nothing extra to cache").
+func _game_const_paths(constant_name: String) -> Array[String]:
+	var paths: Array[String] = []
+	var script := load(GAME_SCRIPT_PATH) as GDScript
+	if script == null:
+		return paths
+	var constants: Dictionary = script.get_script_constant_map()
+	var value: Variant = constants.get(constant_name, [])
+	if not value is Array:
+		return paths
+	for entry in (value as Array):
+		paths.append(String(entry))
+	return paths
+
+
 func _alive() -> bool:
 	if is_inside_tree():
 		return true
@@ -954,6 +1116,9 @@ func _track_stats() -> void:
 		"props": int(report["props_warmed"]),
 		"vfx": int(report["vfx_scenes_warmed"]),
 		"shaders": int(report["shaders_warmed"]),
+		"audio_preloaded": int(report.get("audio_preloaded", 0)),
+		"retained": int(report.get("retained_resources", 0)),
+		"retain_ms": int(report.get("retain_ms", 0)),
 		"frames": int(report["frames_rendered"]),
 		"mobile": bool(report["mobile"]),
 		"quality": String(report["quality"]),
