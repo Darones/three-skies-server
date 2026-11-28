@@ -874,11 +874,13 @@ func _refresh_daily_quests() -> void:
 func _on_daily_quests_data_changed(completed: int, total: int) -> void:
 	if daily_quests_badge != null and is_instance_valid(daily_quests_badge):
 		daily_quests_badge.text = "%d/%d" % [completed, total]
+	call_deferred("_layout_daily_quests_table")
 	call_deferred("_layout_action_buttons")
 
 
 func _on_daily_quests_panel_resized() -> void:
-	# Кнопки стоят от table.bottom + 24; таблица меняет высоту tween'ом.
+	# Высоту стола задаёт _layout_daily_quests_table (tween панели гасится).
+	call_deferred("_layout_daily_quests_table")
 	call_deferred("_layout_action_buttons")
 
 
@@ -940,8 +942,9 @@ func _mobile_design_scale() -> float:
 	return minf(viewport_size.x / 844.0, viewport_size.y / 390.0)
 
 
-## Стол ежедневок (одобренный макет 28.11.2026): x=28, top=122.4,
-## width = min(380, W*0.27), но не уже 240. 327 больше не cap.
+## Стол ежедневок: x=28, width=min(380, W*0.27). По вертикали — по центру
+## между профилем и «ИГРАТЬ»: top = profile.bottom + max(24, свободное/2),
+## но не ниже play.top - height - 24.
 func _layout_daily_quests_table() -> void:
 	if daily_quests_panel == null or not is_instance_valid(daily_quests_panel):
 		return
@@ -950,11 +953,39 @@ func _layout_daily_quests_table() -> void:
 	var viewport_width := get_viewport_rect().size.x
 	if viewport_width <= 0.0:
 		return
-	var width := minf(380.0, viewport_width * 0.27)
-	width = clampf(width, 240.0, 380.0)
-	width = minf(width, viewport_width - 28.0 - 24.0)
+	var width := 300.0
 	daily_quests_panel.offset_left = 28.0
 	daily_quests_panel.offset_right = 28.0 + width
+	if profile_button == null or play_button == null:
+		return
+	var origin := get_global_rect().position
+	var profile_bottom := profile_button.get_global_rect().end.y - origin.y
+	var play_top := play_button.get_global_rect().position.y - origin.y
+	var quest_count := 0
+	var panel_quests: Variant = daily_quests_panel.get("quests")
+	if panel_quests is Array:
+		quest_count = (panel_quests as Array).size()
+	var table_height := 48.0
+	if daily_quests_panel.has_method("panel_height_for"):
+		table_height = float(daily_quests_panel.call("panel_height_for", quest_count))
+	else:
+		table_height = daily_quests_panel.size.y
+	table_height = clampf(table_height, 48.0, 246.0)
+	var bottom := play_top - 24.0
+	var top := bottom - table_height
+	if top < profile_bottom + 24.0:
+		top = profile_bottom + 24.0
+		bottom = top + table_height
+	# Стол — единственный владелец высоты: гасим tween панели, чтобы он
+	# не растянул offset_bottom на старую высоту.
+	var running: Variant = daily_quests_panel.get("_tween")
+	if running is Tween:
+		var running_tween := running as Tween
+		if running_tween.is_valid():
+			running_tween.kill()
+	daily_quests_panel.offset_top = top
+	daily_quests_panel.offset_bottom = bottom
+	daily_quests_panel.custom_minimum_size = Vector2(width, table_height)
 
 
 ## Общий layout одобренного макета 28.11.2026: логотип -> таблица ->
@@ -1053,7 +1084,7 @@ func _layout_hero_cards() -> void:
 	var shop_bottom := 0.0
 	if shard_shop_button != null and is_instance_valid(shard_shop_button):
 		shop_bottom = shard_shop_button.get_rect().end.y
-	var area_left := maxf(table_right + 36.0, 430.0)
+	var area_left := maxf(table_right + 24.0, 352.0)
 	var area_right := viewport.x - 28.0
 	var area_top := maxf(logo_bottom + 18.0, shop_bottom + 12.0)
 	# Buttons moved to the left column, so the lower right is free again.
@@ -1064,21 +1095,17 @@ func _layout_hero_cards() -> void:
 		return
 
 	var center_h := area_h
-	var center_w := center_h * 0.72
 	var side_h := center_h * 0.75
-	var side_w := side_h * 0.72
 	var gap := maxf(12.0, viewport.x * 0.012)
+	var available := area_w - 2.0 * gap
+	if available <= 60.0:
+		return
+	# Ширины заполняют освободившуюся область: side + 1.15*side + side.
+	var side_w := available / 3.15
+	var center_w := side_w * 1.15
 	var group_w := center_w + 2.0 * side_w + 2.0 * gap
-	if group_w > area_w:
-		var scale := area_w / group_w
-		center_h *= scale
-		center_w *= scale
-		side_h *= scale
-		side_w *= scale
-		gap *= scale
-		group_w = area_w
 
-	var group_left := area_left + maxf(0.0, (area_w - group_w) * 0.5)
+	var group_left := area_left
 	var group_center_y := area_top + (area_h - center_h) * 0.5
 	var side_y := area_top + (area_h - side_h) * 0.5
 	var left_x := group_left

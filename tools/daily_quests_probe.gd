@@ -66,7 +66,7 @@ func _check_desktop(lobby: Node) -> void:
 	_check(inline != null and overlay != null, "desktop: inline и overlay созданы")
 	if inline == null or overlay == null:
 		return
-	for layout in [Vector2i(1280, 720), Vector2i(1440, 734)]:
+	for layout in [Vector2i(1280, 720), Vector2i(1440, 734), Vector2i(1920, 1080)]:
 		get_tree().root.content_scale_size = layout
 		DisplayServer.window_set_size(layout)
 		for i in 4:
@@ -75,6 +75,7 @@ func _check_desktop(lobby: Node) -> void:
 		inline.call("apply_data", _fixture(3, 1, 5, "free"))
 		await get_tree().create_timer(0.3).timeout
 		await _check_inline(lobby, inline, "%dx%d" % [layout.x, layout.y])
+		_check_cards(lobby, "%dx%d" % [layout.x, layout.y])
 
 	# Оверлей открывается кликом по таблице.
 	var open_button := inline.find_child("DailyQuestsOpenButton", true, false) as Button
@@ -105,12 +106,54 @@ func _check_inline(lobby: Node, inline: Control, tag: String) -> void:
 	var view := get_viewport().get_visible_rect().size
 	var origin := (lobby as Control).get_global_rect().position
 	var rect := _local_rect(inline, origin)
-	var expected_w := minf(380.0, view.x * 0.27)
-	expected_w = maxf(240.0, expected_w)
+	var profile := lobby.get("profile_button") as Control
+	var play := lobby.get("play_button") as Control
+	var profile_bottom := profile.get_global_rect().end.y - origin.y
+	var play_top := play.get_global_rect().position.y - origin.y
 	_check(_near(rect.position.x, 28.0), "%s: таблица left 28" % tag)
-	_check(_near(rect.position.y, 122.4), "%s: таблица top 122.4" % tag)
-	_check(_near(rect.size.x, expected_w, 0.75), "%s: таблица width %.1f" % [tag, rect.size.x])
+	_check(_near(rect.size.x, 300.0, 0.75), "%s: таблица width 300 (%.1f)" % [tag, rect.size.x])
+	_check(_near(rect.end.x, 328.0, 0.75), "%s: правый край 328 (%.1f)" % [tag, rect.end.x])
 	_check(_near(rect.size.y, 246.0), "%s: таблица height 246" % tag)
+	var expected_top := play_top - 24.0 - rect.size.y
+	expected_top = maxf(profile_bottom + 24.0, expected_top)
+	_check(
+		_near(rect.position.y, expected_top, 2.0),
+		"%s: таблица над кнопками (%.1f vs %.1f)" % [tag, rect.position.y, expected_top]
+	)
+	_check(
+		_near(rect.end.y, play_top - 24.0, 1.0)
+			or rect.position.y <= profile_bottom + 24.0 + 0.75,
+		"%s: низ = play.top-24 или прижата к профилю" % tag
+	)
+	var open_button := inline.find_child("DailyQuestsOpenButton", true, false) as Button
+	_check(
+		open_button != null and _near(open_button.size.x, inline.size.x, 1.0)
+			and _near(open_button.size.y, inline.size.y, 1.0),
+		"%s: кнопка открытия покрывает таблицу" % tag
+	)
+	# 0/1/2/3 задания: высота меняется, низ остаётся над кнопками.
+	for count in [0, 1, 2, 3]:
+		inline.call("apply_data", _fixture(count, 0, 0, "free"))
+		await get_tree().create_timer(0.32).timeout
+		var current := _local_rect(inline, origin)
+		var exp_top := maxf(profile_bottom + 24.0, play_top - 24.0 - current.size.y)
+		_check(
+			_near(current.position.y, exp_top, 2.0),
+			"%s: %d задания — top над кнопками (%.1f vs %.1f)" % [
+				tag, count, current.position.y, exp_top
+			]
+		)
+		_check(
+			_near(current.end.x, 328.0, 0.75) and _near(current.size.x, 300.0, 0.75),
+			"%s: %d задания — ширина 300" % [tag, count]
+		)
+		_check(
+			current.end.y <= play_top - 24.0 + 1.0
+				and current.position.y >= profile_bottom + 24.0 - 0.75,
+			"%s: %d задания без пересечений" % [tag, count]
+		)
+	inline.call("apply_data", _fixture(3, 1, 5, "free"))
+	await get_tree().create_timer(0.32).timeout
 	var rows: Array = inline.get("row_nodes")
 	_check(rows.size() == 3, "%s: 3 строки inline" % tag)
 	for i in rows.size():
@@ -144,6 +187,55 @@ func _check_inline(lobby: Node, inline: Control, tag: String) -> void:
 		):
 			hits.append(String((blocker as Control).name))
 	_check(hits.is_empty(), "%s: inline без пересечений %s" % [tag, str(hits)])
+
+
+func _check_cards(lobby: Node, tag: String) -> void:
+	var view := get_viewport().get_visible_rect().size
+	var origin := (lobby as Control).get_global_rect().position
+	var table := lobby.get("daily_quests_panel") as Control
+	var table_rect := _local_rect(table, origin)
+	var cards: Array = lobby.get("cards")
+	if cards.size() < 3:
+		_check(false, "%s: карточки героев есть" % tag)
+		return
+	var rects: Array = []
+	for i in 3:
+		rects.append(_local_rect(cards[i] as Control, origin))
+	var area_left := maxf(table_rect.end.x + 24.0, 352.0)
+	var area_right := view.x - 28.0
+	var area_w := area_right - area_left
+	var group_left: float = (rects[0] as Rect2).position.x
+	var group_right: float = (rects[2] as Rect2).end.x
+	var group_w := group_right - group_left
+	_check(_near(group_left, area_left, 1.0), "%s: карточки начинаются от области %.1f" % [tag, group_left])
+	_check(group_w >= area_w * 0.98, "%s: карточки занимают область (%.1f/%.1f)" % [tag, group_w, area_w])
+	_check(
+		group_left - table_rect.end.x <= 36.0 + 0.75,
+		"%s: зазор table→cards ≤36 (%.1f)" % [tag, group_left - table_rect.end.x]
+	)
+	if view.x >= 1400.0:
+		_check(group_left < 457.0, "%s: левая карточка левее 457 (%.1f)" % [tag, group_left])
+	var center: Rect2 = rects[1]
+	var side: Rect2 = rects[0]
+	_check(
+		_near(side.size.y / center.size.y, 0.75, 0.02),
+		"%s: бока 75%% центра" % tag
+	)
+	_check(
+		center.size.x > side.size.x and center.size.y > side.size.y,
+		"%s: центр больше боков" % tag
+	)
+	var fixed_rects: Array = [table_rect, lobby.get("profile_button"),
+		lobby.get("lobby_logo"), lobby.get("shard_shop_button"),
+		lobby.get("play_button"), lobby.get("tutorial_button"),
+		lobby.get("settings_button"), lobby.get("rules_button")]
+	var hits: Array = []
+	for i in 3:
+		var rect: Rect2 = rects[i]
+		for blocker in fixed_rects:
+			if blocker is Control and rect.intersects((blocker as Control).get_global_rect()):
+				hits.append("%d-%s" % [i, String((blocker as Control).name)])
+	_check(hits.is_empty(), "%s: карточки без пересечений %s" % [tag, str(hits)])
 
 
 func _check_overlay(overlay: Control, tag: String, desktop: bool) -> void:

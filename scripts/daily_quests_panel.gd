@@ -762,7 +762,11 @@ func _refresh_week(done: int, total: int) -> void:
 		diamond.modulate = Color(1.0, 1.0, 1.0, 1.0 if is_full else 0.55)
 		if is_today:
 			diamond.add_theme_color_override("font_color", Color(1.0, 0.9, 0.55))
-	week_label.text = "%d/%d полных дней" % [full_days, WEEK_REQUIRED]
+	week_label.text = (
+		"%d/%d полных дней" % [full_days, WEEK_REQUIRED]
+		if mode == Mode.OVERLAY
+		else "%d/7" % full_days
+	)
 	var claimable := full_days >= WEEK_REQUIRED
 	var claimed := bool(_week_summary().get("claimed", false))
 	var reward_text := ""
@@ -907,9 +911,9 @@ func _layout_inline_row(row: Control, index: int, width: float) -> void:
 
 
 func _layout_footer(width: float, height: float, pad: float, overlay: bool) -> void:
-	var diamond_x := 22.0 if overlay else 8.0
-	var diamond_step := 29.0 if overlay else 16.0
-	var diamond_size := Vector2(18.0, 22.0) if overlay else Vector2(11.0, 14.0)
+	var diamond_x := 22.0 if overlay else 6.0
+	var diamond_step := 29.0 if overlay else 14.0
+	var diamond_size := Vector2(18.0, 22.0) if overlay else Vector2(10.0, 13.0)
 	for i in week_diamonds.size():
 		var diamond := week_diamonds[i]
 		diamond.position = Vector2(diamond_x + float(i) * diamond_step, 14.0 if overlay else 8.0)
@@ -928,13 +932,13 @@ func _layout_footer(width: float, height: float, pad: float, overlay: bool) -> v
 		claim_button.size = Vector2(176.0, 40.0)
 		claim_button.add_theme_font_size_override("font_size", 14)
 	else:
-		week_label.position = Vector2(124.0, 6.0)
-		week_label.size = Vector2(86.0, 18.0)
+		week_label.position = Vector2(104.0, 6.0)
+		week_label.size = Vector2(28.0, 18.0)
 		status_label.visible = false
-		reward_chip.position = Vector2(214.0, 8.0)
-		reward_chip.size = Vector2(62.0, 30.0)
-		_set_child_rect(reward_chip, "DailyQuestsRewardShard", Rect2(6.0, 7.0, 12.0, 16.0))
-		_set_child_rect(reward_chip, "DailyQuestsRewardAmount", Rect2(24.0, 4.0, 34.0, 20.0))
+		reward_chip.position = Vector2(136.0, 8.0)
+		reward_chip.size = Vector2(60.0, 30.0)
+		_set_child_rect(reward_chip, "DailyQuestsRewardShard", Rect2(5.0, 7.0, 12.0, 16.0))
+		_set_child_rect(reward_chip, "DailyQuestsRewardAmount", Rect2(22.0, 4.0, 34.0, 20.0))
 		_set_child_rect(reward_chip, "DailyQuestsRewardSub", Rect2(0.0, 0.0, 0.0, 0.0))
 		claim_button.position = Vector2(width - 96.0, 8.0)
 		claim_button.size = Vector2(88.0, 30.0)
