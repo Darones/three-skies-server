@@ -32,10 +32,6 @@ const (
 	questNoviceMatches      = 10
 	questMinMatchSeconds    = 90
 	questFastWinSeconds     = 7 * 60
-	// questProgressPercent is the share of a cumulative target one match may
-	// contribute. Without it a single very long match could finish a 3-day
-	// quest on day one.
-	questProgressPercent = 60
 	// questWeeklyShardReward is the flat weekly prize for a 7/7 week. There is
 	// no tier ladder any more: every completed week pays the same 300 shards.
 	questWeeklyShardReward = 300
@@ -905,21 +901,6 @@ func buildDailySummaryTx(ctx context.Context, db questStorage, playerID int64, d
 
 // ------------------------------ progress ------------------------------
 
-// questPerMatchCap is floor(60% of target), at least one point.
-func questPerMatchCap(target int) int {
-	if target <= 0 {
-		return 0
-	}
-	limit := target * questProgressPercent / 100
-	if limit < 1 {
-		limit = 1
-	}
-	if limit > target {
-		limit = target
-	}
-	return limit
-}
-
 func questClampNonNegative(value int) int {
 	if value < 0 {
 		return 0
@@ -942,8 +923,10 @@ func questMaxInt(a, b int) int {
 }
 
 // questProgressAfterMatch applies one validated match to one quest metric.
-// Cumulative metrics are capped at 60% of the target per match; "one match"
-// metrics (max kills, shop purchases) keep the best single-match value.
+// Cumulative metrics add the whole match value (clamped at the target): a
+// player who really dealt 9000 damage finishes a 4000-damage quest in that
+// match instead of seeing an anti-farm cap. "One match" metrics (max kills,
+// shop purchases) keep the best single-match value.
 func questProgressAfterMatch(metric string, target, progress int, stats matchStats) int {
 	if target <= 0 {
 		return progress
@@ -954,9 +937,8 @@ func questProgressAfterMatch(metric string, target, progress int, stats matchSta
 	if progress > target {
 		progress = target
 	}
-	cap := questPerMatchCap(target)
 	accumulate := func(value int) int {
-		return questMinInt(target, progress+questMinInt(questClampNonNegative(value), cap))
+		return questMinInt(target, progress+questClampNonNegative(value))
 	}
 	switch metric {
 	case "kills":

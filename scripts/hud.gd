@@ -57,6 +57,7 @@ var carrier_bar: ProgressBar = null
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
 const SETTINGS_PANEL_SCRIPT := preload("res://scripts/settings_panel.gd")
 const RULES_PANEL_SCRIPT := preload("res://scripts/rules_panel.gd")
+const DAILY_QUESTS_PANEL_SCRIPT := preload("res://scripts/daily_quests_panel.gd")
 const SkinCatalog = preload("res://scripts/skin_catalog.gd")
 const HERO_PORTRAITS := {
 	HeroUnit.Cls.WARRIOR: preload("res://assets/ui/heroes/warrior_face.webp"),
@@ -131,6 +132,9 @@ var pause_overlay: Control
 var pause_menu_panel: Control
 var pause_settings_panel: Control
 var pause_rules_panel: Control
+## Read-only daily quests view opened from the pause menu ("Задания дня").
+var pause_quests_panel: Control
+var pause_quests_button: Button
 # Battle scoreboard: Tab on desktop, a tile right of the player card on touch.
 var scoreboard_button: Button
 var scoreboard_button_label: Label
@@ -1766,9 +1770,9 @@ func _build_pause_menu(root: Control) -> void:
 	panel.anchor_right = 0.5
 	panel.anchor_bottom = 0.5
 	panel.offset_left = -210.0
-	panel.offset_top = -180.0
+	panel.offset_top = -202.0
 	panel.offset_right = 210.0
-	panel.offset_bottom = 180.0
+	panel.offset_bottom = 202.0
 	panel.add_theme_stylebox_override("panel", _panel_style(Color(0.78, 0.62, 0.32), Color(0.035, 0.045, 0.07, 0.99)))
 	pause_overlay.add_child(panel)
 	pause_menu_panel = panel
@@ -1783,6 +1787,11 @@ func _build_pause_menu(root: Control) -> void:
 	pause_resume_button = resume_button
 	resume_button.pressed.connect(_resume_game)
 	layout.add_child(resume_button)
+	var quests_button := _pause_action_button("Задания дня", false)
+	quests_button.name = "PauseQuestsButton"
+	pause_quests_button = quests_button
+	quests_button.pressed.connect(_open_pause_quests)
+	layout.add_child(quests_button)
 	var rules_button := _pause_action_button("Правила", false)
 	rules_button.pressed.connect(_open_pause_rules)
 	layout.add_child(rules_button)
@@ -1808,6 +1817,18 @@ func _build_pause_menu(root: Control) -> void:
 	pause_rules_panel.z_index = 11
 	pause_rules_panel.connect("back_requested", _on_pause_rules_back)
 	pause_overlay.add_child(pause_rules_panel)
+
+	pause_quests_panel = DAILY_QUESTS_PANEL_SCRIPT.new() as Control
+	pause_quests_panel.name = "PauseQuestsPanel"
+	# Read-only overlay: 3 cards, week footer and the 300 chip; no replace,
+	# no weekly claim. The only way out is "Назад" (back to the pause menu).
+	pause_quests_panel.set("mode", DAILY_QUESTS_PANEL_SCRIPT.MODE_OVERLAY)
+	pause_quests_panel.set("read_only", true)
+	pause_quests_panel.set("fit_margin", 40.0)
+	pause_quests_panel.z_index = 12
+	pause_quests_panel.connect("back_requested", _on_pause_quests_back)
+	pause_overlay.add_child(pause_quests_panel)
+	pause_quests_panel.visible = false
 
 
 func _pause_action_button(text: String, primary: bool) -> Button:
@@ -1874,6 +1895,7 @@ func _open_pause_menu() -> void:
 	pause_settings_panel.visible = false
 	if pause_rules_panel != null:
 		pause_rules_panel.visible = false
+	_close_pause_quests()
 	if pause_title_label != null:
 		pause_title_label.text = "МЕНЮ" if online else "ПАУЗА"
 	if pause_resume_button != null:
@@ -1889,6 +1911,7 @@ func _resume_game() -> void:
 	pause_settings_panel.visible = false
 	if pause_rules_panel != null:
 		pause_rules_panel.visible = false
+	_close_pause_quests()
 	get_tree().paused = false
 
 
@@ -1897,6 +1920,7 @@ func _open_pause_settings() -> void:
 	pause_settings_panel.visible = true
 	if pause_rules_panel != null:
 		pause_rules_panel.visible = false
+	_close_pause_quests()
 
 
 func _on_pause_settings_back() -> void:
@@ -1907,12 +1931,62 @@ func _on_pause_settings_back() -> void:
 func _open_pause_rules() -> void:
 	pause_menu_panel.visible = false
 	pause_settings_panel.visible = false
+	_close_pause_quests()
 	pause_rules_panel.visible = true
 
 
 func _on_pause_rules_back() -> void:
 	pause_rules_panel.visible = false
 	pause_menu_panel.visible = true
+
+
+# --- Ежедневные задания в паузе (только просмотр) --------------------------
+
+
+func _daily_quests() -> Node:
+	return get_node_or_null("/root/DailyQuests")
+
+
+func _open_pause_quests() -> void:
+	if pause_quests_panel == null or not is_instance_valid(pause_quests_panel):
+		return
+	pause_menu_panel.visible = false
+	pause_settings_panel.visible = false
+	if pause_rules_panel != null:
+		pause_rules_panel.visible = false
+	pause_quests_panel.set("read_only", true)
+	pause_quests_panel.call("open_overlay")
+	# Fresh snapshot from the server; the panel keeps the last one meanwhile.
+	var daily := _daily_quests()
+	if daily != null and daily.has_method("refresh"):
+		daily.call("refresh", true)
+	if daily != null and daily.has_signal("changed"):
+		if not daily.is_connected("changed", _on_daily_quests_changed):
+			daily.connect("changed", _on_daily_quests_changed)
+	Haptics.vibrate(20)
+
+
+func _on_daily_quests_changed() -> void:
+	if pause_quests_panel == null or not is_instance_valid(pause_quests_panel):
+		return
+	if not pause_quests_panel.visible:
+		return
+	pause_quests_panel.call("refresh_from_source")
+
+
+func _on_pause_quests_back() -> void:
+	_close_pause_quests()
+	if pause_overlay != null and pause_overlay.visible:
+		pause_menu_panel.visible = true
+
+
+func _close_pause_quests() -> void:
+	if pause_quests_panel != null and is_instance_valid(pause_quests_panel):
+		pause_quests_panel.visible = false
+	var daily := _daily_quests()
+	if daily != null and daily.has_signal("changed"):
+		if daily.is_connected("changed", _on_daily_quests_changed):
+			daily.disconnect("changed", _on_daily_quests_changed)
 
 
 func _exit_game() -> void:
@@ -1953,6 +2027,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if pause_rules_panel != null and pause_rules_panel.visible:
 		_on_pause_rules_back()
+	elif pause_quests_panel != null and pause_quests_panel.visible:
+		_on_pause_quests_back()
 	elif pause_settings_panel != null and pause_settings_panel.visible:
 		_on_pause_settings_back()
 	elif pause_overlay != null and pause_overlay.visible:

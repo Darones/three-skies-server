@@ -116,7 +116,7 @@ CREATE TABLE IF NOT EXISTS weekly_grants (
 - 3 разных template_id, разные категории, ровно 1 easy, ≤1 win, сумма ~15–25 минут.
 - Новичкам (<10 матчей) недоступны triple_kill, fast_win_2, survive_win, buy_3.
 - Прогресс только из валидированного `saveMatch`, матч короче 90 с игнорируется.
-- Для kills/damage/crystals/shells — не больше 60% цели за один матч.
+- Для kills/damage/crystals/shells — прогресс добавляет весь результат матча (не больше цели).
 - `shop_items` = `len(client.bought)` на финише; `buy_2` — max за один бой.
 - При завершении: `completed_at`, `completed_count++`, шарды, XP; все 3 → +10.
 - Замена: `FOR UPDATE`, completed нельзя, `current_template_id` защищает от двойного тапа; free → paid 1 осколок (max 2 paid).
@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS weekly_grants (
 
 ## Тесты
 
-- Go unit: границы дня, детерминизм, ограничения, новички, reroll free/paid/limit, completed, no shards, идемпотентность, cap 60%, min duration, shop_2, бонус, 7/7, пропуск, tier, claim идемпотентность, компенсации.
+- Go unit: границы дня, детерминизм, ограничения, новички, reroll free/paid/limit, completed, no shards, идемпотентность, полный прогресс за матч, min duration, shop_2, бонус, 7/7, пропуск, tier, claim идемпотентность, компенсации.
 - Интеграция: матч → counters → прогресс → награды, повторный финиш не платит.
 - GDScript: `DailyQuestsLayoutProbe` 1440/844, `DailyQuestsStateProbe`; регресс `NonCombatUiProbe`, `ResultsProbe`, `ShopSkinProbe`, `TutorialLayoutProbe`.
 

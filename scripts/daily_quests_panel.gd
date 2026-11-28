@@ -13,6 +13,7 @@ signal reroll_requested(slot: int)
 signal weekly_claim_requested(item_id: int)
 signal open_requested
 signal closed
+signal back_requested
 signal data_changed(completed: int, total: int)
 
 enum Mode { INLINE, OVERLAY }
@@ -64,6 +65,31 @@ void fragment() {
 
 const WEEK_LETTERS := ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
 
+## Philosopher has no U+2713 (or any U+2700-27BF glyph) and the web build has
+## no fallback font, so a typed check mark renders as a tofu square. Draw it.
+class DrawnCheck extends Control:
+	var accent: Color = Color(0.561, 0.89, 0.651)
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		resized.connect(queue_redraw)
+
+	func set_accent(value: Color) -> void:
+		accent = value
+		queue_redraw()
+
+	func _draw() -> void:
+		var w := size.x
+		var h := size.y
+		if w <= 0.0 or h <= 0.0:
+			return
+		var stroke := clampf(minf(w, h) * 0.12, 2.0, 4.0)
+		var start := Vector2(w * 0.22, h * 0.54)
+		var mid := Vector2(w * 0.43, h * 0.74)
+		var end := Vector2(w * 0.80, h * 0.27)
+		draw_line(start, mid, accent, stroke, true)
+		draw_line(mid, end, accent, stroke, true)
+
 const TEMPLATE_TITLES := {
 	"kills_8": "Убить 8 врагов",
 	"kills_12": "Убить 12 врагов",
@@ -86,6 +112,12 @@ const TEMPLATE_TITLES := {
 
 var mode: int = Mode.INLINE
 var desktop_overlay := false
+## Read-only view (battle pause menu): no replace buttons, no weekly claim.
+## The header and the week footer stay; the only action is "Назад".
+var read_only := false
+## Space kept free around the overlay inside its parent (32 px in the lobby,
+## 40 px in the battle HUD, per the responsive spec).
+var fit_margin := 32.0
 
 var data: Dictionary = {}
 var quests: Array = []
@@ -117,6 +149,7 @@ var reward_amount_label: Label
 var reward_sub_label: Label
 var status_icon: TextureRect
 var claim_button: Button
+var back_button: Button
 var open_button: Button
 
 var _tween: Tween
@@ -246,7 +279,9 @@ func _build_dim() -> void:
 	var dim := ColorRect.new()
 	dim.name = "DailyQuestsDim"
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color(0.005, 0.008, 0.018, 0.88)
+	# In the battle pause menu the HUD already dims the field; a second 0.88
+	# layer would turn the frame black.
+	dim.color = Color(0.005, 0.008, 0.018, 0.55 if read_only else 0.88)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	dim.gui_input.connect(_on_dim_input)
 	add_child(dim)
@@ -258,15 +293,17 @@ func _build_panel() -> void:
 	panel.add_theme_stylebox_override("panel", _panel_style())
 	panel.clip_contents = true
 	if mode == Mode.OVERLAY:
-		var width := minf(OVERLAY_WIDTH, get_viewport_rect().size.x - 32.0)
+		var scale_factor := _overlay_scale()
+		var width := minf(OVERLAY_WIDTH * scale_factor, get_viewport_rect().size.x - 32.0)
+		var height := OVERLAY_EMPTY_HEIGHT * scale_factor
 		panel.anchor_left = 0.5
 		panel.anchor_right = 0.5
 		panel.anchor_top = 0.5
 		panel.anchor_bottom = 0.5
 		panel.offset_left = -width * 0.5
 		panel.offset_right = width * 0.5
-		panel.offset_top = -OVERLAY_EMPTY_HEIGHT * 0.5
-		panel.offset_bottom = OVERLAY_EMPTY_HEIGHT * 0.5
+		panel.offset_top = -height * 0.5
+		panel.offset_bottom = height * 0.5
 		panel.resized.connect(_layout_content)
 	else:
 		panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -291,7 +328,9 @@ func _build_open_button() -> void:
 func _build_content() -> void:
 	content = Control.new()
 	content.name = "DailyQuestsContent"
-	content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# Top-left anchors: both modes set an explicit design size below, and the
+	# overlay then scales that design to the free space of its parent.
+	content.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	content.mouse_filter = Control.MOUSE_FILTER_PASS
 	panel.add_child(content)
 
@@ -343,11 +382,11 @@ func _build_content() -> void:
 	)
 	explanation_label.name = "DailyQuestsExplanation"
 	explanation_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	explanation_label.visible = mode == Mode.OVERLAY
+	explanation_label.visible = mode == Mode.OVERLAY and not read_only
 	header.add_child(explanation_label)
 
 	close_button = _make_button("×", 20, false, "DailyQuestsClose")
-	close_button.visible = mode == Mode.OVERLAY
+	close_button.visible = mode == Mode.OVERLAY and not read_only
 	close_button.pressed.connect(close_overlay)
 	header.add_child(close_button)
 
@@ -415,6 +454,11 @@ func _build_footer() -> void:
 	claim_button = _make_button("Забрать 300", 14 if mode == Mode.OVERLAY else 10, true, "DailyQuestsClaim")
 	claim_button.pressed.connect(_on_claim_pressed)
 	footer.add_child(claim_button)
+
+	back_button = _make_button("Назад", 14 if mode == Mode.OVERLAY else 10, false, "DailyQuestsBack")
+	back_button.pressed.connect(_on_back_pressed)
+	back_button.visible = false
+	footer.add_child(back_button)
 
 
 # ---------------------------------------------------------------------------
@@ -551,7 +595,7 @@ func _make_inline_row(index: int, quest: Dictionary) -> Control:
 	shard.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(shard)
 	var amount := _make_label(
-		"✓" if completed else "%d" % int(quest.get("reward_shards", 0)), 10,
+		"%d" % int(quest.get("reward_shards", 0)), 10,
 		DONE if completed else GOLD
 	)
 	amount.name = "DailyQuestsReward%d" % index
@@ -616,7 +660,7 @@ func _make_card(index: int, quest: Dictionary) -> Control:
 	card.add_child(title)
 
 	var reroll := _make_button("Заменить", 13, false, "DailyQuestsReroll%d" % index)
-	reroll.visible = not completed
+	reroll.visible = not completed and not read_only
 	reroll.tooltip_text = "Заменить задание"
 	var state := _reroll_state()
 	var slot_state := _slot_reroll_state(int(quest["slot"]))
@@ -625,7 +669,7 @@ func _make_card(index: int, quest: Dictionary) -> Control:
 	reroll.disabled = not bool(state.get("available", false))
 	reroll.text = "Заменить" if not reroll.disabled else "Нет замен"
 	reroll.tooltip_text = String(state.get("hint", "Заменить задание"))
-	if not completed:
+	if not completed and not read_only:
 		reroll.pressed.connect(_on_reroll_pressed.bind(int(quest["slot"])))
 	card.add_child(reroll)
 
@@ -648,12 +692,13 @@ func _make_card(index: int, quest: Dictionary) -> Control:
 	percent.name = "DailyQuestsPercent%d" % index
 	percent.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	percent.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	# A finished card shows the drawn check instead of "100%", never on top.
+	percent.visible = not completed
 	card.add_child(percent)
 
-	var check := _make_label("✓", 26, DONE)
+	var check := DrawnCheck.new()
 	check.name = "DailyQuestsCheck%d" % index
-	check.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	check.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	check.set_accent(DONE)
 	check.visible = completed
 	card.add_child(check)
 
@@ -750,7 +795,8 @@ func _refresh_texts() -> void:
 	timer_label.visible = overlay
 	timer_label.text = _timer_text()
 	count_label.text = "%d/%d" % [done, total]
-	explanation_label.visible = overlay
+	explanation_label.visible = overlay and not read_only
+	close_button.visible = overlay and not read_only
 	_refresh_week(done, total)
 
 
@@ -815,14 +861,24 @@ func _layout_content() -> void:
 		return
 	if header == null or footer == null or title_label == null:
 		return
+	var overlay := mode == Mode.OVERLAY
 	var panel_size := panel.size
 	if panel_size.x <= 0.0 or panel_size.y <= 0.0:
 		return
-	var overlay := mode == Mode.OVERLAY
 	var width := panel_size.x
 	var height := panel_size.y
 	content.position = Vector2.ZERO
-	content.size = panel_size
+	if overlay and read_only:
+		# The battle overlay is laid out in fixed design coordinates (812x338)
+		# and scaled as a whole to the free space of its parent, so it never
+		# spills off a 844x390 phone or an expanded desktop window.
+		var scale_factor := _overlay_scale()
+		width = OVERLAY_WIDTH
+		height = panel_height_for(quests.size())
+		content.scale = Vector2(scale_factor, scale_factor)
+	else:
+		content.scale = Vector2.ONE
+	content.size = Vector2(width, height)
 	var pad := 22.0 if overlay else 8.0
 	var header_h := 88.0 if overlay else 34.0
 	var footer_h := 46.0 if overlay else 50.0
@@ -876,7 +932,7 @@ func _layout_content() -> void:
 	footer.position = Vector2(0.0, maxf(header_h, height - footer_h - (10.0 if overlay else 0.0)))
 	footer.size = Vector2(width, footer_h)
 	_layout_footer(width, footer_h, pad, overlay)
-	footer.visible = not quests.is_empty()
+	footer.visible = not quests.is_empty() or read_only
 	rows_layer.visible = not card_nodes.is_empty() or not row_nodes.is_empty()
 
 
@@ -888,7 +944,7 @@ func _layout_card(card: Control, index: int) -> void:
 	_set_child_rect(card, "DailyQuestsReroll%d" % index, Rect2(w - 80.0, 10.0, 72.0, 30.0))
 	_set_child_rect(card, "DailyQuestsRing%d" % index, Rect2(16.0, 94.0, 54.0, 54.0))
 	_set_child_rect(card, "DailyQuestsPercent%d" % index, Rect2(16.0, 94.0, 54.0, 54.0))
-	_set_child_rect(card, "DailyQuestsCheck%d" % index, Rect2(16.0, 94.0, 54.0, 54.0))
+	_set_child_rect(card, "DailyQuestsCheck%d" % index, Rect2(30.0, 108.0, 26.0, 26.0))
 	_set_child_rect(card, "DailyQuestsProgress%d" % index, Rect2(80.0, 88.0, 150.0, 22.0))
 	_set_child_rect(card, "DailyQuestsRemaining%d" % index, Rect2(80.0, 110.0, 150.0, 18.0))
 	_set_child_rect(card, "DailyQuestsRewardChip%d" % index, Rect2(80.0, 132.0, 92.0, 30.0))
@@ -990,7 +1046,11 @@ func _layout_footer(width: float, height: float, pad: float, overlay: bool) -> v
 		claim_button.position = Vector2(width - 198.0, 2.0)
 		claim_button.size = Vector2(176.0, 40.0)
 		claim_button.add_theme_font_size_override("font_size", 14)
-		claim_button.visible = true
+		claim_button.visible = not read_only
+		back_button.position = claim_button.position
+		back_button.size = claim_button.size
+		back_button.add_theme_font_size_override("font_size", 14)
+		back_button.visible = read_only
 	else:
 		# Inline: только 7 точек, X/7 и чип 300. Забор — в overlay.
 		week_label.position = Vector2(92.0, 8.0)
@@ -1003,6 +1063,7 @@ func _layout_footer(width: float, height: float, pad: float, overlay: bool) -> v
 		_set_child_rect(reward_chip, "DailyQuestsRewardAmount", Rect2(22.0, 4.0, 34.0, 20.0))
 		_set_child_rect(reward_chip, "DailyQuestsRewardSub", Rect2(0.0, 0.0, 0.0, 0.0))
 		claim_button.visible = false
+		back_button.visible = false
 	status_label.visible = overlay
 
 
@@ -1018,6 +1079,13 @@ func _set_height(count: int, animate: bool) -> void:
 			return
 		var top := -target * 0.5
 		var bottom := target * 0.5
+		if read_only:
+			var scale_factor := _overlay_scale()
+			var half_width := OVERLAY_WIDTH * scale_factor * 0.5
+			top = -target * scale_factor * 0.5
+			bottom = target * scale_factor * 0.5
+			panel.offset_left = -half_width
+			panel.offset_right = half_width
 		if animate and is_inside_tree() and visible:
 			if _tween != null and _tween.is_valid():
 				_tween.kill()
@@ -1041,6 +1109,33 @@ func _set_height(count: int, animate: bool) -> void:
 			offset_bottom = bottom
 
 
+## Uniform scale for the battle overlay: 812x338 design shrinks only when the
+## parent is smaller than that plus the fit margin. The lobby overlay keeps its
+## approved fixed 812x338 box, so read_only=false always returns 1.
+func _overlay_scale() -> float:
+	if not read_only:
+		return 1.0
+	var free := _root_size() - Vector2(_margin() * 2.0, _margin() * 2.0)
+	free.x = maxf(free.x, 240.0)
+	free.y = maxf(free.y, 120.0)
+	var scale_x := free.x / OVERLAY_WIDTH
+	var scale_y := free.y / OVERLAY_HEIGHT
+	return clampf(minf(scale_x, scale_y), 0.35, 1.0)
+
+
+func _margin() -> float:
+	return maxf(0.0, fit_margin)
+
+
+func _root_size() -> Vector2:
+	var current := size
+	if current.x <= 1.0 or current.y <= 1.0:
+		current = get_viewport_rect().size
+	if current.x <= 1.0 or current.y <= 1.0:
+		current = Vector2(1280.0, 720.0)
+	return current
+
+
 # ---------------------------------------------------------------------------
 # Ввод / источник
 
@@ -1052,7 +1147,10 @@ func _input(event: InputEvent) -> void:
 		var key := event as InputEventKey
 		if key.pressed and not key.echo and key.keycode == KEY_ESCAPE:
 			get_viewport().set_input_as_handled()
-			close_overlay()
+			if read_only:
+				_request_back()
+			else:
+				close_overlay()
 
 
 func _on_dim_input(event: InputEvent) -> void:
@@ -1072,7 +1170,20 @@ func _on_dim_input(event: InputEvent) -> void:
 		return
 	var global_position := get_global_rect().position + position
 	if not panel.get_global_rect().has_point(global_position):
-		close_overlay()
+		if read_only:
+			_request_back()
+		else:
+			close_overlay()
+
+
+func _on_back_pressed() -> void:
+	_request_back()
+
+
+func _request_back() -> void:
+	if not visible:
+		return
+	back_requested.emit()
 
 
 func _on_reroll_pressed(slot: int) -> void:
@@ -1341,4 +1452,6 @@ func _plural(count: int, one: String, few: String, many: String) -> String:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED and _built:
+		if mode == Mode.OVERLAY:
+			_set_height(quests.size(), false)
 		_layout_content()

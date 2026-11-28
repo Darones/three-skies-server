@@ -207,7 +207,10 @@ func show_rewarded_ad(placement: String) -> bool:
 
 func show_interstitial(placement: String) -> bool:
 	if not _authenticated:
+		last_ad_error = "unavailable"
 		return false
+	last_ad_error = ""
+	last_ad_detail = ""
 	var check := await _call_ad_bridge("VKWebAppCheckNativeAds", {"ad_format": "interstitial"})
 	print("[Ads] check interstitial placement=%s ok=%s result=%s error=%s" % [
 		placement, check.get("ok", false), _ad_result_flag(check), check.get("error", ""),
@@ -217,6 +220,15 @@ func show_interstitial(placement: String) -> bool:
 	print("[Ads] show interstitial placement=%s ok=%s result=%s error=%s" % [
 		placement, shown.get("ok", false), displayed, shown.get("error", ""),
 	])
+	if not displayed:
+		# The dashboard reports why an interstitial was not watched: a rejected
+		# bridge promise keeps its code, a resolved one without result=true was
+		# closed early or had no fill.
+		var show_error := String(shown.get("error", ""))
+		if not bool(shown.get("ok", false)):
+			last_ad_error = show_error if not show_error.is_empty() else "show_error"
+		else:
+			last_ad_error = "not_completed"
 	_interstitial_available = displayed
 	_ads_checked = true
 	return displayed

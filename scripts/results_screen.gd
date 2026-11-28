@@ -1063,6 +1063,9 @@ func _refresh_reward_ui() -> void:
 	else:
 		double_reward_button.text = "Получить x2 за рекламу"
 		double_reward_button.disabled = false
+		# The button itself is the ad offer: the dashboard compares offers with
+		# watched ads, so a player who ignores it still counts as "not watched".
+		AdManager.track_rewarded_offer()
 
 
 func _ad_reward_button_style(hovered: bool) -> StyleBoxFlat:

@@ -16,12 +16,38 @@ var rewarded_watched_this_results := false
 # ad screen: the results screen must not show an interstitial on top of it.
 var rewarded_attempted_this_results := false
 var interstitial_shown_this_results := false
+# The x2 button is an ad offer even when the player never taps it. Tracked once
+# per results screen so the dashboard can show watched / not watched.
+var rewarded_offer_tracked := false
 
 
 func begin_results() -> void:
 	rewarded_watched_this_results = false
 	rewarded_attempted_this_results = false
 	interstitial_shown_this_results = false
+	rewarded_offer_tracked = false
+
+
+## Called by the results screen when the x2 button becomes visible: the offer
+## exists from that moment, not only when it is clicked.
+func track_rewarded_offer() -> void:
+	if rewarded_offer_tracked:
+		return
+	rewarded_offer_tracked = true
+	Stats.track("ad_offer", {"format": "rewarded", "placement": "results_double"})
+
+
+## Maps the adapter error to the small vocabulary the dashboard aggregates:
+## closed | error | unavailable | timeout.
+func _ad_reason(error_code: String) -> String:
+	var code := error_code.strip_edges().to_lower()
+	if code.is_empty() or code == "not_completed" or code.contains("closed") or code.contains("cancel"):
+		return "closed"
+	if code.contains("timeout") or code.contains("timed_out"):
+		return "timeout"
+	if code.contains("unavailable") or code.contains("adapter") or code.contains("not_available"):
+		return "unavailable"
+	return "error"
 
 
 func register_rewarded_watched() -> void:
@@ -65,11 +91,24 @@ func show_interstitial_ad() -> bool:
 	if not Platform.is_interstitial_available():
 		return false
 	ad_showing = true
+	# One offer per attempted interstitial; a failure still counts in the
+	# dashboard funnel as not watched.
+	Stats.track("ad_offer", {"format": "interstitial", "placement": "results"})
 	var shown: bool = await Platform.show_interstitial("results")
 	ad_showing = false
 	if shown:
 		MetaProgression.last_interstitial_at = int(Time.get_unix_time_from_system())
 		NetworkClient.record_interstitial_shown(MetaProgression.player_id)
+	else:
+		# A completed interstitial is recorded server-side by /ad_interstitial;
+		# only the failure is reported from here, so the ad is never counted
+		# twice. The reason stays in the dashboard for diagnosing no-fill.
+		Stats.track("ad_result", {
+			"format": "interstitial",
+			"placement": "results",
+			"ok": false,
+			"reason": _ad_reason(Platform.get_last_ad_error()),
+		})
 	print("[Ads] interstitial results shown=%s" % shown)
 	return shown
 
@@ -92,6 +131,14 @@ func show_rewarded_ad() -> bool:
 		"placement": "results_double",
 		"error": ad_error,
 		"detail": ad_detail,
+	})
+	# New, dashboard-friendly event: same outcome plus a small reason code.
+	# ad_reward stays for the existing probes and the raw event log.
+	Stats.track("ad_result", {
+		"format": "rewarded",
+		"placement": "results_double",
+		"ok": rewarded,
+		"reason": "" if rewarded else _ad_reason(ad_error),
 	})
 	if not rewarded:
 		print("[Ads] rewarded results_double not completed error=%s detail=%s" % [ad_error, ad_detail])

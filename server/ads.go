@@ -146,5 +146,20 @@ func (service *api) handleInterstitialShown(w http.ResponseWriter, r *http.Reque
 		writeJSON(w, http.StatusInternalServerError, interstitialResponse{Error: "Internal server error"})
 		return
 	}
+	// The server is the authority for a completed interstitial: the client only
+	// calls this endpoint after the VK promise resolved, so this row is the
+	// watched ad even if the client-side stats batch never flushes. The client
+	// deliberately does not send its own ok=true ad_result for interstitial, so
+	// the ad is never counted twice.
+	service.recordStats(statsEvent{
+		Event:    "ad_result",
+		PlayerID: request.PlayerID,
+		Payload: map[string]any{
+			"format":    "interstitial",
+			"placement": "results",
+			"ok":        true,
+			"source":    "server",
+		},
+	})
 	writeJSON(w, http.StatusOK, interstitialResponse{Success: true, LastInterstitialAt: int64(shownAt)})
 }

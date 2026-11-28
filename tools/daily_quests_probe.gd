@@ -8,6 +8,10 @@ extends Node3D
 var _fail := 0
 var _pass := 0
 
+## Philosopher has no U+2713/U+2714/U+25C6/U+21BB and the web build has no
+## fallback font: these render as tofu. Draw such marks instead.
+const BANNED_GLYPHS := ["\u2713", "\u2714", "\u25C6", "\u21BB", "\u2717"]
+
 
 func _ready() -> void:
 	var target := Vector2i(1440, 734)
@@ -168,6 +172,8 @@ func _check_inline(lobby: Node, inline: Control, tag: String) -> void:
 	await get_tree().create_timer(0.32).timeout
 	var rows: Array = inline.get("row_nodes")
 	_check(rows.size() == 3, "%s: 3 строки inline" % tag)
+	_check(_banned_glyphs(inline).is_empty(),
+		"%s: inline без текстовых галок %s" % [tag, str(_banned_glyphs(inline))])
 	for i in rows.size():
 		var row := rows[i] as Control
 		_check(_near(row.size.y, 50.0), "%s: строка %d = 50 px" % [tag, i])
@@ -355,6 +361,12 @@ func _check_overlay(overlay: Control, tag: String, desktop: bool) -> void:
 	_check(check0 != null and check0.visible, "%s: галочка выполненной карточки" % tag)
 	_check(remaining0 != null and remaining0.text == "награда зачислена",
 		"%s: «награда зачислена»" % tag)
+	# Regression: the check mark must be drawn, never a typed glyph (the font
+	# has no U+2713, and the web build has no fallback font).
+	_check(check0 != null and not (check0 is Label) and check0.has_method("_draw"),
+		"%s: галочка нарисована в _draw, не текст" % tag)
+	var glyph_hits := _banned_glyphs(overlay)
+	_check(glyph_hits.is_empty(), "%s: нет текстовых галок/ромбов/стрелок %s" % [tag, str(glyph_hits)])
 
 	var diamonds := 0
 	for i in 7:
@@ -489,6 +501,26 @@ func _week(full_days: int) -> Array:
 
 func _near(value: float, expected: float, tolerance := 0.75) -> bool:
 	return absf(value - expected) <= tolerance
+
+
+func _banned_glyphs(root: Node) -> Array:
+	var found: Array = []
+	var nodes: Array[Node] = root.find_children("*", "", true, false)
+	for node in nodes:
+		var text := ""
+		if node is Label:
+			text = (node as Label).text
+		elif node is Button:
+			text = (node as Button).text
+		elif node is RichTextLabel:
+			text = (node as RichTextLabel).text
+		else:
+			continue
+		for glyph in BANNED_GLYPHS:
+			if text.contains(glyph):
+				found.append("%s '%s'" % [String(node.name), text])
+				break
+	return found
 
 
 func _local_rect(control: Control, origin: Vector2) -> Rect2:

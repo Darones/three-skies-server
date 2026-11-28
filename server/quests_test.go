@@ -344,20 +344,20 @@ func TestGenerateQuestsNovicePool(t *testing.T) {
 	}
 }
 
-func TestQuestProgressPerMatchCap(t *testing.T) {
+func TestQuestProgressCountsWholeMatch(t *testing.T) {
 	cases := []struct {
 		metric string
 		target int
 		value  int
 		want   int
 	}{
-		{"kills", 8, 100, 4},
-		{"kills", 12, 100, 7},
-		{"damage", 4000, 999999, 2400},
-		{"damage", 7000, 999999, 4200},
-		{"crystals", 2, 9, 1},
-		{"crystals", 3, 9, 1},
-		{"shells", 2, 9, 1},
+		{"kills", 8, 100, 8},
+		{"kills", 12, 100, 12},
+		{"damage", 4000, 9000, 4000},
+		{"damage", 7000, 999999, 7000},
+		{"crystals", 2, 9, 2},
+		{"crystals", 3, 9, 3},
+		{"shells", 2, 9, 2},
 	}
 	for _, testCase := range cases {
 		stats := matchStats{durationSec: 300}
@@ -376,12 +376,6 @@ func TestQuestProgressPerMatchCap(t *testing.T) {
 			t.Fatalf("%s/%d after one match = %d, want %d", testCase.metric, testCase.target, got, testCase.want)
 		}
 	}
-	if cap := questPerMatchCap(2); cap != 1 {
-		t.Fatalf("questPerMatchCap(2) = %d, want 1", cap)
-	}
-	if cap := questPerMatchCap(3); cap != 1 {
-		t.Fatalf("questPerMatchCap(3) = %d, want 1 (floor of 60%%)", cap)
-	}
 }
 
 func TestQuestProgressAccumulatesToTarget(t *testing.T) {
@@ -391,7 +385,7 @@ func TestQuestProgressAccumulatesToTarget(t *testing.T) {
 		progress = questProgressAfterMatch("kills", 8, progress, stats)
 	}
 	if progress != 8 {
-		t.Fatalf("two capped matches gave %d, want the target 8", progress)
+		t.Fatalf("two matches gave %d, want the target 8", progress)
 	}
 	// More matches cannot overshoot the target.
 	progress = questProgressAfterMatch("kills", 8, progress, stats)
