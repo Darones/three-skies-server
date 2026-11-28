@@ -152,41 +152,48 @@ func _check_desktop_layout(lobby: Node, quests_panel: Control, layout: Vector2i)
 		"%s: логотип по центру X" % tag
 	)
 
-	# Кнопки: слева над «ПРАВИЛА», PLAY 200x56, ОБУЧЕНИЕ 180x42.
-	var gear_top := view.y - 102.0
-	var tutorial_bottom := gear_top - 10.0
-	var tutorial_top := tutorial_bottom - 42.0
-	var play_bottom := tutorial_top - 10.0
-	var play_top := play_bottom - 56.0
-	_check(_near(play_rect.position.x, 46.0), "%s: ИГРАТЬ left 46 (%.1f)" % [tag, play_rect.position.x])
-	_check(_near(play_rect.size.x, 200.0), "%s: ИГРАТЬ width 200 (%.1f)" % [tag, play_rect.size.x])
+	# Вариант 1: левая колонка, блок 300, верх = table.bottom + 24.
+	var block_top := table_rect.end.y + 24.0
+	var row_top := block_top + 56.0 + 10.0 + 44.0 + 10.0
+	_check(_near(play_rect.position.x, 28.0), "%s: ИГРАТЬ left 28 (%.1f)" % [tag, play_rect.position.x])
+	_check(_near(play_rect.size.x, 300.0), "%s: ИГРАТЬ width 300 (%.1f)" % [tag, play_rect.size.x])
 	_check(_near(play_rect.size.y, 56.0), "%s: ИГРАТЬ height 56 (%.1f)" % [tag, play_rect.size.y])
-	_check(_near(play_rect.position.y, play_top), "%s: ИГРАТЬ top %.1f (%.1f)" % [tag, play_rect.position.y, play_top])
-	_check(_near(play_rect.end.y, play_bottom), "%s: ИГРАТЬ bottom %.1f (%.1f)" % [tag, play_rect.end.y, play_bottom])
-	_check(_near(tutorial_rect.position.x, 46.0), "%s: ОБУЧЕНИЕ left 46 (%.1f)" % [tag, tutorial_rect.position.x])
-	_check(_near(tutorial_rect.size.x, 180.0), "%s: ОБУЧЕНИЕ width 180 (%.1f)" % [tag, tutorial_rect.size.x])
-	_check(_near(tutorial_rect.size.y, 42.0), "%s: ОБУЧЕНИЕ height 42 (%.1f)" % [tag, tutorial_rect.size.y])
-	_check(_near(tutorial_rect.position.y, tutorial_top), "%s: ОБУЧЕНИЕ top %.1f (%.1f)" % [tag, tutorial_rect.position.y, tutorial_top])
-	_check(_near(tutorial_rect.end.y, tutorial_bottom), "%s: ОБУЧЕНИЕ bottom %.1f (%.1f)" % [tag, tutorial_rect.end.y, tutorial_bottom])
-	_check(_near(play_rect.end.y, tutorial_rect.position.y - 10.0, 0.75), "%s: между кнопками 10 px" % tag)
-	_check(
-		tutorial_rect.end.y < settings_rect.position.y and tutorial_rect.end.y < rules_rect.position.y,
-		"%s: ОБУЧЕНИЕ выше шестерёнки и ПРАВИЛ" % tag
-	)
+	_check(_near(play_rect.position.y, block_top), "%s: блок от table.bottom+24 (%.1f)" % [tag, play_rect.position.y])
+	_check(_near(play_rect.end.y, block_top + 56.0), "%s: ИГРАТЬ bottom" % tag)
+	_check(_near(tutorial_rect.position.x, 28.0), "%s: ОБУЧЕНИЕ left 28 (%.1f)" % [tag, tutorial_rect.position.x])
+	_check(_near(tutorial_rect.size.x, 300.0), "%s: ОБУЧЕНИЕ width 300 (%.1f)" % [tag, tutorial_rect.size.x])
+	_check(_near(tutorial_rect.size.y, 44.0), "%s: ОБУЧЕНИЕ height 44 (%.1f)" % [tag, tutorial_rect.size.y])
+	_check(_near(tutorial_rect.position.y, block_top + 66.0), "%s: ОБУЧЕНИЕ top" % tag)
+	_check(_near(play_rect.end.y, tutorial_rect.position.y - 10.0, 0.75), "%s: между PLAY и ОБУЧЕНИЕ 10 px" % tag)
+	_check(_near(settings_rect.position.x, 28.0), "%s: шестерёнка left 28" % tag)
+	_check(_near(settings_rect.position.y, row_top), "%s: ряд шестерёнки снизу (%.1f)" % [tag, settings_rect.position.y])
+	_check(_near(settings_rect.size.x, 44.0) and _near(settings_rect.size.y, 44.0), "%s: шестерёнка 44x44" % tag)
+	_check(_near(rules_rect.position.x, 82.0), "%s: ПРАВИЛА left 82 (%.1f)" % [tag, rules_rect.position.x])
+	_check(_near(rules_rect.position.y, row_top), "%s: ПРАВИЛА в одном ряду" % tag)
+	_check(_near(rules_rect.size.x, 246.0) and _near(rules_rect.size.y, 44.0), "%s: ПРАВИЛА 246x44" % tag)
+	_check(_near(tutorial_rect.end.y, row_top - 10.0, 0.75), "%s: ряд низа через 10 px" % tag)
 
-	# Ожидаемая геометрия карточек по одобренной формуле.
-	var area_left := table_rect.end.x + 36.0
+	# Ожидаемая геометрия карточек: центр 100%, бока 75%, ширина height*0.72.
+	var area_left := maxf(table_rect.end.x + 36.0, 430.0)
 	var area_right := view.x - 28.0
 	var area_top := maxf(logo_rect.end.y + 18.0, shop_rect.end.y + 12.0)
 	var area_bottom := view.y - 24.0
 	var area_w := area_right - area_left
 	var area_h := area_bottom - area_top
 	var center_h := area_h
-	var side_h := center_h * 0.96
+	var center_w := center_h * 0.72
+	var side_h := center_h * 0.75
+	var side_w := side_h * 0.72
 	var gap := maxf(12.0, view.x * 0.012)
-	var side_w := (area_w - 2.0 * gap) / 3.15
-	var center_w := side_w * 1.15
 	var group_w := center_w + 2.0 * side_w + 2.0 * gap
+	if group_w > area_w:
+		var scale := area_w / group_w
+		center_h *= scale
+		center_w *= scale
+		side_h *= scale
+		side_w *= scale
+		gap *= scale
+		group_w = area_w
 	var group_left := area_left + maxf(0.0, (area_w - group_w) * 0.5)
 	var center_y := area_top + (area_h - center_h) * 0.5
 	var side_y := area_top + (area_h - side_h) * 0.5
@@ -216,22 +223,13 @@ func _check_desktop_layout(lobby: Node, quests_panel: Control, layout: Vector2i)
 		var center_rect: Rect2 = card_rects[1]
 		var side_rect: Rect2 = card_rects[0]
 		var right_rect: Rect2 = card_rects[2]
-		var group_actual_w := right_rect.end.x - side_rect.position.x
 		_check(
-			group_actual_w >= area_w * 0.9,
-			"%s: группа карточек ≥90%% area_w (%.1f из %.1f)" % [tag, group_actual_w, area_w]
+			_near(side_rect.size.y / center_rect.size.y, 0.75, 0.02),
+			"%s: бока = 75%% высоты центра (%.2f)" % [tag, side_rect.size.y / center_rect.size.y]
 		)
 		_check(
-			group_actual_w <= area_w + 0.75,
-			"%s: группа не шире area_w (%.1f <= %.1f)" % [tag, group_actual_w, area_w]
-		)
-		_check(
-			_near(side_rect.position.x, area_left, 1.0)
-				and _near(right_rect.end.x, area_right, 1.0),
-			"%s: нет пустых полос слева/справа (%.1f..%.1f)" % [tag, side_rect.position.x, right_rect.end.x]
-		)
-		_check(
-			center_rect.size.x > side_rect.size.x and center_rect.size.y > side_rect.size.y,
+			center_rect.size.x > side_rect.size.x and center_rect.size.y > side_rect.size.y
+				and right_rect.size.y < center_rect.size.y,
 			"%s: центр больше боков (%.1fx%.1f > %.1fx%.1f)" % [
 				tag, center_rect.size.x, center_rect.size.y, side_rect.size.x, side_rect.size.y
 			]
@@ -240,9 +238,9 @@ func _check_desktop_layout(lobby: Node, quests_panel: Control, layout: Vector2i)
 		var mod_center := (cards[1] as Control).modulate
 		var mod_right := (cards[2] as Control).modulate
 		_check(
-			_near(mod_side.r, 0.8, 0.02) and _near(mod_side.g, 0.8, 0.02)
-				and _near(mod_side.b, 0.8, 0.02),
-			"%s: левая карточка modulate 0.8" % tag
+			_near(mod_side.r, 0.65, 0.02) and _near(mod_side.g, 0.65, 0.02)
+				and _near(mod_side.b, 0.65, 0.02),
+			"%s: левая карточка modulate 0.65" % tag
 		)
 		_check(
 			_near(mod_center.r, 1.0, 0.02) and _near(mod_center.g, 1.0, 0.02)
@@ -250,17 +248,31 @@ func _check_desktop_layout(lobby: Node, quests_panel: Control, layout: Vector2i)
 			"%s: центр без затемнения" % tag
 		)
 		_check(
-			_near(mod_right.r, 0.8, 0.02) and _near(mod_right.g, 0.8, 0.02)
-				and _near(mod_right.b, 0.8, 0.02),
-			"%s: правая карточка modulate 0.8" % tag
+			_near(mod_right.r, 0.65, 0.02) and _near(mod_right.g, 0.65, 0.02)
+				and _near(mod_right.b, 0.65, 0.02),
+			"%s: правая карточка modulate 0.65" % tag
+		)
+		var badge := (cards[1] as Control).find_child("SelectedBadge", true, false) as Panel
+		var badge_label := (cards[1] as Control).find_child("SelectedBadgeLabel", true, false) as Label
+		var side_badge := (cards[0] as Control).find_child("SelectedBadge", true, false)
+		var right_badge := (cards[2] as Control).find_child("SelectedBadge", true, false)
+		_check(badge != null and badge.visible, "%s: метка «ВЫБРАН» у центра" % tag)
+		_check(badge_label != null and badge_label.text == "ВЫБРАН", "%s: текст метки «ВЫБРАН»" % tag)
+		_check(side_badge == null and right_badge == null, "%s: у боковых нет метки" % tag)
+		var frame := (cards[1] as Control).find_child("CardFrame", true, false) as Panel
+		var frame_style: StyleBoxFlat = null
+		if frame != null:
+			frame_style = frame.get_theme_stylebox("panel") as StyleBoxFlat
+		_check(
+			frame_style != null and frame_style.border_width_top == 3
+				and _near(frame_style.border_color.r, 0.95, 0.03)
+				and _near(frame_style.border_color.g, 0.76, 0.03)
+				and _near(frame_style.border_color.b, 0.38, 0.03),
+			"%s: золотая рамка 3 px у центра" % tag
 		)
 		_check(
 			center_rect.size.x > 260.0 and center_rect.size.y > 350.0,
-			"%s: центр крупнее прежних 260x400 по ширине (%.1fx%.1f)" % [tag, center_rect.size.x, center_rect.size.y]
-		)
-		_check(
-			side_rect.size.x > 200.0 and side_rect.size.y > 300.0,
-			"%s: бока крупнее прежних 200x300 (%.1fx%.1f)" % [tag, side_rect.size.x, side_rect.size.y]
+			"%s: центр крупный (%.1fx%.1f)" % [tag, center_rect.size.x, center_rect.size.y]
 		)
 		_check(
 			table_rect.end.x < side_rect.position.x - 8.0,

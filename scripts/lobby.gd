@@ -746,6 +746,8 @@ func _build_daily_quests() -> void:
 	daily_quests_panel.connect("weekly_claim_requested", _on_daily_quest_weekly_claimed)
 	daily_quests_panel.connect("closed", _on_daily_quests_overlay_closed)
 	daily_quests_panel.connect("data_changed", _on_daily_quests_data_changed)
+	if not daily_quests_panel.resized.is_connected(_on_daily_quests_panel_resized):
+		daily_quests_panel.resized.connect(_on_daily_quests_panel_resized)
 	var source := _daily_quests_source()
 	if source != null:
 		if source.has_signal("failed") and not source.is_connected("failed", Callable(self, "_on_daily_quest_failed")):
@@ -819,6 +821,12 @@ func _refresh_daily_quests() -> void:
 func _on_daily_quests_data_changed(completed: int, total: int) -> void:
 	if daily_quests_badge != null and is_instance_valid(daily_quests_badge):
 		daily_quests_badge.text = "%d/%d" % [completed, total]
+	call_deferred("_layout_action_buttons")
+
+
+func _on_daily_quests_panel_resized() -> void:
+	# Кнопки стоят от table.bottom + 24; таблица меняет высоту tween'ом.
+	call_deferred("_layout_action_buttons")
 
 
 func _on_daily_quest_reroll_requested(slot: int) -> void:
@@ -902,50 +910,73 @@ func _layout_lobby_layout() -> void:
 	_layout_hero_cards()
 
 
-## «ИГРАТЬ» 200x56 и «ОБУЧЕНИЕ» 180x42 слева над «ПРАВИЛА» (левый край 46,
-## стек PLAY над Training, зазор 10, низ Training = H-112).
+## Вариант 1: левая колонка, левый край 28, блок 300.
+## PLAY 300x56, ОБУЧЕНИЕ 300x44 (зазор 10), ниже шестерёнка 44x44 +
+## ПРАВИЛА 246x44 (зазор 10). Верх блока = table.bottom + 24.
 func _layout_action_buttons() -> void:
 	if DeviceProfile.mobile_ui:
 		# The phone buttons come from the baked mobile layout (ui_layout.json).
 		return
-	if play_button == null or tutorial_button == null:
+	if play_button == null or tutorial_button == null or daily_quests_panel == null:
 		return
-	var viewport_height := get_viewport_rect().size.y
-	if viewport_height <= 0.0:
-		return
-	var left := 46.0
-	var play_w := 200.0
+	var left := 28.0
+	var block_w := 300.0
+	var table_bottom := daily_quests_panel.get_rect().end.y
+	var top := table_bottom + 24.0
 	var play_h := 56.0
-	var tutorial_w := 180.0
-	var tutorial_h := 42.0
+	var tutorial_h := 44.0
+	var side_h := 44.0
 	var gap := 10.0
-	var gear_top := viewport_height - 102.0
-	var tutorial_bottom := gear_top - gap
-	var tutorial_top := tutorial_bottom - tutorial_h
-	var play_bottom := tutorial_top - gap
-	var play_top := play_bottom - play_h
 	for button in [play_button, tutorial_button]:
 		button.anchor_left = 0.0
 		button.anchor_right = 0.0
-		button.anchor_top = 1.0
-		button.anchor_bottom = 1.0
+		button.anchor_top = 0.0
+		button.anchor_bottom = 0.0
 	play_button.offset_left = left
-	play_button.offset_right = left + play_w
-	play_button.offset_top = play_top - viewport_height
-	play_button.offset_bottom = play_bottom - viewport_height
-	play_button.custom_minimum_size = Vector2(play_w, play_h)
+	play_button.offset_right = left + block_w
+	play_button.offset_top = top
+	play_button.offset_bottom = top + play_h
+	play_button.custom_minimum_size = Vector2(block_w, play_h)
 	tutorial_button.offset_left = left
-	tutorial_button.offset_right = left + tutorial_w
-	tutorial_button.offset_top = tutorial_top - viewport_height
-	tutorial_button.offset_bottom = tutorial_bottom - viewport_height
-	tutorial_button.custom_minimum_size = Vector2(tutorial_w, tutorial_h)
+	tutorial_button.offset_right = left + block_w
+	tutorial_button.offset_top = top + play_h + gap
+	tutorial_button.offset_bottom = tutorial_button.offset_top + tutorial_h
+	tutorial_button.custom_minimum_size = Vector2(block_w, tutorial_h)
+
+	var side_top := tutorial_button.offset_bottom + gap
+	if settings_button != null and is_instance_valid(settings_button):
+		settings_button.anchor_left = 0.0
+		settings_button.anchor_right = 0.0
+		settings_button.anchor_top = 0.0
+		settings_button.anchor_bottom = 0.0
+		settings_button.offset_left = left
+		settings_button.offset_right = left + side_h
+		settings_button.offset_top = side_top
+		settings_button.offset_bottom = side_top + side_h
+		settings_button.custom_minimum_size = Vector2(side_h, side_h)
+		var gear_icon := settings_button.get_node_or_null("GearIcon") as Control
+		if gear_icon != null:
+			gear_icon.offset_left = 10.0
+			gear_icon.offset_top = 10.0
+			gear_icon.offset_right = -10.0
+			gear_icon.offset_bottom = -10.0
+	if rules_button != null and is_instance_valid(rules_button):
+		rules_button.anchor_left = 0.0
+		rules_button.anchor_right = 0.0
+		rules_button.anchor_top = 0.0
+		rules_button.anchor_bottom = 0.0
+		rules_button.offset_left = left + side_h + gap
+		rules_button.offset_right = left + block_w
+		rules_button.offset_top = side_top
+		rules_button.offset_bottom = side_top + side_h
+		rules_button.custom_minimum_size = Vector2(block_w - side_h - gap, side_h)
 
 
-## Карточки героев. Область: left = table.right + 36, right = W - 28,
+## Карточки героев. Область: left = max(table.right + 36, 430), right = W - 28,
 ## top = логотип.bottom + 18 (и не выше магазина), bottom = H - 24.
-## Центр = вся высота области, бока = 96%; ширины заполняют area_w:
-## side = (area_w - 2*gap)/3.15, center = 1.15*side. Группа занимает всю
-## ширину, бока затемнены modulate 0.8.
+## Центр = вся высота области, ширина height*0.72; бока = 75% высоты центра,
+## ширина height*0.72. Группа центрируется, при нехватке ширины
+## масштабируется целиком. Бока затемнены modulate 0.65.
 func _layout_hero_cards() -> void:
 	if DeviceProfile.mobile_ui:
 		return
@@ -959,10 +990,10 @@ func _layout_hero_cards() -> void:
 	var shop_bottom := 0.0
 	if shard_shop_button != null and is_instance_valid(shard_shop_button):
 		shop_bottom = shard_shop_button.get_rect().end.y
-	var area_left := table_right + 36.0
+	var area_left := maxf(table_right + 36.0, 430.0)
 	var area_right := viewport.x - 28.0
 	var area_top := maxf(logo_bottom + 18.0, shop_bottom + 12.0)
-	# Buttons moved to the left, so the lower right is free again.
+	# Buttons moved to the left column, so the lower right is free again.
 	var area_bottom := viewport.y - 24.0
 	var area_w := area_right - area_left
 	var area_h := area_bottom - area_top
@@ -970,23 +1001,19 @@ func _layout_hero_cards() -> void:
 		return
 
 	var center_h := area_h
-	var side_h := center_h * 0.96
+	var center_w := center_h * 0.72
+	var side_h := center_h * 0.75
+	var side_w := side_h * 0.72
 	var gap := maxf(12.0, viewport.x * 0.012)
-	var available := area_w - 2.0 * gap
-	if available <= 60.0:
-		return
-	# Widths fill the whole area: side + 1.15*side + side = 3.15*side.
-	var side_w := available / 3.15
-	var center_w := side_w * 1.15
-	# Safety cap: if the chosen height ever exceeds the area, scale everything.
-	if center_h > area_h:
-		var cap := area_h / center_h
-		center_h *= cap
-		side_h *= cap
-		center_w *= cap
-		side_w *= cap
-		gap *= cap
 	var group_w := center_w + 2.0 * side_w + 2.0 * gap
+	if group_w > area_w:
+		var scale := area_w / group_w
+		center_h *= scale
+		center_w *= scale
+		side_h *= scale
+		side_w *= scale
+		gap *= scale
+		group_w = area_w
 
 	var group_left := area_left + maxf(0.0, (area_w - group_w) * 0.5)
 	var group_center_y := area_top + (area_h - center_h) * 0.5
@@ -1013,7 +1040,7 @@ func _layout_hero_cards() -> void:
 		card.offset_right = card_rect.end.x
 		card.offset_bottom = card_rect.end.y
 		card.custom_minimum_size = Vector2.ZERO
-		card.modulate = Color(0.8, 0.8, 0.8, 1.0) if index != 1 else Color(1.0, 1.0, 1.0, 1.0)
+		card.modulate = Color(0.65, 0.65, 0.65, 1.0) if index != 1 else Color(1.0, 1.0, 1.0, 1.0)
 		if index < card_images.size():
 			# Fill the wider cards: the portrait shader rounds the corners, so
 			# covering (instead of letterboxing) keeps the art edge to edge.
@@ -3763,10 +3790,45 @@ func _build_hero_cards() -> void:
 	_build_hero_card(2, false)
 
 
+## Метка «ВЫБРАН»: тёмная плашка с золотым текстом 16 px в верхней части
+## выбранной (центральной) карточки, с отступом 10 px от верха.
+func _add_selected_badge(card: Control) -> void:
+	var badge := Panel.new()
+	badge.name = "SelectedBadge"
+	badge.z_index = 4
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.anchor_left = 0.5
+	badge.anchor_right = 0.5
+	badge.anchor_top = 0.0
+	badge.anchor_bottom = 0.0
+	badge.offset_left = -56.0
+	badge.offset_right = 56.0
+	badge.offset_top = 10.0
+	badge.offset_bottom = 34.0
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.03, 0.035, 0.05, 0.9)
+	style.border_color = GOLD
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 0.0
+	style.content_margin_right = 0.0
+	style.content_margin_top = 0.0
+	style.content_margin_bottom = 0.0
+	badge.add_theme_stylebox_override("panel", style)
+	var label := _make_label("ВЫБРАН", 16, GOLD)
+	label.name = "SelectedBadgeLabel"
+	label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	badge.add_child(label)
+	card.add_child(badge)
+
+
 func _build_hero_card(slot: int, is_center: bool) -> void:
 	var card := Button.new()
 	card.focus_mode = Control.FOCUS_NONE
-	card.clip_contents = true
+	# The selected card keeps clip off so the gold frame glow can draw outside.
+	card.clip_contents = not (is_center and not DeviceProfile.mobile_ui)
 	if not is_center:
 		card.pressed.connect(_on_side_card_pressed.bind(slot))
 
@@ -3857,6 +3919,8 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 	frame.z_index = 3
 	frame.add_theme_stylebox_override("panel", _card_frame_style(frame_color, is_center))
 	card.add_child(frame)
+	if is_center and not DeviceProfile.mobile_ui:
+		_add_selected_badge(card)
 
 	cards.append(card)
 	card_images.append(image)
@@ -4042,6 +4106,9 @@ func _refresh_selection() -> void:
 	for slot in range(3):
 		var hero_class: int = slot_classes[slot]
 		var frame_color: Color = CLASS_FRAME_COLORS.get(hero_class, GOLD)
+		var outline_color: Color = (
+			GOLD if slot == 1 and not DeviceProfile.mobile_ui else frame_color
+		)
 		var texture := load(HERO_CARD_ART[hero_class]) as Texture2D
 		card_images[slot].texture = texture
 		card_names[slot].text = HERO_NAMES[hero_class]
@@ -4050,12 +4117,12 @@ func _refresh_selection() -> void:
 		card_footers[slot].add_theme_stylebox_override("panel", _card_footer_style(frame_color))
 		var frame := cards[slot].get_node_or_null("CardFrame") as Panel
 		if frame != null:
-			frame.add_theme_stylebox_override("panel", _card_frame_style(frame_color, slot == 1))
+			frame.add_theme_stylebox_override("panel", _card_frame_style(outline_color, slot == 1))
 		if slot == 1:
 			card_images[slot].modulate = Color.WHITE
 			card_names[slot].add_theme_color_override("font_color", GOLD)
 		else:
-			# Desktop already darkens the whole side card with modulate 0.8;
+			# Desktop already darkens the whole side card with modulate 0.65;
 			# do not stack the old 0.62 portrait dim on top of it.
 			card_images[slot].modulate = (
 				Color.WHITE if not DeviceProfile.mobile_ui
@@ -4465,6 +4532,11 @@ func _card_frame_style(frame_color: Color, is_center: bool) -> StyleBoxFlat:
 	style.content_margin_right = 0.0
 	style.content_margin_top = 0.0
 	style.content_margin_bottom = 0.0
+	if is_center and not DeviceProfile.mobile_ui:
+		# Мягкое золотое свечение выбранной карточки (clip_contents выключен).
+		style.shadow_color = Color(frame_color.r, frame_color.g, frame_color.b, 0.5)
+		style.shadow_size = 14
+		style.shadow_offset = Vector2.ZERO
 	return style
 
 
