@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -52,6 +53,58 @@ func statsToken() string {
 		return value
 	}
 	return strings.TrimSpace(os.Getenv("ADMIN_TOKEN"))
+}
+
+// statsTokenConfigured tells the dashboard whether the environment actually
+// carries a token. The page uses it to explain a closed dashboard instead of
+// showing a bare 403 that looks like a wrong token.
+func statsTokenConfigured() bool {
+	return statsToken() != ""
+}
+
+// statsLocation pins day buckets to Moscow time. The players and the project
+// are Russian while the container runs in UTC, so calendar days must not drift
+// by three hours.
+var statsLocation = time.FixedZone("MSK", 3*60*60)
+
+const (
+	defaultStatsDays = 7
+	onlineWindow     = 90 * time.Second
+)
+
+// statsDaysParam reads the dashboard period. Only 1, 7 and 30 are supported;
+// anything else (including a missing parameter) falls back to 7 so old links
+// keep working.
+func statsDaysParam(r *http.Request) int {
+	raw := strings.TrimSpace(r.URL.Query().Get("days"))
+	if raw == "" {
+		return defaultStatsDays
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return defaultStatsDays
+	}
+	switch value {
+	case 1, 7, 30:
+		return value
+	}
+	return defaultStatsDays
+}
+
+func statsDayKey(t time.Time) string {
+	return t.In(statsLocation).Format("2006-01-02")
+}
+
+// statsWindowStart is the first moment of the oldest of the `days` calendar
+// days that end today (Moscow time): 1 = today only, 7 = today and six days
+// back, 30 = today and 29 days back.
+func statsWindowStart(now time.Time, days int) time.Time {
+	if days != 1 && days != 7 && days != 30 {
+		days = defaultStatsDays
+	}
+	local := now.In(statsLocation)
+	startOfToday := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, statsLocation)
+	return startOfToday.AddDate(0, 0, -(days - 1))
 }
 
 // statsRequestAuthorized accepts the existing query token and, as an
@@ -261,36 +314,176 @@ func truncate(value string, limit int) string {
 	return value[:limit]
 }
 
+type statsAdFormat struct {
+	Offered    int `json:"offered"`
+	Watched    int `json:"watched"`
+	Skipped    int `json:"skipped"`
+	NotWatched int `json:"not_watched"`
+	WatchRate  int `json:"watch_rate"`
+}
+
+type statsAdSummary struct {
+	Offered    int                      `json:"offered"`
+	Watched    int                      `json:"watched"`
+	Skipped    int                      `json:"skipped"`
+	NotWatched int                      `json:"not_watched"`
+	WatchRate  int                      `json:"watch_rate"`
+	Formats    map[string]statsAdFormat `json:"formats"`
+}
+
+type statsDay struct {
+	Date        string `json:"date"`
+	DAU         int    `json:"dau"`
+	Sessions    int    `json:"sessions"`
+	NewPlayers  int    `json:"new_players"`
+	Matches     int    `json:"matches"`
+	PageViews   int    `json:"page_views"`
+	AdsOffered  int    `json:"ads_offered"`
+	AdsWatched  int    `json:"ads_watched"`
+	AdWatchRate int    `json:"ad_watch_rate"`
+}
+
 type statsSummary struct {
-	GeneratedAt   time.Time      `json:"generated_at"`
-	PageViews     int            `json:"page_views"`
-	JunkViews     int            `json:"junk_views"`
-	VKJunkViews   int            `json:"vk_junk_views"`
-	Sessions      int            `json:"sessions"`
-	UniquePlayers int            `json:"unique_players"`
-	Matches       int            `json:"matches"`
-	OnlineNow     int            `json:"online_now"`
-	Platforms     map[string]int `json:"platforms"`
-	JunkPlatforms map[string]int `json:"junk_platforms"`
-	Classes       map[string]int `json:"classes"`
-	Results       map[string]int `json:"results"`
-	Days          map[string]int `json:"days"`
-	Recent        []statsEvent   `json:"recent"`
+	GeneratedAt      time.Time      `json:"generated_at"`
+	WindowDays       int            `json:"window_days"`
+	PageViews        int            `json:"page_views"`
+	JunkViews        int            `json:"junk_views"`
+	VKJunkViews      int            `json:"vk_junk_views"`
+	Sessions         int            `json:"sessions"`
+	UniquePlayers    int            `json:"unique_players"`
+	NewPlayers       int            `json:"new_players"`
+	ReturningPlayers int            `json:"returning_players"`
+	ReturnedToday    int            `json:"returned_today"`
+	Matches          int            `json:"matches"`
+	OnlineNow        int            `json:"online_now"`
+	Ads              statsAdSummary `json:"ads"`
+	Platforms        map[string]int `json:"platforms"`
+	JunkPlatforms    map[string]int `json:"junk_platforms"`
+	Classes          map[string]int `json:"classes"`
+	Results          map[string]int `json:"results"`
+	Days             []statsDay     `json:"days"`
+	// DaysEvents keeps the old per-day event counter that the first dashboard
+	// version exposed as "days"; the new "days" is the per-day table.
+	DaysEvents map[string]int `json:"days_events"`
+	Recent     []statsEvent   `json:"recent"`
+}
+
+func statsPayloadString(payload map[string]any, keys ...string) string {
+	for _, key := range keys {
+		value, ok := payload[key]
+		if !ok {
+			continue
+		}
+		if text, ok := value.(string); ok {
+			text = strings.TrimSpace(text)
+			if text != "" {
+				return text
+			}
+		}
+	}
+	return ""
+}
+
+// statsAdFormatName normalizes the ad format across clients: the game sends
+// "rewarded"/"interstitial", older builds and the Antivirus-style events use
+// "kind", VK spells it "reward".
+func statsAdFormatName(payload map[string]any) string {
+	format := strings.ToLower(statsPayloadString(payload, "format", "kind", "ad_format"))
+	switch format {
+	case "rewarded", "reward", "rewarded_video", "rewardedvideo":
+		return "rewarded"
+	case "interstitial":
+		return "interstitial"
+	}
+	return "other"
+}
+
+func statsPayloadBool(payload map[string]any, key string) bool {
+	value, ok := payload[key]
+	if !ok {
+		return false
+	}
+	switch typed := value.(type) {
+	case bool:
+		return typed
+	case float64:
+		return typed != 0
+	case int:
+		return typed != 0
+	case string:
+		text := strings.ToLower(strings.TrimSpace(typed))
+		return text == "true" || text == "1" || text == "ok" || text == "yes"
+	}
+	return false
+}
+
+// statsWatchRate is watched / offered: the share of ad offers that turned into
+// a watched ad. When no offer was recorded (older builds) it falls back to the
+// attempts so the number still means something.
+func statsWatchRate(watched, offered, skipped int) int {
+	denominator := offered
+	if denominator <= 0 {
+		denominator = watched + skipped
+	}
+	if denominator <= 0 {
+		return 0
+	}
+	rate := watched * 100 / denominator
+	if rate > 100 {
+		rate = 100
+	}
+	if rate < 0 {
+		rate = 0
+	}
+	return rate
 }
 
 func summarize(events []statsEvent) statsSummary {
+	return summarizeWindow(events, defaultStatsDays, nil)
+}
+
+// summarizeWindow aggregates the non-bot traffic of the last `days` calendar
+// days. firstSeen is the first ever activity per player (from the database when
+// available): it is what distinguishes a new player from a returning one even
+// when the first visit is older than the loaded window.
+func summarizeWindow(events []statsEvent, days int, firstSeen map[int64]time.Time) statsSummary {
+	if days != 1 && days != 7 && days != 30 {
+		days = defaultStatsDays
+	}
 	now := time.Now()
+	start := statsWindowStart(now, days)
+	today := statsDayKey(now)
 	summary := statsSummary{
 		GeneratedAt:   now,
+		WindowDays:    days,
 		Platforms:     map[string]int{},
 		JunkPlatforms: map[string]int{},
 		Classes:       map[string]int{},
 		Results:       map[string]int{},
-		Days:          map[string]int{},
+		Days:          make([]statsDay, 0, days),
+		DaysEvents:    map[string]int{},
+		Ads: statsAdSummary{Formats: map[string]statsAdFormat{
+			"rewarded":     {},
+			"interstitial": {},
+		}},
 	}
 	sessions := map[string]bool{}
-	players := map[int64]bool{}
 	online := map[string]bool{}
+	players := map[int64]bool{}
+	playerDays := map[int64]map[string]bool{}
+	dayPlayers := map[string]map[int64]bool{}
+	daySessions := map[string]map[string]bool{}
+	dayAdsOffered := map[string]int{}
+	dayAdsWatched := map[string]int{}
+	dayPageViews := map[string]int{}
+	dayMatches := map[string]int{}
+	ads := map[string]*statsAdFormat{
+		"rewarded":     {},
+		"interstitial": {},
+	}
+	// firstSeen may be nil in unit tests or when the database is unavailable;
+	// fall back to the oldest event in the loaded set.
+	fallbackFirstSeen := map[int64]time.Time{}
 	for _, event := range events {
 		if event.IsBot {
 			summary.JunkViews++
@@ -302,39 +495,141 @@ func summarize(events []statsEvent) statsSummary {
 			if strings.HasPrefix(key, "VK") {
 				summary.VKJunkViews++
 			}
-		} else if event.Event == "page_view" {
-			summary.PageViews++
-			key := event.Platform
-			if key == "" {
-				key = "unknown"
+			continue
+		}
+		// Online is session activity in the last 90 seconds. It is checked
+		// before the window cut so a session that started just before
+		// midnight still counts.
+		if event.Session != "" && now.Sub(event.TS) <= onlineWindow {
+			online[event.Session] = true
+		}
+		if event.PlayerID > 0 && !event.TS.After(now.Add(2*time.Minute)) {
+			if current, ok := fallbackFirstSeen[event.PlayerID]; !ok || event.TS.Before(current) {
+				fallbackFirstSeen[event.PlayerID] = event.TS
 			}
-			summary.Platforms[key]++
+		}
+		if event.TS.Before(start) {
+			continue
+		}
+		key := statsDayKey(event.TS)
+		summary.DaysEvents[key]++
+		if dayPlayers[key] == nil {
+			dayPlayers[key] = map[int64]bool{}
+			daySessions[key] = map[string]bool{}
+		}
+		if event.Event == "page_view" {
+			summary.PageViews++
+			platform := event.Platform
+			if platform == "" {
+				platform = "unknown"
+			}
+			summary.Platforms[platform]++
+			dayPageViews[key]++
 		}
 		if event.Session != "" {
 			sessions[event.Session] = true
-			if now.Sub(event.TS) <= 90*time.Second {
-				online[event.Session] = true
-			}
+			daySessions[key][event.Session] = true
 		}
 		if event.PlayerID > 0 {
 			players[event.PlayerID] = true
+			if playerDays[event.PlayerID] == nil {
+				playerDays[event.PlayerID] = map[string]bool{}
+			}
+			playerDays[event.PlayerID][key] = true
+			dayPlayers[key][event.PlayerID] = true
 		}
 		switch event.Event {
 		case "match_start":
 			summary.Matches++
+			dayMatches[key]++
 		case "match_end":
 			if value, ok := event.Payload["result"].(string); ok && value != "" {
 				summary.Results[value]++
+			}
+		case "ad_offer":
+			format := statsAdFormatName(event.Payload)
+			if ads[format] == nil {
+				ads[format] = &statsAdFormat{}
+			}
+			ads[format].Offered++
+			dayAdsOffered[key]++
+		case "ad_result":
+			format := statsAdFormatName(event.Payload)
+			if ads[format] == nil {
+				ads[format] = &statsAdFormat{}
+			}
+			if statsPayloadBool(event.Payload, "ok") {
+				ads[format].Watched++
+				dayAdsWatched[key]++
+			} else {
+				ads[format].Skipped++
 			}
 		}
 		if class, ok := event.Payload["class"].(string); ok && class != "" && event.Event == "session_start" {
 			summary.Classes[class]++
 		}
-		summary.Days[event.TS.Format("2006-01-02")]++
 	}
 	summary.Sessions = len(sessions)
 	summary.UniquePlayers = len(players)
 	summary.OnlineNow = len(online)
+
+	// Ads totals: offered is the funnel denominator, watched is a completed ad,
+	// skipped is an attempt that ended without a reward, and not_watched is the
+	// share of offers the player never completed (no click or closed early).
+	for format, item := range ads {
+		item.NotWatched = item.Offered - item.Watched
+		if item.NotWatched < 0 {
+			item.NotWatched = 0
+		}
+		item.WatchRate = statsWatchRate(item.Watched, item.Offered, item.Skipped)
+		summary.Ads.Formats[format] = *item
+		summary.Ads.Offered += item.Offered
+		summary.Ads.Watched += item.Watched
+		summary.Ads.Skipped += item.Skipped
+	}
+	summary.Ads.NotWatched = summary.Ads.Offered - summary.Ads.Watched
+	if summary.Ads.NotWatched < 0 {
+		summary.Ads.NotWatched = 0
+	}
+	summary.Ads.WatchRate = statsWatchRate(summary.Ads.Watched, summary.Ads.Offered, summary.Ads.Skipped)
+
+	startOfToday := statsWindowStart(now, 1)
+	newPerDay := map[string]int{}
+	for playerID, playerDaySet := range playerDays {
+		if len(playerDaySet) >= 2 {
+			summary.ReturningPlayers++
+		}
+		first, ok := firstSeen[playerID]
+		if !ok || first.IsZero() {
+			first = fallbackFirstSeen[playerID]
+		}
+		if first.IsZero() {
+			continue
+		}
+		if !first.Before(start) {
+			summary.NewPlayers++
+			newPerDay[statsDayKey(first)]++
+		}
+		if playerDaySet[today] && first.Before(startOfToday) {
+			summary.ReturnedToday++
+		}
+	}
+
+	for index := 0; index < days; index++ {
+		date := statsDayKey(start.AddDate(0, 0, index))
+		summary.Days = append(summary.Days, statsDay{
+			Date:        date,
+			DAU:         len(dayPlayers[date]),
+			Sessions:    len(daySessions[date]),
+			NewPlayers:  newPerDay[date],
+			Matches:     dayMatches[date],
+			PageViews:   dayPageViews[date],
+			AdsOffered:  dayAdsOffered[date],
+			AdsWatched:  dayAdsWatched[date],
+			AdWatchRate: statsWatchRate(dayAdsWatched[date], dayAdsOffered[date], 0),
+		})
+	}
+
 	summary.Recent = append([]statsEvent(nil), events...)
 	if len(summary.Recent) > 60 {
 		summary.Recent = summary.Recent[len(summary.Recent)-60:]
@@ -374,20 +669,106 @@ func (service *api) loadStatsEvents(limit int) []statsEvent {
 	return snapshot
 }
 
+// loadStatsSince reads the events of one aggregation window. The database is
+// the source of truth; the in-memory ring buffer keeps the dashboard alive
+// when PostgreSQL is unavailable.
+func (service *api) loadStatsSince(since time.Time) []statsEvent {
+	const limit = 200000
+	if service.db != nil && service.dbReady.Load() {
+		rows, err := service.db.Query(
+			`SELECT ts, event, player_id, session_id, platform, screen, user_agent, is_bot, payload
+			 FROM stats_events WHERE ts >= $1 ORDER BY ts DESC LIMIT $2`, since, limit)
+		if err == nil {
+			defer rows.Close()
+			out := make([]statsEvent, 0, 4096)
+			for rows.Next() {
+				var event statsEvent
+				var payload []byte
+				if err := rows.Scan(&event.TS, &event.Event, &event.PlayerID, &event.Session,
+					&event.Platform, &event.Screen, &event.UserAgent, &event.IsBot, &payload); err != nil {
+					continue
+				}
+				event.App = "three-skies"
+				_ = json.Unmarshal(payload, &event.Payload)
+				out = append(out, event)
+			}
+			return out
+		}
+		log.Printf("[stats] read window: %v", err)
+	}
+	snapshot := stats.snapshot()
+	out := make([]statsEvent, 0, len(snapshot))
+	for _, event := range snapshot {
+		if !event.TS.Before(since) {
+			out = append(out, event)
+		}
+	}
+	return out
+}
+
+// loadPlayerFirstSeen returns the first ever activity of every known player.
+// It is a small aggregate (one row per player), so it stays cheap and makes
+// "new" vs "returning" correct even for players whose first visit is older
+// than the loaded window.
+func (service *api) loadPlayerFirstSeen() map[int64]time.Time {
+	out := map[int64]time.Time{}
+	if service.db != nil && service.dbReady.Load() {
+		rows, err := service.db.Query(
+			`SELECT player_id, MIN(ts) FROM stats_events WHERE player_id > 0 GROUP BY player_id`)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var playerID int64
+				var first time.Time
+				if err := rows.Scan(&playerID, &first); err != nil {
+					continue
+				}
+				out[playerID] = first
+			}
+			return out
+		}
+		log.Printf("[stats] first seen: %v", err)
+	}
+	for _, event := range stats.snapshot() {
+		if event.PlayerID <= 0 {
+			continue
+		}
+		if current, ok := out[event.PlayerID]; !ok || event.TS.Before(current) {
+			out[event.PlayerID] = event.TS
+		}
+	}
+	return out
+}
+
+// statsForbiddenBody keeps the old error string for tools that already parse it
+// and adds a reason only when the environment is the actual problem.
+func statsForbiddenBody() map[string]any {
+	body := map[string]any{"success": false, "error": "forbidden"}
+	if !statsTokenConfigured() {
+		body["reason"] = "stats_token_not_configured"
+		body["hint"] = "set STATS_TOKEN (or ADMIN_TOKEN) in the RelaxDev project variables"
+	}
+	return body
+}
+
 func (service *api) handleStatsData(w http.ResponseWriter, r *http.Request) {
 	statsNoStore(w)
 	if !service.statsRequestAuthorized(r) {
-		writeJSON(w, http.StatusForbidden, map[string]any{"success": false, "error": "forbidden"})
+		writeJSON(w, http.StatusForbidden, statsForbiddenBody())
 		return
 	}
-	events := service.loadStatsEvents(20000)
-	writeJSON(w, http.StatusOK, summarize(events))
+	days := statsDaysParam(r)
+	// The extra 90 seconds keep online_now correct for a session that started
+	// just before midnight; the per-day aggregation cuts at the window start.
+	since := statsWindowStart(time.Now(), days).Add(-onlineWindow)
+	events := service.loadStatsSince(since)
+	writeJSON(w, http.StatusOK, summarizeWindow(events, days, service.loadPlayerFirstSeen()))
 }
 
 func (service *api) handleStatsPlayer(w http.ResponseWriter, r *http.Request) {
 	statsNoStore(w)
 	if !service.statsRequestAuthorized(r) {
-		writeJSON(w, http.StatusForbidden, map[string]any{"success": false, "error": "forbidden"})
+		writeJSON(w, http.StatusForbidden, statsForbiddenBody())
 		return
 	}
 	id := strings.TrimSpace(r.URL.Query().Get("id"))
@@ -408,7 +789,7 @@ func (service *api) handleStatsPlayer(w http.ResponseWriter, r *http.Request) {
 func (service *api) handleStatsReset(w http.ResponseWriter, r *http.Request) {
 	statsNoStore(w)
 	if !service.statsRequestAuthorized(r) {
-		writeJSON(w, http.StatusForbidden, map[string]any{"success": false, "error": "forbidden"})
+		writeJSON(w, http.StatusForbidden, statsForbiddenBody())
 		return
 	}
 	stats.mu.Lock()
@@ -459,12 +840,56 @@ func (service *api) trackGamePage(next http.Handler) http.Handler {
 
 func (service *api) handleStatsDashboard(w http.ResponseWriter, r *http.Request) {
 	statsNoStore(w)
+	// A missing environment variable used to look exactly like a wrong token
+	// (a bare 403). Say so instead: the fix is in the RelaxDev project
+	// variables, not in the URL.
+	if !statsTokenConfigured() {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		fmt.Fprint(w, statsNotConfiguredHTML())
+		return
+	}
 	if !service.statsRequestAuthorized(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprint(w, statsDashboardHTML(statsToken()))
+}
+
+// statsNotConfiguredHTML is the diagnostic page for an empty STATS_TOKEN /
+// ADMIN_TOKEN: it names the variable, the panel path and never echoes secrets.
+func statsNotConfiguredHTML() string {
+	return `<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Статистика не настроена</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+background:radial-gradient(900px 460px at 50% -10%,#1a2a44 0%,#0a0f18 60%);
+color:#e9edf5;font-family:'Segoe UI',system-ui,sans-serif;padding:24px}
+.box{max-width:640px;background:linear-gradient(180deg,#121a27,#0e1520);border:1px solid #22314a;
+border-radius:16px;padding:28px 30px}
+h1{font-family:Georgia,serif;color:#f2c76e;font-size:26px;margin:0 0 10px}
+p{line-height:1.55;margin:0 0 12px;color:#c7d2e5}
+code{background:#1b2740;border-radius:6px;padding:1px 6px;color:#f2c76e}
+ol{line-height:1.7;color:#c7d2e5;margin:0 0 14px;padding-left:22px}
+.note{color:#8b97ab;font-size:13px}
+</style></head><body><div class="box">
+<h1>Статистика не настроена</h1>
+<p>Сервер отвечает <b>503</b>, потому что переменная <code>STATS_TOKEN</code> не задана в
+переменных проекта RelaxDev. Пока она пустая, дашборд и <code>/stats/data</code> закрыты
+намеренно (fail-closed) — прежний токен <code>239837</code> удалён из кода.</p>
+<ol>
+<li>Откройте панель RelaxDev → проект <code>three-skies-server</code> → <b>Переменные</b>.</li>
+<li>Добавьте <code>STATS_TOKEN</code> со случайным значением (например, 24+ символа).
+Можно вместо него задать <code>ADMIN_TOKEN</code> — дашборд принимает его как fallback.</li>
+<li>Перезапустите/передеплойте сервис, чтобы контейнер получил переменную.</li>
+<li>Откройте <code>/stats/dashboard?token=&lt;значение&gt;</code>.</li>
+</ol>
+<p class="note">Проверка: без переменной этот ответ с 503 и есть доказательство, что дело
+в env, а не в неверном токене. С неверным токеном при заданной переменной будет 403.</p>
+</div></body></html>`
 }
 
 func esc(value any) string {
@@ -501,7 +926,14 @@ tr:last-child td{border-bottom:none}
 .tag.bot{background:#3a1620;color:#ff9aa3}
 .bar{height:6px;background:#1b2740;border-radius:4px;overflow:hidden;margin-top:4px}
 .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold2),var(--gold))}
-.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.period{display:flex;gap:6px;background:#101827;border:1px solid #22314a;border-radius:12px;padding:4px}
+.pbtn{background:transparent;border:1px solid transparent;border-radius:8px;padding:6px 12px;color:var(--muted)}
+.pbtn:hover{color:var(--text)}
+.pbtn.active{background:linear-gradient(180deg,#2a2313,#1d1a10);border-color:var(--gold2);color:var(--gold);font-weight:600}
+.rate{display:flex;align-items:center;gap:8px}
+.rate .bar{flex:1;margin-top:0}
+.rate b{font-weight:600;min-width:38px;text-align:right}
 button{background:#182338;color:var(--text);border:1px solid #2a3d5c;border-radius:10px;padding:8px 12px;cursor:pointer;font-size:13px}
 button.danger{color:#ffb0b0;border-color:#5a2630}
 #status{color:var(--muted);font-size:12px;margin-left:auto;align-self:center}
@@ -511,14 +943,24 @@ button.danger{color:#ffb0b0;border-color:#5a2630}
 a{color:var(--blue)}
 </style></head><body><div class="wrap">
 <h1>Небесные осколки · статистика</h1>
-<div class="sub">Площадка, игроки, матчи и отдельно мусорный трафик (боты ВК, краулеры, превью ссылок)</div>
+<div class="sub">Площадка, игроки, матчи, реклама и возвраты. Мусорный трафик (боты ВК, краулеры, превью ссылок) считается отдельно и в игроков не входит.</div>
 <div class="toolbar">
+<div class="period" id="period">
+<button class="pbtn" data-days="1">1 день</button>
+<button class="pbtn active" data-days="7">7 дней</button>
+<button class="pbtn" data-days="30">30 дней</button>
+</div>
 <button onclick="load()">Обновить</button>
 <button onclick="copyJson()">Скопировать JSON</button>
 <button class="danger" onclick="resetStats()">Стереть статистику</button>
 <span id="status">загрузка...</span>
 </div>
 <div class="cards" id="cards"></div>
+<div class="grid">
+<div class="panel"><h2>Реклама за период</h2><div id="ads"></div></div>
+<div class="panel"><h2>Реклама по форматам</h2><div id="adformats"></div></div>
+</div>
+<div class="panel"><h2>Активность по дням</h2><div id="days"></div></div>
 <div class="grid">
 <div class="panel"><h2>Площадки (реальные игроки)</h2><div id="platforms"></div></div>
 <div class="panel"><h2>Мусорный трафик</h2><div id="junk"></div></div>
@@ -527,46 +969,109 @@ a{color:var(--blue)}
 <div class="panel"><h2>Классы</h2><div id="classes"></div></div>
 <div class="panel"><h2>Исходы матчей</h2><div id="results"></div></div>
 </div>
-<div class="panel"><h2>Активность по дням</h2><div id="days"></div></div>
 <div class="panel"><h2>Последние события</h2><div class="log" id="log"></div></div>
 <script>
 const TOKEN = ` + string(tokenJSON) + `;
 let lastData = null;
+let currentDays = 7;
+const DAY_LABEL = {1:'1 день', 7:'7 дней', 30:'30 дней'};
 function el(id){return document.getElementById(id)}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function card(label,value,cls){return '<div class="card '+cls+'"><div class="k">'+esc(label)+'</div><div class="v">'+esc(value)+'</div></div>'}
-function tableRows(map, total, cls){
+function card(label,value,cls,hint){return '<div class="card '+cls+'"><div class="k">'+esc(label)+'</div><div class="v">'+esc(value)+'</div>'+(hint?'<div class="muted" style="font-size:12px;margin-top:2px">'+esc(hint)+'</div>':'')+'</div>'}
+function rateCell(rate){const value=Math.max(0,Math.min(100,Number(rate)||0));return '<div class="rate"><div class="bar"><i style="width:'+value+'%"></i></div><b>'+value+'%</b></div>'}
+function tableRows(map, total, firstHeader){
   const entries = Object.entries(map||{}).sort((a,b)=>b[1]-a[1]);
   if(!entries.length) return '<div class="muted">пока пусто</div>';
   const all = total || Math.max(...entries.map(e=>e[1]));
-  return '<table><tr><th>Площадка</th><th>Событий</th><th style="width:40%"></th></tr>'+
+  return '<table><tr><th>'+esc(firstHeader||'Площадка')+'</th><th>Событий</th><th style="width:40%"></th></tr>'+
     entries.map(([k,v])=>'<tr><td>'+esc(k)+'</td><td>'+v+'</td><td><div class="bar"><i style="width:'+Math.round(v/all*100)+'%"></i></div></td></tr>').join('')+'</table>';
+}
+function setDays(days){
+  currentDays = days;
+  document.querySelectorAll('[data-days]').forEach(function(b){ b.classList.toggle('active', Number(b.dataset.days) === days); });
+  load();
+}
+document.getElementById('period').addEventListener('click', function(e){
+  const button = e.target.closest('[data-days]');
+  if(!button) return;
+  setDays(Number(button.dataset.days));
+});
+function renderAds(ads){
+  ads = ads || {};
+  const formats = ads.formats || {};
+  const rewarded = formats.rewarded || {};
+  const interstitial = formats.interstitial || {};
+  return '<table>'+
+    '<tr><th>Показатель</th><th>Всего</th><th>Rewarded</th><th>Interstitial</th></tr>'+
+    '<tr><td>Предложили</td><td>'+(ads.offered||0)+'</td><td>'+(rewarded.offered||0)+'</td><td>'+(interstitial.offered||0)+'</td></tr>'+
+    '<tr><td>Посмотрели</td><td>'+(ads.watched||0)+'</td><td>'+(rewarded.watched||0)+'</td><td>'+(interstitial.watched||0)+'</td></tr>'+
+    '<tr><td>Не посмотрели</td><td>'+(ads.not_watched||0)+'</td><td>'+(rewarded.not_watched||0)+'</td><td>'+(interstitial.not_watched||0)+'</td></tr>'+
+    '<tr><td>Попытка без награды</td><td>'+(ads.skipped||0)+'</td><td>'+(rewarded.skipped||0)+'</td><td>'+(interstitial.skipped||0)+'</td></tr>'+
+    '<tr><td>Watch rate</td><td>'+rateCell(ads.watch_rate)+'</td><td>'+rateCell(rewarded.watch_rate)+'</td><td>'+rateCell(interstitial.watch_rate)+'</td></tr>'+
+    '</table>';
+}
+function renderAdFormats(ads){
+  const formats = (ads && ads.formats) || {};
+  const names = {rewarded:'Rewarded (x2)', interstitial:'Interstitial'};
+  const rows = Object.keys(names).map(function(key){
+    const item = formats[key] || {};
+    return '<tr><td>'+esc(names[key])+'</td><td>'+(item.offered||0)+'</td><td>'+(item.watched||0)+'</td><td>'+rateCell(item.watch_rate)+'</td></tr>';
+  });
+  Object.keys(formats).forEach(function(key){
+    if(names[key]) return;
+    const item = formats[key] || {};
+    rows.push('<tr><td>'+esc(key)+'</td><td>'+(item.offered||0)+'</td><td>'+(item.watched||0)+'</td><td>'+rateCell(item.watch_rate)+'</td></tr>');
+  });
+  return '<table><tr><th>Формат</th><th>Предложили</th><th>Посмотрели</th><th style="width:34%">Watch rate</th></tr>'+rows.join('')+'</table>';
+}
+function renderDays(rows){
+  rows = rows || [];
+  if(!rows.length) return '<div class="muted">пока пусто</div>';
+  const ordered = rows.slice().sort(function(a,b){ return String(a.date) < String(b.date) ? 1 : -1; });
+  return '<table><tr><th>Дата</th><th>DAU</th><th>Новые</th><th>Сессии</th><th>Матчи</th><th>Реклама (посм./предл.)</th><th style="width:26%">Watch rate</th><th>Просмотры</th></tr>'+
+    ordered.map(function(d){
+      return '<tr><td>'+esc(d.date)+'</td><td>'+(d.dau||0)+'</td><td>'+(d.new_players||0)+'</td><td>'+(d.sessions||0)+'</td><td>'+(d.matches||0)+'</td><td>'+(d.ads_watched||0)+' / '+(d.ads_offered||0)+'</td><td>'+rateCell(d.ad_watch_rate)+'</td><td>'+(d.page_views||0)+'</td></tr>';
+    }).join('')+'</table>';
 }
 async function load(){
   try{
-    const r = await fetch('/stats/data?token='+encodeURIComponent(TOKEN));
+    el('status').textContent = 'загрузка...';
+    const r = await fetch('/stats/data?token='+encodeURIComponent(TOKEN)+'&days='+currentDays);
+    if(r.status === 403){
+      let detail = '';
+      try{ const body = await r.json(); detail = body.hint || body.reason || body.error || ''; }catch(e){}
+      throw new Error('HTTP 403 — токен не подходит. '+(detail||'Проверьте STATS_TOKEN в переменных проекта RelaxDev.'));
+    }
     if(!r.ok) throw new Error('HTTP '+r.status);
     const d = await r.json(); lastData = d;
+    const ads = d.ads || {};
     el('cards').innerHTML =
-      card('Игроков онлайн', d.online_now||0, 'ok')+
+      card('Онлайн сейчас', d.online_now||0, 'ok')+
+      card('DAU', d.unique_players||0, 'gold', 'уникальных за '+DAY_LABEL[currentDays])+
+      card('Вернулись', d.returning_players||0, 'blue', 'играли 2+ дня')+
+      card('Вернулись сегодня', d.returned_today||0, 'blue')+
+      card('Новые', d.new_players||0, '')+
       card('Сессий', d.sessions||0, '')+
-      card('Уникальных игроков', d.unique_players||0, 'gold')+
       card('Матчей', d.matches||0, '')+
       card('Просмотров страницы', d.page_views||0, 'blue')+
-      card('Мусорный трафик', d.junk_views||0, 'bad')+
-      card('Из них ВК', d.vk_junk_views||0, 'bad');
-    el('platforms').innerHTML = tableRows(d.platforms, d.page_views);
-    el('junk').innerHTML = tableRows(d.junk_platforms, d.junk_views);
-    el('classes').innerHTML = tableRows(d.classes, 0);
-    el('results').innerHTML = tableRows(d.results, 0);
-    el('days').innerHTML = tableRows(d.days, 0);
+      card('Реклама: посмотрели', ads.watched||0, 'ok')+
+      card('Реклама: не посмотрели', ads.not_watched||0, 'bad')+
+      card('Watch rate', (ads.watch_rate||0)+'%', 'gold')+
+      card('Мусорный трафик', d.junk_views||0, 'bad', 'из них ВК '+(d.vk_junk_views||0));
+    el('ads').innerHTML = renderAds(ads);
+    el('adformats').innerHTML = renderAdFormats(ads);
+    el('days').innerHTML = renderDays(d.days);
+    el('platforms').innerHTML = tableRows(d.platforms, d.page_views, 'Площадка');
+    el('junk').innerHTML = tableRows(d.junk_platforms, d.junk_views, 'Площадка');
+    el('classes').innerHTML = tableRows(d.classes, 0, 'Класс');
+    el('results').innerHTML = tableRows(d.results, 0, 'Исход');
     el('log').innerHTML = (d.recent||[]).map(e=>{
       const bot = e.is_bot ? ' <span class="tag bot">BOT</span>' : '';
       return '<div>'+esc(new Date(e.ts).toLocaleString())+' · <b>'+esc(e.event)+'</b>'+bot+
         ' · '+esc(e.platform||'—')+' · player '+esc(e.player_id||'—')+
         (e.screen?' · '+esc(e.screen):'')+'</div>';
     }).join('') || '<div class="muted">пока пусто</div>';
-    el('status').textContent = 'обновлено '+new Date(d.generated_at).toLocaleTimeString();
+    el('status').textContent = 'обновлено '+new Date(d.generated_at).toLocaleTimeString()+' · '+DAY_LABEL[currentDays];
   }catch(e){ el('status').textContent = 'ошибка: '+e.message; }
 }
 function copyJson(){ if(lastData){ navigator.clipboard.writeText(JSON.stringify(lastData,null,2)); el('status').textContent='JSON скопирован'; } }
