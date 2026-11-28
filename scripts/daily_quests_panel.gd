@@ -97,6 +97,7 @@ var panel: Panel
 var content: Control
 var header: Control
 var title_label: Label
+var header_diamond: Control
 var timer_label: Label
 var count_label: Label
 var count_pill: Panel
@@ -299,9 +300,15 @@ func _build_content() -> void:
 	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content.add_child(header)
 
-	var diamond := _make_label("◆", 18 if mode == Mode.OVERLAY else 12, GOLD)
-	diamond.name = "DailyQuestsDiamond"
-	header.add_child(diamond)
+	header_diamond = Control.new()
+	header_diamond.name = "DailyQuestsDiamond"
+	header_diamond.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var diamond_fill := ColorRect.new()
+	diamond_fill.name = "DiamondFill"
+	diamond_fill.color = GOLD
+	diamond_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	header_diamond.add_child(diamond_fill)
+	header.add_child(header_diamond)
 
 	title_label = _make_label("ЕЖЕДНЕВНЫЕ ЗАДАНИЯ", 24 if mode == Mode.OVERLAY else 14, GOLD)
 	title_label.name = "DailyQuestsTitle"
@@ -608,7 +615,7 @@ func _make_card(index: int, quest: Dictionary) -> Control:
 	title.max_lines_visible = 2
 	card.add_child(title)
 
-	var reroll := _make_button("↻", 16, false, "DailyQuestsReroll%d" % index)
+	var reroll := _make_button("Заменить", 13, false, "DailyQuestsReroll%d" % index)
 	reroll.visible = not completed
 	reroll.tooltip_text = "Заменить задание"
 	var state := _reroll_state()
@@ -616,6 +623,7 @@ func _make_card(index: int, quest: Dictionary) -> Control:
 	if not slot_state.is_empty() and not completed:
 		_apply_slot_state(state, slot_state)
 	reroll.disabled = not bool(state.get("available", false))
+	reroll.text = "Заменить" if not reroll.disabled else "Нет замен"
 	reroll.tooltip_text = String(state.get("hint", "Заменить задание"))
 	if not completed:
 		reroll.pressed.connect(_on_reroll_pressed.bind(int(quest["slot"])))
@@ -836,6 +844,7 @@ func _layout_content() -> void:
 		close_button.position = Vector2(width - 52.0, 20.0)
 		close_button.size = Vector2(30.0, 30.0)
 		_set_child_rect(header, "DailyQuestsDiamond", Rect2(22.0, 22.0, 18.0, 24.0))
+		_place_header_diamond(Rect2(22.0, 22.0, 18.0, 24.0))
 	else:
 		title_label.add_theme_font_size_override("font_size", 14)
 		title_label.position = Vector2(26.0, 4.0)
@@ -845,6 +854,7 @@ func _layout_content() -> void:
 		count_pill.position = count_label.position
 		count_pill.size = count_label.size
 		_set_child_rect(header, "DailyQuestsDiamond", Rect2(8.0, 8.0, 14.0, 18.0))
+		_place_header_diamond(Rect2(8.0, 8.0, 14.0, 18.0))
 
 	if overlay:
 		rows_layer.position = Vector2(0.0, 92.0)
@@ -874,8 +884,8 @@ func _layout_card(card: Control, index: int) -> void:
 	var w := card.size.x
 	_set_child_rect(card, "DailyQuestsAccent%d" % index, Rect2(0.0, 14.0, 3.0, card.size.y - 28.0))
 	_set_child_rect(card, "DailyQuestsIcon%d" % index, Rect2(16.0, 16.0, 40.0, 40.0))
-	_set_child_rect(card, "DailyQuestsCardTitle%d" % index, Rect2(66.0, 12.0, 130.0, 48.0))
-	_set_child_rect(card, "DailyQuestsReroll%d" % index, Rect2(w - 46.0, 12.0, 34.0, 34.0))
+	_set_child_rect(card, "DailyQuestsCardTitle%d" % index, Rect2(66.0, 12.0, 96.0, 48.0))
+	_set_child_rect(card, "DailyQuestsReroll%d" % index, Rect2(w - 80.0, 10.0, 72.0, 30.0))
 	_set_child_rect(card, "DailyQuestsRing%d" % index, Rect2(16.0, 94.0, 54.0, 54.0))
 	_set_child_rect(card, "DailyQuestsPercent%d" % index, Rect2(16.0, 94.0, 54.0, 54.0))
 	_set_child_rect(card, "DailyQuestsCheck%d" % index, Rect2(16.0, 94.0, 54.0, 54.0))
@@ -957,24 +967,27 @@ func _style_diamond(index: int, is_full: bool, is_today: bool) -> void:
 
 func _layout_footer(width: float, height: float, pad: float, overlay: bool) -> void:
 	var diamond_x := 22.0 if overlay else 8.0
-	var diamond_step := 20.0 if overlay else 12.0
+	var diamond_step := 18.0 if overlay else 12.0
 	var diamond_size := 16.0 if overlay else 10.0
 	for i in week_diamonds.size():
 		var diamond := week_diamonds[i]
-		diamond.position = Vector2(diamond_x + float(i) * diamond_step, 6.0 if overlay else 10.0)
+		diamond.position = Vector2(
+			diamond_x + float(i) * diamond_step,
+			2.0 if overlay else 10.0
+		)
 		_layout_diamond(diamond, diamond_size)
 	if overlay:
-		week_label.position = Vector2(166.0, 8.0)
-		week_label.size = Vector2(180.0, 24.0)
+		week_label.position = Vector2(22.0, 22.0)
+		week_label.size = Vector2(200.0, 20.0)
 		status_label.position = Vector2(22.0, -16.0)
 		status_label.size = Vector2(768.0, 16.0)
 		status_label.add_theme_font_size_override("font_size", 12)
-		reward_chip.position = Vector2(430.0, 0.0)
+		reward_chip.position = Vector2((width - 176.0) * 0.5, 1.0)
 		reward_chip.size = Vector2(176.0, 44.0)
 		_set_child_rect(reward_chip, "DailyQuestsRewardShard", Rect2(12.0, 12.0, 20.0, 20.0))
 		_set_child_rect(reward_chip, "DailyQuestsRewardAmount", Rect2(40.0, 4.0, 70.0, 26.0))
 		_set_child_rect(reward_chip, "DailyQuestsRewardSub", Rect2(40.0, 26.0, 120.0, 14.0))
-		claim_button.position = Vector2(614.0, 2.0)
+		claim_button.position = Vector2(width - 198.0, 2.0)
 		claim_button.size = Vector2(176.0, 40.0)
 		claim_button.add_theme_font_size_override("font_size", 14)
 		claim_button.visible = true
@@ -1287,6 +1300,22 @@ func _make_label(text: String, size: int, color: Color) -> Label:
 	label.add_theme_constant_override("shadow_offset_y", 1)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
+
+
+func _place_header_diamond(rect: Rect2) -> void:
+	if header_diamond == null:
+		return
+	header_diamond.position = rect.position
+	header_diamond.size = rect.size
+	var fill := header_diamond.get_node_or_null("DiamondFill") as ColorRect
+	if fill == null:
+		return
+	var size := minf(rect.size.x, rect.size.y) * 0.66
+	fill.size = Vector2(size, size)
+	fill.position = (rect.size - Vector2(size, size)) * 0.5
+	fill.pivot_offset = fill.size * 0.5
+	fill.rotation = PI * 0.25
+	fill.color = GOLD
 
 
 func _set_child_rect(parent: Node, child_name: String, rect: Rect2) -> void:

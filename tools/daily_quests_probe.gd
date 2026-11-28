@@ -114,16 +114,23 @@ func _check_inline(lobby: Node, inline: Control, tag: String) -> void:
 	_check(_near(rect.size.x, 300.0, 0.75), "%s: таблица width 300 (%.1f)" % [tag, rect.size.x])
 	_check(_near(rect.end.x, 328.0, 0.75), "%s: правый край 328 (%.1f)" % [tag, rect.end.x])
 	_check(_near(rect.size.y, 246.0), "%s: таблица height 246" % tag)
-	var expected_top := play_top - 24.0 - rect.size.y
-	expected_top = maxf(profile_bottom + 24.0, expected_top)
+	var available_height := play_top - profile_bottom
+	var gap := maxf(16.0, (available_height - rect.size.y) * 0.5)
+	var expected_top := profile_bottom + gap
 	_check(
 		_near(rect.position.y, expected_top, 2.0),
-		"%s: таблица над кнопками (%.1f vs %.1f)" % [tag, rect.position.y, expected_top]
+		"%s: таблица по центру между профилем и ИГРАТЬ (%.1f vs %.1f)" % [
+			tag, rect.position.y, expected_top
+		]
 	)
 	_check(
-		_near(rect.end.y, play_top - 24.0, 1.0)
-			or rect.position.y <= profile_bottom + 24.0 + 0.75,
-		"%s: низ = play.top-24 или прижата к профилю" % tag
+		_near(rect.position.y - profile_bottom, play_top - rect.end.y, 2.0),
+		"%s: отступы сверху/снизу равны" % tag
+	)
+	_check(
+		rect.position.y >= profile_bottom + 16.0 - 0.75
+			and rect.end.y <= play_top - 16.0 + 0.75,
+		"%s: таблица не пересекает профиль/ИГРАТЬ" % tag
 	)
 	var open_button := inline.find_child("DailyQuestsOpenButton", true, false) as Button
 	_check(
@@ -136,20 +143,25 @@ func _check_inline(lobby: Node, inline: Control, tag: String) -> void:
 		inline.call("apply_data", _fixture(count, 0, 0, "free"))
 		await get_tree().create_timer(0.32).timeout
 		var current := _local_rect(inline, origin)
-		var exp_top := maxf(profile_bottom + 24.0, play_top - 24.0 - current.size.y)
+		var count_gap := maxf(16.0, (available_height - current.size.y) * 0.5)
+		var exp_top := profile_bottom + count_gap
 		_check(
 			_near(current.position.y, exp_top, 2.0),
-			"%s: %d задания — top над кнопками (%.1f vs %.1f)" % [
+			"%s: %d задания — top по центру (%.1f vs %.1f)" % [
 				tag, count, current.position.y, exp_top
 			]
+		)
+		_check(
+			_near(current.position.y - profile_bottom, play_top - current.end.y, 2.0),
+			"%s: %d задания — равные отступы" % [tag, count]
 		)
 		_check(
 			_near(current.end.x, 328.0, 0.75) and _near(current.size.x, 300.0, 0.75),
 			"%s: %d задания — ширина 300" % [tag, count]
 		)
 		_check(
-			current.end.y <= play_top - 24.0 + 1.0
-				and current.position.y >= profile_bottom + 24.0 - 0.75,
+			current.end.y <= play_top - 16.0 + 1.0
+				and current.position.y >= profile_bottom + 16.0 - 0.75,
 			"%s: %d задания без пересечений" % [tag, count]
 		)
 	inline.call("apply_data", _fixture(3, 1, 5, "free"))
@@ -289,6 +301,15 @@ func _check_overlay(overlay: Control, tag: String, desktop: bool) -> void:
 	_check(_near(panel.size.y, 338.0, 1.0), "%s: панель 338 px (%.1f)" % [tag, panel.size.y])
 	var screen := Rect2(Vector2.ZERO, viewport_size())
 	_check(screen.encloses(panel.get_global_rect()), "%s: панель внутри экрана" % tag)
+	var header_diamond := overlay.find_child("DailyQuestsDiamond", true, false) as Control
+	var diamond_labels: Array = []
+	if header_diamond != null:
+		diamond_labels = header_diamond.find_children("*", "Label", true, false)
+	_check(
+		header_diamond != null and header_diamond.find_child("DiamondFill", true, false) != null
+			and diamond_labels.is_empty(),
+		"%s: золотой ромб нарисован без текстового глифа" % tag
+	)
 
 	var title := overlay.get("title_label") as Label
 	var timer := overlay.get("timer_label") as Label
@@ -322,6 +343,12 @@ func _check_overlay(overlay: Control, tag: String, desktop: bool) -> void:
 			"%s: чип награды карточки %d" % [tag, i])
 		_check(card.find_child("DailyQuestsReroll%d" % i, true, false) != null,
 			"%s: кнопка замены карточки %d" % [tag, i])
+		var reroll := card.find_child("DailyQuestsReroll%d" % i, true, false) as Button
+		_check(
+			reroll != null and (reroll.text.contains("Заменить") or reroll.text.contains("Нет замен"))
+				and not reroll.text.contains("↻") and not reroll.text.contains("◆"),
+			"%s: понятный текст замены карточки %d" % [tag, i]
+		)
 	# Первая карточка выполнена (fixture 3,1).
 	var check0 := cards[0].find_child("DailyQuestsCheck0", true, false) as Control
 	var remaining0 := cards[0].find_child("DailyQuestsRemaining0", true, false) as Label
@@ -344,6 +371,17 @@ func _check_overlay(overlay: Control, tag: String, desktop: bool) -> void:
 	var chip := overlay.find_child("DailyQuestsRewardChip", true, false) as Control
 	var sub := overlay.find_child("DailyQuestsRewardSub", true, false) as Label
 	_check(claim != null and claim.text == "5/7", "%s: кнопка 5/7" % tag)
+	if chip != null and panel != null:
+		var panel_rect := panel.get_global_rect()
+		var chip_rect := chip.get_global_rect()
+		_check(
+			_near(
+				chip_rect.position.x + chip_rect.size.x * 0.5,
+				panel_rect.position.x + panel_rect.size.x * 0.5,
+				2.0
+			),
+			"%s: чип 300 по центру панели" % tag
+		)
 	if status != null and chip != null and claim != null:
 		var sr := status.get_global_rect()
 		_check(

@@ -971,11 +971,10 @@ func _layout_daily_quests_table() -> void:
 	else:
 		table_height = daily_quests_panel.size.y
 	table_height = clampf(table_height, 48.0, 246.0)
-	var bottom := play_top - 24.0
-	var top := bottom - table_height
-	if top < profile_bottom + 24.0:
-		top = profile_bottom + 24.0
-		bottom = top + table_height
+	var available := play_top - profile_bottom
+	var gap := maxf(16.0, (available - table_height) * 0.5)
+	var top := profile_bottom + gap
+	var bottom := play_top - gap
 	# Стол — единственный владелец высоты: гасим tween панели, чтобы он
 	# не растянул offset_bottom на старую высоту.
 	var running: Variant = daily_quests_panel.get("_tween")
