@@ -624,9 +624,10 @@ func _build_player_profile() -> void:
 		profile_button.offset_bottom = 118.0
 	profile_button.focus_mode = Control.FOCUS_NONE
 	profile_button.tooltip_text = "Игрок"
-	profile_button.add_theme_stylebox_override("normal", _action_style_borderless(false))
-	profile_button.add_theme_stylebox_override("hover", _action_style_borderless(true))
-	profile_button.add_theme_stylebox_override("pressed", _action_style_borderless(true))
+	profile_button.add_theme_stylebox_override("normal", _profile_card_style(false))
+	profile_button.add_theme_stylebox_override("hover", _profile_card_style(true))
+	profile_button.add_theme_stylebox_override("pressed", _profile_card_style(true))
+	profile_button.add_theme_stylebox_override("disabled", _profile_card_style(false))
 	profile_button.pressed.connect(_open_player_menu)
 	add_child(profile_button)
 
@@ -722,7 +723,7 @@ func _build_player_profile() -> void:
 	experience_fill.set_corner_radius_all(5)
 	experience_bar.add_theme_stylebox_override("background", experience_bg)
 	experience_bar.add_theme_stylebox_override("fill", experience_fill)
-	info.add_child(_make_xp_frame(experience_bar, "ExperienceFrame"))
+	info.add_child(experience_bar)
 
 	var xp_row := HBoxContainer.new()
 	xp_row.name = "ProfileXpRow"
@@ -2510,7 +2511,7 @@ func _build_player_menu() -> void:
 	xp_fill.set_corner_radius_all(5)
 	menu_xp_bar.add_theme_stylebox_override("background", xp_background)
 	menu_xp_bar.add_theme_stylebox_override("fill", xp_fill)
-	profile_content.add_child(_make_xp_frame(menu_xp_bar, "MenuExperienceFrame"))
+	profile_content.add_child(menu_xp_bar)
 	menu_xp_remaining_label = _make_label("До следующего уровня: 1000 XP", 16, Color(0.76, 0.8, 0.89))
 	menu_xp_remaining_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_content.add_child(menu_xp_remaining_label)
@@ -4637,24 +4638,16 @@ func _shard_icon(icon_size: int) -> TextureRect:
 	return icon
 
 
-## Рамка XP-полоски: тёмный фон, 2 px рамка, радиус 8, заливка внутри.
-func _make_xp_frame(bar: ProgressBar, node_name: String) -> PanelContainer:
-	var frame := PanelContainer.new()
-	frame.name = node_name
-	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.055, 0.07, 0.095, 0.98)
-	style.border_color = Color(0.62, 0.72, 0.9, 0.9)
+## Рамка всей карточки профиля: как у кнопки магазина, но 2 px и радиус 12.
+func _profile_card_style(hovered: bool) -> StyleBoxFlat:
+	var style := _action_style(false, hovered)
 	style.set_border_width_all(2)
-	style.set_corner_radius_all(8)
-	style.content_margin_left = 2.0
-	style.content_margin_right = 2.0
-	style.content_margin_top = 2.0
-	style.content_margin_bottom = 2.0
-	frame.add_theme_stylebox_override("panel", style)
-	frame.add_child(bar)
-	return frame
+	style.set_corner_radius_all(12)
+	style.content_margin_left = 12.0
+	style.content_margin_right = 12.0
+	style.content_margin_top = 8.0
+	style.content_margin_bottom = 8.0
+	return style
 
 
 func _make_label(text: String, size: int, color: Color) -> Label:

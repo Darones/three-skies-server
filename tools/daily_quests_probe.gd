@@ -1,36 +1,9 @@
 extends Node3D
 
-## Проба ежедневных заданий: раскладка и состояния.
+## Проба дизайна «Quest cards» (вариант A).
 ##
-## Сцену-обёртку создать рядом (вне списка правок этой волны):
-##   [gd_scene load_steps=2 format=3]
-##   [ext_resource type="Script" path="res://tools/daily_quests_probe.gd" id="1"]
-##   [node name="DailyQuestsProbe" type="Node3D"]
-##   script = ExtResource("1")
-##
-## Запуск:
-##   godot_console --path . tools/DailyQuestsProbe.tscn -- --layout=1440x734
-##   godot_console --path . tools/DailyQuestsProbe.tscn -- --layout=844x390 --mobile
-##
-## Desktop-прогон сам проверяет 1440x734, 1424x800 и 1280x720.
-##
-## Проверяет одобренный макет 28.11.2026:
-##   desktop: таблица x=28/top=122.4/width=min(380, W*0.27)/высоты 48/154/200/246;
-##            логотип min(320, W*0.22) по центру; карточки заполняют
-##            table.right+36 .. W-28 и H-24 (центр крупнее, бока затемнены 24%);
-##            кнопки ИГРАТЬ/ОБУЧЕНИЕ слева над правилами;
-##            отсутствие пересечений на 1280/1366/1440/1600/1920;
-##   mobile:  кнопку «ЗАДАНИЯ» 235x48 под menu_level_label, оверлей z=42,
-##            панель 812 px и высоты 338/136, закрытие x / тап вне / Esc,
-##            скрытие из _close_player_menu, сохранение скролла инвентаря;
-##   desktop-меню (1440x734 и 1280x720): полноэкранный backdrop alpha 0.55-0.65
-##            под панелью, панель 730..812 с полями 24 по центру группы
-##            карточек, боковые карточки видны одинаково (ни одна не
-##            «отдельная»), клик по таблице открывает, x / клик вне / Esc
-##            закрывают, таблица остаётся на месте;
-##   состояния: free/paid/limit замены, «День закрыт: 3/3»,
-##            «Осталось 2 задания», «Неделя: 5/7 полных дней»,
-##            «За 7/7 дней — 300 осколков», кнопка «Забрать 300 осколков».
+## godot_console --path . tools/DailyQuestsProbe.tscn -- --layout=1440x734
+## godot_console --path . tools/DailyQuestsProbe.tscn -- --layout=844x390 --mobile
 
 var _fail := 0
 var _pass := 0
@@ -53,9 +26,6 @@ func _ready() -> void:
 	DisplayServer.window_set_size(target)
 	for i in 3:
 		await get_tree().process_frame
-
-	# Проба не должна зависеть от сети: локальный недоступный адрес отвечает
-	# сразу, а поздние profile_updated не перетирают фикстуры.
 	NetworkClient.api_base_url = "http://127.0.0.1:9"
 	var scene := load("res://scenes/Lobby.tscn") as PackedScene
 	if scene == null:
@@ -68,15 +38,17 @@ func _ready() -> void:
 		await get_tree().process_frame
 	await get_tree().create_timer(0.2).timeout
 	for signal_name in ["profile_updated", "profile_failed"]:
-		var callback := Callable(lobby, "_on_profile_updated" if signal_name == "profile_updated" else "_on_profile_failed")
+		var callback := Callable(
+			lobby,
+			"_on_profile_updated" if signal_name == "profile_updated" else "_on_profile_failed"
+		)
 		if MetaProgression.is_connected(signal_name, callback):
 			MetaProgression.disconnect(signal_name, callback)
 	var welcome: Variant = lobby.get("welcome_overlay")
-	if welcome != null and welcome is Control:
+	if welcome is Control:
 		(welcome as Control).visible = false
 
-	var viewport_size := get_viewport().get_visible_rect().size
-	print("DAILY_QUESTS viewport=", viewport_size, " mobile=", DeviceProfile.mobile_ui)
+	print("DAILY_QUESTS viewport=", viewport_size(), " mobile=", DeviceProfile.mobile_ui)
 	if DeviceProfile.mobile_ui:
 		await _check_mobile(lobby)
 	else:
@@ -89,915 +61,202 @@ func _ready() -> void:
 
 
 func _check_desktop(lobby: Node) -> void:
-	var quests_panel := lobby.get("daily_quests_panel") as Control
-	_check(quests_panel != null, "desktop: панель создана")
-	if quests_panel == null:
-		return
-	for layout in [
-		Vector2i(1280, 720), Vector2i(1366, 768), Vector2i(1440, 734),
-		Vector2i(1600, 900), Vector2i(1920, 1080),
-	]:
-		await _check_desktop_layout(lobby, quests_panel, layout as Vector2i)
-	await _check_desktop_state(quests_panel)
+	var inline := lobby.get("daily_quests_panel") as Control
 	var overlay := lobby.get("daily_quests_overlay") as Control
-	await _check_desktop_overlay_sizes(lobby, quests_panel, overlay)
-	await _check_desktop_overlay(quests_panel, overlay)
-	await _save_shot("daily_quests_desktop_%dx%d" % [int(viewport_size().x), int(viewport_size().y)])
-
-
-## Одобренный макет 28.11.2026: таблица min(380, W*0.27), карточки в области
-## table.right+36 .. W-28, кнопки 220x56 / 180x42 в правом нижнем углу.
-func _check_desktop_layout(lobby: Node, quests_panel: Control, layout: Vector2i) -> void:
-	get_tree().root.content_scale_size = layout
-	DisplayServer.window_set_size(layout)
-	for i in 5:
-		await get_tree().process_frame
-	lobby.call("_layout_lobby_layout")
-	await get_tree().process_frame
-	quests_panel.call("apply_data", _fixture(3, 1, 5, "free"))
-	await get_tree().create_timer(0.3).timeout
-
-	var tag := "%dx%d" % [layout.x, layout.y]
-	var view := get_viewport().get_visible_rect().size
-	var origin := (lobby as Control).get_global_rect().position
-	var table_rect := _local_rect(quests_panel, origin)
-	var profile_rect := _local_rect(lobby.get("profile_button") as Control, origin)
-	var logo_rect := _local_rect(lobby.get("lobby_logo") as Control, origin)
-	var shop_rect := _local_rect(lobby.get("shard_shop_button") as Control, origin)
-	var play_rect := _local_rect(lobby.get("play_button") as Control, origin)
-	var tutorial_rect := _local_rect(lobby.get("tutorial_button") as Control, origin)
-	var settings_rect := _local_rect(lobby.get("settings_button") as Control, origin)
-	var rules_rect := _local_rect(lobby.get("rules_button") as Control, origin)
-	var cards: Array = lobby.get("cards")
-
-	var table_w := minf(380.0, view.x * 0.27)
-	table_w = clampf(table_w, 240.0, 380.0)
-	table_w = minf(table_w, view.x - 28.0 - 24.0)
-	print(
-		"DAILY_QUESTS %s view=%.0fx%.0f table=(%.1f,%.1f,%.1f,%.1f) tables=%.1f" % [
-			tag, view.x, view.y, table_rect.position.x, table_rect.position.y,
-			table_rect.size.x, table_rect.size.y, table_w,
-		]
-	)
-	_check(_near(table_rect.position.x, 28.0), "%s: таблица left 28 (%.1f)" % [tag, table_rect.position.x])
-	_check(_near(table_rect.position.y, 122.4), "%s: таблица top 122.4 (%.1f)" % [tag, table_rect.position.y])
-	_check(_near(table_rect.size.x, table_w, 0.75), "%s: таблица width %.1f (%.1f)" % [tag, table_rect.size.x, table_w])
-	_check(_near(table_rect.size.y, 246.0), "%s: 3 задания = 246 px (%.1f)" % [tag, table_rect.size.y])
-	_check(table_w >= 240.0, "%s: таблица не уже 240" % tag)
-
-	# Профиль 28,18,360x100 + вся карточка кликабельна.
-	_check(_near(profile_rect.position.x, 28.0), "%s: профиль x=28" % tag)
-	_check(_near(profile_rect.position.y, 18.0), "%s: профиль y=18" % tag)
-	_check(_near(profile_rect.size.x, 360.0), "%s: профиль w=360 (%.1f)" % [tag, profile_rect.size.x])
-	_check(_near(profile_rect.size.y, 100.0), "%s: профиль h=100 (%.1f)" % [tag, profile_rect.size.y])
-	var profile := lobby.get("profile_button") as Button
-	var profile_bad: Array = []
-	var profile_children: Array = []
-	if profile != null:
-		profile_children = profile.find_children("*", "Control", true, false)
-	for child in profile_children:
-		var control := child as Control
-		if control != null and control.mouse_filter != Control.MOUSE_FILTER_IGNORE:
-			profile_bad.append(String(control.name))
-	_check(
-		profile != null and profile.mouse_filter != Control.MOUSE_FILTER_IGNORE,
-		"%s: кнопка профиля принимает клик" % tag
-	)
-	_check(profile_bad.is_empty(), "%s: дети профиля пропускают клик %s" % [tag, str(profile_bad)])
-	_check(
-		profile != null and profile.pressed.is_connected(Callable(lobby, "_open_player_menu")),
-		"%s: клик профиля открывает меню" % tag
-	)
-	var exp_bar := lobby.get("experience_bar") as ProgressBar
-	var menu_bar := lobby.get("menu_xp_bar") as ProgressBar
-	var exp_frame: PanelContainer = null
-	if exp_bar != null:
-		exp_frame = exp_bar.get_parent() as PanelContainer
-	var menu_frame: PanelContainer = null
-	if menu_bar != null:
-		menu_frame = menu_bar.get_parent() as PanelContainer
-	var exp_style: StyleBoxFlat = null
-	if exp_frame != null:
-		exp_style = exp_frame.get_theme_stylebox("panel") as StyleBoxFlat
-	var menu_style: StyleBoxFlat = null
-	if menu_frame != null:
-		menu_style = menu_frame.get_theme_stylebox("panel") as StyleBoxFlat
-	_check(
-		exp_frame != null and exp_frame.name == "ExperienceFrame"
-			and exp_style != null and exp_style.border_width_top == 2
-			and exp_style.content_margin_top >= 2.0 and exp_style.content_margin_top <= 3.0,
-		"%s: XP профиля в рамке 2 px" % tag
-	)
-	_check(
-		menu_frame != null and menu_frame.name == "MenuExperienceFrame"
-			and menu_style != null and menu_style.border_width_top == 2
-			and menu_style.content_margin_top >= 2.0 and menu_style.content_margin_top <= 3.0,
-		"%s: XP инвентаря в рамке 2 px" % tag
-	)
-
-	# Логотип: min(320, W*0.22), центр X, top 10.
-	var logo_w := minf(320.0, view.x * 0.22)
-	_check(_near(logo_rect.size.x, logo_w, 0.75), "%s: логотип width %.1f (%.1f)" % [tag, logo_rect.size.x, logo_w])
-	_check(_near(logo_rect.position.y, 10.0), "%s: логотип top 10" % tag)
-	_check(
-		_near(logo_rect.position.x + logo_rect.size.x * 0.5, view.x * 0.5, 0.75),
-		"%s: логотип по центру X" % tag
-	)
-
-	# Вариант 1: левая колонка, блок 300, прижат к низу (gear bottom = H-24).
-	var gear_bottom := view.y - 24.0
-	var gear_top := gear_bottom - 44.0
-	var tutorial_bottom := gear_top - 10.0
-	var tutorial_top := tutorial_bottom - 44.0
-	var play_bottom := tutorial_top - 10.0
-	var play_top := play_bottom - 56.0
-	var block_top := play_top
-	_check(_near(play_rect.position.x, 28.0), "%s: ИГРАТЬ left 28 (%.1f)" % [tag, play_rect.position.x])
-	_check(_near(play_rect.size.x, 300.0), "%s: ИГРАТЬ width 300 (%.1f)" % [tag, play_rect.size.x])
-	_check(_near(play_rect.size.y, 56.0), "%s: ИГРАТЬ height 56 (%.1f)" % [tag, play_rect.size.y])
-	_check(_near(play_rect.position.y, block_top), "%s: ИГРАТЬ top %.1f (%.1f)" % [tag, play_rect.position.y, block_top])
-	_check(_near(play_rect.end.y, play_bottom), "%s: ИГРАТЬ bottom" % tag)
-	_check(_near(tutorial_rect.position.x, 28.0), "%s: ОБУЧЕНИЕ left 28 (%.1f)" % [tag, tutorial_rect.position.x])
-	_check(_near(tutorial_rect.size.x, 300.0), "%s: ОБУЧЕНИЕ width 300 (%.1f)" % [tag, tutorial_rect.size.x])
-	_check(_near(tutorial_rect.size.y, 44.0), "%s: ОБУЧЕНИЕ height 44 (%.1f)" % [tag, tutorial_rect.size.y])
-	_check(_near(tutorial_rect.position.y, tutorial_top), "%s: ОБУЧЕНИЕ top" % tag)
-	_check(_near(play_rect.end.y, tutorial_rect.position.y - 10.0, 0.75), "%s: между PLAY и ОБУЧЕНИЕ 10 px" % tag)
-	_check(_near(settings_rect.position.x, 28.0), "%s: шестерёнка left 28" % tag)
-	_check(_near(settings_rect.position.y, gear_top), "%s: ряд шестерёнки снизу (%.1f)" % [tag, settings_rect.position.y])
-	_check(_near(settings_rect.size.x, 44.0) and _near(settings_rect.size.y, 44.0), "%s: шестерёнка 44x44" % tag)
-	_check(_near(settings_rect.end.y, gear_bottom), "%s: низ шестерёнки H-24" % tag)
-	_check(_near(rules_rect.position.x, 82.0), "%s: ПРАВИЛА left 82 (%.1f)" % [tag, rules_rect.position.x])
-	_check(_near(rules_rect.position.y, gear_top), "%s: ПРАВИЛА в одном ряду" % tag)
-	_check(_near(rules_rect.size.x, 246.0) and _near(rules_rect.size.y, 44.0), "%s: ПРАВИЛА 246x44" % tag)
-	_check(_near(settings_rect.end.y, view.y - 24.0, 0.75), "%s: зазор 24 до низа" % tag)
-
-	# Ожидаемая геометрия карточек: центр 100%, бока 75%, ширина height*0.72.
-	var area_left := maxf(table_rect.end.x + 36.0, 430.0)
-	var area_right := view.x - 28.0
-	var area_top := maxf(logo_rect.end.y + 18.0, shop_rect.end.y + 12.0)
-	var area_bottom := view.y - 24.0
-	var area_w := area_right - area_left
-	var area_h := area_bottom - area_top
-	var center_h := area_h
-	var center_w := center_h * 0.72
-	var side_h := center_h * 0.75
-	var side_w := side_h * 0.72
-	var gap := maxf(12.0, view.x * 0.012)
-	var group_w := center_w + 2.0 * side_w + 2.0 * gap
-	if group_w > area_w:
-		var scale := area_w / group_w
-		center_h *= scale
-		center_w *= scale
-		side_h *= scale
-		side_w *= scale
-		gap *= scale
-		group_w = area_w
-	var group_left := area_left + maxf(0.0, (area_w - group_w) * 0.5)
-	var center_y := area_top + (area_h - center_h) * 0.5
-	var side_y := area_top + (area_h - side_h) * 0.5
-	var expected: Array[Rect2] = [
-		Rect2(Vector2(group_left, side_y), Vector2(side_w, side_h)),
-		Rect2(Vector2(group_left + side_w + gap, center_y), Vector2(center_w, center_h)),
-		Rect2(Vector2(group_left + side_w + gap + center_w + gap, side_y), Vector2(side_w, side_h)),
-	]
-	var card_rects: Array = []
-	for i in mini(cards.size(), 3):
-		var actual := _local_rect(cards[i] as Control, origin)
-		card_rects.append(actual)
-		_check(
-			_near(actual.size.x, expected[i].size.x, 1.0)
-				and _near(actual.size.y, expected[i].size.y, 1.0),
-			"%s: карточка %d %.1fx%.1f (формула %.1fx%.1f)" % [
-				tag, i, actual.size.x, actual.size.y,
-				expected[i].size.x, expected[i].size.y,
-			]
-		)
-	print(
-		"DAILY_QUESTS %s cards center=%.1fx%.1f side=%.1fx%.1f area=(%.1f,%.1f,%.1f,%.1f)" % [
-			tag, center_w, center_h, side_w, side_h, area_left, area_top, area_w, area_h,
-		]
-	)
-	if card_rects.size() == 3:
-		var center_rect: Rect2 = card_rects[1]
-		var side_rect: Rect2 = card_rects[0]
-		var right_rect: Rect2 = card_rects[2]
-		_check(
-			_near(side_rect.size.y / center_rect.size.y, 0.75, 0.02),
-			"%s: бока = 75%% высоты центра (%.2f)" % [tag, side_rect.size.y / center_rect.size.y]
-		)
-		_check(
-			center_rect.size.x > side_rect.size.x and center_rect.size.y > side_rect.size.y
-				and right_rect.size.y < center_rect.size.y,
-			"%s: центр больше боков (%.1fx%.1f > %.1fx%.1f)" % [
-				tag, center_rect.size.x, center_rect.size.y, side_rect.size.x, side_rect.size.y
-			]
-		)
-		var dim_left := (cards[0] as Control).find_child("SideDim", true, false) as ColorRect
-		var dim_center := (cards[1] as Control).find_child("SideDim", true, false) as ColorRect
-		var dim_right := (cards[2] as Control).find_child("SideDim", true, false) as ColorRect
-		_check(
-			dim_left != null and dim_left.visible
-				and dim_left.color.a >= 0.22 and dim_left.color.a <= 0.25
-				and dim_left.mouse_filter == Control.MOUSE_FILTER_IGNORE,
-			"%s: левая вуаль alpha 0.22-0.25 (%.2f)" % [
-				tag, 0.0 if dim_left == null else dim_left.color.a
-			]
-		)
-		_check(
-			dim_right != null and dim_right.visible
-				and dim_right.color.a >= 0.22 and dim_right.color.a <= 0.25
-				and dim_right.mouse_filter == Control.MOUSE_FILTER_IGNORE,
-			"%s: правая вуаль alpha 0.22-0.25 (%.2f)" % [
-				tag, 0.0 if dim_right == null else dim_right.color.a
-			]
-		)
-		_check(dim_center == null or not dim_center.visible, "%s: центр без вуали" % tag)
-		var footer_left := (cards[0] as Control).find_child("HeroFooter0", true, false) as Control
-		if dim_left != null and footer_left != null:
-			_check(
-				dim_left.get_global_rect().end.y <= footer_left.get_global_rect().position.y + 0.5,
-				"%s: вуаль не перекрывает нижнюю плашку" % tag
-			)
-
-		var top_badge := (cards[1] as Control).find_child("SelectedBadge", true, false)
-		var top_badge_left := (cards[0] as Control).find_child("SelectedBadge", true, false)
-		var top_badge_right := (cards[2] as Control).find_child("SelectedBadge", true, false)
-		_check(
-			top_badge == null and top_badge_left == null and top_badge_right == null,
-			"%s: верхней метки «ВЫБРАН» нигде нет" % tag
-		)
-		var footer_center := (cards[1] as Control).find_child("HeroFooter1", true, false) as Control
-		var name_center := (cards[1] as Control).find_child("HeroName1", true, false) as Label
-		_check(
-			name_center != null and not name_center.text.contains("ВЫБРАН"),
-			"%s: в нижней плашке только название класса" % tag
-		)
-		_check(
-			footer_center != null and footer_center.get_child_count() == 1,
-			"%s: футер содержит только название (без метки)" % tag
-		)
-		var any_selected_label := false
-		for i in 3:
-			var footer := (cards[i] as Control).find_child("HeroFooter%d" % i, true, false) as Control
-			if footer == null:
-				continue
-			_check(
-				footer.find_child("SelectedFooterLabel", true, false) == null,
-				"%s: у карточки %d нет SelectedFooterLabel" % [tag, i]
-			)
-			_check(
-				footer.get_child_count() == 1,
-				"%s: футер карточки %d содержит только название" % [tag, i]
-			)
-			for node in footer.find_children("*", "Label", true, false):
-				if (node as Label).text.contains("ВЫБРАН"):
-					any_selected_label = true
-		_check(not any_selected_label, "%s: надписи «ВЫБРАН» нет ни у одной карточки" % tag)
-		var frame := (cards[1] as Control).find_child("CardFrame", true, false) as Panel
-		var frame_style: StyleBoxFlat = null
-		if frame != null:
-			frame_style = frame.get_theme_stylebox("panel") as StyleBoxFlat
-		_check(
-			frame_style != null and frame_style.border_width_top == 2
-				and frame_style.shadow_size == 0
-				and _near(frame_style.border_color.r, 0.95, 0.03)
-				and _near(frame_style.border_color.g, 0.76, 0.03)
-				and _near(frame_style.border_color.b, 0.38, 0.03),
-			"%s: золотая рамка 2 px без свечения" % tag
-		)
-		for i in 3:
-			var portrait := (cards[i] as Control).find_child("PortraitClip", true, false) as Control
-			var card_control := cards[i] as Control
-			var inside := false
-			if portrait != null:
-				var pr := portrait.get_global_rect()
-				var cr := card_control.get_global_rect()
-				inside = (
-					pr.position.x >= cr.position.x + 2.0
-					and pr.position.y >= cr.position.y + 2.0
-					and pr.end.x <= cr.end.x - 2.0
-					and pr.end.y <= cr.end.y - 2.0
-				)
-			_check(inside, "%s: портрет %d внутри card_rect" % [tag, i])
-		var portrait_center := (cards[1] as Control).find_child("HeroPortrait1", true, false) as TextureRect
-		var rounded_ok := false
-		var radius_ok := false
-		if portrait_center != null and portrait_center.material is ShaderMaterial:
-			var portrait_material := portrait_center.material as ShaderMaterial
-			var shader := portrait_material.shader
-			if shader != null:
-				rounded_ok = shader.code.contains("sd_rounded_box") and shader.code.contains("discard")
-			var radius: Variant = portrait_material.get_shader_parameter("corner_px")
-			radius_ok = radius != null and float(radius) >= 12.0
-		_check(rounded_ok, "%s: портрет со скруглённой SDF-маской" % tag)
-		_check(radius_ok, "%s: радиус маски ≥12 px" % tag)
-		_check((cards[1] as Control).clip_contents, "%s: card clip_contents=true" % tag)
-		_check(
-			center_rect.size.x > 260.0 and center_rect.size.y > 350.0,
-			"%s: центр крупный (%.1fx%.1f)" % [tag, center_rect.size.x, center_rect.size.y]
-		)
-		_check(
-			table_rect.end.x < side_rect.position.x - 8.0,
-			"%s: right таблицы < card_left - 8 (%.1f < %.1f)" % [
-				tag, table_rect.end.x, side_rect.position.x - 8.0
-			]
-		)
-
-	# Пересечения: таблица и карточки против логотипа/магазина/кнопок/профиля.
-	var fixed_rects: Array = [logo_rect, shop_rect, play_rect, tutorial_rect, settings_rect, rules_rect, profile_rect]
-	var table_hits: Array = []
-	for fixed in fixed_rects:
-		if table_rect.intersects(fixed):
-			table_hits.append("fixed")
-	_check(table_hits.is_empty(), "%s: таблица без пересечений %s" % [tag, str(table_hits)])
-	var card_hits: Array = []
-	for i in card_rects.size():
-		var rect: Rect2 = card_rects[i]
-		for other_index in fixed_rects.size():
-			if rect.intersects(fixed_rects[other_index]):
-				card_hits.append("%d-fixed%d" % [i, other_index])
-		if rect.intersects(table_rect):
-			card_hits.append("%d-table" % i)
-		for other in card_rects.size():
-			var other_rect: Rect2 = card_rects[other]
-			if other != i and rect.intersects(other_rect):
-				card_hits.append("%d-%d" % [i, other])
-	_check(card_hits.is_empty(), "%s: карточки без пересечений %s" % [tag, str(card_hits)])
-
-	var title := quests_panel.get("title_label") as Label
-	_check(title != null and title.text == "ЗАДАНИЯ · 1/3", "%s: заголовок «ЗАДАНИЯ · 1/3»" % tag)
-	_check(title != null and title.get_theme_font_size("font_size") == 20, "%s: заголовок 20" % tag)
-	var rows: Array = quests_panel.get("row_nodes")
-	for i in rows.size():
-		var row := rows[i] as Control
-		_check(_near(row.size.y, 42.0), "%s: строка %d = 42 px" % [tag, i])
-		var row_title := row.find_child("DailyQuestsRowTitle%d" % i, true, false) as Label
-		var row_meta := row.find_child("DailyQuestsRowMeta%d" % i, true, false) as Label
-		var row_bar := row.find_child("DailyQuestsRowBar%d" % i, true, false) as ProgressBar
-		_check(row_title != null and row_title.get_theme_font_size("font_size") == 18, "%s: текст задания 18" % tag)
-		_check(row_meta != null and row_meta.get_theme_font_size("font_size") == 16, "%s: мета 16" % tag)
-		_check(row_bar != null and _near(row_bar.size.y, 4.0), "%s: бар 4 px" % tag)
-		_check(row.find_child("DailyQuestsReroll*", true, false) == null, "%s: в inline нет кнопки замены" % tag)
-		var reward_icon := row.find_child("DailyQuestsRewardIcon%d" % i, true, false) as TextureRect
-		var reward_label := row.find_child("DailyQuestsRewardLabel%d" % i, true, false) as Label
-		_check(
-			reward_icon != null and reward_icon.texture != null
-				and _near(reward_icon.size.x, 16.0, 0.75) and _near(reward_icon.size.y, 16.0, 0.75),
-			"%s: иконка награды 16 px" % tag
-		)
-		_check(
-			reward_label != null and reward_label.text.strip_edges().is_valid_int(),
-			"%s: число награды в inline" % tag
-		)
-
-	# Пустое состояние — только заголовок, 48 px.
-	quests_panel.call("apply_data", _fixture(0, 0, 0, "free"))
-	await get_tree().create_timer(0.3).timeout
-	_check(_near(quests_panel.size.y, 48.0), "%s: пусто = 48 px" % tag)
-	var rows_layer := quests_panel.get("rows_layer") as Control
-	var footer := quests_panel.get("footer") as Control
-	_check(rows_layer != null and not rows_layer.visible, "%s: пусто — без строк" % tag)
-	_check(footer != null and not footer.visible, "%s: пусто — без подвала" % tag)
-
-
-func _check_desktop_state(quests_panel: Control) -> void:
-	var subtitle := quests_panel.get("subtitle_label") as Label
-	var week_label := quests_panel.get("week_label") as Label
-	var status := quests_panel.get("status_label") as Label
-	var claim := quests_panel.get("claim_button") as Button
-	var rows_layer := quests_panel.get("rows_layer") as Control
-	var footer := quests_panel.get("footer") as Control
-
-	quests_panel.call("apply_data", _fixture(3, 1, 5, "free"))
-	await get_tree().create_timer(0.3).timeout
-	_check(subtitle != null and subtitle.text == "Осталось 2 задания", "desktop: текст «Осталось 2 задания»")
-	_check(week_label != null and week_label.text == "Неделя: 5/7 полных дней", "desktop: «Неделя: 5/7 полных дней»")
-	_check(subtitle != null and subtitle.get_theme_font_size("font_size") == 16, "desktop: подзаголовок 16")
-	_check(rows_layer != null and rows_layer.visible, "desktop: строки видны")
-	_check(footer != null and footer.visible, "desktop: подвал виден")
-
-	quests_panel.call("apply_data", _fixture(2, 0, 0, "free"))
-	await get_tree().create_timer(0.3).timeout
-	_check(_near(quests_panel.size.y, 200.0), "desktop: 2 задания = 200 px (%.1f)" % quests_panel.size.y)
-	quests_panel.call("apply_data", _fixture(1, 0, 0, "free"))
-	await get_tree().create_timer(0.3).timeout
-	_check(_near(quests_panel.size.y, 154.0), "desktop: 1 задание = 154 px (%.1f)" % quests_panel.size.y)
-
-	quests_panel.call("apply_data", _fixture(3, 3, 7, "free"))
-	await get_tree().create_timer(0.3).timeout
-	_check(subtitle != null and subtitle.text == "День закрыт: 3/3", "desktop: «День закрыт: 3/3»")
-	_check(week_label != null and week_label.text == "Неделя: 7/7 полных дней", "desktop: «Неделя: 7/7 полных дней»")
-	_check(claim != null and claim.text == "Забрать 300 осколков" and not claim.disabled, "desktop: кнопка «Забрать 300 осколков» активна")
-	_check(
-		status != null and status.text == "За 7/7 дней — 300 осколков",
-		"desktop: «За 7/7 дней — 300 осколков»"
-	)
-
-	quests_panel.call("apply_data", _fixture(3, 1, 5, "free"))
-	await get_tree().create_timer(0.3).timeout
-	_check(
-		status != null and status.text.contains("Осталось 2")
-			and status.text.contains("до 300 осколков"),
-		"desktop: недобор — «Осталось 2 ... до 300 осколков»"
-	)
-	for banned in ["скин", "оружие", "1000", "3000", "5000", "уже есть"]:
-		_check(
-			status == null or not status.text.to_lower().contains(banned),
-			"desktop: в награде нет «%s»" % banned
-		)
-
-	var inline_reroll_buttons := quests_panel.find_children(
-		"DailyQuestsReroll*", "Button", true, false
-	)
-	_check(
-		inline_reroll_buttons.is_empty(),
-		"desktop: во всей inline-таблице нет кнопок замены"
-	)
-
-
-## Desktop-меню на 1440x734 и 1280x720: полноэкранный backdrop под панелью,
-## панель 730..812 по центру группы карточек, боковые карточки видны одинаково,
-## клик по таблице открывает, x / клик вне / Esc закрывают, таблица на месте.
-func _check_desktop_overlay_sizes(lobby: Node, inline: Control, overlay: Control) -> void:
-	_check(overlay != null, "desktop: оверлей ежедневок создан")
-	if overlay == null:
+	_check(inline != null and overlay != null, "desktop: inline и overlay созданы")
+	if inline == null or overlay == null:
 		return
-	for layout in [Vector2i(1440, 734), Vector2i(1280, 720)]:
-		var target: Vector2i = layout
-		get_tree().root.content_scale_size = target
-		DisplayServer.window_set_size(target)
-		for i in 5:
+	for layout in [Vector2i(1280, 720), Vector2i(1440, 734)]:
+		get_tree().root.content_scale_size = layout
+		DisplayServer.window_set_size(layout)
+		for i in 4:
 			await get_tree().process_frame
 		lobby.call("_layout_lobby_layout")
-		await get_tree().process_frame
-		inline.call("apply_data", _fixture(3, 1, 5, "free"))
-		await get_tree().create_timer(0.25).timeout
-
-		var tag := "%dx%d" % [target.x, target.y]
-		var view := viewport_size()
-		var table_before := inline.get_global_rect()
-		var table_center := Vector2(
-			table_before.position.x + table_before.size.x * 0.5,
-			table_before.position.y + table_before.size.y * 0.5
-		)
-
-		# Клик по таблице (реальный ввод, не emit_signal) открывает меню.
-		await _push_click(table_center)
-		await get_tree().create_timer(0.2).timeout
-		_check(overlay.visible, "%s: клик по таблице открывает меню" % tag)
-		overlay.call("apply_data", _fixture(3, 3, 7, "free"))
-		# Открытие перечитывает источник: возвращаем таблице фикстуру, иначе
-		# она схлопнется в пустое состояние и клик по ней попадёт мимо.
 		inline.call("apply_data", _fixture(3, 1, 5, "free"))
 		await get_tree().create_timer(0.3).timeout
-		var table_open := inline.get_global_rect()
-		_check(
-			_near(table_open.position.x, table_before.position.x, 1.0)
-				and _near(table_open.position.y, table_before.position.y, 1.0)
-				and _near(table_open.size.x, table_before.size.x, 1.0)
-				and _near(table_open.size.y, table_before.size.y, 1.0),
-			"%s: таблица не сдвинулась при открытом меню" % tag
-		)
+		await _check_inline(lobby, inline, "%dx%d" % [layout.x, layout.y])
 
-		var dim := overlay.find_child("DailyQuestsDim", true, false) as ColorRect
-		var panel_node := overlay.find_child("DailyQuestsPanel", true, false) as Control
-		var dim_rect := Rect2()
-		var panel_rect := Rect2()
-		if dim != null:
-			dim_rect = dim.get_global_rect()
-		if panel_node != null:
-			panel_rect = panel_node.get_global_rect()
-		print(
-			"DAILY_QUESTS %s overlay backdrop=(%.1f,%.1f,%.1f,%.1f) panel=(%.1f,%.1f,%.1f,%.1f)" % [
-				tag, dim_rect.position.x, dim_rect.position.y, dim_rect.size.x, dim_rect.size.y,
-				panel_rect.position.x, panel_rect.position.y, panel_rect.size.x, panel_rect.size.y,
-			]
-		)
-
-		# 1. Полноэкранный затемняющий backdrop под панелью.
-		_check(dim != null and dim.visible, "%s: backdrop виден" % tag)
-		_check(
-			dim != null
-				and _near(dim_rect.position.x, 0.0, 1.0)
-				and _near(dim_rect.position.y, 0.0, 1.0)
-				and _near(dim_rect.size.x, view.x, 1.0)
-				and _near(dim_rect.size.y, view.y, 1.0),
-			"%s: backdrop на весь экран (%.1fx%.1f из %.1fx%.1f)" % [
-				tag, dim_rect.size.x, dim_rect.size.y, view.x, view.y
-			]
-		)
-		_check(
-			dim != null and dim.color.a >= 0.55 and dim.color.a <= 0.65,
-			"%s: backdrop alpha 0.55-0.65 (%.2f)" % [tag, 0.0 if dim == null else dim.color.a]
-		)
-		_check(
-			dim != null and dim.mouse_filter == Control.MOUSE_FILTER_STOP,
-			"%s: backdrop принимает клик вне панели" % tag
-		)
-		_check(
-			dim != null and panel_node != null and dim.get_index() < panel_node.get_index(),
-			"%s: backdrop ниже панели" % tag
-		)
-
-		# 2. Панель: ширина 730..812, поля 24, центр по группе карточек.
-		_check(
-			panel_node != null and panel_rect.size.x >= 729.5 and panel_rect.size.x <= 812.5,
-			"%s: панель 730-812 px (%.1f)" % [tag, panel_rect.size.x]
-		)
-		_check(
-			panel_node != null and _near(panel_rect.size.y, 338.0, 1.0),
-			"%s: высота по содержимому 338 (%.1f)" % [tag, panel_rect.size.y]
-		)
-		_check(
-			panel_node != null
-				and panel_rect.position.x >= 23.5
-				and panel_rect.end.x <= view.x - 23.5,
-			"%s: панель с полями 24 от краёв (%.1f..%.1f из %.0f)" % [
-				tag, panel_rect.position.x, panel_rect.end.x, view.x
-			]
-		)
-		_check(
-			panel_node != null
-				and _near(panel_rect.position.y + panel_rect.size.y * 0.5, view.y * 0.5, 1.5),
-			"%s: панель по центру экрана по Y" % tag
-		)
-		# content растянут якорями (size не пишем: у него неравные anchors).
-		var content_node := overlay.find_child("DailyQuestsContent", true, false) as Control
-		_check(
-			content_node != null and panel_node != null
-				and _near(content_node.size.x, panel_rect.size.x, 1.0)
-				and _near(content_node.size.y, panel_rect.size.y, 1.0),
-			"%s: content повторяет панель через якоря (%.1fx%.1f)" % [
-				tag,
-				0.0 if content_node == null else content_node.size.x,
-				0.0 if content_node == null else content_node.size.y
-			]
-		)
-		# Идемпотентность: тот же центр не должен двигать/перекладывать панель.
-		overlay.call(
-			"set_desktop_center_x", panel_rect.position.x + panel_rect.size.x * 0.5
-		)
-		await get_tree().create_timer(0.1).timeout
-		var panel_after_repeat := Rect2()
-		if panel_node != null:
-			panel_after_repeat = panel_node.get_global_rect()
-		_check(
-			panel_node != null
-				and _near(panel_after_repeat.position.x, panel_rect.position.x, 0.5)
-				and _near(panel_after_repeat.size.x, panel_rect.size.x, 0.5)
-				and _near(panel_after_repeat.size.y, panel_rect.size.y, 0.5),
-			"%s: повторный set_desktop_center_x не двигает панель" % tag
-		)
-
-		var cards: Array = lobby.get("cards")
-		var card_rects: Array = []
-		for i in mini(cards.size(), 3):
-			card_rects.append((cards[i] as Control).get_global_rect())
-		if card_rects.size() == 3 and panel_node != null:
-			var left_card: Rect2 = card_rects[0]
-			var center_card: Rect2 = card_rects[1]
-			var right_card: Rect2 = card_rects[2]
-			_check(
-				_near(
-					panel_rect.position.x + panel_rect.size.x * 0.5,
-					center_card.position.x + center_card.size.x * 0.5,
-					1.5
-				),
-				"%s: панель по центру группы карточек (%.1f/%.1f)" % [
-					tag, panel_rect.position.x + panel_rect.size.x * 0.5,
-					center_card.position.x + center_card.size.x * 0.5
-				]
-			)
-			var all_under := true
-			for card_rect in card_rects:
-				all_under = all_under and dim_rect.encloses(card_rect)
-			_check(all_under, "%s: все карточки под backdrop" % tag)
-			var left_visible := maxf(0.0, panel_rect.position.x - left_card.position.x)
-			var right_visible := maxf(0.0, right_card.end.x - panel_rect.end.x)
-			_check(
-				minf(left_visible, right_visible) > 4.0
-					and absf(left_visible - right_visible) <= 1.5,
-				"%s: боковые карточки видны одинаково (%.1f / %.1f)" % [
-					tag, left_visible, right_visible
-				]
-			)
-			_check(
-				center_card.position.x >= panel_rect.position.x - 0.5
-					and center_card.end.x <= panel_rect.end.x + 0.5,
-				"%s: центральная карточка не торчит из-под панели" % tag
-			)
-
-		await _save_shot("daily_quests_overlay_%s" % tag)
-
-		# 3. Закрытие: x, клик вне панели, Esc; таблица остаётся на месте.
-		var close_button := overlay.find_child("DailyQuestsClose", true, false) as Button
-		_check(close_button != null and close_button.visible, "%s: крестик виден" % tag)
-		if close_button != null:
-			close_button.emit_signal("pressed")
-			await get_tree().create_timer(0.15).timeout
-		_check(not overlay.visible, "%s: крестик закрывает меню" % tag)
-
-		await _push_click(table_center)
-		await get_tree().create_timer(0.15).timeout
-		_check(overlay.visible, "%s: таблица снова открывает меню" % tag)
-		await _push_click(Vector2(view.x - 8.0, view.y - 8.0))
-		await get_tree().create_timer(0.15).timeout
-		_check(not overlay.visible, "%s: клик вне панели закрывает меню" % tag)
-		inline.call("apply_data", _fixture(3, 1, 5, "free"))
-		await get_tree().create_timer(0.25).timeout
-
-		await _push_click(table_center)
-		await get_tree().create_timer(0.15).timeout
-		var esc := InputEventKey.new()
-		esc.keycode = KEY_ESCAPE
-		esc.pressed = true
-		get_viewport().push_input(esc)
-		await get_tree().process_frame
-		await get_tree().process_frame
-		_check(not overlay.visible, "%s: Esc закрывает меню" % tag)
-
-		inline.call("apply_data", _fixture(3, 1, 5, "free"))
-		await get_tree().create_timer(0.25).timeout
-		var table_after := inline.get_global_rect()
-		_check(
-			_near(table_after.position.x, table_before.position.x, 1.0)
-				and _near(table_after.position.y, table_before.position.y, 1.0)
-				and _near(table_after.size.x, table_before.size.x, 1.0)
-				and _near(table_after.size.y, table_before.size.y, 1.0),
-			"%s: таблица осталась на месте (%.1f,%.1f %.1fx%.1f)" % [
-				tag, table_after.position.x, table_after.position.y,
-				table_after.size.x, table_after.size.y
-			]
-		)
-
-
-func _check_desktop_overlay(inline: Control, overlay: Control) -> void:
-	if overlay == null:
-		return
+	# Оверлей открывается кликом по таблице.
 	var open_button := inline.find_child("DailyQuestsOpenButton", true, false) as Button
-	_check(open_button != null, "desktop: прозрачная кнопка на всей таблице")
+	_check(open_button != null, "desktop: прозрачная кнопка на таблице")
 	if open_button != null:
 		_check(
 			_near(open_button.size.x, inline.size.x, 1.0)
 				and _near(open_button.size.y, inline.size.y, 1.0),
-			"desktop: кнопка открытия покрывает таблицу"
+			"desktop: кнопка покрывает всю таблицу"
 		)
 		open_button.emit_signal("pressed")
 	await get_tree().create_timer(0.2).timeout
-	_check(overlay.visible, "desktop: клик по таблице открыл оверлей")
-	overlay.call("apply_data", _fixture(3, 3, 7, "free"))
-	await get_tree().create_timer(0.3).timeout
+	_check(overlay.visible, "desktop: клик по таблице открыл меню")
+	overlay.call("apply_data", _fixture(3, 1, 5, "free"))
+	await get_tree().create_timer(0.55).timeout
+	await _check_overlay(overlay, "1440x734", true)
+	await _save_shot("daily_quests_overlay_premium_1440x734")
 
-	var panel_node := overlay.find_child("DailyQuestsPanel", true, false) as Control
-	var screen := Rect2(Vector2.ZERO, viewport_size())
-	if panel_node != null:
-		_check(screen.encloses(panel_node.get_global_rect()), "desktop: панель оверлея внутри экрана")
-		_check(
-			panel_node.size.x >= 729.5 and panel_node.size.x <= 812.5,
-			"desktop: панель оверлея 730-812 px (%.1f)" % panel_node.size.x
-		)
-
-	var explanation := overlay.get("reroll_line_label") as Label
-	_check(
-		explanation != null and explanation.text.contains("1 замена в день бесплатно")
-			and explanation.text.contains("2") and explanation.text.contains("1 осколку"),
-		"desktop: текст про 1 бесплатную + 2 платных"
-	)
-	var status := overlay.get("status_label") as Label
-	_check(
-		status != null and status.text == "За 7/7 дней — 300 осколков",
-		"desktop: «За 7/7 дней — 300 осколков»"
-	)
-	var week_label := overlay.get("week_label") as Label
-	_check(
-		week_label != null and week_label.text == "Неделя: 7/7 полных дней",
-		"desktop: «Неделя: 7/7 полных дней»"
-	)
-	var shard := overlay.find_child("DailyQuestsRewardShard", true, false) as TextureRect
-	_check(shard != null and shard.texture != null, "desktop: иконка осколка в футере")
-	var claim := overlay.get("claim_button") as Button
-	_check(
-		claim != null and claim.text == "Забрать 300 осколков" and not claim.disabled,
-		"desktop: «Забрать 300 осколков»"
-	)
-	for banned in ["скин", "оружие", "1000", "3000", "5000", "уже есть"]:
-		_check(
-			status == null or not status.text.to_lower().contains(banned),
-			"desktop: в оверлее нет «%s»" % banned
-		)
-	var rows: Array = overlay.get("row_nodes")
-	_check(rows.size() == 3, "desktop: в оверлее 3 строки")
-	for i in rows.size():
-		_check(
-			(rows[i] as Control).find_child("DailyQuestsReroll%d" % i, true, false) != null,
-			"desktop: в оверлее строка %d с кнопкой замены" % i
-		)
-	await _check_reroll_states(overlay)
 	var close_button := overlay.find_child("DailyQuestsClose", true, false) as Button
 	if close_button != null:
 		close_button.emit_signal("pressed")
 		await get_tree().create_timer(0.1).timeout
-		_check(not overlay.visible, "desktop: оверлей закрывается и возвращает к таблице")
+		_check(not overlay.visible, "desktop: крестик закрывает меню")
+	await _save_shot("daily_quests_desktop_%dx%d" % [int(viewport_size().x), int(viewport_size().y)])
+
+
+func _check_inline(lobby: Node, inline: Control, tag: String) -> void:
+	var view := get_viewport().get_visible_rect().size
+	var origin := (lobby as Control).get_global_rect().position
+	var rect := _local_rect(inline, origin)
+	var expected_w := minf(380.0, view.x * 0.27)
+	expected_w = maxf(240.0, expected_w)
+	_check(_near(rect.position.x, 28.0), "%s: таблица left 28" % tag)
+	_check(_near(rect.position.y, 122.4), "%s: таблица top 122.4" % tag)
+	_check(_near(rect.size.x, expected_w, 0.75), "%s: таблица width %.1f" % [tag, rect.size.x])
+	_check(_near(rect.size.y, 246.0), "%s: таблица height 246" % tag)
+	var rows: Array = inline.get("row_nodes")
+	_check(rows.size() == 3, "%s: 3 строки inline" % tag)
+	for i in rows.size():
+		var row := rows[i] as Control
+		_check(_near(row.size.y, 50.0), "%s: строка %d = 50 px" % [tag, i])
+		_check(
+			row.find_child("DailyQuestsReroll*", true, false) == null,
+			"%s: в inline нет кнопки замены" % tag
+		)
+		_check(
+			row.find_child("DailyQuestsIcon%d" % i, true, false) != null,
+			"%s: медальон строки %d" % [tag, i]
+		)
+		_check(
+			row.find_child("DailyQuestsRewardIcon%d" % i, true, false) != null
+				and row.find_child("DailyQuestsReward%d" % i, true, false) != null,
+			"%s: чип награды строки %d" % [tag, i]
+		)
+
+	# Нет пересечений с карточками/логотипом/кнопками.
+	var blockers: Array = [lobby.get("lobby_logo"), lobby.get("play_button"),
+		lobby.get("tutorial_button"), lobby.get("settings_button"), lobby.get("rules_button"),
+		lobby.get("profile_button")]
+	var cards: Array = lobby.get("cards")
+	for card in cards:
+		blockers.append(card)
+	var hits: Array = []
+	for blocker in blockers:
+		if blocker is Control and (blocker as Control).visible and rect.intersects(
+			(blocker as Control).get_global_rect()
+		):
+			hits.append(String((blocker as Control).name))
+	_check(hits.is_empty(), "%s: inline без пересечений %s" % [tag, str(hits)])
+
+
+func _check_overlay(overlay: Control, tag: String, desktop: bool) -> void:
+	var panel := overlay.find_child("DailyQuestsPanel", true, false) as Control
+	_check(panel != null, "%s: панель найдена" % tag)
+	if panel == null:
+		return
+	_check(_near(panel.size.x, 812.0, 1.0), "%s: панель 812 px (%.1f)" % [tag, panel.size.x])
+	_check(_near(panel.size.y, 338.0, 1.0), "%s: панель 338 px (%.1f)" % [tag, panel.size.y])
+	var screen := Rect2(Vector2.ZERO, viewport_size())
+	_check(screen.encloses(panel.get_global_rect()), "%s: панель внутри экрана" % tag)
+
+	var title := overlay.get("title_label") as Label
+	var timer := overlay.get("timer_label") as Label
+	var count := overlay.get("count_label") as Label
+	var explanation := overlay.get("explanation_label") as Label
+	_check(title != null and title.text == "ЕЖЕДНЕВНЫЕ ЗАДАНИЯ", "%s: заголовок" % tag)
+	_check(title != null and title.get_theme_font_size("font_size") == 24, "%s: заголовок 24" % tag)
+	_check(timer != null and timer.visible and timer.text.contains("обновление через"),
+		"%s: таймер" % tag)
+	_check(count != null and count.text == "1/3", "%s: пилюля 1/3" % tag)
+	_check(
+		explanation != null and explanation.text.contains("1 замена в день бесплатно")
+			and explanation.text.contains("2") and explanation.text.contains("1 осколку"),
+		"%s: пояснение замен" % tag
+	)
+
+	var cards: Array = overlay.get("card_nodes")
+	_check(cards.size() == 3, "%s: 3 карточки" % tag)
+	for i in cards.size():
+		var card := cards[i] as Control
+		_check(_near(card.size.x, 248.0, 1.0) and _near(card.size.y, 172.0, 1.0),
+			"%s: карточка %d 248x172" % [tag, i])
+		_check(_near(card.position.x, 22.0 + float(i) * 260.0, 1.0),
+			"%s: карточка %d x" % [tag, i])
+		_check(_near(card.position.y, 0.0, 1.0), "%s: карточка %d y" % [tag, i])
+		_check(card.find_child("DailyQuestsIcon%d" % i, true, false) != null,
+			"%s: медальон карточки %d" % [tag, i])
+		_check(card.find_child("DailyQuestsRing%d" % i, true, false) != null,
+			"%s: кольцо карточки %d" % [tag, i])
+		_check(card.find_child("DailyQuestsRewardChip%d" % i, true, false) != null,
+			"%s: чип награды карточки %d" % [tag, i])
+		_check(card.find_child("DailyQuestsReroll%d" % i, true, false) != null,
+			"%s: кнопка замены карточки %d" % [tag, i])
+	# Первая карточка выполнена (fixture 3,1).
+	var check0 := cards[0].find_child("DailyQuestsCheck0", true, false) as Control
+	var remaining0 := cards[0].find_child("DailyQuestsRemaining0", true, false) as Label
+	_check(check0 != null and check0.visible, "%s: галочка выполненной карточки" % tag)
+	_check(remaining0 != null and remaining0.text == "награда зачислена",
+		"%s: «награда зачислена»" % tag)
+
+	var diamonds := 0
+	for i in 7:
+		if overlay.find_child("DailyQuestsDay%d" % i, true, false) != null:
+			diamonds += 1
+	_check(diamonds == 7, "%s: 7 ромбов недели" % tag)
+	var week := overlay.get("week_label") as Label
+	var status := overlay.get("status_label") as Label
+	_check(week != null and week.text.contains("/7 полных дней"), "%s: X/7 полных дней" % tag)
+	_check(status != null and status.text.contains("до 300 осколков"),
+		"%s: остаток до 300" % tag)
+	var claim := overlay.get("claim_button") as Button
+	_check(claim != null and claim.text == "5/7", "%s: кнопка 5/7" % tag)
+
+	# 7/7: текст ровно про 300 и кнопка «Забрать 300».
+	overlay.call("apply_data", _fixture(3, 3, 7, "free"))
+	await get_tree().create_timer(0.3).timeout
+	_check(status != null and status.text == "За 7/7 дней — 300 осколков",
+		"%s: «За 7/7 дней — 300 осколков»" % tag)
+	_check(claim != null and claim.text == "Забрать 300" and not claim.disabled,
+		"%s: «Забрать 300»" % tag)
+	var shard := overlay.find_child("DailyQuestsRewardShard", true, false) as TextureRect
+	_check(shard != null and shard.texture != null, "%s: иконка осколка" % tag)
+	for banned in ["1000", "3000", "5000", "оружие", "скин", "уже есть"]:
+		_check(
+			status == null or not status.text.to_lower().contains(banned),
+			"%s: нет «%s»" % [tag, banned]
+		)
 
 
 func _check_mobile(lobby: Node) -> void:
-	var quests_panel := lobby.get("daily_quests_panel") as Control
+	var overlay := lobby.get("daily_quests_panel") as Control
 	var button := lobby.get("daily_quests_button") as Button
-	var badge := lobby.get("daily_quests_badge") as Label
-	var menu_level := lobby.get("menu_level_label") as Label
-	_check(quests_panel != null, "mobile: оверлей создан")
-	_check(button != null, "mobile: кнопка «ЗАДАНИЯ» создана")
-	if quests_panel == null or button == null:
+	_check(overlay != null and button != null, "mobile: кнопка и оверлей созданы")
+	if overlay == null or button == null:
 		return
-
-	var button_rect := button.get_global_rect()
-	_check(_near(button_rect.size.x, 235.0, 1.0), "mobile: кнопка 235 px (%.1f)" % button_rect.size.x)
-	_check(_near(button_rect.size.y, 48.0, 1.0), "mobile: кнопка 48 px (%.1f)" % button_rect.size.y)
-	_check(button.text == "ЗАДАНИЯ", "mobile: текст «ЗАДАНИЯ»")
-	_check(badge != null and badge.text.ends_with("/3"), "mobile: бейдж N/3")
-	_check(
-		menu_level != null and button.get_parent() == menu_level.get_parent()
-			and button.get_index() == menu_level.get_index() + 1,
-		"mobile: кнопка сразу под menu_level_label"
-	)
-	_check(quests_panel.z_index == 42, "mobile: оверлей z=42")
-	_check(not quests_panel.visible, "mobile: оверлей закрыт на старте")
-
-	# Скролл инвентаря: запоминаем позицию и проверяем возврат.
-	lobby.call("_open_player_menu")
-	for i in 5:
-		await get_tree().process_frame
-	var scroll := lobby.get("inventory_scroll") as ScrollContainer
-	if scroll != null:
-		scroll.scroll_vertical = 40
-		await get_tree().process_frame
-	var saved_scroll := 0 if scroll == null else scroll.scroll_vertical
-	print("DAILY_QUESTS inventory_scroll=", saved_scroll)
+	_check(button.text == "ЗАДАНИЯ", "mobile: кнопка ЗАДАНИЯ")
 	lobby.call("_open_daily_quests_overlay")
 	await get_tree().create_timer(0.2).timeout
-	quests_panel.call("apply_data", _fixture(3, 1, 5, "free"))
-	await get_tree().create_timer(0.35).timeout
-	_check(quests_panel.visible, "mobile: кнопка открывает оверлей")
-
-	var panel_node := quests_panel.find_child("DailyQuestsPanel", true, false) as Control
-	_check(panel_node != null, "mobile: панель найдена")
-	if panel_node != null:
-		_check(_near(panel_node.size.x, 812.0, 1.0), "mobile: панель 812 px (%.1f)" % panel_node.size.x)
-		_check(_near(panel_node.size.y, 338.0, 1.0), "mobile: 3 задания = 338 px (%.1f)" % panel_node.size.y)
-		_check(_near(panel_node.get_global_rect().position.y, 26.0, 1.0), "mobile: панель по центру (top 26)")
-
-	var title := quests_panel.get("title_label") as Label
-	var subtitle := quests_panel.get("subtitle_label") as Label
-	var rows: Array = quests_panel.get("row_nodes")
-	_check(title != null and title.text == "ЗАДАНИЯ · 1/3", "mobile: заголовок «ЗАДАНИЯ · 1/3»")
-	_check(title != null and title.get_theme_font_size("font_size") == 20, "mobile: заголовок 20")
-	_check(subtitle != null and subtitle.get_theme_font_size("font_size") == 18, "mobile: подзаголовок 18")
-	if rows.size() > 0:
-		var row := rows[0] as Control
-		var row_title := row.find_child("DailyQuestsRowTitle0", true, false) as Label
-		var row_meta := row.find_child("DailyQuestsRowMeta0", true, false) as Label
-		_check(row_title != null and row_title.get_theme_font_size("font_size") == 18, "mobile: текст задания 18")
-		_check(row_meta != null and row_meta.get_theme_font_size("font_size") == 18, "mobile: мета 18")
-	_check(subtitle != null and subtitle.text == "Осталось 2 задания", "mobile: «Осталось 2 задания»")
-
-	# Закрытие крестиком и возврат скролла.
-	var close_button := quests_panel.find_child("DailyQuestsClose", true, false) as Button
-	_check(close_button != null, "mobile: крестик есть")
+	overlay.call("apply_data", _fixture(3, 1, 5, "free"))
+	await get_tree().create_timer(0.55).timeout
+	_check(overlay.visible, "mobile: оверлей открыт")
+	await _check_overlay(overlay, "844x390", false)
+	var close_button := overlay.find_child("DailyQuestsClose", true, false) as Button
 	if close_button != null:
 		close_button.emit_signal("pressed")
 		await get_tree().create_timer(0.1).timeout
-		await get_tree().process_frame
-		_check(not quests_panel.visible, "mobile: крестик закрывает оверлей")
-		await get_tree().process_frame
-		_check(
-			scroll == null or scroll.scroll_vertical == saved_scroll,
-			"mobile: скролл инвентаря восстановлен (%d)" % (0 if scroll == null else scroll.scroll_vertical)
-		)
-
-	# Пустое состояние в оверлее.
+		_check(not overlay.visible, "mobile: × закрывает")
 	lobby.call("_open_daily_quests_overlay")
 	await get_tree().create_timer(0.1).timeout
-	quests_panel.call("apply_data", _fixture(0, 0, 0, "free"))
-	await get_tree().create_timer(0.35).timeout
-	if panel_node != null:
-		_check(_near(panel_node.size.y, 136.0, 1.0), "mobile: пусто = 136 px (%.1f)" % panel_node.size.y)
-	var footer := quests_panel.get("footer") as Control
-	_check(footer != null and not footer.visible, "mobile: пусто — без подвала")
-
-	# Esc.
 	var key := InputEventKey.new()
 	key.keycode = KEY_ESCAPE
 	key.pressed = true
 	get_viewport().push_input(key)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	_check(not quests_panel.visible, "mobile: Esc закрывает оверлей")
-
-	# Тап вне панели.
-	lobby.call("_open_daily_quests_overlay")
-	await get_tree().create_timer(0.1).timeout
-	var click := InputEventMouseButton.new()
-	click.button_index = MOUSE_BUTTON_LEFT
-	click.pressed = true
-	click.position = Vector2(4.0, 4.0)
-	get_viewport().push_input(click)
-	await get_tree().process_frame
-	await get_tree().process_frame
-	_check(not quests_panel.visible, "mobile: тап вне панели закрывает оверлей")
-
-	# _close_player_menu скрывает оверлей.
-	lobby.call("_open_daily_quests_overlay")
-	await get_tree().create_timer(0.1).timeout
-	lobby.call("_close_player_menu")
-	await get_tree().process_frame
-	_check(not quests_panel.visible, "mobile: _close_player_menu скрывает оверлей")
-
-	# Замены: free / paid / limit.
-	await _check_reroll_states(quests_panel)
-	await _check_mobile_texts(quests_panel)
-	lobby.call("_open_daily_quests_overlay")
-	await get_tree().create_timer(0.1).timeout
-	quests_panel.call("apply_data", _fixture(3, 1, 5, "free"))
-	await get_tree().create_timer(0.35).timeout
+	_check(not overlay.visible, "mobile: Esc закрывает")
 	await _save_shot("daily_quests_mobile_%dx%d" % [int(viewport_size().x), int(viewport_size().y)])
 
 
-func _check_mobile_texts(quests_panel: Control) -> void:
-	var subtitle := quests_panel.get("subtitle_label") as Label
-	var week_label := quests_panel.get("week_label") as Label
-	var status := quests_panel.get("status_label") as Label
-	var claim := quests_panel.get("claim_button") as Button
-	quests_panel.call("apply_data", _fixture(3, 3, 7, "free"))
-	await get_tree().create_timer(0.3).timeout
-	_check(subtitle != null and subtitle.text == "День закрыт: 3/3", "mobile: «День закрыт: 3/3»")
-	_check(week_label != null and week_label.text == "Неделя: 7/7 полных дней", "mobile: «Неделя: 7/7 полных дней»")
-	_check(
-		status != null and status.text == "За 7/7 дней — 300 осколков",
-		"mobile: «За 7/7 дней — 300 осколков»"
-	)
-	_check(claim != null and claim.text == "Забрать 300 осколков" and not claim.disabled, "mobile: кнопка «Забрать 300 осколков»")
-	var explanation := quests_panel.get("reroll_line_label") as Label
-	_check(
-		explanation != null and explanation.text.contains("1 замена в день бесплатно")
-			and explanation.text.contains("2") and explanation.text.contains("1 осколку"),
-		"mobile: текст про 1 бесплатную + 2 платных"
-	)
-	var shard := quests_panel.find_child("DailyQuestsRewardShard", true, false) as TextureRect
-	_check(shard != null and shard.texture != null, "mobile: иконка осколка в футере")
-	quests_panel.call("apply_data", _fixture(3, 1, 5, "free"))
-	await get_tree().create_timer(0.25).timeout
-	_check(
-		status != null and status.text.contains("Осталось 2")
-			and status.text.contains("до 300 осколков"),
-		"mobile: недобор — «Осталось 2 ... до 300 осколков»"
-	)
-	for banned in ["скин", "оружие", "1000", "3000", "5000", "уже есть"]:
-		_check(
-			status == null or not status.text.to_lower().contains(banned),
-			"mobile: нет «%s»" % banned
-		)
-
-
-func _check_reroll_states(quests_panel: Control) -> void:
-	var cases := [
-		["free", ["Заменить"], true],
-		["paid", ["Заменить · 1", "Заменить"], true],
-		["limit", ["Нет замен"], false],
-	]
-	for entry in cases:
-		quests_panel.call("apply_data", _fixture(3, 0, 0, String(entry[0])))
-		await get_tree().create_timer(0.22).timeout
-		var rows: Array = quests_panel.get("row_nodes")
-		var ok := false
-		if rows.size() > 0:
-			var row := rows[0] as Control
-			var reroll := row.find_child("DailyQuestsReroll0", true, false) as Button
-			var title := row.find_child("DailyQuestsRowTitle0", true, false) as Control
-			var meta := row.find_child("DailyQuestsRowMeta0", true, false) as Control
-			var button_text := "" if reroll == null else reroll.text.strip_edges()
-			var no_overlap := true
-			if reroll != null and title != null:
-				no_overlap = no_overlap and not reroll.get_global_rect().intersects(title.get_global_rect())
-			if reroll != null and meta != null:
-				no_overlap = no_overlap and not reroll.get_global_rect().intersects(meta.get_global_rect())
-			ok = (
-				reroll != null and reroll.visible
-				and (entry[1] as Array).has(button_text)
-				and reroll.disabled == (not bool(entry[2]))
-				and no_overlap
-			)
-		_check(ok, "замена %s: текст/доступность/без наезда" % String(entry[0]))
-	var completed_rows: Array = quests_panel.get("row_nodes")
-	if completed_rows.size() > 0:
-		quests_panel.call("apply_data", _fixture(3, 1, 0, "free"))
-		await get_tree().create_timer(0.22).timeout
-		var done_rows: Array = quests_panel.get("row_nodes")
-		var reroll_done := (done_rows[0] as Control).find_child("DailyQuestsReroll0", true, false) as Button
-		_check(reroll_done == null or not reroll_done.visible, "выполненное задание без замены")
-
-
-func _fixture(count: int, completed: int, week_full: int, reroll_state: String, skin_owned := false) -> Dictionary:
-	var titles := ["Убить 8 врагов", "Нанести урон 4000", "Сыграть 2 боя"]
+func _fixture(count: int, completed: int, week_full: int, reroll_state: String) -> Dictionary:
+	var titles := ["Убить 8 врагов", "Нанести урон 4000", "Купить 2 усиления"]
+	var metrics := ["kills", "damage", "shop_items_one"]
 	var targets := [8, 4000, 2]
 	var rewards := [3, 4, 3]
 	var quests: Array = []
@@ -1005,22 +264,19 @@ func _fixture(count: int, completed: int, week_full: int, reroll_state: String, 
 		var index := mini(i, 2)
 		quests.append({
 			"slot": i,
-			"template_id": ["kills_8", "damage_4000", "play_2"][index],
+			"template_id": ["kills_8", "damage_4000", "buy_2"][index],
 			"title": titles[index],
+			"metric": metrics[index],
 			"target": targets[index],
 			"progress": targets[index] if i < completed else int(targets[index] * 0.4),
 			"reward_shards": rewards[index],
-			"reward_xp": 150,
 			"completed": i < completed,
 		})
-	var repeats := {}
-	match reroll_state:
-		"paid":
-			repeats = {"free_available": false, "paid_left": 2, "paid_max": 2, "cost": 1}
-		"limit":
-			repeats = {"free_available": false, "paid_left": 0, "paid_max": 2, "cost": 1}
-		_:
-			repeats = {"free_available": true, "paid_left": 2, "paid_max": 2, "cost": 1}
+	var repeats := {"free_available": true, "paid_left": 2, "paid_max": 2, "cost": 1}
+	if reroll_state == "paid":
+		repeats = {"free_available": false, "paid_left": 2, "paid_max": 2, "cost": 1}
+	elif reroll_state == "limit":
+		repeats = {"free_available": false, "paid_left": 0, "paid_max": 2, "cost": 1}
 	return {
 		"quests": quests,
 		"week": _week(week_full),
@@ -1028,17 +284,7 @@ func _fixture(count: int, completed: int, week_full: int, reroll_state: String, 
 		"summary": {
 			"completed": completed,
 			"total": 3,
-			"week": {
-				"active_days": week_full,
-				"required": 7,
-				"tier": 1,
-				"claimable": week_full >= 7,
-				"claimed": false,
-				"reward_kind": "skin",
-				"reward_name": "скин",
-				"reward_owned": skin_owned,
-				"compensation": 1000,
-			},
+			"week": {"required": 7, "active_days": week_full, "claimable": week_full >= 7},
 		},
 	}
 
@@ -1046,32 +292,17 @@ func _fixture(count: int, completed: int, week_full: int, reroll_state: String, 
 func _week(full_days: int) -> Array:
 	var days: Array = []
 	for i in 7:
-		var day := {
+		days.append({
 			"date": "2026-11-%02d" % (23 + i),
 			"today": i == 3,
 			"full": i < full_days,
 			"completed_count": 3 if i < full_days else 0,
-		}
-		days.append(day)
+		})
 	return days
 
 
 func _near(value: float, expected: float, tolerance := 0.75) -> bool:
 	return absf(value - expected) <= tolerance
-
-
-## Настоящий клик мышью в координатах вьюпорта (press + release: кнопки
-## Godot по умолчанию срабатывают на отпускании).
-func _push_click(at: Vector2) -> void:
-	for pressed in [true, false]:
-		var click := InputEventMouseButton.new()
-		click.button_index = MOUSE_BUTTON_LEFT
-		click.pressed = bool(pressed)
-		click.position = at
-		click.global_position = at
-		get_viewport().push_input(click)
-		await get_tree().process_frame
-	await get_tree().process_frame
 
 
 func _local_rect(control: Control, origin: Vector2) -> Rect2:

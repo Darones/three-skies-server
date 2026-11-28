@@ -19,10 +19,19 @@ const CONTROL_BINDINGS := [
 	{"action": "ability_3", "label": "Навык 3"},
 ]
 
+# On/off rows. The stock CheckButton drew as a bare dot on the dark panel,
+# so the FPS switch read as "nothing here". These colours drive the custom
+# rows built by _make_toggle_row().
+const TOGGLE_OFF_BORDER := Color(0.45, 0.55, 0.7)
+const TOGGLE_ON_BORDER := Color(0.95, 0.76, 0.38)
+const TOGGLE_TEXT_OFF := Color(0.84, 0.88, 0.96)
+const TOGGLE_TEXT_ON := Color(1.0, 0.91, 0.63)
+const TOGGLE_ROW_HEIGHT := 46.0
+
 var mobile_layout := false
 var volume_slider: HSlider
-var vibration_toggle: CheckButton
-var fps_toggle: CheckButton
+var vibration_toggle: Button
+var fps_toggle: Button
 var quality_buttons: Dictionary = {}
 var current_volume := 1.0
 var listening_action := ""
@@ -151,27 +160,17 @@ func _build_panel() -> void:
 		quality_row.add_child(quality_button)
 		quality_buttons[String(entry[0])] = quality_button
 
-	fps_toggle = CheckButton.new()
-	fps_toggle.name = "FpsToggle"
-	fps_toggle.text = "Показывать FPS"
-	fps_toggle.add_theme_font_override("font", UI_FONT)
-	fps_toggle.add_theme_font_size_override("font_size", _fs(20))
-	fps_toggle.add_theme_color_override("font_color", Color(0.92, 0.94, 0.99))
-	fps_toggle.add_theme_color_override("font_hover_color", Color(1.0, 0.9, 0.6))
-	fps_toggle.add_theme_constant_override("h_separation", 16)
-	fps_toggle.custom_minimum_size = Vector2(0, 46)
+	fps_toggle = _make_toggle_row("Показывать FPS", "FpsToggle")
 	fps_toggle.toggled.connect(_on_fps_toggled)
 	layout.add_child(fps_toggle)
+	_refresh_toggle_visual(fps_toggle, DeviceProfile.show_fps)
 
 	var show_haptics := mobile_layout and not OS.has_feature("web")
 	if show_haptics:
-		vibration_toggle = CheckButton.new()
-		vibration_toggle.name = "VibrationToggle"
-		vibration_toggle.text = "Вибрация"
-		vibration_toggle.add_theme_font_override("font", UI_FONT)
-		vibration_toggle.add_theme_font_size_override("font_size", _fs(16))
+		vibration_toggle = _make_toggle_row("Вибрация", "VibrationToggle")
 		vibration_toggle.toggled.connect(_on_vibration_toggled)
 		layout.add_child(vibration_toggle)
+		_refresh_toggle_visual(vibration_toggle, Haptics.is_enabled())
 	elif not mobile_layout:
 		layout.add_child(_make_label("УПРАВЛЕНИЕ · нажмите кнопку и задайте новую клавишу", 15, Color(0.9, 0.92, 0.98)))
 		for binding in CONTROL_BINDINGS:
@@ -294,6 +293,125 @@ func _button_style(primary: bool, hovered: bool) -> StyleBoxFlat:
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(8)
 	return style
+
+
+func _make_toggle_row(label_text: String, node_name: String) -> Button:
+	# A row that cannot be missed: 46 px tall, 2 px frame, the state spelled
+	# out in the text and a compact pill switch with a knob on the right.
+	var button := Button.new()
+	button.name = node_name
+	button.toggle_mode = true
+	button.focus_mode = Control.FOCUS_NONE
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.custom_minimum_size = Vector2(0.0, TOGGLE_ROW_HEIGHT)
+	button.add_theme_font_override("font", UI_FONT)
+	button.add_theme_font_size_override("font_size", _fs(19))
+	button.set_meta("toggle_label", label_text)
+
+	var track := Panel.new()
+	track.name = "SwitchTrack"
+	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	track.anchor_left = 1.0
+	track.anchor_right = 1.0
+	track.anchor_top = 0.5
+	track.anchor_bottom = 0.5
+	track.offset_left = -68.0
+	track.offset_right = -16.0
+	track.offset_top = -13.0
+	track.offset_bottom = 13.0
+	button.add_child(track)
+
+	var knob := Panel.new()
+	knob.name = "SwitchKnob"
+	knob.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	track.add_child(knob)
+
+	button.set_meta("toggle_track", track)
+	button.set_meta("toggle_knob", knob)
+	_refresh_toggle_visual(button, false)
+	return button
+
+
+func _refresh_toggle_visual(button: Button, enabled: bool) -> void:
+	if button == null or not is_instance_valid(button):
+		return
+	# set_pressed_no_signal keeps this usable from _load_settings(): no signal,
+	# no second save, but the row still shows the stored state.
+	button.set_pressed_no_signal(enabled)
+	var label_text := String(button.get_meta("toggle_label", "Переключатель"))
+	button.text = "%s: %s" % [label_text, "ВКЛ" if enabled else "ВЫКЛ"]
+	var text_color := TOGGLE_TEXT_ON if enabled else TOGGLE_TEXT_OFF
+	button.add_theme_color_override("font_color", text_color)
+	button.add_theme_color_override("font_pressed_color", text_color)
+	button.add_theme_color_override("font_focus_color", text_color)
+	button.add_theme_color_override("font_hover_color", text_color.lightened(0.14))
+	button.add_theme_color_override("font_hover_pressed_color", text_color.lightened(0.14))
+	# Every state gets the same border width and corner radius, so hover and
+	# press only change the brightness - the row never jumps.
+	button.add_theme_stylebox_override("normal", _toggle_style(enabled, false))
+	button.add_theme_stylebox_override("hover", _toggle_style(enabled, true))
+	button.add_theme_stylebox_override("pressed", _toggle_style(enabled, true))
+	button.add_theme_stylebox_override("hover_pressed", _toggle_style(enabled, true))
+	var track: Panel = button.get_meta("toggle_track", null)
+	if track != null and is_instance_valid(track):
+		track.add_theme_stylebox_override("panel", _toggle_track_style(enabled))
+	var knob: Panel = button.get_meta("toggle_knob", null)
+	if knob != null and is_instance_valid(knob):
+		knob.add_theme_stylebox_override("panel", _toggle_knob_style(enabled))
+		_place_toggle_knob(knob, enabled)
+
+
+func _toggle_style(enabled: bool, hovered: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	if enabled:
+		style.bg_color = Color(0.24, 0.19, 0.09, 1.0) if hovered else Color(0.16, 0.13, 0.07, 0.96)
+	else:
+		style.bg_color = Color(0.11, 0.14, 0.2, 1.0) if hovered else Color(0.06, 0.08, 0.13, 0.95)
+	style.border_color = TOGGLE_ON_BORDER if enabled else TOGGLE_OFF_BORDER
+	if hovered:
+		style.border_color = style.border_color.lightened(0.2)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(10)
+	style.content_margin_left = 14.0
+	# Room for the 52 px switch plus its right margin, so the label never
+	# runs under the pill at any width.
+	style.content_margin_right = 82.0
+	style.content_margin_top = 6.0
+	style.content_margin_bottom = 6.0
+	return style
+
+
+func _toggle_track_style(enabled: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.3, 0.24, 0.1, 1.0) if enabled else Color(0.03, 0.05, 0.09, 1.0)
+	style.border_color = TOGGLE_ON_BORDER if enabled else TOGGLE_OFF_BORDER
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(13)
+	return style
+
+
+func _toggle_knob_style(enabled: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = TOGGLE_ON_BORDER if enabled else Color(0.7, 0.78, 0.9)
+	style.set_corner_radius_all(9)
+	return style
+
+
+func _place_toggle_knob(knob: Control, enabled: bool) -> void:
+	knob.anchor_top = 0.5
+	knob.anchor_bottom = 0.5
+	knob.offset_top = -9.0
+	knob.offset_bottom = 9.0
+	if enabled:
+		knob.anchor_left = 1.0
+		knob.anchor_right = 1.0
+		knob.offset_left = -22.0
+		knob.offset_right = -4.0
+	else:
+		knob.anchor_left = 0.0
+		knob.anchor_right = 0.0
+		knob.offset_left = 4.0
+		knob.offset_right = 22.0
 
 
 func _make_danger_button(text: String) -> Button:
@@ -541,10 +659,10 @@ func _load_settings() -> void:
 	volume_slider.set_value_no_signal(clampf(saved_volume, 0.0, 1.0))
 	_apply_volume(saved_volume)
 	if vibration_toggle != null:
-		vibration_toggle.set_pressed_no_signal(Haptics.is_enabled())
+		_refresh_toggle_visual(vibration_toggle, Haptics.is_enabled())
 	_refresh_quality_buttons()
 	if fps_toggle != null:
-		fps_toggle.set_pressed_no_signal(DeviceProfile.show_fps)
+		_refresh_toggle_visual(fps_toggle, DeviceProfile.show_fps)
 	if not mobile_layout and has_settings:
 		for binding in CONTROL_BINDINGS:
 			var action := String(binding["action"])
@@ -595,6 +713,7 @@ func _apply_volume(value: float) -> void:
 
 
 func _on_vibration_toggled(enabled: bool) -> void:
+	_refresh_toggle_visual(vibration_toggle, enabled)
 	Haptics.set_enabled(enabled)
 	if enabled:
 		Haptics.vibrate(35)
@@ -628,6 +747,7 @@ func _refresh_quality_buttons() -> void:
 
 func _on_fps_toggled(enabled: bool) -> void:
 	DeviceProfile.set_show_fps(enabled)
+	_refresh_toggle_visual(fps_toggle, enabled)
 
 
 func _begin_rebind(action: String) -> void:
