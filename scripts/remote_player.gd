@@ -194,6 +194,32 @@ func apply_bot_state(info: Dictionary) -> void:
 		_play_bot_animation(animation)
 
 
+func _resolve_remote_anim(wanted: String) -> String:
+	# Exact clip first. The old substring search for "idle" matched
+	# `2H_Melee_Idle` (it sorts before `Idle`), so remote heroes stood in the
+	# two-handed melee stance instead of the plain `Idle`.
+	if _animation_player == null or wanted.is_empty():
+		return ""
+	if _animation_player.has_animation(wanted):
+		return wanted
+	match wanted:
+		"idle":
+			for candidate in ["Idle", "Idle_A"]:
+				if _animation_player.has_animation(candidate):
+					return candidate
+		"walk":
+			if _animation_player.has_animation("Walking_A"):
+				return "Walking_A"
+		"run":
+			if _animation_player.has_animation("Running_A"):
+				return "Running_A"
+	for animation_name in _animation_player.get_animation_list():
+		var lower := String(animation_name).to_lower()
+		if lower == wanted.to_lower() or lower.contains(wanted.to_lower()):
+			return String(animation_name)
+	return ""
+
+
 func _play_bot_animation(anim_name: String) -> void:
 	if anim_name.is_empty() or dead:
 		return
@@ -205,21 +231,15 @@ func _play_bot_animation(anim_name: String) -> void:
 			print("[RANIM] no-player id=%d anim=%s" % [peer_id, anim_name])
 		return
 	var wanted := anim_name.to_lower()
-	for animation_name in _animation_player.get_animation_list():
-		var lower := String(animation_name).to_lower()
-		if lower == wanted or lower.contains(wanted):
-			var anim := _animation_player.get_animation(animation_name)
-			if anim != null:
-				anim.loop_mode = Animation.LOOP_LINEAR if wanted in ["idle", "run", "walk"] else Animation.LOOP_NONE
-			_animation_player.play(animation_name)
-			return
-	for animation_name in _animation_player.get_animation_list():
-		if String(animation_name).to_lower().contains("idle"):
-			var anim := _animation_player.get_animation(animation_name)
-			if anim != null:
-				anim.loop_mode = Animation.LOOP_LINEAR
-			_animation_player.play(animation_name)
-			return
+	var target := _resolve_remote_anim(wanted)
+	if target.is_empty():
+		target = _resolve_remote_anim("idle")
+	if target.is_empty():
+		return
+	var anim := _animation_player.get_animation(target)
+	if anim != null:
+		anim.loop_mode = Animation.LOOP_LINEAR if wanted in ["idle", "run", "walk"] else Animation.LOOP_NONE
+	_animation_player.play(target)
 
 
 func _process(delta: float) -> void:
@@ -396,19 +416,10 @@ func _play_idle(holder: Node3D) -> void:
 	_animation_player = _find_animation_player(holder)
 	if _animation_player == null:
 		return
-	var animations := _animation_player.get_animation_list()
-	for animation_name in animations:
-		if String(animation_name).to_lower().contains("idle"):
-			var anim := _animation_player.get_animation(animation_name)
-			if anim != null:
-				anim.loop_mode = Animation.LOOP_LINEAR
-			_animation_player.play(animation_name)
-			return
-	if not animations.is_empty():
-		var anim := _animation_player.get_animation(animations[0])
-		if anim != null:
-			anim.loop_mode = Animation.LOOP_LINEAR
-		_animation_player.play(animations[0])
+	# Exact `Idle` through the shared resolver: the old loop picked
+	# `2H_Melee_Idle` first and remote heroes stood in a melee stance.
+	_move_anim = "idle"
+	_play_bot_animation("idle")
 
 
 func _find_animation_player(node: Node) -> AnimationPlayer:
@@ -712,27 +723,28 @@ func play_attack(_attack_type: String) -> void:
 	_break_bush_stealth()
 	_attack_lock_msec = Time.get_ticks_msec() + 450
 	if _animation_player != null:
+		# Exact per-class combat clips: the mage fires `Spellcast_Shoot` and the
+		# Huntress `1H_Ranged_Shoot`. The old `"spellcast"`/`"cast"` search
+		# played the long Spellcast_Long channel instead of the shot.
 		var preferred: Array[String] = []
 		match hero_class:
 			1:
-				preferred = ["spellcast", "cast", "ranged_shoot", "shoot"]
+				preferred = ["Spellcast_Shoot", "Spellcast_Raise", "spellcast", "cast"]
 			2:
-				preferred = ["1h_ranged_shoot", "ranged_shoot", "shoot", "attack"]
+				preferred = ["1H_Ranged_Shoot", "1H_Ranged_Shooting", "ranged_shoot", "shoot"]
 			_:
-				preferred = ["1h_melee_attack", "attack", "cast"]
+				preferred = ["1H_Melee_Attack_Chop", "1h_melee_attack", "attack", "cast"]
+		var target := ""
 		for want in preferred:
-			for animation_name in _animation_player.get_animation_list():
-				if String(animation_name).to_lower().contains(want):
-					var anim := _animation_player.get_animation(animation_name)
-					if anim != null:
-						anim.loop_mode = Animation.LOOP_NONE
-					_animation_player.play(animation_name)
-					return
-		for animation_name in _animation_player.get_animation_list():
-			var lower := String(animation_name).to_lower()
-			if lower.contains("attack") or lower.contains("cast"):
-				_animation_player.play(animation_name)
-				return
+			target = _resolve_remote_anim(want)
+			if not target.is_empty():
+				break
+		if not target.is_empty():
+			var anim := _animation_player.get_animation(target)
+			if anim != null:
+				anim.loop_mode = Animation.LOOP_NONE
+			_animation_player.play(target)
+			return
 	if _model_root != null:
 		var base_scale := _model_root.scale
 		var tween := create_tween()

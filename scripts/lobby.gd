@@ -61,6 +61,26 @@ const VK_AUTH_TIMEOUT_DESKTOP := 60.0
 const GOLD := Color(0.95, 0.76, 0.38)
 const PALE := Color(0.9, 0.92, 0.98)
 const UI_FONT := preload("res://assets/fonts/Philosopher-Regular.ttf")
+const PORTRAIT_SHADER_CODE := """
+shader_type canvas_item;
+
+uniform vec2 rect_size = vec2(330.0, 442.0);
+uniform float corner_px = 14.0;
+
+float sd_rounded_box(vec2 p, vec2 b, float r) {
+	vec2 q = abs(p) - b + vec2(r);
+	return length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - r;
+}
+
+void fragment() {
+	vec2 p = UV * rect_size - rect_size * 0.5;
+	float d = sd_rounded_box(p, rect_size * 0.5, corner_px);
+	if (d > 0.0) {
+		discard;
+	}
+	COLOR = texture(TEXTURE, UV);
+}
+"""
 const LOBBY_LOGO: Texture2D = preload("res://ui/logo.png")
 const UI_CLICK_SOUND: AudioStream = preload("res://assets/audio/Soundza_Game_SFX_Pack/ui_menu/menu_selection_click.mp3")
 const SHARD_TOPUP_SCENE := preload("res://scenes/ShardTopupPanel.tscn")
@@ -223,6 +243,7 @@ var stats_tab_buttons: Dictionary = {}
 var welcome_overlay: WELCOME_OVERLAY_SCRIPT
 var welcome_wait_token := 0
 var daily_quests_panel: Control
+var daily_quests_overlay: Control
 var daily_quests_button: Button
 var daily_quests_badge: Label
 var inventory_scroll: ScrollContainer
@@ -602,6 +623,7 @@ func _build_player_profile() -> void:
 		profile_button.offset_right = 388.0
 		profile_button.offset_bottom = 118.0
 	profile_button.focus_mode = Control.FOCUS_NONE
+	profile_button.tooltip_text = "Игрок"
 	profile_button.add_theme_stylebox_override("normal", _action_style_borderless(false))
 	profile_button.add_theme_stylebox_override("hover", _action_style_borderless(true))
 	profile_button.add_theme_stylebox_override("pressed", _action_style_borderless(true))
@@ -628,6 +650,7 @@ func _build_player_profile() -> void:
 	# (26.11.2026 request).
 	var avatar_frame := PanelContainer.new()
 	avatar_frame.name = "AvatarFrame"
+	avatar_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	avatar_frame.custom_minimum_size = Vector2(42, 56) if DeviceProfile.mobile_ui else Vector2(62, 82)
 	avatar_frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var avatar_frame_style := _panel_style_borderless(Color(0.08, 0.1, 0.15))
@@ -652,8 +675,10 @@ func _build_player_profile() -> void:
 	avatar_stack.add_child(avatar)
 
 	var info := VBoxContainer.new()
+	info.name = "ProfileInfo"
 	info.add_theme_constant_override("separation", 1)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(info)
 	# A 32-character platform nick used to widen the label and push the card
 	# layout. The label lives in a clipping holder, so its minimum size cannot
@@ -664,8 +689,7 @@ func _build_player_profile() -> void:
 	name_holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_holder.custom_minimum_size = Vector2(0, _fs(24) + 4)
 	name_holder.clip_contents = true
-	name_holder.mouse_filter = Control.MOUSE_FILTER_PASS
-	name_holder.tooltip_text = "Игрок"
+	name_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	info.add_child(name_holder)
 	profile_name_label = _make_label("Игрок", 24, PALE)
 	profile_name_label.name = "ProfileName"
@@ -673,16 +697,17 @@ func _build_player_profile() -> void:
 	profile_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_name_label.clip_text = true
 	profile_name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	profile_name_label.mouse_filter = Control.MOUSE_FILTER_PASS
-	profile_name_label.tooltip_text = "Игрок"
+	profile_name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	name_holder.add_child(profile_name_label)
 	profile_level_label = _make_label("Уровень 1", 16, Color(0.7, 0.75, 0.84))
+	profile_level_label.name = "ProfileLevel"
 	profile_level_label.add_theme_font_size_override("font_size", _fs(16))
 	profile_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	info.add_child(profile_level_label)
 	experience_bar = ProgressBar.new()
 	experience_bar.name = "ExperienceBar"
 	experience_bar.custom_minimum_size = Vector2(0, 14)
+	experience_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	experience_bar.min_value = 0
 	experience_bar.max_value = 1000
 	experience_bar.value = 0
@@ -697,14 +722,17 @@ func _build_player_profile() -> void:
 	experience_fill.set_corner_radius_all(5)
 	experience_bar.add_theme_stylebox_override("background", experience_bg)
 	experience_bar.add_theme_stylebox_override("fill", experience_fill)
-	info.add_child(experience_bar)
+	info.add_child(_make_xp_frame(experience_bar, "ExperienceFrame"))
 
 	var xp_row := HBoxContainer.new()
+	xp_row.name = "ProfileXpRow"
 	xp_row.add_theme_constant_override("separation", 4)
 	xp_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	xp_row.visible = not DeviceProfile.mobile_ui
+	xp_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	info.add_child(xp_row)
 	profile_xp_label = _make_label("", 11, Color(0.62, 0.7, 0.82))
+	profile_xp_label.name = "ProfileXp"
 	profile_xp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_xp_label.add_theme_font_size_override("font_size", _fs(11))
 	profile_xp_label.clip_text = false
@@ -726,6 +754,7 @@ func _build_daily_quests() -> void:
 		daily_quests_panel.name = "DailyQuestsOverlay"
 		daily_quests_panel.set("mode", DAILY_QUESTS_PANEL.MODE_OVERLAY)
 		add_child(daily_quests_panel)
+		daily_quests_overlay = daily_quests_panel
 	else:
 		daily_quests_panel.name = "DailyQuestsTable"
 		daily_quests_panel.set("mode", DAILY_QUESTS_PANEL.MODE_INLINE)
@@ -742,17 +771,32 @@ func _build_daily_quests() -> void:
 		daily_quests_panel.z_index = 6
 		add_child(daily_quests_panel)
 		_layout_daily_quests_table()
-	daily_quests_panel.connect("reroll_requested", _on_daily_quest_reroll_requested)
-	daily_quests_panel.connect("weekly_claim_requested", _on_daily_quest_weekly_claimed)
-	daily_quests_panel.connect("closed", _on_daily_quests_overlay_closed)
-	daily_quests_panel.connect("data_changed", _on_daily_quests_data_changed)
-	if not daily_quests_panel.resized.is_connected(_on_daily_quests_panel_resized):
-		daily_quests_panel.resized.connect(_on_daily_quests_panel_resized)
+		# Desktop menu: a centered overlay above the lobby (the inline table
+		# itself has no reroll buttons, only the reward display).
+		daily_quests_overlay = DAILY_QUESTS_PANEL.new() as Control
+		daily_quests_overlay.name = "DailyQuestsOverlay"
+		daily_quests_overlay.set("mode", DAILY_QUESTS_PANEL.MODE_OVERLAY)
+		daily_quests_overlay.set("desktop_overlay", true)
+		add_child(daily_quests_overlay)
+	_connect_daily_quests_panel(daily_quests_panel, true)
+	if daily_quests_overlay != daily_quests_panel:
+		_connect_daily_quests_panel(daily_quests_overlay, false)
 	var source := _daily_quests_source()
 	if source != null:
 		if source.has_signal("failed") and not source.is_connected("failed", Callable(self, "_on_daily_quest_failed")):
 			source.connect("failed", Callable(self, "_on_daily_quest_failed"))
 	_refresh_daily_quests()
+
+
+func _connect_daily_quests_panel(panel: Control, is_inline: bool) -> void:
+	panel.connect("reroll_requested", _on_daily_quest_reroll_requested)
+	panel.connect("weekly_claim_requested", _on_daily_quest_weekly_claimed)
+	panel.connect("closed", _on_daily_quests_overlay_closed)
+	panel.connect("data_changed", _on_daily_quests_data_changed)
+	if is_inline:
+		panel.connect("open_requested", _open_daily_quests_overlay)
+		if not panel.resized.is_connected(_on_daily_quests_panel_resized):
+			panel.resized.connect(_on_daily_quests_panel_resized)
 
 
 ## Жёлтая кнопка «ЗАДАНИЯ» 235x48 сразу под `menu_level_label` в колонке
@@ -791,14 +835,20 @@ func _build_daily_quests_button(parent: VBoxContainer) -> void:
 
 
 func _open_daily_quests_overlay() -> void:
-	if daily_quests_panel == null or not is_instance_valid(daily_quests_panel):
+	var target := daily_quests_overlay
+	if target == null or not is_instance_valid(target):
+		target = daily_quests_panel
+	if target == null or not is_instance_valid(target):
 		return
 	if inventory_scroll != null and is_instance_valid(inventory_scroll):
 		_daily_quests_saved_scroll = inventory_scroll.scroll_vertical
+	# Карточки уже расставлены: панель центрируется по их группе.
+	if not DeviceProfile.mobile_ui:
+		_layout_hero_cards()
 	_request_daily_quests()
 	_refresh_daily_quests()
-	if daily_quests_panel.has_method("open_overlay"):
-		daily_quests_panel.call("open_overlay")
+	if target.has_method("open_overlay"):
+		target.call("open_overlay")
 
 
 func _on_daily_quests_overlay_closed() -> void:
@@ -813,9 +863,11 @@ func _restore_inventory_scroll() -> void:
 
 
 func _refresh_daily_quests() -> void:
-	if daily_quests_panel == null or not is_instance_valid(daily_quests_panel):
-		return
-	daily_quests_panel.call("refresh_from_source")
+	if daily_quests_panel != null and is_instance_valid(daily_quests_panel):
+		daily_quests_panel.call("refresh_from_source")
+	if daily_quests_overlay != null and daily_quests_overlay != daily_quests_panel \
+			and is_instance_valid(daily_quests_overlay):
+		daily_quests_overlay.call("refresh_from_source")
 
 
 func _on_daily_quests_data_changed(completed: int, total: int) -> void:
@@ -846,7 +898,10 @@ func _on_daily_quest_weekly_claimed(item_id: int) -> void:
 	if source.has_method("claim_weekly"):
 		source.call("claim_weekly", item_id)
 	elif source.has_method("request_weekly_claim"):
-		source.call("request_weekly_claim", item_id)
+		if item_id <= 0:
+			source.call("request_weekly_claim")
+		else:
+			source.call("request_weekly_claim", item_id)
 
 
 func _daily_quests_source() -> Node:
@@ -912,21 +967,28 @@ func _layout_lobby_layout() -> void:
 
 ## Вариант 1: левая колонка, левый край 28, блок 300.
 ## PLAY 300x56, ОБУЧЕНИЕ 300x44 (зазор 10), ниже шестерёнка 44x44 +
-## ПРАВИЛА 246x44 (зазор 10). Верх блока = table.bottom + 24.
+## ПРАВИЛА 246x44. Низ шестерёнки = H-24, блок прижат к нижнему краю.
 func _layout_action_buttons() -> void:
 	if DeviceProfile.mobile_ui:
 		# The phone buttons come from the baked mobile layout (ui_layout.json).
 		return
-	if play_button == null or tutorial_button == null or daily_quests_panel == null:
+	if play_button == null or tutorial_button == null:
+		return
+	var viewport_height := get_viewport_rect().size.y
+	if viewport_height <= 0.0:
 		return
 	var left := 28.0
 	var block_w := 300.0
-	var table_bottom := daily_quests_panel.get_rect().end.y
-	var top := table_bottom + 24.0
 	var play_h := 56.0
 	var tutorial_h := 44.0
 	var side_h := 44.0
 	var gap := 10.0
+	var gear_bottom := viewport_height - 24.0
+	var gear_top := gear_bottom - side_h
+	var tutorial_bottom := gear_top - gap
+	var tutorial_top := tutorial_bottom - tutorial_h
+	var play_bottom := tutorial_top - gap
+	var play_top := play_bottom - play_h
 	for button in [play_button, tutorial_button]:
 		button.anchor_left = 0.0
 		button.anchor_right = 0.0
@@ -934,13 +996,13 @@ func _layout_action_buttons() -> void:
 		button.anchor_bottom = 0.0
 	play_button.offset_left = left
 	play_button.offset_right = left + block_w
-	play_button.offset_top = top
-	play_button.offset_bottom = top + play_h
+	play_button.offset_top = play_top
+	play_button.offset_bottom = play_bottom
 	play_button.custom_minimum_size = Vector2(block_w, play_h)
 	tutorial_button.offset_left = left
 	tutorial_button.offset_right = left + block_w
-	tutorial_button.offset_top = top + play_h + gap
-	tutorial_button.offset_bottom = tutorial_button.offset_top + tutorial_h
+	tutorial_button.offset_top = tutorial_top
+	tutorial_button.offset_bottom = tutorial_bottom
 	tutorial_button.custom_minimum_size = Vector2(block_w, tutorial_h)
 
 	var side_top := tutorial_button.offset_bottom + gap
@@ -1040,7 +1102,7 @@ func _layout_hero_cards() -> void:
 		card.offset_right = card_rect.end.x
 		card.offset_bottom = card_rect.end.y
 		card.custom_minimum_size = Vector2.ZERO
-		card.modulate = Color(0.65, 0.65, 0.65, 1.0) if index != 1 else Color(1.0, 1.0, 1.0, 1.0)
+		card.modulate = Color.WHITE
 		if index < card_images.size():
 			# Fill the wider cards: the portrait shader rounds the corners, so
 			# covering (instead of letterboxing) keeps the art edge to edge.
@@ -1050,8 +1112,19 @@ func _layout_hero_cards() -> void:
 			if material != null:
 				var footer_h := 46.0 if index == 1 else 38.0
 				material.set_shader_parameter(
-					"rect_size", Vector2(card_rect.size.x, card_rect.size.y - footer_h - 8.0)
+					"rect_size",
+					Vector2(card_rect.size.x - 6.0, card_rect.size.y - footer_h - 8.0 - 3.0)
 				)
+	# Меню ежедневок над карточками: панель встаёт по центру группы карточек,
+	# а не по центру экрана. Иначе её левый край уходил на левую карточку, а
+	# правая оставалась снаружи — карточки выглядели по-разному.
+	if daily_quests_overlay != null and daily_quests_overlay != daily_quests_panel \
+			and is_instance_valid(daily_quests_overlay) \
+			and daily_quests_overlay.has_method("set_desktop_center_x"):
+		var center_card: Rect2 = rects[1]
+		daily_quests_overlay.call(
+			"set_desktop_center_x", center_card.position.x + center_card.size.x * 0.5
+		)
 
 
 func _build_shard_shop_button() -> void:
@@ -2437,7 +2510,7 @@ func _build_player_menu() -> void:
 	xp_fill.set_corner_radius_all(5)
 	menu_xp_bar.add_theme_stylebox_override("background", xp_background)
 	menu_xp_bar.add_theme_stylebox_override("fill", xp_fill)
-	profile_content.add_child(menu_xp_bar)
+	profile_content.add_child(_make_xp_frame(menu_xp_bar, "MenuExperienceFrame"))
 	menu_xp_remaining_label = _make_label("До следующего уровня: 1000 XP", 16, Color(0.76, 0.8, 0.89))
 	menu_xp_remaining_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	profile_content.add_child(menu_xp_remaining_label)
@@ -3245,8 +3318,8 @@ func _generate_guest_nickname() -> String:
 
 
 func _close_player_menu() -> void:
-	if daily_quests_panel != null and daily_quests_panel.has_method("close_overlay"):
-		daily_quests_panel.call("close_overlay")
+	if daily_quests_overlay != null and daily_quests_overlay.has_method("close_overlay"):
+		daily_quests_overlay.call("close_overlay")
 	player_menu_overlay.visible = false
 	_close_nickname_popup()
 
@@ -3790,45 +3863,11 @@ func _build_hero_cards() -> void:
 	_build_hero_card(2, false)
 
 
-## Метка «ВЫБРАН»: тёмная плашка с золотым текстом 16 px в верхней части
-## выбранной (центральной) карточки, с отступом 10 px от верха.
-func _add_selected_badge(card: Control) -> void:
-	var badge := Panel.new()
-	badge.name = "SelectedBadge"
-	badge.z_index = 4
-	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	badge.anchor_left = 0.5
-	badge.anchor_right = 0.5
-	badge.anchor_top = 0.0
-	badge.anchor_bottom = 0.0
-	badge.offset_left = -56.0
-	badge.offset_right = 56.0
-	badge.offset_top = 10.0
-	badge.offset_bottom = 34.0
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.03, 0.035, 0.05, 0.9)
-	style.border_color = GOLD
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(6)
-	style.content_margin_left = 0.0
-	style.content_margin_right = 0.0
-	style.content_margin_top = 0.0
-	style.content_margin_bottom = 0.0
-	badge.add_theme_stylebox_override("panel", style)
-	var label := _make_label("ВЫБРАН", 16, GOLD)
-	label.name = "SelectedBadgeLabel"
-	label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	badge.add_child(label)
-	card.add_child(badge)
-
-
 func _build_hero_card(slot: int, is_center: bool) -> void:
 	var card := Button.new()
 	card.focus_mode = Control.FOCUS_NONE
-	# The selected card keeps clip off so the gold frame glow can draw outside.
-	card.clip_contents = not (is_center and not DeviceProfile.mobile_ui)
+	# Арт всегда обрезается рамкой карточки.
+	card.clip_contents = true
 	if not is_center:
 		card.pressed.connect(_on_side_card_pressed.bind(slot))
 
@@ -3866,21 +3905,48 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 	add_child(card)
 
 	var inset := 8.0
+	var portrait_frame := Control.new()
+	portrait_frame.name = "PortraitClip"
+	portrait_frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# Портрет внутри рамки: 3 px со всех сторон и над нижней плашкой.
+	portrait_frame.offset_left = 3.0
+	portrait_frame.offset_top = 3.0
+	portrait_frame.offset_right = -3.0
+	portrait_frame.offset_bottom = -(footer_height + inset)
+	portrait_frame.clip_contents = true
+	portrait_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(portrait_frame)
+
 	var image := TextureRect.new()
+	image.name = "HeroPortrait%d" % slot
 	image.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	image.offset_left = 0.0
 	image.offset_top = 0.0
 	image.offset_right = 0.0
-	image.offset_bottom = -(footer_height + inset)
+	image.offset_bottom = 0.0
 	image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	image.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var portrait_material := ShaderMaterial.new()
-	portrait_material.shader = preload("res://shaders/card_portrait.gdshader")
-	portrait_material.set_shader_parameter("rect_size", Vector2(card_width, card_height - footer_height - inset))
+	var portrait_shader := Shader.new()
+	portrait_shader.code = PORTRAIT_SHADER_CODE
+	portrait_material.shader = portrait_shader
+	portrait_material.set_shader_parameter(
+		"rect_size", Vector2(card_width - 6.0, card_height - footer_height - inset - 3.0)
+	)
 	portrait_material.set_shader_parameter("corner_px", 16.0 if is_center else 12.0)
 	image.material = portrait_material
-	card.add_child(image)
+	portrait_frame.add_child(image)
+
+	# Затемнение боковых карточек: видимая чёрная вуаль только на портрете,
+	# нижняя плашка с названием остаётся читаемой.
+	var side_dim := ColorRect.new()
+	side_dim.name = "SideDim"
+	side_dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	side_dim.color = Color(0.0, 0.0, 0.0, 0.24)
+	side_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	side_dim.visible = not is_center and not DeviceProfile.mobile_ui
+	portrait_frame.add_child(side_dim)
 
 	var footer := Panel.new()
 	footer.name = "HeroFooter%d" % slot
@@ -3919,8 +3985,6 @@ func _build_hero_card(slot: int, is_center: bool) -> void:
 	frame.z_index = 3
 	frame.add_theme_stylebox_override("panel", _card_frame_style(frame_color, is_center))
 	card.add_child(frame)
-	if is_center and not DeviceProfile.mobile_ui:
-		_add_selected_badge(card)
 
 	cards.append(card)
 	card_images.append(image)
@@ -4177,10 +4241,12 @@ func _refresh_player_profile() -> void:
 	if nickname.is_empty():
 		nickname = "Игрок"
 	profile_name_label.text = nickname
-	profile_name_label.tooltip_text = nickname
+	# Тултип живёт на всей кнопке профиля: дети кликов не принимают.
+	profile_button.tooltip_text = nickname
+	profile_name_label.tooltip_text = ""
 	var name_holder := profile_name_label.get_parent()
 	if name_holder is Control:
-		(name_holder as Control).tooltip_text = nickname
+		(name_holder as Control).tooltip_text = ""
 	profile_level_label.text = '%s · Уровень %d' % [_hero_display_name(), character_level]
 	profile_name_label.add_theme_color_override('font_color', PALE)
 	profile_level_label.add_theme_color_override('font_color', Color(0.7, 0.75, 0.84))
@@ -4526,17 +4592,12 @@ func _card_frame_style(frame_color: Color, is_center: bool) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.0, 0.0, 0.0, 0.0)
 	style.border_color = frame_color
-	style.set_border_width_all(3 if is_center else 2)
+	style.set_border_width_all(2)
 	style.set_corner_radius_all(16 if is_center else 12)
 	style.content_margin_left = 0.0
 	style.content_margin_right = 0.0
 	style.content_margin_top = 0.0
 	style.content_margin_bottom = 0.0
-	if is_center and not DeviceProfile.mobile_ui:
-		# Мягкое золотое свечение выбранной карточки (clip_contents выключен).
-		style.shadow_color = Color(frame_color.r, frame_color.g, frame_color.b, 0.5)
-		style.shadow_size = 14
-		style.shadow_offset = Vector2.ZERO
 	return style
 
 
@@ -4574,6 +4635,26 @@ func _shard_icon(icon_size: int) -> TextureRect:
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return icon
+
+
+## Рамка XP-полоски: тёмный фон, 2 px рамка, радиус 8, заливка внутри.
+func _make_xp_frame(bar: ProgressBar, node_name: String) -> PanelContainer:
+	var frame := PanelContainer.new()
+	frame.name = node_name
+	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.055, 0.07, 0.095, 0.98)
+	style.border_color = Color(0.62, 0.72, 0.9, 0.9)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(8)
+	style.content_margin_left = 2.0
+	style.content_margin_right = 2.0
+	style.content_margin_top = 2.0
+	style.content_margin_bottom = 2.0
+	frame.add_theme_stylebox_override("panel", style)
+	frame.add_child(bar)
+	return frame
 
 
 func _make_label(text: String, size: int, color: Color) -> Label:

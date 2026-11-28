@@ -36,7 +36,9 @@ const (
 	// contribute. Without it a single very long match could finish a 3-day
 	// quest on day one.
 	questProgressPercent = 60
-	questSeasonAnchorDay = "2026-11-30"
+	// questWeeklyShardReward is the flat weekly prize for a 7/7 week. There is
+	// no tier ladder any more: every completed week pays the same 300 shards.
+	questWeeklyShardReward = 300
 	// questTargetMinutes is the soft upper bound for the three quests' sum.
 	questTargetMinutes = 25
 
@@ -47,12 +49,6 @@ const (
 
 // questZone is fixed UTC+3: the quest day never shifts with DST.
 var questZone = time.FixedZone("MSK", 3*60*60)
-
-// questSkinItemIDs are the weekly skin rewards for a skin week (spec: 10-12).
-var questSkinItemIDs = []int{10, 11, 12}
-
-// questWeaponItemIDs is the tier-1 weekly weapon choice (spec: item id 13).
-var questWeaponItemIDs = []int{13}
 
 // questNoviceExcludedIDs is the spec's novice pool restriction (fewer than ten
 // matches). min_matches already hides most of them; triple_kill and the
@@ -211,46 +207,10 @@ func questWeekStart(day string) string {
 	return parsed.AddDate(0, 0, -offset).Format(questDateLayout)
 }
 
-// questSeasonTier maps a week start to the weekly ladder:
-//
-//	week 1        -> weapon choice (item 13, worth 100 shards)
-//	week 2        -> 1000 shards
-//	week 3        -> 3000 shards
-//	week 4        -> skin (items 10-12)
-//	after that    -> 1000 -> 3000 -> skin, repeating
-//
-// Weeks before the anchor are treated as week 1, never as a negative tier.
-func questSeasonTier(weekStart string) (tier int, kind string, value int, items []int) {
-	start, ok := questParseDay(weekStart)
-	anchor, _ := questParseDay(questSeasonAnchorDay)
-	if !ok {
-		return 1, "weapon", 100, append([]int(nil), questWeaponItemIDs...)
-	}
-	weeks := int(start.Sub(anchor) / (7 * 24 * time.Hour))
-	if weeks < 0 {
-		weeks = 0
-	}
-	tier = weeks + 1
-	if weeks == 0 {
-		return 1, "weapon", 100, append([]int(nil), questWeaponItemIDs...)
-	}
-	switch (weeks - 1) % 3 {
-	case 0:
-		return tier, "shards", 1000, nil
-	case 1:
-		return tier, "shards", 3000, nil
-	default:
-		return tier, "skin", 0, append([]int(nil), questSkinItemIDs...)
-	}
-}
-
-// questWeeklyCompensation is paid when the weekly item is already owned:
-// 100 shards for a product, 1000 for a skin.
-func questWeeklyCompensation(kind string) int {
-	if kind == "skin" {
-		return 1000
-	}
-	return 100
+// questWeeklyReward is the flat weekly prize: 300 shards for a 7/7 week, with
+// no tier ladder, items, skins or ownership compensation.
+func questWeeklyReward() int {
+	return questWeeklyShardReward
 }
 
 // ------------------------------ deterministic rng ------------------------------
@@ -656,17 +616,25 @@ func loadDailyQuests(ctx context.Context, db questStorage, playerID int64, day s
 // ------------------------------ weekly helpers ------------------------------
 
 type questWeekSummary struct {
-	ActiveDays int  `json:"active_days"`
-	Required   int  `json:"required"`
-	Tier       int  `json:"tier"`
-	Claimable  bool `json:"claimable"`
-	Claimed    bool `json:"claimed"`
+	ActiveDays  int    `json:"active_days"`
+	Required    int    `json:"required"`
+	Tier        int    `json:"tier"`
+	RewardKind  string `json:"reward_kind"`
+	RewardValue int    `json:"reward_value"`
+	Claimable   bool   `json:"claimable"`
+	Claimed     bool   `json:"claimed"`
 }
 
 // questDayClosed reports whether a day counts toward the strict 7/7 week.
 // A day is closed only when all three daily quests are complete.
 func questDayClosed(completedCount int) bool {
 	return completedCount >= questsPerDay
+}
+
+// questWeekClaimable is the single 7/7 claim rule: seven closed days and no
+// grant for this week yet.
+func questWeekClaimable(activeDays int, claimed bool) bool {
+	return activeDays >= questWeekDays && !claimed
 }
 
 // questWeekActiveDaysFromCounts counts closed days in a week's worth of
@@ -682,11 +650,8 @@ func questWeekActiveDaysFromCounts(completedCounts []int) int {
 }
 
 type questWeekReward struct {
-	Kind    string `json:"kind"`
-	Shards  int    `json:"shards"`
-	ItemIDs []int  `json:"item_ids,omitempty"`
-	ItemID  int    `json:"item_id,omitempty"`
-	Label   string `json:"label,omitempty"`
+	Kind   string `json:"kind"`
+	Shards int    `json:"shards"`
 }
 
 type questWeekDay struct {
@@ -701,43 +666,35 @@ type questWeekDay struct {
 }
 
 type questPreviousWeek struct {
-	Start      string          `json:"start"`
-	ActiveDays int             `json:"active_days"`
-	Required   int             `json:"required"`
-	Tier       int             `json:"tier"`
-	Reward     questWeekReward `json:"reward"`
-	Claimable  bool            `json:"claimable"`
-	Claimed    bool            `json:"claimed"`
+	Start       string          `json:"start"`
+	ActiveDays  int             `json:"active_days"`
+	Required    int             `json:"required"`
+	Tier        int             `json:"tier"`
+	RewardKind  string          `json:"reward_kind"`
+	RewardValue int             `json:"reward_value"`
+	Reward      questWeekReward `json:"reward"`
+	Claimable   bool            `json:"claimable"`
+	Claimed     bool            `json:"claimed"`
 }
 
 type questWeekView struct {
-	Start        string            `json:"start"`
-	Days         []questWeekDay    `json:"days"`
-	ActiveDays   int               `json:"active_days"`
-	Required     int               `json:"required"`
-	Tier         int               `json:"tier"`
-	Reward       questWeekReward   `json:"reward"`
-	RewardItemID int               `json:"reward_item_id,omitempty"`
-	Claimable    bool              `json:"claimable"`
-	Claimed      bool              `json:"claimed"`
-	Missed       int               `json:"missed"`
-	Previous     questPreviousWeek `json:"previous"`
+	Start       string            `json:"start"`
+	Days        []questWeekDay    `json:"days"`
+	ActiveDays  int               `json:"active_days"`
+	Required    int               `json:"required"`
+	Tier        int               `json:"tier"`
+	RewardKind  string            `json:"reward_kind"`
+	RewardValue int               `json:"reward_value"`
+	Reward      questWeekReward   `json:"reward"`
+	Claimable   bool              `json:"claimable"`
+	Claimed     bool              `json:"claimed"`
+	Missed      int               `json:"missed"`
+	Previous    questPreviousWeek `json:"previous"`
 }
 
-func questWeekRewardFor(weekStart string) (int, questWeekReward) {
-	tier, kind, value, items := questSeasonTier(weekStart)
-	reward := questWeekReward{Kind: kind, Shards: value, ItemIDs: items}
-	switch kind {
-	case "skin":
-		reward.Shards = 0
-		reward.Label = "Скин на выбор"
-	case "weapon":
-		reward.ItemID = questWeaponItemIDs[0]
-		reward.Label = "Оружие на выбор"
-	default:
-		reward.Label = fmt.Sprintf("%d осколков", value)
-	}
-	return tier, reward
+// questWeekRewardView is the constant weekly reward block.
+func questWeekRewardView() questWeekReward {
+	return questWeekReward{Kind: "shards", Shards: questWeeklyReward()}
 }
 
 func questWeekActiveDays(ctx context.Context, db questStorage, playerID int64, weekStart string) (int, error) {
@@ -766,7 +723,8 @@ func buildQuestWeekSummary(ctx context.Context, db questStorage, playerID int64,
 	if weekStart == "" {
 		return questWeekSummary{}, errors.New("invalid quest day")
 	}
-	tier, _ := questWeekRewardFor(weekStart)
+	tier := 1
+	reward := questWeekRewardView()
 	activeDays, err := questWeekActiveDays(ctx, db, playerID, weekStart)
 	if err != nil {
 		return questWeekSummary{}, err
@@ -776,11 +734,13 @@ func buildQuestWeekSummary(ctx context.Context, db questStorage, playerID int64,
 		return questWeekSummary{}, err
 	}
 	return questWeekSummary{
-		ActiveDays: activeDays,
-		Required:   questWeekDays,
-		Tier:       tier,
-		Claimable:  activeDays >= questWeekDays && !claimed,
-		Claimed:    claimed,
+		ActiveDays:  activeDays,
+		Required:    questWeekDays,
+		Tier:        tier,
+		RewardKind:  reward.Kind,
+		RewardValue: reward.Shards,
+		Claimable:   questWeekClaimable(activeDays, claimed),
+		Claimed:     claimed,
 	}, nil
 }
 
@@ -789,7 +749,8 @@ func buildQuestWeekView(ctx context.Context, db questStorage, playerID int64, da
 	if weekStart == "" {
 		return questWeekView{}, errors.New("invalid quest day")
 	}
-	tier, reward := questWeekRewardFor(weekStart)
+	tier := 1
+	reward := questWeekRewardView()
 	today := questDayKey(time.Now())
 
 	rows, err := db.QueryContext(ctx, `
@@ -854,7 +815,8 @@ func buildQuestWeekView(ctx context.Context, db questStorage, playerID int64, da
 	}
 
 	previousStart := questAddDays(weekStart, -7)
-	previousTier, previousReward := questWeekRewardFor(previousStart)
+	previousTier := 1
+	previousReward := questWeekRewardView()
 	previousActiveDays, err := questWeekActiveDays(ctx, db, playerID, previousStart)
 	if err != nil {
 		return questWeekView{}, err
@@ -865,24 +827,27 @@ func buildQuestWeekView(ctx context.Context, db questStorage, playerID int64, da
 	}
 
 	return questWeekView{
-		Start:        weekStart,
-		Days:         days,
-		ActiveDays:   activeDays,
-		Required:     questWeekDays,
-		Tier:         tier,
-		Reward:       reward,
-		RewardItemID: reward.ItemID,
-		Claimable:    activeDays >= questWeekDays && !claimed,
-		Claimed:      claimed,
-		Missed:       missed,
+		Start:       weekStart,
+		Days:        days,
+		ActiveDays:  activeDays,
+		Required:    questWeekDays,
+		Tier:        tier,
+		RewardKind:  reward.Kind,
+		RewardValue: reward.Shards,
+		Reward:      reward,
+		Claimable:   questWeekClaimable(activeDays, claimed),
+		Claimed:     claimed,
+		Missed:      missed,
 		Previous: questPreviousWeek{
-			Start:      previousStart,
-			ActiveDays: previousActiveDays,
-			Required:   questWeekDays,
-			Tier:       previousTier,
-			Reward:     previousReward,
-			Claimable:  previousActiveDays >= questWeekDays && !previousClaimed,
-			Claimed:    previousClaimed,
+			Start:       previousStart,
+			ActiveDays:  previousActiveDays,
+			Required:    questWeekDays,
+			Tier:        previousTier,
+			RewardKind:  previousReward.Kind,
+			RewardValue: previousReward.Shards,
+			Reward:      previousReward,
+			Claimable:   questWeekClaimable(previousActiveDays, previousClaimed),
+			Claimed:     previousClaimed,
 		},
 	}, nil
 }
@@ -1583,7 +1548,7 @@ func (service *api) handleWeeklyClaim(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, weeklyClaimResponse{Error: "Invalid JSON"})
 		return
 	}
-	if request.PlayerID <= 0 || request.ItemID < 0 {
+	if request.PlayerID <= 0 {
 		writeJSON(w, http.StatusBadRequest, weeklyClaimResponse{Error: "Invalid claim"})
 		return
 	}
@@ -1646,21 +1611,23 @@ func (service *api) handleWeeklyClaim(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, weeklyClaimResponse{Error: "Internal server error"})
 		return
 	}
-	if activeDays < questWeekDays {
+	if !questWeekClaimable(activeDays, false) {
 		writeJSON(w, http.StatusConflict, weeklyClaimResponse{
 			Error: fmt.Sprintf("Week is not complete: %d/%d", activeDays, questWeekDays),
 		})
 		return
 	}
 
-	tier, kind, value, items := questSeasonTier(weekStart)
+	// Flat weekly prize: 300 shards for any 7/7 week, no ladder or items.
+	tier := 1
+	rewardKind := "shards"
+	itemID := 0
+	shardGrant := questWeeklyReward()
 
 	var shards int
-	var unlockedWings, unlockedWeapons string
-	err = transaction.QueryRowContext(r.Context(), `
-		SELECT COALESCE(sky_shards, 0), COALESCE(unlocked_wings, ''), COALESCE(unlocked_weapons, '')
-		FROM players WHERE id = $1 FOR UPDATE`,
-		request.PlayerID).Scan(&shards, &unlockedWings, &unlockedWeapons)
+	err = transaction.QueryRowContext(r.Context(),
+		`SELECT COALESCE(sky_shards, 0) FROM players WHERE id = $1 FOR UPDATE`,
+		request.PlayerID).Scan(&shards)
 	if errors.Is(err, sql.ErrNoRows) {
 		writeJSON(w, http.StatusNotFound, weeklyClaimResponse{Error: "Player not found"})
 		return
@@ -1669,56 +1636,6 @@ func (service *api) handleWeeklyClaim(w http.ResponseWriter, r *http.Request) {
 		log.Printf("load player for weekly claim: %v", err)
 		writeJSON(w, http.StatusInternalServerError, weeklyClaimResponse{Error: "Internal server error"})
 		return
-	}
-
-	rewardKind := kind
-	itemID := 0
-	shardGrant := 0
-	// Unlock list the item is granted into ("wings" or "weapons").
-	unlockSlot := ""
-	switch kind {
-	case "skin":
-		if request.ItemID != 0 && !questContainsInt(items, request.ItemID) {
-			writeJSON(w, http.StatusBadRequest, weeklyClaimResponse{Error: "Invalid item"})
-			return
-		}
-		chosen := request.ItemID
-		if chosen == 0 {
-			for _, candidate := range items {
-				if !questPlayerOwns(unlockedWings, unlockedWeapons, candidate) {
-					chosen = candidate
-					break
-				}
-			}
-		}
-		if chosen == 0 || questPlayerOwns(unlockedWings, unlockedWeapons, chosen) {
-			// Already owned (including the huntress skin): pay the skin
-			// compensation instead of a duplicate.
-			rewardKind = "compensation"
-			shardGrant = questWeeklyCompensation("skin")
-		} else {
-			itemID = chosen
-			unlockSlot = "wings"
-		}
-	case "weapon":
-		// Tier 1: a weapon choice for any of the three classes (item 13).
-		if request.ItemID != 0 && !questContainsInt(items, request.ItemID) {
-			writeJSON(w, http.StatusBadRequest, weeklyClaimResponse{Error: "Invalid item"})
-			return
-		}
-		chosen := request.ItemID
-		if chosen == 0 && len(items) > 0 {
-			chosen = items[0]
-		}
-		if chosen == 0 || questPlayerOwns(unlockedWings, unlockedWeapons, chosen) {
-			rewardKind = "compensation"
-			shardGrant = questWeeklyCompensation("weapon")
-		} else {
-			itemID = chosen
-			unlockSlot = "weapons"
-		}
-	default:
-		shardGrant = value
 	}
 
 	// The primary key of weekly_grants is the idempotency guard. Insert first,
@@ -1751,24 +1668,6 @@ func (service *api) handleWeeklyClaim(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newShards := shards
-	if itemID > 0 {
-		var grantErr error
-		switch unlockSlot {
-		case "weapons":
-			_, grantErr = transaction.ExecContext(r.Context(),
-				`UPDATE players SET unlocked_weapons = $2 WHERE id = $1`,
-				request.PlayerID, questAppendItemID(unlockedWeapons, itemID))
-		default:
-			_, grantErr = transaction.ExecContext(r.Context(),
-				`UPDATE players SET unlocked_wings = $2 WHERE id = $1`,
-				request.PlayerID, questAppendItemID(unlockedWings, itemID))
-		}
-		if grantErr != nil {
-			log.Printf("grant weekly item player=%d: %v", request.PlayerID, grantErr)
-			writeJSON(w, http.StatusInternalServerError, weeklyClaimResponse{Error: "Internal server error"})
-			return
-		}
-	}
 	if shardGrant > 0 {
 		if err := transaction.QueryRowContext(r.Context(), `
 			UPDATE players SET sky_shards = COALESCE(sky_shards, 0) + $1
@@ -1792,36 +1691,6 @@ func (service *api) handleWeeklyClaim(w http.ResponseWriter, r *http.Request) {
 		Shards:     shardGrant,
 		NewShards:  newShards,
 	})
-}
-
-func questContainsInt(values []int, wanted int) bool {
-	for _, value := range values {
-		if value == wanted {
-			return true
-		}
-	}
-	return false
-}
-
-// questPlayerOwns checks both unlocked item lists: the weekly skin may live in
-// either the wings or weapons catalog.
-func questPlayerOwns(unlockedWings, unlockedWeapons string, itemID int) bool {
-	return containsWing(unlockedWings, itemID) || containsWing(unlockedWeapons, itemID)
-}
-
-func questAppendItemID(list string, itemID int) string {
-	ids := parseItemIDs(list)
-	for _, existing := range ids {
-		if existing == itemID {
-			return list
-		}
-	}
-	ids = append(ids, itemID)
-	parts := make([]string, 0, len(ids))
-	for _, id := range ids {
-		parts = append(parts, strconv.Itoa(id))
-	}
-	return strings.Join(parts, ",")
 }
 
 // ------------------------------ runtime schema ------------------------------

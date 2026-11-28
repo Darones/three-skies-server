@@ -1,11 +1,19 @@
 package main
 
 import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	_ "github.com/lib/pq"
 )
 
 func TestQuestDayBoundaries(t *testing.T) {
@@ -91,30 +99,42 @@ func TestQuestWeekStart(t *testing.T) {
 	}
 }
 
-func TestQuestSeasonTierLadder(t *testing.T) {
-	cases := []struct {
-		weekStart string
-		tier      int
-		kind      string
-		shards    int
-		items     []int
-	}{
-		{"2026-11-30", 1, "weapon", 100, []int{13}},
-		{"2026-12-07", 2, "shards", 1000, nil},
-		{"2026-12-14", 3, "shards", 3000, nil},
-		{"2026-12-21", 4, "skin", 0, []int{10, 11, 12}},
-		{"2026-12-28", 5, "shards", 1000, nil},
-		{"2027-01-04", 6, "shards", 3000, nil},
-		{"2027-01-11", 7, "skin", 0, []int{10, 11, 12}},
-		{"2026-11-23", 1, "weapon", 100, []int{13}}, // before the anchor: week 1
+func TestWeeklyRewardFlat(t *testing.T) {
+	if got := questWeeklyReward(); got != 300 {
+		t.Fatalf("questWeeklyReward() = %d, want 300", got)
 	}
-	for _, testCase := range cases {
-		tier, kind, shards, items := questSeasonTier(testCase.weekStart)
-		if tier != testCase.tier || kind != testCase.kind || shards != testCase.shards || !reflect.DeepEqual(items, testCase.items) {
-			t.Fatalf("questSeasonTier(%q) = (%d, %q, %d, %v), want (%d, %q, %d, %v)",
-				testCase.weekStart, tier, kind, shards, items,
-				testCase.tier, testCase.kind, testCase.shards, testCase.items)
+	reward := questWeekRewardView()
+	if reward.Kind != "shards" || reward.Shards != 300 {
+		t.Fatalf("weekly reward view = %+v, want shards/300", reward)
+	}
+	// The prize is flat: every completed week pays the same 300, there is no
+	// tier ladder or item reward.
+	for _, weekStart := range []string{
+		"2026-11-30", "2026-12-07", "2026-12-14", "2026-12-21",
+		"2026-12-28", "2027-01-04", "2027-01-11", "2027-01-18",
+	} {
+		if questWeekStart(weekStart) != weekStart {
+			t.Fatalf("%s is not a Monday", weekStart)
 		}
+		if got := questWeeklyReward(); got != 300 {
+			t.Fatalf("week %s reward = %d, want 300", weekStart, got)
+		}
+	}
+}
+
+func TestWeeklyClaimableRule(t *testing.T) {
+	if !questWeekClaimable(7, false) {
+		t.Fatal("7/7 unclaimed week must be claimable")
+	}
+	if questWeekClaimable(6, false) {
+		t.Fatal("6/7 week must not be claimable")
+	}
+	if questWeekClaimable(7, true) {
+		t.Fatal("an already claimed 7/7 week must not be claimable again")
+	}
+	// Only fully closed days move the counter.
+	if got := questWeekActiveDaysFromCounts([]int{3, 3, 3, 3, 3, 3, 2}); got != 6 {
+		t.Fatalf("active_days = %d, want 6", got)
 	}
 }
 
@@ -575,33 +595,172 @@ func TestQuestRerollReplacement(t *testing.T) {
 	}
 }
 
-func TestQuestWeeklyCompensationAndItems(t *testing.T) {
-	if got := questWeeklyCompensation("skin"); got != 1000 {
-		t.Fatalf("skin compensation = %d, want 1000", got)
+// TestWeeklyClaimIsIdempotentIntegration is the DB half of the weekly prize:
+// 7/7 pays a flat 300, a second call for the same week pays nothing, a
+// repeated (previous) week also pays 300, and a short week is rejected.
+// It is skipped unless TEST_DATABASE_URL is set, like the other DB tests.
+//
+//	$env:TEST_DATABASE_URL = "postgres://user:pass@host:5432/dbname"
+//	go test -run TestWeeklyClaimIsIdempotentIntegration -v ./...
+func TestWeeklyClaimIsIdempotentIntegration(t *testing.T) {
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	if dsn == "" {
+		t.Skip("TEST_DATABASE_URL is not set")
 	}
-	if got := questWeeklyCompensation("weapon"); got != 100 {
-		t.Fatalf("weapon compensation = %d, want 100", got)
+	db, err := sql.Open("postgres", normalizeDatabaseURL(dsn))
+	if err != nil {
+		t.Fatalf("open database: %v", err)
 	}
-	if got := questWeeklyCompensation("shards"); got != 100 {
-		t.Fatalf("product compensation = %d, want 100", got)
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		t.Fatalf("ping database: %v", err)
 	}
-	if got := questAppendItemID("1,2", 3); got != "1,2,3" {
-		t.Fatalf("questAppendItemID = %q", got)
+
+	schema := fmt.Sprintf("dq_week_test_%d", time.Now().UnixNano())
+	if _, err := db.ExecContext(ctx, `CREATE SCHEMA `+schema); err != nil {
+		t.Fatalf("create schema: %v", err)
 	}
-	if got := questAppendItemID("1,2", 2); got != "1,2" {
-		t.Fatalf("questAppendItemID duplicated an item: %q", got)
+	defer db.ExecContext(context.Background(), `DROP SCHEMA `+schema+` CASCADE`)
+	if _, err := db.ExecContext(ctx, `SET search_path TO `+schema); err != nil {
+		t.Fatalf("set search_path: %v", err)
 	}
-	if !questPlayerOwns("1,10", "", 10) {
-		t.Fatal("a wing item must count as owned")
+	for _, statement := range []string{
+		`CREATE TABLE players (
+			id SERIAL PRIMARY KEY,
+			nickname TEXT NOT NULL DEFAULT '',
+			sky_shards INTEGER NOT NULL DEFAULT 0,
+			session_token TEXT,
+			banned BOOLEAN NOT NULL DEFAULT FALSE,
+			ban_reason TEXT NOT NULL DEFAULT ''
+		)`,
+		`CREATE TABLE matches (id BIGSERIAL PRIMARY KEY)`,
+	} {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
+			t.Fatalf("create test table: %v\n%s", err, statement)
+		}
 	}
-	if !questPlayerOwns("", "10", 10) {
-		t.Fatal("a weapon item must count as owned")
+	if err := ensureQuestSchema(ctx, db); err != nil {
+		t.Fatalf("ensure quest schema: %v", err)
 	}
-	if questPlayerOwns("1,2", "3", 10) {
-		t.Fatal("an unowned item counted as owned")
+
+	insertPlayer := func(token string) int64 {
+		var playerID int64
+		if err := db.QueryRowContext(ctx,
+			`INSERT INTO players (nickname, session_token) VALUES ('Тест', $1) RETURNING id`,
+			token).Scan(&playerID); err != nil {
+			t.Fatalf("insert player: %v", err)
+		}
+		return playerID
 	}
-	if !questContainsInt([]int{10, 11, 12}, 11) || questContainsInt([]int{10, 11, 12}, 13) {
-		t.Fatal("questContainsInt is wrong")
+	insertWeek := func(playerID int64, weekStart string, counts []int) {
+		for index, completed := range counts {
+			if _, err := db.ExecContext(ctx, `
+				INSERT INTO daily_quest_days (player_id, quest_day, seed, completed_count)
+				VALUES ($1, $2::date, 1, $3)`,
+				playerID, questAddDays(weekStart, index), completed); err != nil {
+				t.Fatalf("insert quest day: %v", err)
+			}
+		}
+	}
+	services := &api{db: db}
+	claim := func(playerID int64, token, weekStart string, itemID int) (int, weeklyClaimResponse) {
+		body := fmt.Sprintf(`{"player_id":%d,"week_start":%q,"item_id":%d}`, playerID, weekStart, itemID)
+		request := httptest.NewRequest(http.MethodPost, "/quests/weekly_claim", strings.NewReader(body))
+		request.Header.Set(sessionHeader, token)
+		recorder := httptest.NewRecorder()
+		services.handleWeeklyClaim(recorder, request)
+		var response weeklyClaimResponse
+		if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+			t.Fatalf("decode claim response: %v (%s)", err, recorder.Body.String())
+		}
+		return recorder.Code, response
+	}
+	shardsOf := func(playerID int64) int {
+		var shards int
+		if err := db.QueryRowContext(ctx, `SELECT sky_shards FROM players WHERE id = $1`, playerID).Scan(&shards); err != nil {
+			t.Fatalf("read shards: %v", err)
+		}
+		return shards
+	}
+	grantCount := func(playerID int64) int {
+		var count int
+		if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM weekly_grants WHERE player_id = $1`, playerID).Scan(&count); err != nil {
+			t.Fatalf("count grants: %v", err)
+		}
+		return count
+	}
+
+	weekStart := questWeekStart(questDayKey(time.Now()))
+	playerID := insertPlayer("weekly-token-1")
+	insertWeek(playerID, weekStart, []int{3, 3, 3, 3, 3, 3, 3})
+
+	// The /profile and /quests blocks expose the same flat reward.
+	summary, err := buildQuestWeekSummary(ctx, db, playerID, questDayKey(time.Now()))
+	if err != nil {
+		t.Fatalf("build week summary: %v", err)
+	}
+	if summary.Tier != 1 || summary.RewardKind != "shards" || summary.RewardValue != 300 || !summary.Claimable {
+		t.Fatalf("week summary = %+v, want tier=1 shards/300 claimable", summary)
+	}
+	view, err := buildQuestWeekView(ctx, db, playerID, questDayKey(time.Now()))
+	if err != nil {
+		t.Fatalf("build week view: %v", err)
+	}
+	if view.Tier != 1 || view.RewardKind != "shards" || view.RewardValue != 300 || view.Reward.Shards != 300 {
+		t.Fatalf("week view = %+v, want tier=1 shards/300", view)
+	}
+
+	status, first := claim(playerID, "weekly-token-1", weekStart, 13)
+	if status != http.StatusOK {
+		t.Fatalf("first claim status = %d, want 200 (%+v)", status, first)
+	}
+	if first.Shards != 300 || first.RewardKind != "shards" || first.ItemID != 0 ||
+		first.Tier != 1 || first.AlreadyClaimed {
+		t.Fatalf("first claim = %+v, want 300 shards, item_id=0, tier=1", first)
+	}
+	if got := shardsOf(playerID); got != 300 {
+		t.Fatalf("shards after first claim = %d, want 300", got)
+	}
+
+	// A double claim, even with a different item_id, is idempotent.
+	status, second := claim(playerID, "weekly-token-1", weekStart, 0)
+	if status != http.StatusOK || !second.AlreadyClaimed || second.Shards != 300 {
+		t.Fatalf("second claim = %d %+v, want 200 already_claimed/300", status, second)
+	}
+	if got := shardsOf(playerID); got != 300 {
+		t.Fatalf("shards after repeated claim = %d, want 300", got)
+	}
+	if got := grantCount(playerID); got != 1 {
+		t.Fatalf("weekly_grants rows = %d, want 1", got)
+	}
+
+	// The next completed week pays the same flat 300, not a bigger tier.
+	previousWeek := questAddDays(weekStart, -7)
+	insertWeek(playerID, previousWeek, []int{3, 3, 3, 3, 3, 3, 3})
+	status, repeat := claim(playerID, "weekly-token-1", previousWeek, 0)
+	if status != http.StatusOK || repeat.Shards != 300 || repeat.Tier != 1 {
+		t.Fatalf("repeat week claim = %d %+v, want 200 shards/300 tier=1", status, repeat)
+	}
+	if got := shardsOf(playerID); got != 600 {
+		t.Fatalf("shards after two weeks = %d, want 600", got)
+	}
+
+	// A 6/7 week is not claimable and grants nothing.
+	shortPlayerID := insertPlayer("weekly-token-2")
+	insertWeek(shortPlayerID, previousWeek, []int{3, 3, 3, 3, 3, 3, 2})
+	status, short := claim(shortPlayerID, "weekly-token-2", previousWeek, 0)
+	if status != http.StatusConflict {
+		t.Fatalf("short week claim status = %d, want 409 (%+v)", status, short)
+	}
+	if got := shardsOf(shortPlayerID); got != 0 {
+		t.Fatalf("short week paid %d shards", got)
+	}
+	if got := grantCount(shortPlayerID); got != 0 {
+		t.Fatalf("short week wrote %d grants", got)
 	}
 }
 

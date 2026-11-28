@@ -3,7 +3,9 @@ extends Control
 ## Ежедневные задания: одна панель, два режима.
 ##
 ## INLINE  — стол в лобби вместо старой плашки «НОВИЧОК» (desktop 1440x734).
-## OVERLAY — полноэкранный оверлей на телефоне 844x390 (z = 42).
+## OVERLAY — полноэкранный оверлей (z = 42) с затемняющим backdrop:
+##           телефон 844x390 (панель 812, масштаб от 844x390),
+##           desktop — панель 776 px (730..812) по центру группы карточек.
 ##
 ## Панель не ходит в сеть. Она рисует снимок автозагрузки DailyQuests и
 ## отправляет намерения (замена / недельная награда) наружу сигналами.
@@ -21,6 +23,7 @@ extends Control
 
 signal reroll_requested(slot: int)
 signal weekly_claim_requested(item_id: int)
+signal open_requested
 signal closed
 signal data_changed(completed: int, total: int)
 
@@ -57,13 +60,21 @@ const MOBILE_PANEL_WIDTH := 812.0
 const MOBILE_REFERENCE := Vector2(844.0, 390.0)
 const MOBILE_MARGIN := 16.0
 
+# Desktop-оверлей: 730..812 по спецификации, панель не прижимается к краям.
+const DESKTOP_PANEL_WIDTH := 776.0
+const DESKTOP_PANEL_MIN_WIDTH := 730.0
+const DESKTOP_PANEL_MAX_WIDTH := 812.0
+const DESKTOP_EDGE_MARGIN := 24.0
+# Допуск сравнения геометрии: повторный layout с тем же результатом не делаем.
+const LAYOUT_EPSILON := 0.5
+# Затемнение под панелью: карточки героев остаются видны, но одинаково.
+const BACKDROP_ALPHA_DESKTOP := 0.62
+const BACKDROP_ALPHA_MOBILE := 0.88
+
 const WEEK_LETTERS := ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
 const WEEK_REQUIRED := 7
 
-# Первый приз лестницы: выбор оружия за 100 (воин/маг/охотница, id 10-13).
-const LADDER_WEAPON_ID := 13
-const LADDER_WEAPON_PRICE := 100
-const SKIN_COMPENSATION := 1000
+const WEEKLY_REWARD_SHARDS := 300
 
 # Подписи MVP-шаблонов: сервер может прислать только template_id.
 const TEMPLATE_TITLES := {
@@ -87,6 +98,12 @@ const TEMPLATE_TITLES := {
 }
 
 var mode: int = Mode.INLINE
+## Desktop overlay: centered fixed-width panel (no 844-design scaling).
+var desktop_overlay := false
+## Desktop overlay: X-центр панели. -1 = центр экрана. Лобби передаёт центр
+## группы карточек героев: она смещена вправо из-за левой колонки (стол
+## ежедневок/кнопки), и панель по центру экрана резала только левую карточку.
+var desktop_center_x := -1.0
 
 var data: Dictionary = {}
 var quests: Array = []
@@ -111,10 +128,21 @@ var week_chips: Array[Panel] = []
 var week_chip_labels: Array[Label] = []
 var week_label: Label
 var status_label: Label
+var status_icon: TextureRect
 var claim_button: Button
 
 var _tween: Tween
+var _tween_target := -1.0
 var _built := false
+
+# Идемпотентность раскладки: без этих флагов ресайз панели мог снова вызвать
+# раскладку, а та — снова панель (warning и зависание пробы).
+var _placing_panel := false
+var _laying_out := false
+var _placement_queued := false
+var _layout_queued := false
+var _layout_dirty := true
+var _last_layout_size := Vector2(-1.0, -1.0)
 
 
 func _ready() -> void:
@@ -132,13 +160,30 @@ func _ready() -> void:
 		mouse_filter = Control.MOUSE_FILTER_PASS
 	_build_panel()
 	_build_content()
+	if mode == Mode.INLINE:
+		_build_open_button()
 	_set_height(0, false)
 	_connect_source()
-	call_deferred("_layout_content")
+	_queue_layout()
 
 
 func set_mode(value: int) -> void:
 	mode = value
+
+
+## Лобби знает центр группы карточек героев: панель встаёт по нему, чтобы
+## резать обе боковые карточки одинаково (-1 = центр экрана).
+## Метод только запоминает центр и (если панель готова) откладывает перенос:
+## раскладка не запускается отсюда и не может рекурсивно вернуться в лобби.
+func set_desktop_center_x(value: float) -> void:
+	if not desktop_overlay:
+		return
+	if desktop_center_x > 0.0 and absf(value - desktop_center_x) <= LAYOUT_EPSILON:
+		return
+	desktop_center_x = value
+	if not _built or panel == null or not is_inside_tree():
+		return
+	_queue_placement()
 
 
 func is_overlay_open() -> bool:
@@ -153,6 +198,8 @@ func panel_height_for(count: int) -> float:
 func open_overlay() -> void:
 	if mode != Mode.OVERLAY:
 		return
+	if desktop_overlay:
+		_place_desktop_panel()
 	visible = true
 	refresh_from_source()
 	_layout_content()
@@ -234,7 +281,12 @@ func _build_dim() -> void:
 	var dim := ColorRect.new()
 	dim.name = "DailyQuestsDim"
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color(0.005, 0.008, 0.018, 0.88)
+	# Полноэкранное затемнение: все карточки героев уходят на один уровень,
+	# поэтому ни одна не выглядит «отдельной» рядом с панелью.
+	dim.color = Color(
+		0.005, 0.008, 0.018,
+		BACKDROP_ALPHA_DESKTOP if desktop_overlay else BACKDROP_ALPHA_MOBILE
+	)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	dim.gui_input.connect(_on_dim_input)
 	add_child(dim)
@@ -246,19 +298,39 @@ func _build_panel() -> void:
 	panel.add_theme_stylebox_override("panel", _panel_style())
 	panel.clip_contents = true
 	if mode == Mode.OVERLAY:
-		panel.anchor_left = MOBILE_MARGIN / MOBILE_REFERENCE.x
-		panel.anchor_right = (MOBILE_REFERENCE.x - MOBILE_MARGIN) / MOBILE_REFERENCE.x
 		panel.anchor_top = 0.5
 		panel.anchor_bottom = 0.5
-		panel.offset_left = 0.0
-		panel.offset_right = 0.0
-		panel.offset_top = -MOBILE_HEIGHTS[0] * 0.5
-		panel.offset_bottom = MOBILE_HEIGHTS[0] * 0.5
-		panel.resized.connect(_layout_content)
+		if desktop_overlay:
+			_place_desktop_panel()
+		else:
+			panel.anchor_left = MOBILE_MARGIN / MOBILE_REFERENCE.x
+			panel.anchor_right = (MOBILE_REFERENCE.x - MOBILE_MARGIN) / MOBILE_REFERENCE.x
+			panel.offset_left = 0.0
+			panel.offset_right = 0.0
+		var half_height := _scale(MOBILE_HEIGHTS[0]) * 0.5
+		panel.offset_top = -half_height
+		panel.offset_bottom = half_height
+		# Не прямой вызов: ресайз панели только ставит раскладку в очередь.
+		panel.resized.connect(_queue_layout)
 	else:
 		panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		panel.resized.connect(_layout_content)
+		panel.resized.connect(_queue_layout)
 	add_child(panel)
+
+
+## Inline-таблица: прозрачная кнопка на всю площадь открывает меню.
+func _build_open_button() -> void:
+	var open_button := Button.new()
+	open_button.name = "DailyQuestsOpenButton"
+	open_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	open_button.focus_mode = Control.FOCUS_NONE
+	open_button.mouse_filter = Control.MOUSE_FILTER_STOP
+	open_button.tooltip_text = "Открыть ежедневные задания"
+	for style_name in ["normal", "hover", "pressed", "focus"]:
+		open_button.add_theme_stylebox_override(style_name, StyleBoxEmpty.new())
+	open_button.pressed.connect(func() -> void: open_requested.emit())
+	open_button.z_index = 10
+	add_child(open_button)
 
 
 func _build_content() -> void:
@@ -295,6 +367,7 @@ func _build_content() -> void:
 
 	reroll_line_label = _make_label("", 16, MUTED)
 	reroll_line_label.name = "DailyQuestsRerolls"
+	reroll_line_label.add_theme_font_size_override("font_size", 16)
 	reroll_line_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	reroll_line_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	reroll_line_label.clip_text = true
@@ -331,6 +404,15 @@ func _build_content() -> void:
 	status_label.clip_text = true
 	status_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	footer.add_child(status_label)
+
+	status_icon = TextureRect.new()
+	status_icon.name = "DailyQuestsRewardShard"
+	status_icon.texture = SHARD_ICON
+	status_icon.custom_minimum_size = Vector2(16.0, 16.0)
+	status_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	status_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	status_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	footer.add_child(status_icon)
 
 	claim_button = _make_button("0/7", 13, true, "DailyQuestsClaim")
 	claim_button.pressed.connect(_on_claim_pressed)
@@ -407,6 +489,7 @@ func _normalize_week(raw: Variant) -> Array:
 
 
 func _rebuild_rows() -> void:
+	_layout_dirty = true
 	for row in row_nodes:
 		if is_instance_valid(row):
 			if row.get_parent() != null:
@@ -421,7 +504,6 @@ func _rebuild_rows() -> void:
 
 
 func _make_quest_row(index: int, quest: Dictionary) -> Control:
-	var mobile := mode == Mode.OVERLAY
 	var row := Panel.new()
 	row.name = "DailyQuestsRow%d" % index
 	row.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -463,11 +545,14 @@ func _make_quest_row(index: int, quest: Dictionary) -> Control:
 	row.add_child(bar)
 
 	var reward_shards := int(quest.get("reward_shards", 0))
+	var overlay := mode == Mode.OVERLAY
 	var meta_text := ""
 	if completed:
-		meta_text = "Готово · %s" % _reward_text(reward_shards)
+		meta_text = ("Готово · %s" % _reward_text(reward_shards)) if overlay else "Готово"
 	else:
-		meta_text = "%d/%d · %s" % [int(quest["progress"]), int(quest["target"]), _reward_text(reward_shards)]
+		meta_text = "%d/%d" % [int(quest["progress"]), int(quest["target"])]
+		if overlay:
+			meta_text += " · %s" % _reward_text(reward_shards)
 	var meta := _make_label(meta_text, 16, COMPLETE if completed else DIM_TEXT)
 	meta.name = "DailyQuestsRowMeta%d" % index
 	meta.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -476,20 +561,67 @@ func _make_quest_row(index: int, quest: Dictionary) -> Control:
 	meta.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	row.add_child(meta)
 
-	var state := _reroll_state()
-	var slot_state := _slot_reroll_state(int(quest["slot"]))
-	if not slot_state.is_empty() and not completed:
-		_apply_slot_state(state, slot_state)
-	var reroll := _make_button("", 16 if not mobile else 18, false, "DailyQuestsReroll%d" % index)
-	reroll.visible = not completed
-	reroll.disabled = not bool(state["available"])
-	reroll.tooltip_text = String(state["hint"])
-	reroll.text = String(state["text"])
-	if not completed:
-		reroll.pressed.connect(_on_reroll_pressed.bind(int(quest["slot"])))
-	row.add_child(reroll)
-	row.set_meta("reroll_button", reroll)
+	if overlay:
+		var state := _reroll_state()
+		var slot_state := _slot_reroll_state(int(quest["slot"]))
+		if not slot_state.is_empty() and not completed:
+			_apply_slot_state(state, slot_state)
+		var reroll := _make_reroll_button(state, index)
+		reroll.visible = not completed
+		if not completed:
+			reroll.pressed.connect(_on_reroll_pressed.bind(int(quest["slot"])))
+		row.add_child(reroll)
+		row.set_meta("reroll_button", reroll)
+	else:
+		_add_inline_reward(row, index, quest)
 	return row
+
+
+## Inline-таблица: награда справа — иконка осколка 16 px + число.
+func _add_inline_reward(row: Control, index: int, quest: Dictionary) -> void:
+	var box := HBoxContainer.new()
+	box.name = "DailyQuestsReward%d" % index
+	box.add_theme_constant_override("separation", 4)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var icon := TextureRect.new()
+	icon.name = "DailyQuestsRewardIcon%d" % index
+	icon.texture = SHARD_ICON
+	icon.custom_minimum_size = Vector2(16.0, 16.0)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(icon)
+	var amount := _make_label("%d" % int(quest.get("reward_shards", 0)), 16, GOLD)
+	amount.name = "DailyQuestsRewardLabel%d" % index
+	amount.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	box.add_child(amount)
+	row.add_child(box)
+
+
+## Кнопка замены: явный текст «Заменить» вместо иконки.
+## Точный размер подбирает _layout_row (по ширине текста и месту в строке).
+func _make_reroll_button(state: Dictionary, index: int) -> Button:
+	var mobile := mode == Mode.OVERLAY
+	var caption := String(state.get("full_text", "Заменить"))
+	var button := _make_button(caption, 15, false, "DailyQuestsReroll%d" % index)
+	button.disabled = not bool(state.get("available", false))
+	button.tooltip_text = String(state.get("hint", ""))
+	button.clip_text = true
+	button.set_meta("full_text", caption)
+	button.set_meta("compact_text", String(state.get("compact_text", caption)))
+	button.set_meta("paid_icon", bool(state.get("icon", false)))
+	button.add_theme_color_override("font_hover_color", Color(1.0, 0.9, 0.58))
+	button.add_theme_color_override("font_pressed_color", Color(1.0, 0.9, 0.58))
+	button.add_theme_constant_override("h_separation", int(round(4.0 * _scale(1.0))))
+	button.add_theme_constant_override("icon_max_width", int(round((16.0 if mobile else 12.0) * _scale(1.0))))
+	button.add_theme_stylebox_override("normal", _reroll_style(false, false))
+	button.add_theme_stylebox_override("hover", _reroll_style(true, false))
+	button.add_theme_stylebox_override("pressed", _reroll_style(true, false))
+	button.add_theme_stylebox_override("disabled", _reroll_style(false, true))
+	if bool(state.get("icon", false)):
+		button.icon = SHARD_ICON
+	return button
 
 
 # ---------------------------------------------------------------------------
@@ -497,6 +629,7 @@ func _make_quest_row(index: int, quest: Dictionary) -> Control:
 
 
 func _refresh_texts() -> void:
+	_layout_dirty = true
 	var total := total_count()
 	var completed := completed_count()
 	var mobile := mode == Mode.OVERLAY
@@ -515,8 +648,8 @@ func _refresh_texts() -> void:
 			remaining, _plural(remaining, "задание", "задания", "заданий")
 		]
 
-	reroll_line_label.visible = mobile and not quests.is_empty()
-	reroll_line_label.text = _reroll_line()
+	reroll_line_label.visible = mobile
+	reroll_line_label.text = "1 замена в день бесплатно · ещё 2 — по 1 осколку"
 
 	_refresh_week(completed, total)
 
@@ -571,55 +704,36 @@ func _refresh_week(completed: int, total: int) -> void:
 		chip.add_theme_stylebox_override("panel", style)
 		letter.add_theme_color_override("font_color", Color(0.14, 0.1, 0.03) if is_full else MUTED)
 
-	week_label.text = "Неделя: %d/%d полных дней" % [full_days, WEEK_REQUIRED]
-	week_label.tooltip_text = week_label.text
-
 	# Точки и заявка считаются только по полным дням (все 3 задания).
 	var claimable := full_days >= WEEK_REQUIRED
 	if not has_day_data and bool(week.get("claimable", false)):
 		claimable = fallback_full >= WEEK_REQUIRED
 	var claimed := bool(week.get("claimed", false))
+	var reward_text := ""
+	if full_days >= WEEK_REQUIRED:
+		reward_text = "За 7/7 дней — %d осколков" % WEEKLY_REWARD_SHARDS
+	else:
+		var left_days := WEEK_REQUIRED - full_days
+		reward_text = "Осталось %d %s до %d осколков" % [
+			left_days,
+			_plural(left_days, "полный день", "полных дня", "полных дней"),
+			WEEKLY_REWARD_SHARDS,
+		]
 	if claimed:
 		claim_button.text = "Получено"
 		claim_button.disabled = true
 	elif claimable:
-		claim_button.text = "Забрать"
+		claim_button.text = "Забрать %d осколков" % WEEKLY_REWARD_SHARDS
 		claim_button.disabled = false
 	else:
 		claim_button.text = "%d/%d" % [full_days, WEEK_REQUIRED]
 		claim_button.disabled = true
 	_style_claim_button(claimable and not claimed)
-
-	var reward_kind := String(week.get("reward_kind", ""))
-	if reward_kind.is_empty():
-		reward_kind = "skin"
-	var reward_owned := bool(week.get("reward_owned", week.get("skin_owned", false)))
-	var compensation := int(week.get("compensation", 0))
-	if compensation <= 0:
-		compensation = SKIN_COMPENSATION
-	var reward_name := String(week.get("reward_name", ""))
-	if reward_name.is_empty():
-		match reward_kind:
-			"weapon":
-				reward_name = "выбор оружия за %d" % LADDER_WEAPON_PRICE
-			"shards":
-				reward_name = "%d осколков" % compensation
-			_:
-				reward_name = "скин"
-	var status := ""
-	if reward_kind == "skin" and reward_owned:
-		status = "Скин уже есть — %d осколков" % compensation
-	elif claimable:
-		status = "Награда: %s" % reward_name
-	elif int(week.get("tier", 1)) <= 1:
-		status = "Неделя 1 · оружие за %d" % LADDER_WEAPON_PRICE
-	else:
-		status = "Награда: %s" % reward_name
-	status_label.text = status
-	status_label.tooltip_text = status
-	claim_button.tooltip_text = "Неделя %d · %d/%d полных дней" % [
-		int(week.get("tier", 1)), full_days, WEEK_REQUIRED
-	]
+	week_label.text = "Неделя: %d/%d полных дней" % [full_days, WEEK_REQUIRED]
+	week_label.tooltip_text = reward_text
+	status_label.text = reward_text
+	status_label.tooltip_text = reward_text
+	claim_button.tooltip_text = reward_text
 
 
 func _week_summary() -> Dictionary:
@@ -641,12 +755,36 @@ func _week_summary() -> Dictionary:
 	return week
 
 
+func _free_reroll_state(paid_left: int) -> Dictionary:
+	return {
+		"available": true, "free": true, "paid_left": paid_left, "cost": 0, "icon": false,
+		"full_text": "Заменить", "compact_text": "Заменить",
+		"hint": "Заменить задание. Бесплатно — 1 раз в день",
+	}
+
+
+func _paid_reroll_state(paid_left: int, cost: int) -> Dictionary:
+	var price := maxi(1, cost)
+	return {
+		"available": true, "free": false, "paid_left": paid_left, "cost": price, "icon": true,
+		"full_text": "Заменить · %d" % price, "compact_text": "Заменить",
+		"hint": "Заменить задание за %d %s" % [
+			price, _plural(price, "осколок", "осколка", "осколков")
+		],
+	}
+
+
+func _blocked_reroll_state(caption: String, hint: String) -> Dictionary:
+	return {
+		"available": false, "free": false, "paid_left": 0, "cost": 0, "icon": false,
+		"full_text": caption, "compact_text": caption, "hint": hint,
+	}
+
+
 func _reroll_state() -> Dictionary:
 	var free_available := true
 	var paid_left := 0
 	var cost := 1
-	var hint := "Бесплатная замена"
-	var text := "↻"
 	if rerolls is Dictionary:
 		var dict := rerolls as Dictionary
 		if dict.has("free_available"):
@@ -668,16 +806,10 @@ func _reroll_state() -> Dictionary:
 		free_available = left > 0
 		paid_left = maxi(0, left - 1) if free_available else left
 	if not free_available and paid_left <= 0:
-		return {"available": false, "free": false, "paid_left": 0, "text": "—", "hint": "Замены на сегодня закончились"}
+		return _blocked_reroll_state("Нет замен", "Замены на сегодня закончились")
 	if not free_available:
-		return {
-			"available": true, "free": false, "paid_left": paid_left,
-			"text": "↻ %d" % cost, "hint": "Замена за %d осколок" % cost,
-		}
-	return {
-		"available": true, "free": true, "paid_left": paid_left,
-		"text": text, "hint": hint,
-	}
+		return _paid_reroll_state(paid_left, cost)
+	return _free_reroll_state(paid_left)
 
 
 func _slot_reroll_state(slot: int) -> Dictionary:
@@ -701,27 +833,38 @@ func _apply_slot_state(state: Dictionary, slot_state: Dictionary) -> void:
 	if available:
 		var free := bool(slot_state.get("free", false))
 		state["free"] = free
+		var paid_left := int(state.get("paid_left", 0))
 		if free:
-			state["text"] = "↻"
-			state["hint"] = "Бесплатная замена"
+			state.merge(_free_reroll_state(paid_left), true)
 		else:
-			var cost := maxi(1, int(slot_state.get("cost", 1)))
-			state["text"] = "↻ %d" % cost
-			state["hint"] = "Замена за %d осколок" % cost
+			state.merge(_paid_reroll_state(paid_left, int(slot_state.get("cost", 1))), true)
 		return
+	state["free"] = false
 	match reason:
 		"pending":
-			state["text"] = "…"
-			state["hint"] = "Замена отправлена"
+			state.merge(_blocked_reroll_state(
+				"Замена идёт", "Замена отправлена — ждём ответ сервера"
+			), true)
 		"completed":
-			state["text"] = "—"
-			state["hint"] = "Выполненное задание не меняется"
+			state.merge(_blocked_reroll_state(
+				"Замена использована", "Выполненное задание не меняется"
+			), true)
 		"shards":
-			state["text"] = "↻"
-			state["hint"] = "Не хватает осколков на замену"
+			var price := maxi(1, int(slot_state.get("cost", 1)))
+			state.merge(_blocked_reroll_state(
+				"Нет осколков",
+				"Не хватает осколков: замена стоит %d %s" % [
+					price, _plural(price, "осколок", "осколка", "осколков")
+				]
+			), true)
+		"busy":
+			state.merge(_blocked_reroll_state(
+				"Замена идёт", "Сначала дождитесь ответа на другую замену"
+			), true)
 		_:
-			state["text"] = "—"
-			state["hint"] = "Замены на сегодня закончились"
+			state.merge(_blocked_reroll_state(
+				"Нет замен", "Замены на сегодня закончились"
+			), true)
 
 
 # ---------------------------------------------------------------------------
@@ -762,7 +905,71 @@ func _today_index() -> int:
 # Раскладка
 
 
+## Desktop-панель: ширина 730..812 (776), X-центр либо центр экрана, либо
+## центр группы карточек, но всегда с полем 24 px от краёв экрана.
+## Высоту задаёт _set_height по числу заданий.
+## Идемпотентно: если anchors и offsets уже такие — панель не трогаем,
+## значит `resized` не стреляет и раскладка не перезапускается.
+func _place_desktop_panel() -> void:
+	if _placing_panel:
+		return
+	if panel == null or mode != Mode.OVERLAY or not desktop_overlay:
+		return
+	if not is_inside_tree():
+		return
+	var viewport_width := get_viewport_rect().size.x
+	if viewport_width <= 0.0:
+		return
+	var width := clampf(DESKTOP_PANEL_WIDTH, DESKTOP_PANEL_MIN_WIDTH, DESKTOP_PANEL_MAX_WIDTH)
+	width = minf(width, maxf(200.0, viewport_width - DESKTOP_EDGE_MARGIN * 2.0))
+	var center := desktop_center_x
+	if center <= 0.0:
+		center = viewport_width * 0.5
+	var max_left := maxf(DESKTOP_EDGE_MARGIN, viewport_width - DESKTOP_EDGE_MARGIN - width)
+	var left := clampf(center - width * 0.5, DESKTOP_EDGE_MARGIN, max_left)
+	var right := left + width
+	if is_equal_approx(panel.anchor_left, 0.0) and is_equal_approx(panel.anchor_right, 0.0) \
+			and absf(panel.offset_left - left) <= LAYOUT_EPSILON \
+			and absf(panel.offset_right - right) <= LAYOUT_EPSILON:
+		return
+	_placing_panel = true
+	panel.anchor_left = 0.0
+	panel.anchor_right = 0.0
+	panel.offset_left = left
+	panel.offset_right = right
+	_placing_panel = false
+
+
+## Перенос панели — только отложенно и только один раз на кадр.
+func _queue_placement() -> void:
+	if _placement_queued:
+		return
+	_placement_queued = true
+	call_deferred("_flush_placement")
+
+
+func _flush_placement() -> void:
+	_placement_queued = false
+	_place_desktop_panel()
+
+
+## Раскладка содержимого — тоже отложенно и один раз на кадр:
+## обработчик `resized` больше не заходит в неё повторно.
+func _queue_layout() -> void:
+	if _layout_queued:
+		return
+	_layout_queued = true
+	call_deferred("_flush_layout")
+
+
+func _flush_layout() -> void:
+	_layout_queued = false
+	_layout_content()
+
+
 func _layout_content() -> void:
+	if _laying_out:
+		return
 	if not _built or panel == null or content == null:
 		return
 	if header == null or footer == null or title_label == null or close_button == null:
@@ -770,6 +977,10 @@ func _layout_content() -> void:
 	var panel_size := panel.size
 	if panel_size.x <= 0.0 or panel_size.y <= 0.0:
 		return
+	# Ничего не поменялось с прошлого прохода — выходим, не трогая детей.
+	if not _layout_dirty and _last_layout_size.is_equal_approx(panel_size):
+		return
+	_laying_out = true
 	var mobile := mode == Mode.OVERLAY
 	var scale := _scale(1.0)
 	var width := panel_size.x
@@ -780,8 +991,9 @@ func _layout_content() -> void:
 	var row_h := (MOBILE_ROW if mobile else DESKTOP_ROW) * scale
 	var row_gap := 0.0 if mobile else DESKTOP_ROW_GAP * scale
 
-	content.position = Vector2.ZERO
-	content.size = panel_size
+	# `content` растянут PRESET_FULL_RECT и сам следует за панелью: size/position
+	# здесь не пишем — у него неравные противоположные anchors, и такая запись
+	# давала warning «size overridden after _ready()».
 
 	header.position = Vector2.ZERO
 	header.size = Vector2(width, header_h)
@@ -824,6 +1036,9 @@ func _layout_content() -> void:
 	footer.size = Vector2(width, footer_h)
 	_layout_footer(width, footer_h, pad, mobile, scale)
 	footer.visible = not quests.is_empty() and height >= header_h + footer_h - 0.5
+	_last_layout_size = panel_size
+	_layout_dirty = false
+	_laying_out = false
 
 
 func _layout_row(row: Control, width: float, height: float, mobile: bool, scale: float) -> void:
@@ -831,6 +1046,7 @@ func _layout_row(row: Control, width: float, height: float, mobile: bool, scale:
 	var meta: Label = null
 	var bar: ProgressBar = null
 	var reroll: Button = null
+	var reward: Control = null
 	for child in row.get_children():
 		if child is Label:
 			if String(child.name).begins_with("DailyQuestsRowTitle"):
@@ -841,12 +1057,58 @@ func _layout_row(row: Control, width: float, height: float, mobile: bool, scale:
 			bar = child as ProgressBar
 		elif child is Button:
 			reroll = child as Button
-	var button_size := (40.0 if mobile else 30.0) * scale
+		elif child is HBoxContainer and String(child.name).begins_with("DailyQuestsReward"):
+			reward = child as Control
 	var inner_right := width - 10.0 * scale
-	if reroll != null:
-		reroll.position = Vector2(inner_right - button_size, (height - button_size) * 0.5)
-		reroll.size = Vector2(button_size, button_size)
-		inner_right -= button_size + 8.0 * scale
+	if reroll != null and reroll.visible:
+		# Высота: desktop 30, mobile 42 — с полями внутри строки 42/52.
+		var button_h := minf(
+			(42.0 if mobile else 30.0) * scale,
+			maxf(18.0 * scale, height - 6.0 * scale)
+		)
+		var font_size := reroll.get_theme_font_size("font_size")
+		var full_text := String(reroll.get_meta("full_text", reroll.text))
+		var compact_text := String(reroll.get_meta("compact_text", full_text))
+		var paid_icon := bool(reroll.get_meta("paid_icon", false))
+		reroll.icon = SHARD_ICON if paid_icon else null
+		var icon_w := 0.0
+		if reroll.icon != null:
+			icon_w = (16.0 if mobile else 12.0) * scale + 4.0 * scale
+		var pad_x := 6.0 * scale
+		# Сколько места нужно названию и награде — кнопка не должна их перекрыть.
+		var side_need := 0.0
+		if title != null:
+			side_need = maxf(side_need, _text_width(title.text, title.get_theme_font_size("font_size")))
+		if meta != null:
+			side_need = maxf(side_need, _text_width(meta.text, meta.get_theme_font_size("font_size")))
+		var reserved := clampf(
+			side_need + 14.0 * scale,
+			(140.0 if mobile else 110.0) * scale,
+			(360.0 if mobile else 220.0) * scale
+		)
+		var max_w := maxf(76.0 * scale, inner_right - 10.0 * scale - reserved)
+		var caption := full_text
+		var want := _text_width(full_text, font_size) + pad_x * 2.0 + icon_w
+		if want > max_w and compact_text != full_text:
+			# Не влезла цена — «Заменить» без числа, цена остаётся в tooltip.
+			caption = compact_text
+			want = _text_width(compact_text, font_size) + pad_x * 2.0 + icon_w
+		if want > max_w and icon_w > 0.0:
+			# Совсем тесно: убираем иконку, цена остаётся в tooltip.
+			reroll.icon = null
+			icon_w = 0.0
+			want = _text_width(caption, font_size) + pad_x * 2.0
+		reroll.text = caption
+		var button_w := minf(max_w, maxf(76.0 * scale, want))
+		reroll.position = Vector2(inner_right - button_w, (height - button_h) * 0.5)
+		reroll.size = Vector2(button_w, button_h)
+		inner_right -= button_w + 8.0 * scale
+	if reward != null and reward.visible:
+		var reward_w := 64.0 * scale
+		var reward_h := 20.0 * scale
+		reward.position = Vector2(inner_right - reward_w, (height - reward_h) * 0.5)
+		reward.size = Vector2(reward_w, reward_h)
+		inner_right -= reward_w + 8.0 * scale
 	var text_width := maxf(20.0, inner_right - 10.0 * scale)
 	if title != null:
 		title.position = Vector2(10.0 * scale, 0.0)
@@ -875,12 +1137,19 @@ func _layout_footer(width: float, height: float, pad: float, mobile: bool, scale
 	# Row A: дни недели слева, «Неделя: N/7 полных дней» справа.
 	week_label.position = Vector2(chips_end + 8.0 * scale, 0.0)
 	week_label.size = Vector2(maxf(40.0, width - pad - chips_end - 8.0 * scale), row_a)
-	# Row B: статус награды слева, кнопка «Забрать» справа.
-	var claim_w := (170.0 if mobile else 92.0) * scale
+	# Row B: иконка осколка + текст награды слева, кнопка «Забрать» справа.
+	var claim_w := (180.0 if mobile else 150.0) * scale
 	claim_button.position = Vector2(width - pad - claim_w, row_a + gap)
 	claim_button.size = Vector2(claim_w, row_b)
-	status_label.position = Vector2(pad, row_a + gap)
-	status_label.size = Vector2(maxf(40.0, width - pad * 2.0 - claim_w - 8.0 * scale), row_b)
+	var icon_size := 16.0 * scale
+	status_icon.position = Vector2(pad, row_a + gap + (row_b - icon_size) * 0.5)
+	status_icon.size = Vector2(icon_size, icon_size)
+	status_icon.visible = not quests.is_empty()
+	status_label.position = Vector2(pad + icon_size + 6.0 * scale, row_a + gap)
+	status_label.size = Vector2(
+		maxf(40.0, width - pad * 2.0 - claim_w - 8.0 * scale - icon_size - 6.0 * scale),
+		row_b
+	)
 	week_label.visible = not week_chips.is_empty()
 	footer.visible = not quests.is_empty()
 
@@ -898,31 +1167,64 @@ func _set_height(count: int, animate: bool) -> void:
 		var top := -target * 0.5
 		var bottom := target * 0.5
 		if animate and is_inside_tree() and visible:
+			# Тот же tween уже едет к этой высоте — второй не запускаем.
+			if _tween != null and _tween.is_valid() \
+					and absf(_tween_target - target) <= LAYOUT_EPSILON:
+				return
+			# Высота уже такая — не перезапускаем tween (иначе ресайз панели
+			# идёт каждый кадр и снова ставит раскладку в очередь).
+			if absf(panel.offset_top - top) <= LAYOUT_EPSILON \
+					and absf(panel.offset_bottom - bottom) <= LAYOUT_EPSILON \
+					and (_tween == null or not _tween.is_valid()):
+				_tween_target = target
+				return
 			if _tween != null and _tween.is_valid():
 				_tween.kill()
 			_tween = create_tween()
+			_tween_target = target
 			_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 			_tween.set_parallel(true)
 			_tween.tween_property(panel, "offset_top", top, TWEEN_TIME)
 			_tween.tween_property(panel, "offset_bottom", bottom, TWEEN_TIME)
 		else:
+			_tween_target = target
+			if _tween != null and _tween.is_valid():
+				_tween.kill()
+			if absf(panel.offset_top - top) <= LAYOUT_EPSILON \
+					and absf(panel.offset_bottom - bottom) <= LAYOUT_EPSILON:
+				return
 			panel.offset_top = top
 			panel.offset_bottom = bottom
 	else:
 		var target := panel_height_for(count)
 		var bottom := offset_top + target
 		if animate and is_inside_tree():
+			if _tween != null and _tween.is_valid() \
+					and absf(_tween_target - target) <= LAYOUT_EPSILON:
+				return
+			if absf(offset_bottom - bottom) <= LAYOUT_EPSILON \
+					and (_tween == null or not _tween.is_valid()):
+				_tween_target = target
+				return
 			if _tween != null and _tween.is_valid():
 				_tween.kill()
 			_tween = create_tween()
+			_tween_target = target
 			_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 			_tween.tween_property(self, "offset_bottom", bottom, TWEEN_TIME)
 		else:
+			_tween_target = target
+			if _tween != null and _tween.is_valid():
+				_tween.kill()
+			if absf(offset_bottom - bottom) <= LAYOUT_EPSILON:
+				return
 			offset_bottom = bottom
 
 
 func _scale(value: float) -> float:
 	if mode != Mode.OVERLAY:
+		return value
+	if desktop_overlay:
 		return value
 	var viewport_size := get_viewport_rect().size
 	if viewport_size.y <= 0.0:
@@ -973,14 +1275,8 @@ func _on_reroll_pressed(slot: int) -> void:
 
 
 func _on_claim_pressed() -> void:
-	var week := _week_summary()
-	var kind := String(week.get("reward_kind", ""))
-	if kind.is_empty():
-		kind = "skin"
-	var item_id := int(week.get("item_id", 0))
-	if item_id <= 0 and kind == "weapon":
-		item_id = LADDER_WEAPON_ID
-	weekly_claim_requested.emit(item_id)
+	# Недельная награда — только осколки, предмет не запрашиваем.
+	weekly_claim_requested.emit(0)
 
 
 func _source() -> Node:
@@ -1046,6 +1342,24 @@ func _button_style(primary: bool, hovered: bool, disabled: bool) -> StyleBoxFlat
 	return style
 
 
+func _reroll_style(hovered: bool, disabled: bool) -> StyleBoxFlat:
+	# Спокойная кнопка в стиле панели: тёмный фон, тонкая золотая рамка.
+	var style := StyleBoxFlat.new()
+	if disabled:
+		style.bg_color = Color(0.075, 0.09, 0.13, 0.85)
+		style.border_color = Color(0.34, 0.4, 0.5, 0.55)
+	else:
+		style.bg_color = Color(0.1, 0.13, 0.19, 0.95) if not hovered else Color(0.17, 0.21, 0.29, 1.0)
+		style.border_color = Color(GOLD.r, GOLD.g, GOLD.b, 0.8) if not hovered else Color(1.0, 0.88, 0.58)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 6.0
+	style.content_margin_right = 6.0
+	style.content_margin_top = 0.0
+	style.content_margin_bottom = 0.0
+	return style
+
+
 func _panel_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.03, 0.04, 0.065, 0.96)
@@ -1072,6 +1386,13 @@ func _fs(size: int) -> int:
 	return size
 
 
+## Ширина строки в пикселях тем же шрифтом, что и кнопки панели.
+func _text_width(text: String, font_size: int) -> float:
+	if text.is_empty():
+		return 0.0
+	return UI_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
+
+
 static func _plural(count: int, one: String, few: String, many: String) -> String:
 	var mod100 := count % 100
 	if mod100 >= 11 and mod100 <= 14:
@@ -1087,4 +1408,8 @@ static func _plural(count: int, one: String, few: String, many: String) -> Strin
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED and _built:
-		_layout_content()
+		# Внутри обработчика ресайза не меняем ни anchors, ни size — только
+		# ставим в очередь: так ресайз не может рекурсивно вызвать сам себя.
+		if mode == Mode.OVERLAY and desktop_overlay:
+			_queue_placement()
+		_queue_layout()

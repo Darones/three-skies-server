@@ -778,7 +778,11 @@ func _warm_class_models(classes: Array) -> void:
 		if anim != null:
 			var names := anim.get_animation_list()
 			var pick := ""
-			for wanted in ["idle", "walk", "run", "attack", "1h_ranged_shoot", "spellcast_shoot"]:
+			# Exact clip names: the rigs ship `Idle`, not `idle`. The old
+			# lowercase list never matched, so every class warmed
+			# `1H_Melee_Attack_Chop` (the first clip in the file) instead of the
+			# idle pose.
+			for wanted in ["Idle", "Walking_A", "Running_A", "1H_Melee_Attack_Chop", "2H_Melee_Attack_Slice", "1H_Ranged_Shoot", "Spellcast_Shoot"]:
 				if names.has(wanted):
 					pick = wanted
 					break

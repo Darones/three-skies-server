@@ -224,6 +224,32 @@ const GEAR_VARIANT_IDS := {
 	Cls.FAIRY: 2,
 }
 
+# The Barbarian skin lists the stock sword meshes in SkinCatalog, but
+# art/generated/warrior_barbarian/rig.glb only ships axes, a round shield and a
+# mug. When a requested skin blade mesh is missing, the ordinary low-poly
+# longsword (WeaponCatalog item 7) is attached to handslot.r as a visual
+# fallback: it is never unlocked, equipped or sent to the server, and shop item
+# 4 (the battle axe) stays an unrelated product.
+const SKIN_FALLBACK_BLADE_ID := 7
+const SHIELD_FALLBACK_ORDER := [
+	"Barbarian_Round_Shield", "Spike_Shield", "Round_Shield",
+	"Rectangle_Shield", "Badge_Shield",
+]
+
+# Exact clip names of the shared humanoid rig. A substring search for "idle"
+# matched `2H_Melee_Idle` first (it sorts before `Idle`), so every hero stood in
+# a two-handed melee stance; "attack" only ever matched `1H_Melee_Attack_Chop`.
+# Strict per-class names are resolved in `_preferred_anim_names()`.
+const ANIM_IDLE := "Idle"
+const ANIM_IDLE_2H_MELEE := "2H_Melee_Idle"
+const ANIM_MAGE_IDLE := "Spellcasting"
+const ANIM_FAIRY_AIM := "1H_Ranged_Aiming"
+const ANIM_FAIRY_SHOOT := "1H_Ranged_Shoot"
+const ANIM_MAGE_SHOOT := "Spellcast_Shoot"
+const ANIM_1H_ATTACK := "1H_Melee_Attack_Chop"
+const ANIM_2H_ATTACKS := ["2H_Melee_Attack_Slice", "2H_Melee_Attack_Chop"]
+const ANIM_FALLBACK_IDLE := "Idle_A"
+
 var game: Node = null
 var team := 0
 var hero_class: int = Cls.WARRIOR
@@ -327,6 +353,7 @@ var visual: Node3D
 var model_fit_scale := 1.0
 var anim_player: AnimationPlayer = null
 var current_anim := ""
+var two_handed_attack_index := -1
 var weapon_attachment: Node3D = null
 var weapon_instance: Node3D = null
 var weapon_anim_player: AnimationPlayer = null
@@ -1014,35 +1041,49 @@ func set_preview_mode(enabled: bool) -> void:
 		carry_light.visible = false
 
 
-func _move_fairy_crossbows_left(model: Node) -> void:
+func _keep_fairy_crossbows_right_hand(model: Node) -> void:
+	# `1H_Ranged_Aiming`/`1H_Ranged_Shoot` animate `handslot_r` as the shooting
+	# hand, and that is where the rig authors both crossbows. They used to be
+	# re-parented to `handslot_l` with a mirrored grip: the crossbow then left
+	# the aiming hand and, because `2H_Melee_Idle` (the wrong idle clip) hangs
+	# the arms lower, its stock sank through the floor. Keep them on the right
+	# hand; only a scene that still ships them on the left is moved back, using
+	# the mirror of WeaponCatalog.CROSSBOW_TUNING as the right-hand grip.
 	if hero_class != Cls.FAIRY:
 		return
 	var right_hand := model.find_child("handslot_r", true, false) as BoneAttachment3D
-	var left_hand := model.find_child("handslot_l", true, false) as BoneAttachment3D
-	if right_hand == null or left_hand == null:
+	if right_hand == null:
 		return
 	for gear_name in ["1H_Crossbow", "2H_Crossbow"]:
-		var gear := right_hand.get_node_or_null(gear_name) as MeshInstance3D
+		if right_hand.get_node_or_null(gear_name) != null:
+			continue
+		var gear := model.find_child(gear_name, true, false) as MeshInstance3D
 		if gear == null:
 			continue
-		var local_transform := gear.transform
-		right_hand.remove_child(gear)
-		left_hand.add_child(gear)
+		var parent := gear.get_parent()
+		if parent != null:
+			parent.remove_child(gear)
+		right_hand.add_child(gear)
 		var tuning := WeaponCatalog.crossbow_tuning(gear_name)
-		if tuning.is_empty():
-			gear.transform = local_transform
-			continue
-		var rotation: Vector3 = tuning.get("rotation", Vector3.ZERO)
-		var basis := Basis.from_euler(Vector3(
-			deg_to_rad(rotation.x),
-			deg_to_rad(rotation.y),
-			deg_to_rad(rotation.z)
-		))
-		var roll := float(tuning.get("roll", 0.0))
-		if absf(roll) > 0.01:
-			basis = basis * Basis(Vector3.UP, deg_to_rad(roll))
-		basis = basis.scaled(Vector3.ONE * float(tuning.get("scale", 1.0)))
-		gear.transform = Transform3D(basis, tuning.get("position", Vector3.ZERO))
+		if not tuning.is_empty():
+			gear.transform = _mirror_crossbow_tuning(tuning)
+
+
+func _mirror_crossbow_tuning(tuning: Dictionary) -> Transform3D:
+	# CROSSBOW_TUNING stores the left-hand grip (position.x and yaw +90). The
+	# right-hand grip is its mirror: negated X and negated yaw/roll.
+	var offset: Vector3 = tuning.get("position", Vector3.ZERO)
+	var rotation: Vector3 = tuning.get("rotation", Vector3.ZERO)
+	var basis := Basis.from_euler(Vector3(
+		deg_to_rad(rotation.x),
+		deg_to_rad(-rotation.y),
+		deg_to_rad(rotation.z)
+	))
+	var roll := float(tuning.get("roll", 0.0))
+	if absf(roll) > 0.01:
+		basis = basis * Basis(Vector3.UP, deg_to_rad(-roll))
+	basis = basis.scaled(Vector3.ONE * float(tuning.get("scale", 1.0)))
+	return Transform3D(basis, Vector3(-offset.x, offset.y, offset.z))
 
 
 func _build_visual() -> void:
@@ -1061,7 +1102,7 @@ func _build_visual() -> void:
 		holder.rotation.y = 0.0
 		visual.add_child(holder)
 		_fit_model(holder)
-		_move_fairy_crossbows_left(model)
+		_keep_fairy_crossbows_right_hand(model)
 		anim_player = _find_animation_player(holder)
 		_apply_gear_selection()
 		_play_anim("idle")
@@ -1174,19 +1215,66 @@ func _apply_gear_selection() -> void:
 		return
 	var weapon_id := _equipped_weapon_id()
 	var selected := _selected_gear(weapon_id)
+	# Only meshes this rig really has may be shown: a skin can list the stock
+	# `1H_Sword`/`Spike_Shield` while its own rig ships axes and a round shield.
+	var shown := _resolved_gear_names(selected)
 	for gear_name in gear_nodes.keys():
 		var gear_node := gear_nodes[gear_name] as MeshInstance3D
 		if gear_node != null and is_instance_valid(gear_node):
-			gear_node.visible = String(gear_name) in selected
+			gear_node.visible = String(gear_name) in shown
 			if gear_node.visible:
 				_apply_builtin_weapon_glow(gear_node, weapon_id)
 	weapon_attachment = null
-	if not selected.is_empty():
-		weapon_attachment = gear_nodes.get(String(selected[0])) as Node3D
+	if not shown.is_empty():
+		weapon_attachment = gear_nodes.get(String(shown[0])) as Node3D
 	if weapon_id >= 4:
 		# External weapons replace the built-in gear entirely; the model is
 		# attached to the hand bone and follows the same animation.
 		_setup_external_weapon(weapon_id)
+	else:
+		var fallback_blade_id := _skin_stock_blade_id(selected)
+		if fallback_blade_id > 0:
+			# Visual fallback only (see SKIN_FALLBACK_BLADE_ID).
+			_setup_external_weapon(fallback_blade_id)
+			if weapon_instance != null and is_instance_valid(weapon_instance):
+				weapon_attachment = weapon_instance
+
+
+func _resolved_gear_names(selected: Array) -> Array:
+	# Keeps the meshes the rig actually ships and swaps a missing shield for the
+	# shield this rig has, so a barbarian is never left without one.
+	var resolved: Array = []
+	for gear_name in selected:
+		var name := String(gear_name)
+		if gear_nodes.has(name):
+			if name not in resolved:
+				resolved.append(name)
+			continue
+		if not name.ends_with("_Shield"):
+			continue
+		for candidate in SHIELD_FALLBACK_ORDER:
+			if gear_nodes.has(candidate):
+				if candidate not in resolved:
+					resolved.append(candidate)
+				break
+	return resolved
+
+
+func _skin_stock_blade_id(selected: Array) -> int:
+	# Returns WeaponCatalog item 7 when the equipped skin asks for a blade mesh
+	# its rig does not have (the Barbarian rig has axes only). 0 == show no
+	# external model, i.e. the rig already owns the requested blade.
+	if SkinCatalog.get_item(_equipped_skin_id()).is_empty():
+		return 0
+	var wants_blade := false
+	for gear_name in selected:
+		var name := String(gear_name)
+		if not (name.ends_with("_Sword") or name.ends_with("_Axe")):
+			continue
+		wants_blade = true
+		if gear_nodes.has(name):
+			return 0
+	return SKIN_FALLBACK_BLADE_ID if wants_blade else 0
 
 
 func _equipped_weapon_id() -> int:
@@ -1567,21 +1655,82 @@ func _play_weapon_attack_animation() -> void:
 			return
 
 
+func _uses_two_handed_weapon() -> bool:
+	# The gear list already encodes the choice: GEAR_VARIANT / skin
+	# `legendary_gear` swap the 1H item for its `2H_*` counterpart, and the shop
+	# catalog does the same for the equipped weapon id.
+	for gear_name in _selected_gear(_equipped_weapon_id()):
+		if String(gear_name).begins_with("2H_"):
+			return true
+	return false
+
+
+func _preferred_anim_names(key: String) -> Array:
+	# Exact names for the states where the old substring search picked the
+	# wrong clip. Everything else keeps the "contains" fallback in
+	# `_resolve_anim()`, so unknown rigs still animate.
+	match key:
+		"idle":
+			# The lobby preview keeps the approved `Idle` pose for all three
+			# classes; only the live mage stands in its combat casting loop.
+			if hero_class == Cls.MAGE and not preview_mode:
+				return [ANIM_MAGE_IDLE, ANIM_IDLE]
+			if _uses_two_handed_weapon():
+				# `Idle` first; `2H_Melee_Idle` is only a fallback for a rig
+				# that has no plain `Idle` clip.
+				return [ANIM_IDLE, ANIM_IDLE_2H_MELEE]
+			return [ANIM_IDLE]
+		"walk":
+			return ["Walking_A"]
+		"run":
+			return ["Running_A"]
+		"attack":
+			if hero_class == Cls.WARRIOR and _uses_two_handed_weapon():
+				two_handed_attack_index = (two_handed_attack_index + 1) % ANIM_2H_ATTACKS.size()
+				return [ANIM_2H_ATTACKS[two_handed_attack_index]]
+			return [ANIM_1H_ATTACK]
+		"aim":
+			if hero_class == Cls.FAIRY:
+				return [ANIM_FAIRY_AIM]
+			return [ANIM_MAGE_SHOOT, "Spellcast_Raise"]
+		"cast":
+			# The Huntress raises her crossbow for an ability instead of
+			# channelling a spell; mage/warrior keep the old fallback clip.
+			if hero_class == Cls.FAIRY:
+				return [ANIM_FAIRY_AIM]
+			return []
+		"1h_ranged_shoot":
+			return [ANIM_FAIRY_SHOOT]
+		"spellcast_shoot":
+			return [ANIM_MAGE_SHOOT]
+		"death":
+			return ["Death_A"]
+	return []
+
+
+func _resolve_anim(key: String) -> String:
+	if anim_player == null:
+		return ""
+	for wanted in _preferred_anim_names(key):
+		var exact := String(wanted)
+		if anim_player.has_animation(exact):
+			return exact
+	for animation_name in anim_player.get_animation_list():
+		if String(animation_name).to_lower().contains(key):
+			return String(animation_name)
+	return ""
+
+
 func _play_anim(key: String, restart: bool = false) -> void:
 	if anim_player == null or (current_anim == key and not restart):
 		return
 	anim_player.speed_scale = 1.0
-	var target := ""
-	for animation_name in anim_player.get_animation_list():
-		var low := String(animation_name).to_lower()
-		if low.contains(key):
-			target = String(animation_name)
-			break
+	var target := _resolve_anim(key)
 	if target == "":
 		return
 	var anim := anim_player.get_animation(target)
 	if anim:
-		if key in ["idle", "run", "walk"]:
+		if key in ["idle", "run", "walk", "aim"]:
 			anim.loop_mode = Animation.LOOP_LINEAR
 		else:
 			anim.loop_mode = Animation.LOOP_NONE
@@ -2568,8 +2717,9 @@ func _update_look(_delta: float) -> void:
 			_play_anim("cast", true)
 		return
 	if crit_cast_timer > 0.0:
-		if current_anim != "cast" or (anim_player != null and not anim_player.is_playing()):
-			_play_anim("cast", true)
+		# The Huntress crit shot is a real aim channel, not a spell cast.
+		if current_anim != "aim" or (anim_player != null and not anim_player.is_playing()):
+			_play_anim("aim", true)
 		return
 	if carry_light != null:
 		carry_light.light_energy = 2.0 if carrying else 0.0
@@ -2629,20 +2779,30 @@ func network_regen_multiplier() -> float:
 
 
 func pose_preview_idle(pose_time := 0.6) -> void:
-	# The lobby preview renders once; without an explicit pose it captures the
-	# bind/T-pose and the hand-held weapon looks detached. Seek the idle clip
-	# first, then place the external weapon on the posed bone.
+	# The lobby preview renders once; without an explicit pose it captured the
+	# bind/T-pose and the hand-held weapon looked detached. Play the exact
+	# `Idle` clip (never `2H_Melee_Idle`, which the old substring search
+	# returned), hold a frame in the first third of the loop and let
+	# lobby.gd apply its approved 28 degree turn on top.
 	if anim_player == null:
 		return
 	var target := ""
-	for animation_name in anim_player.get_animation_list():
-		if String(animation_name).to_lower().contains("idle"):
-			target = String(animation_name)
+	for wanted in [ANIM_IDLE, ANIM_FALLBACK_IDLE, ANIM_IDLE_2H_MELEE]:
+		if anim_player.has_animation(wanted):
+			target = wanted
 			break
 	if target.is_empty():
+		target = _resolve_anim("idle")
+	if target.is_empty():
 		return
+	var length := 1.0
+	var anim := anim_player.get_animation(target)
+	if anim != null:
+		anim.loop_mode = Animation.LOOP_LINEAR
+		length = maxf(anim.length, 0.01)
 	anim_player.play(target)
-	anim_player.seek(pose_time, true)
+	var hold := clampf(pose_time, 0.3, minf(0.6, maxf(length - 0.05, 0.3)))
+	anim_player.seek(hold, true)
 	anim_player.pause()
 	current_anim = "idle"
 	_update_weapon_transform()

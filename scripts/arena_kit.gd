@@ -554,7 +554,7 @@ static func _ensure_forest_lighting(arena_root: Node3D) -> void:
 		var env := world_env.environment.duplicate() as Environment
 		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 		env.ambient_light_color = Color(0.52, 0.6, 0.74)
-		env.ambient_light_energy = 0.45
+		env.ambient_light_energy = 0.36
 		# Cheap radiance for low/medium: the background is already BG_COLOR, so
 		# dropping the sky removes the reflection cubemap (USE_RADIANCE_MAP)
 		# without changing the visible background. High keeps the sky and the
@@ -562,7 +562,15 @@ static func _ensure_forest_lighting(arena_root: Node3D) -> void:
 		if _device_quality() != "high":
 			env.sky = null
 			env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
-		env.tonemap_exposure = 0.85
+		env.tonemap_mode = Environment.TONE_MAPPER_ACES
+		env.tonemap_exposure = 0.78
+		env.tonemap_white = 1.4
+		# Glow включается только на high: apply_quality гасит его для low/medium
+		# уже после этого вызова, здесь задаём только «среднюю» силу.
+		env.glow_intensity = 0.35
+		env.glow_bloom = 0.05
+		env.glow_hdr_threshold = 1.2
+		env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
 		env.fog_enabled = true
 		env.fog_light_color = Color(0.045, 0.06, 0.13)
 		env.fog_density = 0.055
@@ -582,14 +590,29 @@ static func _ensure_forest_lighting(arena_root: Node3D) -> void:
 	var sun := arena_root.get_node_or_null("Stage/Sun") as DirectionalLight3D
 	if sun != null:
 		sun.light_color = Color(1.0, 0.95, 0.88)
-		sun.light_energy = 1.0
+		sun.light_energy = 0.78
 		sun.rotation_degrees = Vector3(-52.0, 28.0, 0.0)
 		# Для вида сверху двух каскадов теней достаточно: меньше draw calls в shadow pass.
 		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 		sun.directional_shadow_max_distance = 90.0
 	var dark_fill := arena_root.get_node_or_null("Stage/DarkFill") as DirectionalLight3D
 	if dark_fill != null:
-		dark_fill.light_energy = 0.2
+		dark_fill.light_energy = 0.16
+	# Средний вариант освещения арены (−25 %): энергии и кривая затухания.
+	# Значения продублированы в Main.tscn, чтобы кадр до _ensure_forest_lighting
+	# не отличался от боя.
+	var omni_specs := [
+		["AltarGlow", 2.0],
+		["WarmRim", 1.2],
+		["LightHalfGlow", 1.15],
+		["DarkHalfGlow", 1.3],
+	]
+	for spec in omni_specs:
+		var light := arena_root.get_node_or_null("Stage/%s" % str(spec[0])) as OmniLight3D
+		if light == null:
+			continue
+		light.light_energy = float(spec[1])
+		light.omni_attenuation = 1.4
 
 
 static func _ensure_altar_and_ruins_style(arena_root: Node3D) -> void:
