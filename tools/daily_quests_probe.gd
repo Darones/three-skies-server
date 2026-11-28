@@ -173,6 +173,48 @@ func _check_inline(lobby: Node, inline: Control, tag: String) -> void:
 			"%s: чип награды строки %d" % [tag, i]
 		)
 
+	# Inline-футер: 7 точек, X/7, 300; без кнопки «Забрать».
+	var table_now := _local_rect(inline, origin)
+	var footer := inline.find_child("DailyQuestsFooter", true, false) as Control
+	_check(footer != null and footer.visible, "%s: inline футер виден" % tag)
+	var footer_controls: Array = []
+	var diamonds_ok := true
+	for i in 7:
+		var diamond := inline.find_child("DailyQuestsDay%d" % i, true, false) as Control
+		if diamond == null or not diamond.visible or diamond.find_child("DiamondOuter", true, false) == null:
+			diamonds_ok = false
+			continue
+		var dr := diamond.get_global_rect()
+		var local_dr := Rect2(dr.position - origin, dr.size)
+		if not table_now.encloses(local_dr):
+			diamonds_ok = false
+		footer_controls.append(local_dr)
+	_check(diamonds_ok, "%s: 7 нарисованных ромбов внутри 300 px" % tag)
+	var week_inline := inline.get("week_label") as Label
+	_check(
+		week_inline != null and week_inline.visible and week_inline.text.contains("/7"),
+		"%s: inline X/7" % tag
+	)
+	var inline_chip := inline.find_child("DailyQuestsRewardChip", true, false) as Control
+	_check(inline_chip != null and inline_chip.visible, "%s: inline чип 300" % tag)
+	var inline_claim := inline.get("claim_button") as Button
+	_check(inline_claim != null and not inline_claim.visible, "%s: «Забрать» в inline скрыт" % tag)
+	if week_inline != null:
+		var wr := week_inline.get_global_rect()
+		footer_controls.append(Rect2(wr.position - origin, wr.size))
+	if inline_chip != null:
+		var cr := inline_chip.get_global_rect()
+		footer_controls.append(Rect2(cr.position - origin, cr.size))
+	var footer_hits: Array = []
+	for a in footer_controls.size():
+		var ra: Rect2 = footer_controls[a]
+		if not table_now.encloses(ra):
+			footer_hits.append("outside%d" % a)
+		for b in footer_controls.size():
+			if b > a and ra.intersects(footer_controls[b] as Rect2):
+				footer_hits.append("%d-%d" % [a, b])
+	_check(footer_hits.is_empty(), "%s: inline футер без наездов %s" % [tag, str(footer_hits)])
+
 	# Нет пересечений с карточками/логотипом/кнопками.
 	var blockers: Array = [lobby.get("lobby_logo"), lobby.get("play_button"),
 		lobby.get("tutorial_button"), lobby.get("settings_button"), lobby.get("rules_button"),
@@ -289,16 +331,29 @@ func _check_overlay(overlay: Control, tag: String, desktop: bool) -> void:
 
 	var diamonds := 0
 	for i in 7:
-		if overlay.find_child("DailyQuestsDay%d" % i, true, false) != null:
+		var diamond := overlay.find_child("DailyQuestsDay%d" % i, true, false) as Control
+		if diamond != null and diamond.find_child("DiamondOuter", true, false) != null:
 			diamonds += 1
-	_check(diamonds == 7, "%s: 7 ромбов недели" % tag)
+	_check(diamonds == 7, "%s: 7 нарисованных ромбов" % tag)
 	var week := overlay.get("week_label") as Label
 	var status := overlay.get("status_label") as Label
 	_check(week != null and week.text.contains("/7 полных дней"), "%s: X/7 полных дней" % tag)
 	_check(status != null and status.text.contains("до 300 осколков"),
 		"%s: остаток до 300" % tag)
 	var claim := overlay.get("claim_button") as Button
+	var chip := overlay.find_child("DailyQuestsRewardChip", true, false) as Control
+	var sub := overlay.find_child("DailyQuestsRewardSub", true, false) as Label
 	_check(claim != null and claim.text == "5/7", "%s: кнопка 5/7" % tag)
+	if status != null and chip != null and claim != null:
+		var sr := status.get_global_rect()
+		_check(
+			not sr.intersects(chip.get_global_rect())
+				and sr.end.y <= chip.get_global_rect().position.y + 0.75,
+			"%s: статус не пересекает чип 300" % tag
+		)
+		_check(not sr.intersects(claim.get_global_rect()),
+			"%s: статус не пересекает кнопку" % tag)
+	_check(sub == null or not sub.visible, "%s: в чипе нет дубля «Осталось»" % tag)
 
 	# 7/7: текст ровно про 300 и кнопка «Забрать 300».
 	overlay.call("apply_data", _fixture(3, 3, 7, "free"))
@@ -307,6 +362,7 @@ func _check_overlay(overlay: Control, tag: String, desktop: bool) -> void:
 		"%s: «За 7/7 дней — 300 осколков»" % tag)
 	_check(claim != null and claim.text == "Забрать 300" and not claim.disabled,
 		"%s: «Забрать 300»" % tag)
+	_check(claim != null and claim.visible, "%s: «Забрать 300» виден в overlay" % tag)
 	var shard := overlay.find_child("DailyQuestsRewardShard", true, false) as TextureRect
 	_check(shard != null and shard.texture != null, "%s: иконка осколка" % tag)
 	for banned in ["1000", "3000", "5000", "оружие", "скин", "уже есть"]:

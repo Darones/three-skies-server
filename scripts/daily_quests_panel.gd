@@ -108,7 +108,7 @@ var footer: Control
 var row_nodes: Array[Control] = []
 var card_nodes: Array[Control] = []
 var ring_materials: Array[ShaderMaterial] = []
-var week_diamonds: Array[Label] = []
+var week_diamonds: Array[Control] = []
 var week_label: Label
 var status_label: Label
 var reward_chip: Panel
@@ -358,10 +358,7 @@ func _build_content() -> void:
 
 func _build_footer() -> void:
 	for i in WEEK_REQUIRED:
-		var diamond := _make_label("◆", 18 if mode == Mode.OVERLAY else 12, MUTED)
-		diamond.name = "DailyQuestsDay%d" % i
-		diamond.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		diamond.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		var diamond := _make_week_diamond(i)
 		footer.add_child(diamond)
 		week_diamonds.append(diamond)
 
@@ -757,11 +754,7 @@ func _refresh_week(done: int, total: int) -> void:
 		if is_full:
 			full_days += 1
 		var is_today := _week_day_is_today(day, i)
-		var diamond := week_diamonds[i]
-		diamond.add_theme_color_override("font_color", GOLD if is_full else MUTED)
-		diamond.modulate = Color(1.0, 1.0, 1.0, 1.0 if is_full else 0.55)
-		if is_today:
-			diamond.add_theme_color_override("font_color", Color(1.0, 0.9, 0.55))
+		_style_diamond(i, is_full, is_today)
 	week_label.text = (
 		"%d/%d полных дней" % [full_days, WEEK_REQUIRED]
 		if mode == Mode.OVERLAY
@@ -772,7 +765,6 @@ func _refresh_week(done: int, total: int) -> void:
 	var reward_text := ""
 	if full_days >= WEEK_REQUIRED:
 		reward_text = "За 7/7 дней — %d осколков" % WEEKLY_REWARD_SHARDS
-		reward_sub_label.text = "за 7/7 дней"
 	else:
 		var left_days := WEEK_REQUIRED - full_days
 		reward_text = "Осталось %d %s до %d осколков" % [
@@ -780,11 +772,11 @@ func _refresh_week(done: int, total: int) -> void:
 			_plural(left_days, "полный день", "полных дня", "полных дней"),
 			WEEKLY_REWARD_SHARDS,
 		]
-		reward_sub_label.text = "Осталось %d дн." % left_days
 	status_label.text = reward_text
 	status_label.tooltip_text = reward_text
 	week_label.tooltip_text = reward_text
 	reward_amount_label.text = str(WEEKLY_REWARD_SHARDS)
+	reward_sub_label.visible = false
 	reward_chip.tooltip_text = reward_text
 	if claimed:
 		claim_button.text = "Получено"
@@ -855,7 +847,7 @@ func _layout_content() -> void:
 		_set_child_rect(header, "DailyQuestsDiamond", Rect2(8.0, 8.0, 14.0, 18.0))
 
 	if overlay:
-		rows_layer.position = Vector2(0.0, 98.0)
+		rows_layer.position = Vector2(0.0, 92.0)
 		rows_layer.size = Vector2(width, 172.0)
 		for i in card_nodes.size():
 			var card := card_nodes[i] as Control
@@ -910,19 +902,73 @@ func _layout_inline_row(row: Control, index: int, width: float) -> void:
 	_set_child_rect(row, "DailyQuestsReward%d" % index, Rect2(width - 35.0, 18.0, 30.0, 18.0))
 
 
+func _make_week_diamond(index: int) -> Control:
+	var node := Control.new()
+	node.name = "DailyQuestsDay%d" % index
+	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var outer := ColorRect.new()
+	outer.name = "DiamondOuter"
+	outer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	node.add_child(outer)
+	var inner := ColorRect.new()
+	inner.name = "DiamondInner"
+	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	node.add_child(inner)
+	return node
+
+
+func _layout_diamond(node: Control, size: float) -> void:
+	node.size = Vector2(size, size)
+	var outer := node.get_node_or_null("DiamondOuter") as ColorRect
+	var inner := node.get_node_or_null("DiamondInner") as ColorRect
+	if outer == null or inner == null:
+		return
+	var outer_size := size * 0.72
+	var inner_size := size * 0.4
+	outer.size = Vector2(outer_size, outer_size)
+	outer.position = Vector2((size - outer_size) * 0.5, (size - outer_size) * 0.5)
+	outer.pivot_offset = outer.size * 0.5
+	outer.rotation = PI * 0.25
+	inner.size = Vector2(inner_size, inner_size)
+	inner.position = Vector2((size - inner_size) * 0.5, (size - inner_size) * 0.5)
+	inner.pivot_offset = inner.size * 0.5
+	inner.rotation = PI * 0.25
+
+
+func _style_diamond(index: int, is_full: bool, is_today: bool) -> void:
+	if index < 0 or index >= week_diamonds.size():
+		return
+	var node := week_diamonds[index]
+	var outer := node.get_node_or_null("DiamondOuter") as ColorRect
+	var inner := node.get_node_or_null("DiamondInner") as ColorRect
+	if outer == null or inner == null:
+		return
+	var dim := Color(0.04, 0.07, 0.11, 1.0)
+	if is_full:
+		outer.color = GOLD
+		inner.color = GOLD
+	elif is_today:
+		outer.color = Color(1.0, 0.9, 0.55)
+		inner.color = dim
+	else:
+		outer.color = Color(MUTED.r, MUTED.g, MUTED.b, 0.45)
+		inner.color = dim
+
+
 func _layout_footer(width: float, height: float, pad: float, overlay: bool) -> void:
-	var diamond_x := 22.0 if overlay else 6.0
-	var diamond_step := 29.0 if overlay else 14.0
-	var diamond_size := Vector2(18.0, 22.0) if overlay else Vector2(10.0, 13.0)
+	var diamond_x := 22.0 if overlay else 8.0
+	var diamond_step := 20.0 if overlay else 12.0
+	var diamond_size := 16.0 if overlay else 10.0
 	for i in week_diamonds.size():
 		var diamond := week_diamonds[i]
-		diamond.position = Vector2(diamond_x + float(i) * diamond_step, 14.0 if overlay else 8.0)
-		diamond.size = diamond_size
+		diamond.position = Vector2(diamond_x + float(i) * diamond_step, 6.0 if overlay else 10.0)
+		_layout_diamond(diamond, diamond_size)
 	if overlay:
-		week_label.position = Vector2(232.0, 2.0)
-		week_label.size = Vector2(190.0, 20.0)
-		status_label.position = Vector2(232.0, 22.0)
-		status_label.size = Vector2(190.0, 18.0)
+		week_label.position = Vector2(166.0, 8.0)
+		week_label.size = Vector2(180.0, 24.0)
+		status_label.position = Vector2(22.0, -16.0)
+		status_label.size = Vector2(768.0, 16.0)
+		status_label.add_theme_font_size_override("font_size", 12)
 		reward_chip.position = Vector2(430.0, 0.0)
 		reward_chip.size = Vector2(176.0, 44.0)
 		_set_child_rect(reward_chip, "DailyQuestsRewardShard", Rect2(12.0, 12.0, 20.0, 20.0))
@@ -931,18 +977,19 @@ func _layout_footer(width: float, height: float, pad: float, overlay: bool) -> v
 		claim_button.position = Vector2(614.0, 2.0)
 		claim_button.size = Vector2(176.0, 40.0)
 		claim_button.add_theme_font_size_override("font_size", 14)
+		claim_button.visible = true
 	else:
-		week_label.position = Vector2(104.0, 6.0)
-		week_label.size = Vector2(28.0, 18.0)
+		# Inline: только 7 точек, X/7 и чип 300. Забор — в overlay.
+		week_label.position = Vector2(92.0, 8.0)
+		week_label.size = Vector2(40.0, 18.0)
+		week_label.add_theme_font_size_override("font_size", 11)
 		status_label.visible = false
 		reward_chip.position = Vector2(136.0, 8.0)
-		reward_chip.size = Vector2(60.0, 30.0)
+		reward_chip.size = Vector2(66.0, 30.0)
 		_set_child_rect(reward_chip, "DailyQuestsRewardShard", Rect2(5.0, 7.0, 12.0, 16.0))
 		_set_child_rect(reward_chip, "DailyQuestsRewardAmount", Rect2(22.0, 4.0, 34.0, 20.0))
 		_set_child_rect(reward_chip, "DailyQuestsRewardSub", Rect2(0.0, 0.0, 0.0, 0.0))
-		claim_button.position = Vector2(width - 96.0, 8.0)
-		claim_button.size = Vector2(88.0, 30.0)
-		claim_button.add_theme_font_size_override("font_size", 10)
+		claim_button.visible = false
 	status_label.visible = overlay
 
 
