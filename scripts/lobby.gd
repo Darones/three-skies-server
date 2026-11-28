@@ -902,43 +902,50 @@ func _layout_lobby_layout() -> void:
 	_layout_hero_cards()
 
 
-## «ИГРАТЬ» 220x56 (или W*0.16), «ОБУЧЕНИЕ» 180x42 (или W*0.14).
-## Правый нижний угол: right=28, bottom=24, между кнопками 10.
+## «ИГРАТЬ» 200x56 и «ОБУЧЕНИЕ» 180x42 слева над «ПРАВИЛА» (левый край 46,
+## стек PLAY над Training, зазор 10, низ Training = H-112).
 func _layout_action_buttons() -> void:
 	if DeviceProfile.mobile_ui:
 		# The phone buttons come from the baked mobile layout (ui_layout.json).
 		return
 	if play_button == null or tutorial_button == null:
 		return
-	var viewport_width := get_viewport_rect().size.x
-	if viewport_width <= 0.0:
+	var viewport_height := get_viewport_rect().size.y
+	if viewport_height <= 0.0:
 		return
-	var right := 28.0
-	var bottom := 24.0
+	var left := 46.0
+	var play_w := 200.0
+	var play_h := 56.0
+	var tutorial_w := 180.0
+	var tutorial_h := 42.0
 	var gap := 10.0
-	var play_size := Vector2(minf(220.0, viewport_width * 0.16), 56.0)
-	var tutorial_size := Vector2(minf(180.0, viewport_width * 0.14), 42.0)
+	var gear_top := viewport_height - 102.0
+	var tutorial_bottom := gear_top - gap
+	var tutorial_top := tutorial_bottom - tutorial_h
+	var play_bottom := tutorial_top - gap
+	var play_top := play_bottom - play_h
 	for button in [play_button, tutorial_button]:
-		button.anchor_left = 1.0
+		button.anchor_left = 0.0
+		button.anchor_right = 0.0
 		button.anchor_top = 1.0
-		button.anchor_right = 1.0
 		button.anchor_bottom = 1.0
-	play_button.offset_right = -right
-	play_button.offset_left = -right - play_size.x
-	play_button.offset_bottom = -bottom - tutorial_size.y - gap
-	play_button.offset_top = play_button.offset_bottom - play_size.y
-	play_button.custom_minimum_size = play_size
-	tutorial_button.offset_right = -right
-	tutorial_button.offset_left = -right - tutorial_size.x
-	tutorial_button.offset_bottom = -bottom
-	tutorial_button.offset_top = -bottom - tutorial_size.y
-	tutorial_button.custom_minimum_size = tutorial_size
+	play_button.offset_left = left
+	play_button.offset_right = left + play_w
+	play_button.offset_top = play_top - viewport_height
+	play_button.offset_bottom = play_bottom - viewport_height
+	play_button.custom_minimum_size = Vector2(play_w, play_h)
+	tutorial_button.offset_left = left
+	tutorial_button.offset_right = left + tutorial_w
+	tutorial_button.offset_top = tutorial_top - viewport_height
+	tutorial_button.offset_bottom = tutorial_bottom - viewport_height
+	tutorial_button.custom_minimum_size = Vector2(tutorial_w, tutorial_h)
 
 
 ## Карточки героев. Область: left = table.right + 36, right = W - 28,
-## top = логотип.bottom + 18 (и не выше магазина), bottom = «ИГРАТЬ».top - 18.
-## Центр = высота области, бока = 92%, ширина = height*0.72; группа
-## центрируется, при нехватке ширины масштабируется пропорционально.
+## top = логотип.bottom + 18 (и не выше магазина), bottom = H - 24.
+## Центр = вся высота области, бока = 96%; ширины заполняют area_w:
+## side = (area_w - 2*gap)/3.15, center = 1.15*side. Группа занимает всю
+## ширину, бока затемнены modulate 0.8.
 func _layout_hero_cards() -> void:
 	if DeviceProfile.mobile_ui:
 		return
@@ -952,36 +959,34 @@ func _layout_hero_cards() -> void:
 	var shop_bottom := 0.0
 	if shard_shop_button != null and is_instance_valid(shard_shop_button):
 		shop_bottom = shard_shop_button.get_rect().end.y
-	var play_top := viewport.y - 24.0 - 56.0
-	if play_button != null and is_instance_valid(play_button):
-		play_top = play_button.get_rect().position.y
-	var buttons_top := play_top
-	if tutorial_button != null and is_instance_valid(tutorial_button):
-		# The tutorial button sits 10 px above Play; cards must stay above both.
-		buttons_top = minf(buttons_top, tutorial_button.get_rect().position.y)
 	var area_left := table_right + 36.0
 	var area_right := viewport.x - 28.0
 	var area_top := maxf(logo_bottom + 18.0, shop_bottom + 12.0)
-	var area_bottom := buttons_top - 18.0
+	# Buttons moved to the left, so the lower right is free again.
+	var area_bottom := viewport.y - 24.0
 	var area_w := area_right - area_left
 	var area_h := area_bottom - area_top
 	if area_w <= 120.0 or area_h <= 120.0:
 		return
 
 	var center_h := area_h
-	var center_w := center_h * 0.72
-	var side_h := center_h * 0.92
-	var side_w := side_h * 0.72
+	var side_h := center_h * 0.96
 	var gap := maxf(12.0, viewport.x * 0.012)
+	var available := area_w - 2.0 * gap
+	if available <= 60.0:
+		return
+	# Widths fill the whole area: side + 1.15*side + side = 3.15*side.
+	var side_w := available / 3.15
+	var center_w := side_w * 1.15
+	# Safety cap: if the chosen height ever exceeds the area, scale everything.
+	if center_h > area_h:
+		var cap := area_h / center_h
+		center_h *= cap
+		side_h *= cap
+		center_w *= cap
+		side_w *= cap
+		gap *= cap
 	var group_w := center_w + 2.0 * side_w + 2.0 * gap
-	if group_w > area_w:
-		var scale := area_w / group_w
-		center_h *= scale
-		center_w *= scale
-		side_h *= scale
-		side_w *= scale
-		gap *= scale
-		group_w = area_w
 
 	var group_left := area_left + maxf(0.0, (area_w - group_w) * 0.5)
 	var group_center_y := area_top + (area_h - center_h) * 0.5
@@ -1008,6 +1013,11 @@ func _layout_hero_cards() -> void:
 		card.offset_right = card_rect.end.x
 		card.offset_bottom = card_rect.end.y
 		card.custom_minimum_size = Vector2.ZERO
+		card.modulate = Color(0.8, 0.8, 0.8, 1.0) if index != 1 else Color(1.0, 1.0, 1.0, 1.0)
+		if index < card_images.size():
+			# Fill the wider cards: the portrait shader rounds the corners, so
+			# covering (instead of letterboxing) keeps the art edge to edge.
+			card_images[index].stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 		if index < card_portrait_materials.size():
 			var material := card_portrait_materials[index]
 			if material != null:
@@ -3870,11 +3880,11 @@ func _build_actions() -> void:
 		play_button.custom_minimum_size = Vector2(300.0, 72.0)
 		play_button.add_theme_font_size_override("font_size", _fs(26))
 	else:
-		play_button.offset_left = -248.0
-		play_button.offset_top = -132.0
-		play_button.offset_right = -28.0
-		play_button.offset_bottom = -76.0
-		play_button.custom_minimum_size = Vector2(220.0, 56.0)
+		play_button.offset_left = 46.0
+		play_button.offset_top = -220.0
+		play_button.offset_right = 246.0
+		play_button.offset_bottom = -164.0
+		play_button.custom_minimum_size = Vector2(200.0, 56.0)
 		play_button.add_theme_font_size_override("font_size", _fs(24))
 	play_button.add_theme_color_override("font_color", Color(0.16, 0.1, 0.02))
 	play_button.add_theme_color_override("font_hover_color", Color(0.1, 0.06, 0.01))
@@ -3901,10 +3911,10 @@ func _build_actions() -> void:
 		tutorial_button.custom_minimum_size = Vector2(300.0, 72.0)
 		tutorial_button.add_theme_font_size_override("font_size", _fs(22))
 	else:
-		tutorial_button.offset_left = -208.0
-		tutorial_button.offset_top = -66.0
-		tutorial_button.offset_right = -28.0
-		tutorial_button.offset_bottom = -24.0
+		tutorial_button.offset_left = 46.0
+		tutorial_button.offset_top = -154.0
+		tutorial_button.offset_right = 226.0
+		tutorial_button.offset_bottom = -112.0
 		tutorial_button.custom_minimum_size = Vector2(180.0, 42.0)
 		tutorial_button.add_theme_font_size_override("font_size", _fs(20))
 	_apply_borderless_action_styles(tutorial_button)
@@ -4045,7 +4055,12 @@ func _refresh_selection() -> void:
 			card_images[slot].modulate = Color.WHITE
 			card_names[slot].add_theme_color_override("font_color", GOLD)
 		else:
-			card_images[slot].modulate = Color(0.62, 0.65, 0.72, 1.0)
+			# Desktop already darkens the whole side card with modulate 0.8;
+			# do not stack the old 0.62 portrait dim on top of it.
+			card_images[slot].modulate = (
+				Color.WHITE if not DeviceProfile.mobile_ui
+				else Color(0.62, 0.65, 0.72, 1.0)
+			)
 			card_names[slot].add_theme_color_override("font_color", Color(0.72, 0.75, 0.82))
 	_refresh_avatar()
 	_refresh_player_profile()

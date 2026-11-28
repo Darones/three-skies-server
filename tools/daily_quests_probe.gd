@@ -16,8 +16,9 @@ extends Node3D
 ##
 ## Проверяет одобренный макет 28.11.2026:
 ##   desktop: таблица x=28/top=122.4/width=min(380, W*0.27)/высоты 48/154/200/246;
-##            логотип min(320, W*0.22) по центру; карточки в области
-##            table.right+36 .. W-28; кнопки 220x56 / 180x42 справа снизу;
+##            логотип min(320, W*0.22) по центру; карточки заполняют
+##            table.right+36 .. W-28 и H-24 (центр крупнее, бока modulate 0.8);
+##            кнопки ИГРАТЬ/ОБУЧЕНИЕ слева над правилами;
 ##            отсутствие пересечений на 1280/1366/1440/1600/1920;
 ##   mobile:  кнопку «ЗАДАНИЯ» 235x48 под menu_level_label, оверлей z=42,
 ##            панель 812 px и высоты 338/136, закрытие x / тап вне / Esc,
@@ -151,45 +152,41 @@ func _check_desktop_layout(lobby: Node, quests_panel: Control, layout: Vector2i)
 		"%s: логотип по центру X" % tag
 	)
 
-	# Кнопки правого нижнего угла.
-	var play_w := minf(220.0, view.x * 0.16)
-	_check(_near(play_rect.size.x, play_w, 0.75), "%s: ИГРАТЬ width %.1f (%.1f)" % [tag, play_rect.size.x, play_w])
+	# Кнопки: слева над «ПРАВИЛА», PLAY 200x56, ОБУЧЕНИЕ 180x42.
+	var gear_top := view.y - 102.0
+	var tutorial_bottom := gear_top - 10.0
+	var tutorial_top := tutorial_bottom - 42.0
+	var play_bottom := tutorial_top - 10.0
+	var play_top := play_bottom - 56.0
+	_check(_near(play_rect.position.x, 46.0), "%s: ИГРАТЬ left 46 (%.1f)" % [tag, play_rect.position.x])
+	_check(_near(play_rect.size.x, 200.0), "%s: ИГРАТЬ width 200 (%.1f)" % [tag, play_rect.size.x])
 	_check(_near(play_rect.size.y, 56.0), "%s: ИГРАТЬ height 56 (%.1f)" % [tag, play_rect.size.y])
-	_check(_near(play_rect.end.x, view.x - 28.0, 0.75), "%s: ИГРАТЬ right=28" % tag)
-	var tutorial_w := minf(180.0, view.x * 0.14)
-	_check(
-		_near(tutorial_rect.size.x, tutorial_w, 0.75),
-		"%s: ОБУЧЕНИЕ width %.1f (%.1f)" % [tag, tutorial_rect.size.x, tutorial_w]
-	)
+	_check(_near(play_rect.position.y, play_top), "%s: ИГРАТЬ top %.1f (%.1f)" % [tag, play_rect.position.y, play_top])
+	_check(_near(play_rect.end.y, play_bottom), "%s: ИГРАТЬ bottom %.1f (%.1f)" % [tag, play_rect.end.y, play_bottom])
+	_check(_near(tutorial_rect.position.x, 46.0), "%s: ОБУЧЕНИЕ left 46 (%.1f)" % [tag, tutorial_rect.position.x])
+	_check(_near(tutorial_rect.size.x, 180.0), "%s: ОБУЧЕНИЕ width 180 (%.1f)" % [tag, tutorial_rect.size.x])
 	_check(_near(tutorial_rect.size.y, 42.0), "%s: ОБУЧЕНИЕ height 42 (%.1f)" % [tag, tutorial_rect.size.y])
-	_check(_near(tutorial_rect.end.x, view.x - 28.0, 0.75), "%s: ОБУЧЕНИЕ right=28" % tag)
-	_check(_near(tutorial_rect.end.y, view.y - 24.0, 0.75), "%s: ОБУЧЕНИЕ bottom=24" % tag)
+	_check(_near(tutorial_rect.position.y, tutorial_top), "%s: ОБУЧЕНИЕ top %.1f (%.1f)" % [tag, tutorial_rect.position.y, tutorial_top])
+	_check(_near(tutorial_rect.end.y, tutorial_bottom), "%s: ОБУЧЕНИЕ bottom %.1f (%.1f)" % [tag, tutorial_rect.end.y, tutorial_bottom])
+	_check(_near(play_rect.end.y, tutorial_rect.position.y - 10.0, 0.75), "%s: между кнопками 10 px" % tag)
 	_check(
-		_near(play_rect.end.y, tutorial_rect.position.y - 10.0, 0.75),
-		"%s: между кнопками 10 px" % tag
+		tutorial_rect.end.y < settings_rect.position.y and tutorial_rect.end.y < rules_rect.position.y,
+		"%s: ОБУЧЕНИЕ выше шестерёнки и ПРАВИЛ" % tag
 	)
 
 	# Ожидаемая геометрия карточек по одобренной формуле.
 	var area_left := table_rect.end.x + 36.0
 	var area_right := view.x - 28.0
 	var area_top := maxf(logo_rect.end.y + 18.0, shop_rect.end.y + 12.0)
-	var area_bottom := minf(play_rect.position.y, tutorial_rect.position.y) - 18.0
+	var area_bottom := view.y - 24.0
 	var area_w := area_right - area_left
 	var area_h := area_bottom - area_top
 	var center_h := area_h
-	var center_w := center_h * 0.72
-	var side_h := center_h * 0.92
-	var side_w := side_h * 0.72
+	var side_h := center_h * 0.96
 	var gap := maxf(12.0, view.x * 0.012)
+	var side_w := (area_w - 2.0 * gap) / 3.15
+	var center_w := side_w * 1.15
 	var group_w := center_w + 2.0 * side_w + 2.0 * gap
-	if group_w > area_w:
-		var scale := area_w / group_w
-		center_h *= scale
-		center_w *= scale
-		side_h *= scale
-		side_w *= scale
-		gap *= scale
-		group_w = area_w
 	var group_left := area_left + maxf(0.0, (area_w - group_w) * 0.5)
 	var center_y := area_top + (area_h - center_h) * 0.5
 	var side_y := area_top + (area_h - side_h) * 0.5
@@ -218,6 +215,45 @@ func _check_desktop_layout(lobby: Node, quests_panel: Control, layout: Vector2i)
 	if card_rects.size() == 3:
 		var center_rect: Rect2 = card_rects[1]
 		var side_rect: Rect2 = card_rects[0]
+		var right_rect: Rect2 = card_rects[2]
+		var group_actual_w := right_rect.end.x - side_rect.position.x
+		_check(
+			group_actual_w >= area_w * 0.9,
+			"%s: группа карточек ≥90%% area_w (%.1f из %.1f)" % [tag, group_actual_w, area_w]
+		)
+		_check(
+			group_actual_w <= area_w + 0.75,
+			"%s: группа не шире area_w (%.1f <= %.1f)" % [tag, group_actual_w, area_w]
+		)
+		_check(
+			_near(side_rect.position.x, area_left, 1.0)
+				and _near(right_rect.end.x, area_right, 1.0),
+			"%s: нет пустых полос слева/справа (%.1f..%.1f)" % [tag, side_rect.position.x, right_rect.end.x]
+		)
+		_check(
+			center_rect.size.x > side_rect.size.x and center_rect.size.y > side_rect.size.y,
+			"%s: центр больше боков (%.1fx%.1f > %.1fx%.1f)" % [
+				tag, center_rect.size.x, center_rect.size.y, side_rect.size.x, side_rect.size.y
+			]
+		)
+		var mod_side := (cards[0] as Control).modulate
+		var mod_center := (cards[1] as Control).modulate
+		var mod_right := (cards[2] as Control).modulate
+		_check(
+			_near(mod_side.r, 0.8, 0.02) and _near(mod_side.g, 0.8, 0.02)
+				and _near(mod_side.b, 0.8, 0.02),
+			"%s: левая карточка modulate 0.8" % tag
+		)
+		_check(
+			_near(mod_center.r, 1.0, 0.02) and _near(mod_center.g, 1.0, 0.02)
+				and _near(mod_center.b, 1.0, 0.02),
+			"%s: центр без затемнения" % tag
+		)
+		_check(
+			_near(mod_right.r, 0.8, 0.02) and _near(mod_right.g, 0.8, 0.02)
+				and _near(mod_right.b, 0.8, 0.02),
+			"%s: правая карточка modulate 0.8" % tag
+		)
 		_check(
 			center_rect.size.x > 260.0 and center_rect.size.y > 350.0,
 			"%s: центр крупнее прежних 260x400 по ширине (%.1fx%.1f)" % [tag, center_rect.size.x, center_rect.size.y]
@@ -231,10 +267,6 @@ func _check_desktop_layout(lobby: Node, quests_panel: Control, layout: Vector2i)
 			"%s: right таблицы < card_left - 8 (%.1f < %.1f)" % [
 				tag, table_rect.end.x, side_rect.position.x - 8.0
 			]
-		)
-		_check(
-			side_rect.end.y <= play_rect.position.y - 18.0 + 0.5,
-			"%s: низ карточек над ИГРАТЬ" % tag
 		)
 
 	# Пересечения: таблица и карточки против логотипа/магазина/кнопок/профиля.
